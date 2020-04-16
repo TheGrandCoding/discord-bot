@@ -19,8 +19,7 @@ namespace DiscordBot
             var existing = GetUserOrDefault(user.Id);
             if(existing == null)
             {
-                existing = new BotUser();
-                existing.Id = user.Id;
+                existing = new BotUser(user);
                 Program.Users.Add(existing);
             }
             return existing;
@@ -35,6 +34,8 @@ namespace DiscordBot
                 return m_logging ??= Client.GetGuild(ulong.Parse(Configuration["guilds:logging"]));
             }
         }
+        static SocketGuild m_chess;
+        public static SocketGuild ChessGuild => m_chess ??= Client.GetGuild(ulong.Parse(Configuration["guilds:chess"]));
 
 
         public static OverwritePermissions ReadPerms

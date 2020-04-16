@@ -1,0 +1,38 @@
+﻿using Discord;
+using DiscordBot.WebSockets;
+using System;
+using System.Collections.Generic;
+using System.Text;
+using WebSocketSharp.Server;
+
+namespace DiscordBot.Services
+{
+    public class WSService : Service
+    {
+        public static WebSocketServer Server { get; set; }
+
+        public override void OnLoaded()
+        {
+            if (Server != null)
+                return;
+            Server = new WebSocketServer(System.Net.IPAddress.Any, 4650);
+            // Server.AddWebSocketService<Chat>("/Chat"); // add a '/Feedback' for the Pi-Hole at Marj's?
+            Server.AddWebSocketService<ChessConnection>("/chess");
+            //Server.Log.Level = LogLevel.Trace;
+            Server.Log.Output = (x, y) =>
+            {
+                Program.LogMsg($"{x.Level} {x.Message}\r\n=> {y}", LogSeverity.Info, "WS-" + x.Caller.ToString());
+            };
+            Server.Start();
+            if (Server.IsListening)
+            {
+                Program.LogMsg($"Listening on port {Server.Port} and proving WebSocket services");
+                foreach (var path in Server.WebSocketServices.Paths)
+                {
+                    Program.LogMsg("- " + path);
+                }
+            }
+        }
+
+    }
+}

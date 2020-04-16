@@ -19,7 +19,7 @@ namespace DiscordBot.MLAPI
             if (!path.StartsWith("/"))
                 path = "/" + path;
             if (path.EndsWith("/") && path != "/")
-                Program.LogMsg($"Path invalid: '{path}'", "API", LogSeverity.Warning);
+                Program.LogMsg($"Path invalid: '{path}'", source:"API", sev:LogSeverity.Warning);
             Path = path;
         }
 

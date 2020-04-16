@@ -10,7 +10,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Reflection;
 using System.Threading.Tasks;
@@ -36,7 +38,7 @@ The entire casino section has been dropped
 
         public static Handler APIHandler { get; set; }
 
-        public static Random RND { get; set; }
+        public static Random RND { get; set; } = new Random();
 
         #region Configuration Specific Settings
 
@@ -44,6 +46,12 @@ The entire casino section has been dropped
         public const string BASE_PATH = @"D:\Bot\";
 #else
         public const string BASE_PATH = @"/mnt/drive/bot/Data/";
+#endif
+
+#if DEBUG
+        public static bool BOT_DEBUG = true;
+#else
+        public static bool BOT_DEBUG = false;
 #endif
 
         #endregion
@@ -81,7 +89,7 @@ The entire casino section has been dropped
             using (Services = ConfigureServices())
             {
                 var client = Services.GetRequiredService<DiscordSocketClient>();
-
+                Program.Client = client;
                 client.Log += LogAsync;
                 client.Ready += ClientReady;
                 Commands = Services.GetRequiredService<CommandService>();
@@ -122,8 +130,8 @@ The entire casino section has been dropped
         }
 
         public static void LogMsg(Exception ex, string source) => LogMsg(new LogMessage(LogSeverity.Error, source, null, ex));
-
-        public static void LogMsg(string message, string source = "App", LogSeverity sev = LogSeverity.Info)
+        public static void LogMsg(string source, Exception ex) => LogMsg(ex, source);
+        public static void LogMsg(string message, LogSeverity sev = LogSeverity.Info, string source = "App")
             => LogMsg(new LogMessage(sev, source, message));
 
         private static Task LogAsync(LogMessage log)
@@ -134,22 +142,25 @@ The entire casino section has been dropped
 
         private static ServiceProvider ConfigureServices()
         {
-            return new ServiceCollection()
+            var coll = new ServiceCollection()
                 .AddSingleton(new DiscordSocketClient(new DiscordSocketConfig
-                {                                       
+                {
                     LogLevel = LogSeverity.Info,
-                    MessageCacheSize = 1000            
+                    MessageCacheSize = 1000
                 }))
                 .AddSingleton(new CommandService(new CommandServiceConfig
-                {                                       
+                {
                     LogLevel = LogSeverity.Debug,
-                    DefaultRunMode = RunMode.Async,    
-                    CaseSensitiveCommands = false       
+                    DefaultRunMode = RunMode.Async,
+                    CaseSensitiveCommands = false
                 }))
                 .AddSingleton<CommandHandlingService>()
                 .AddSingleton<HttpClient>()
-                .AddSingleton<InteractiveService>()
-                .BuildServiceProvider();
+                .AddSingleton<InteractiveService>();
+            foreach(var service in ReflectiveEnumerator.GetEnumerableOfType<Service>(null))
+                coll.AddSingleton(service.GetType());
+
+            return coll.BuildServiceProvider();
         }
 
 #region Save Info
@@ -160,6 +171,7 @@ The entire casino section has been dropped
         class BotSave
         {
             public List<BotUser> users;
+            public Dictionary<string, int> states;
         }
 
         public static void Load()
@@ -171,17 +183,39 @@ The entire casino section has been dropped
             }
             catch (FileNotFoundException ex)
             {
-                Program.LogMsg("Save file was not present, attempting to continue..", "Load", LogSeverity.Warning);
+                Program.LogMsg("Save file was not present, attempting to continue..", LogSeverity.Warning, "Load");
                 content = "{}";
             }
             var save = JsonConvert.DeserializeObject<BotSave>(content);
             Users = save.users ?? new List<BotUser>();
+            states = save.states ?? new Dictionary<string, int>();
         }
 
+        public static void Save(bool saveServices = false)
+        {
+            var bSave = new BotSave()
+            {
+                users = Users,
+                states = states,
+            };
+            var str = JsonConvert.SerializeObject(bSave);
+            File.WriteAllText(saveName, str);
+            if(saveServices)
+            {
+                Service.SendSave();
+            }
+        }
 
         private static async Task ClientReady()
         {
-            Service.SendReady(); // TODO: remove ready?
+            var servicesTypes = ReflectiveEnumerator.GetEnumerableOfType<Service>(null).Select(x => x.GetType());
+            var services = new List<Service>();
+            foreach(var type in servicesTypes)
+            {
+                var req = (Service)Program.Services.GetRequiredService(type);
+                services.Add(req);
+            }
+            Service.SendReady(services); // TODO: remove ready?
             try
             {
                 Load();
@@ -204,6 +238,32 @@ The entire casino section has been dropped
             }
             Service.SendLoad();
         }
+        #endregion
+
+
+        #region AntiRepeat Functions
+
+        static Dictionary<string, int> states = new Dictionary<string, int>();
+
+        /// <summary>
+        /// Ensures that functions are only called once per day (even persistant through bot restarts)
+        /// </summary>
+        /// <returns>True if function FAILS, and should NOT be called; False if function call is valid</returns>
+        public static bool DailyValidateFailed()
+        {
+            var stack = new StackTrace(1, false); // skips this function call
+            var frames = stack.GetFrames();
+            var frame = frames.First();
+            string name = $"{frame.GetMethod().Name}";
+            bool val = true;
+            if(states.TryGetValue(name, out int v))
+            {
+                val = v != DateTime.Now.DayOfYear;
+            }
+            states[name] = DateTime.Now.DayOfYear;
+            return val;
+        }
+
         #endregion
     }
 }

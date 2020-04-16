@@ -46,21 +46,23 @@ namespace DiscordBot.Services
             }
             catch (Exception ex)
             {
-                Program.LogMsg($"Critical failure on service, must exit.", name, Discord.LogSeverity.Critical);
+                Program.LogMsg($"Critical failure on service, must exit: {ex}", Discord.LogSeverity.Critical, name);
                 Environment.Exit(2);
                 return;
             }
         }
 
-        public static void SendReady()
+        public static void SendReady(List<Service> _servs)
         {
-            services = ReflectiveEnumerator.GetEnumerableOfType<Service>(null).ToList();
+            services = _servs;
             sendFunction("Ready", x => x.OnReady(Program.Client));
         }
     
         public static void SendLoad()
         {
             sendFunction("Load", x => x.OnLoaded());
-        }    
+        }
+
+        public static void SendSave() => sendFunction("Save", x => x.OnSave());
     }
 }

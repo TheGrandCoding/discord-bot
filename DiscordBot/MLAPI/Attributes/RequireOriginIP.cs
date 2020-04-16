@@ -18,7 +18,7 @@ namespace DiscordBot.MLAPI
         {
             if (!IPAddress.TryParse(input, out _ip))
             {
-                Program.LogMsg($"Unable to parse IP: '{input}'", "RqeOrIp", LogSeverity.Warning);
+                Program.LogMsg($"Unable to parse IP: '{input}'", source:"RqeOrIp", sev:LogSeverity.Warning);
             }
         }
 

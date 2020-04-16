@@ -18,6 +18,15 @@ namespace DiscordBot.MLAPI
         private string BaseFolder { get; set; }
         public APIContext Context { get; set; }
 
+        public enum SidebarType
+        {
+            None = 0,
+            Global = 1,
+            Local = 2,
+        }
+
+        protected SidebarType Sidebar { get; set; } = SidebarType.None;
+
         public List<APIPrecondition> BasePreconditions { get; protected set; } = new List<APIPrecondition>();
 
         public int StatusSent { get; set; } = 0;
@@ -32,11 +41,22 @@ namespace DiscordBot.MLAPI
         }
 
         public void RespondRaw(string obj, HttpStatusCode code)
-            => RespondRaw(obj, (int)code); 
+            => RespondRaw(obj, (int)code);
+
+        protected string LoadRedirectFile(string url)
+        {
+            Context.HTTP.Response.Headers["Location"] = url;
+            string file = LoadFile("_redirect.html");
+            file = ReplaceMatches(file, new Replacements().Add("url", url));
+            return file;
+        }
 
         protected string LoadFile(string path)
         {
-            string proper = Path.Combine(Program.BASE_PATH, "HTTP", BaseFolder, path);
+            string proper = Path.Combine(Program.BASE_PATH, "HTTP");
+            if (!path.StartsWith("_"))
+                proper = Path.Combine(proper, BaseFolder);
+            proper = Path.Combine(proper, path);
             return File.ReadAllText(proper, Encoding.UTF8);
         }
 
@@ -49,7 +69,10 @@ namespace DiscordBot.MLAPI
             while(match != null && match.Success && match.Captures.Count > 0 && match.Groups.Count > 1)
             {
                 var key = match.Groups[1].Value;
-                replace.TryGetValue(key, out var obj);
+                if(!replace.TryGetValue(key, out var obj))
+                {
+                    Program.LogMsg($"Failed to replace '{key}'", Discord.LogSeverity.Warning, $"API:{Context.Path}");
+                }
                 var value = obj?.ToString() ?? "";
                 input = input.Replace(match.Groups[0].Value, value);
                 match = REGEX.Match(input);
@@ -60,13 +83,31 @@ namespace DiscordBot.MLAPI
         protected void ReplyFile(string path, int code, Replacements replace = null)
         {
             var f = LoadFile(path);
+            f = f.Replace("<body>", $"<link rel='stylesheet' type='text/css' href='/_/css/common.css'>" +
+                $"<script src='/_/js/common.js' type='text/javascript'></script>" +
+                $"<body><REPLACE id='sidebar'/>");
             replace ??= new Replacements();
+            string sN = Sidebar == SidebarType.None ? "" : Sidebar == SidebarType.Global ? "_sidebar.html" : "sidebar.html";
+            string sC = "";
+            if (!string.IsNullOrWhiteSpace(sN))
+                sC = LoadFile(sN);
+            replace.Add("sidebar", sC);
             var replaced = ReplaceMatches(f, replace);
             RespondRaw(replaced, code);
         }
 
         protected void ReplyFile(string path, HttpStatusCode code, Replacements replace = null)
             => ReplyFile(path, (int)code, replace);
+
+        protected void HTTPError(HttpStatusCode code, string title, string message)
+        {
+            ReplyFile("_error.html", code, new Replacements()
+                .Add("error_code", code)
+                .Add("error_message", title)
+                .Add("error", message));
+        }
+
+        protected string aLink(string url, string display) => $"<a href='{url}'>{display}</a>";
 
         public virtual void BeforeExecute() { }
         public virtual void ResponseHalted(HaltExecutionException ex) { }

@@ -17,6 +17,13 @@ namespace DiscordBot.MLAPI
         public static HttpListener Server { get; set; }
         static Thread listenThread;
 
+#if WINDOWS
+        public const string LocalAPIUrl = "http://localhost:8887";
+#else
+        public const string LocalAPIUrl = "https://ml-api.uk.ms";
+#endif
+
+
         public static void Start()
         {
             Server = new HttpListener();
@@ -108,7 +115,7 @@ namespace DiscordBot.MLAPI
                 }
             }
             foreach (var keypair in Endpoints)
-                Program.LogMsg($"Loaded {keypair.Value.Count} {keypair.Key} endpoints", "API", LogSeverity.Debug);
+                Program.LogMsg($"Loaded {keypair.Value.Count} {keypair.Key} endpoints", source:"API", sev:LogSeverity.Debug);
         }
 
         static bool findToken(string t, out BotUser user, out AuthToken token)
@@ -134,10 +141,10 @@ namespace DiscordBot.MLAPI
         {
             APIContext context = new APIContext(request);
             string strToken = null;
-            var cookie = request.Request.Cookies["token"];
+            var cookie = request.Request.Cookies[AuthToken.SessionToken];
             strToken ??= cookie?.Value;
-            strToken ??= request.Request.QueryString.Get("token");
-            strToken ??= request.Request.Headers.Get("X-TOKEN");
+            strToken ??= request.Request.QueryString.Get(AuthToken.SessionToken);
+            strToken ??= request.Request.Headers.Get($"X-{AuthToken.SessionToken.ToUpper()}");
 
             if (findToken(strToken, out var user, out var t))
             {
@@ -173,7 +180,7 @@ namespace DiscordBot.MLAPI
                     }
                     if (!isValidConnection(req.Request.LocalEndPoint))
                     {
-                        Program.LogMsg($"Invalid REST connection: {req.Request.LocalEndPoint}: {req.Request.QueryString}", "RESTHandler", LogSeverity.Warning);
+                        Program.LogMsg($"Invalid REST connection: {req.Request.LocalEndPoint}: {req.Request.QueryString}", source:"RESTHandler", sev:LogSeverity.Warning);
                         req.Response.StatusCode = 400;
                         req.Response.Close();
                         continue;
@@ -188,11 +195,11 @@ namespace DiscordBot.MLAPI
                 }
                 catch (Exception ex)
                 {
-                    Program.LogMsg(ex.ToString(), "REST-New", LogSeverity.Error);
+                    Program.LogMsg(ex.ToString(), source:"REST-New", sev:LogSeverity.Error);
                     exceptions++;
                     if (exceptions > 2)
                     {
-                        Program.LogMsg($"Maximum retries met, API handler shutting down", $"REST-Listener", LogSeverity.Critical);
+                        Program.LogMsg($"Maximum retries met, API handler shutting down", source:"REST-Listener", sev:LogSeverity.Critical);
                         Listening = false;
                         break;
                     }
@@ -200,40 +207,86 @@ namespace DiscordBot.MLAPI
             }
         }
 
+        static string[] streamableTypes = new string[]
+        {
+            "text/plain", "application/json"
+        };
         static string getLoggable(APIContext context)
         {
-            return @$"Id: {context.Id}
-Date: {DateTime.Now}
+            string basic = @$"
+================================================
+Id: {context.Id}
+Method: {context.Method}
+Query: {context.Query}
 Path: {context.Request.Url.PathAndQuery}
 IP: {context.Request.RemoteEndPoint.Address}";
+            if (context.User != null)
+                basic += $"\r\nUser: {context.User.Id}/{context.User.Name}";
+            foreach(var x in context.Request.Headers.AllKeys)
+            {
+                var header = context.Request.Headers[x];
+                basic += $"\r\nh:{x}: {header}";
+            }
+            if(context.Request.HasEntityBody && streamableTypes.Any(x => context.Request.ContentType.StartsWith(x)))
+            {
+                string thing = "\r\n>>>>>>\r\n";
+                thing += context.Body;
+                thing += "\r\n<<<<<<";
+                if (thing.Length > 10)
+                    basic += thing;
+            }
+            return basic;
+        }
+
+        class RequestLogger
+        {
+            APIContext context;
+            string logFolder;
+            string logFile;
+            bool logged = false;
+            public RequestLogger(APIContext c)
+            {
+                context = c;
+                logFolder = Path.Combine(Program.BASE_PATH, "APILogs");
+                logFile = Path.Combine(logFolder, $"{DateTime.Now.ToString("yyyy-MM-dd")}.txt");
+                if (!Directory.Exists(logFolder))
+                    Directory.CreateDirectory(logFolder);
+            }
+            public void Write(string text)
+            {
+                File.AppendAllText(logFile, text);
+                logged = true;
+            }
+            public void Append(string text)
+            {
+                if (!logged)
+                    return;
+                File.AppendAllText(logFile, text);
+            }
         }
 
         static void handleRequest(APIContext context)
         {
             context.Id = Guid.NewGuid();
             var idSplit = context.Id.ToString().Split('-');
-            string logFolder = Path.Combine(Program.BASE_PATH, "APILogs", idSplit[0], idSplit[1], idSplit[2], idSplit[3]);
-            string logFile = Path.Combine(logFolder, idSplit[4] + ".txt");
-            string linkFile = Path.Combine(Program.BASE_PATH, "APILogs", $"{DateTime.Now.ToString("yyyy-MM-dd")}.log");
-            if (!Directory.Exists(logFolder))
-                Directory.CreateDirectory(logFolder);
+            var logger = new RequestLogger(context);
             Func<ErrorJson, int, string> sendError = (ErrorJson reply, int code) =>
             {
                 var str = Newtonsoft.Json.JsonConvert.SerializeObject(reply, Newtonsoft.Json.Formatting.None);
-                File.AppendAllText(logFile, $"\r\nResult: {code}\r\nMore: {str}");
+                logger.Append($"\r\nResult: {code}\r\nMore: {str}");
                 var bytes = System.Text.Encoding.UTF8.GetBytes(str);
                 context.HTTP.Response.StatusCode = code;
                 context.HTTP.Response.Close(bytes, true);
                 return "";
             };
 
-            File.WriteAllText(logFile, getLoggable(context));
-            File.AppendAllText(linkFile, $"\r\n{context.Id}");
+            if(!context.Path.Contains("/_/"))
+                logger.Write(getLoggable(context));
 
             List<APIEndpoint> endpoints;
             if(!Endpoints.TryGetValue(context.Method, out endpoints))
             {
-                File.AppendAllText(logFile, $"\r\nResult: 400\r\nMore: Method unrecognised ({context.Method})");
+                logger.Append($"\r\nResult: 400\r\nMore: Method unrecognised ({context.Method})");
                 sendError(new ErrorJson("Method is not recognised"), 400);
                 return;
             }
@@ -267,7 +320,7 @@ IP: {context.Request.RemoteEndPoint.Address}";
                     catch { }
                     commandBase.Context.HTTP.Response.StatusCode = 307;
                     commandBase.Context.HTTP.Response.Close();
-                    File.AppendAllText(logFile, $"\r\nResult: 307\r\nMore: Authentication required");
+                    logger.Append($"\r\nResult: 307\r\nMore: Authentication required");
                 }
                 else
                 {
@@ -284,11 +337,22 @@ IP: {context.Request.RemoteEndPoint.Address}";
             {
                 Program.LogMsg(ex, $"{context.Id}");
                 commandBase.ResponseHalted(ex);
-                File.AppendAllText(logFile, $"\r\nResult: 500\r\nMore: {ex.Message}");
+                logger.Append($"\r\nResult: 500\r\nMore: {ex.Message}");
                 return;
             }
-            found.Command.Function.Invoke(commandBase, found.Arguments.ToArray());
-            File.AppendAllText(logFile, $"\r\nResult: {commandBase.StatusSent}");
+            try
+            {
+                found.Command.Function.Invoke(commandBase, found.Arguments.ToArray());
+                logger.Append($"\r\nResult: {commandBase.StatusSent}");
+            }
+            catch (Exception ex)
+            {
+                try
+                {
+                    sendError(new ErrorJson(ex.Message), 500);
+                } catch { }
+                Program.LogMsg(ex, "Handler");
+            }
             commandBase.AfterExecute();
         }
     }

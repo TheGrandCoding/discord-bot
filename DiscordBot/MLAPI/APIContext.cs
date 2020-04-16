@@ -2,6 +2,7 @@
 using DiscordBot.Classes;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Net;
 using System.Text;
 
@@ -14,6 +15,51 @@ namespace DiscordBot.MLAPI
         public string Path => Request.Url.AbsolutePath;
         public string Query => Request.Url.Query;
         public string Method => Request.HttpMethod;
+
+        string m_body;
+        public string Body { get
+            {
+                if(m_body == null)
+                {
+                    using (var reader = new StreamReader(Request.InputStream, Encoding.UTF8))
+                        m_body = reader.ReadToEnd();
+                }
+                return m_body;
+            } }
+
+        Dictionary<string, string> postData = null;
+        string getFromPostData(string key)
+        {
+            if(postData == null)
+            {
+                postData = new Dictionary<string, string>();
+                if(!string.IsNullOrWhiteSpace(Body))
+                {
+                    foreach(var item in Body.Split('&', StringSplitOptions.RemoveEmptyEntries))
+                    {
+                        var pair = item.Split('=');
+                        postData[pair[0]] = Uri.UnescapeDataString(pair[1]);
+                    }
+                }
+            }
+            postData.TryGetValue(key, out var s);
+            return s;
+        }
+
+        public string GetQuery(string key)
+        {
+            var r = Request.QueryString.Get(key);
+            return r ?? getFromPostData(key);
+        }
+
+        public List<string> GetAllKeys()
+        {
+            var query = new List<string>();
+            query.AddRange(Request.QueryString.AllKeys);
+            if(postData != null)
+                query.AddRange(postData.Keys);
+            return query;
+        }
 
         public AuthToken Token { get; set; }
 

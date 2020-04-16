@@ -110,8 +110,10 @@ namespace DiscordBot.MLAPI
                 var result = pred.Check(context);
                 if (ORS.TryGetValue(pred.OR, out var orls))
                     orls.Add(result);
-                if (ANDS.TryGetValue(pred.AND, out var andls))
-                    andls.Add(result);
+                if((string.IsNullOrWhiteSpace(pred.AND) && string.IsNullOrWhiteSpace(pred.OR))
+                    || !string.IsNullOrWhiteSpace(pred.AND))
+                    if (ANDS.TryGetValue(pred.AND, out var andls))
+                        andls.Add(result);
             }
 
             foreach (var or in ORS.Keys)
@@ -138,7 +140,7 @@ namespace DiscordBot.MLAPI
             var paramaters = cmd.Function.GetParameters();
             foreach (var param in paramaters)
             {
-                var value = Request.QueryString.Get(param.Name);
+                var value = context.GetQuery(param.Name);
                 if (value == null && param.IsOptional == false)
                     return new ParseResult(cmd, $"No argument specified for required item {param.Name}");
                 if (value == null)
@@ -164,7 +166,7 @@ namespace DiscordBot.MLAPI
                 }
             }
             weight += args.Count;
-            foreach (var key in Request.QueryString.AllKeys)
+            foreach (var key in context.GetAllKeys())
             {
                 var para = paramaters.FirstOrDefault(x => x.Name == key);
                 if (para == null)

@@ -8,7 +8,15 @@ namespace DiscordBot.Classes
 {
     public class AuthToken
     {
-        public const string HTMLBypass = "htmlbypasspwd";
+        /// <summary>
+        /// Password used to login
+        /// </summary>
+        public const string LoginPassword = "htmlbypasspwd";
+        /// <summary>
+        /// Token used to identify a unique session
+        /// </summary>
+        public const string SessionToken = "session";
+
         public string Name { get; set; }
         public string Value { get; set; }
 
