@@ -1,0 +1,70 @@
+﻿using Discord;
+using Discord.WebSocket;
+using DiscordBot.Classes;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+
+namespace DiscordBot
+{
+    public partial class Program
+    {
+        public static BotUser GetUserOrDefault(ulong id)
+        {
+            return Users.FirstOrDefault(x => x.Id == id);
+        }
+        public static BotUser GetUser(IUser user)
+        {
+            var existing = GetUserOrDefault(user.Id);
+            if(existing == null)
+            {
+                existing = new BotUser();
+                existing.Id = user.Id;
+                Program.Users.Add(existing);
+            }
+            return existing;
+        }
+
+
+        static SocketGuild m_logging;
+        public static SocketGuild LoggingGuild
+        {
+            get
+            {
+                return m_logging ??= Client.GetGuild(ulong.Parse(Configuration["guilds:logging"]));
+            }
+        }
+
+
+        public static OverwritePermissions ReadPerms
+        {
+            get
+            {
+                return new OverwritePermissions(viewChannel: PermValue.Allow, sendMessages: PermValue.Deny);
+            }
+        }
+        public static OverwritePermissions WritePerms
+        {
+            get
+            {
+                return new OverwritePermissions(viewChannel: PermValue.Allow, sendMessages: PermValue.Allow, readMessageHistory: PermValue.Allow);
+            }
+        }
+        public static OverwritePermissions NoPerms
+        {
+            get
+            {
+                return new OverwritePermissions(viewChannel: PermValue.Deny, sendMessages: PermValue.Deny);
+            }
+        }
+        public static OverwritePermissions FullPerms
+        {
+            get
+            {
+                return new OverwritePermissions(PermValue.Allow, PermValue.Allow, PermValue.Allow, PermValue.Allow, PermValue.Allow, PermValue.Allow, PermValue.Allow, PermValue.Allow, PermValue.Allow, PermValue.Allow, PermValue.Allow, PermValue.Allow, PermValue.Allow, PermValue.Allow, PermValue.Allow, PermValue.Allow, PermValue.Allow, PermValue.Allow, PermValue.Allow, PermValue.Allow);
+            }
+        }
+
+    }
+}
