@@ -4,4 +4,4 @@ mono: none
 dotnet: 3.1
 script:
   - dotnet restore DiscordBot/DiscordBot.sln
-  - dotnet build DiscordBot/DiscordBot.sln
+  - dotnet build -c LinRelease -f netcoreapp3.1 DiscordBot/DiscordBot.sln
