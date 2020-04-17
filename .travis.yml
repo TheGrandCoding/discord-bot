@@ -15,5 +15,5 @@ mono: none
 dotnet: 3.0
 dist: xenial
 script:
-  - dotnet restore
-  - dotnet build
+  - dotnet restore DiscordBot/DiscordBot.sln
+  - dotnet build DiscordBot/DiscordBot.sln
