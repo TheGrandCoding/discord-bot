@@ -1,8 +1,7 @@
 language: csharp
-solution: DiscordBot.sln
+solution: DiscordBot/DiscordBot.sln
 
 jobs:
   include:
     - dotnet: 3.0
       mono: none
-    - mono: latest
