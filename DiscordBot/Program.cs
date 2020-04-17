@@ -45,7 +45,6 @@ The entire casino section has been dropped
 
 #if WINDOWS
         public const string BASE_PATH = @"D:\Bot\";
-        ;;
 #else
         public const string BASE_PATH = @"/mnt/drive/bot/Data/";
 #endif
