@@ -1,7 +1,19 @@
 language: csharp
 solution: DiscordBot/DiscordBot.sln
-
-jobs:
-  include:
-    - dotnet: 3.0
-      mono: none
+sudo: false
+env:
+  global:
+    - DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+    - DOTNET_CLI_TELEMETRY_OPTOUT: 1
+os:
+  - linux
+branches:
+  only:
+    - master
+    - dev
+mono: none
+dotnet: 3.0
+dist: xenial
+script:
+  - dotnet restore
+  - dotnet build
