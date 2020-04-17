@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Text;
 
 namespace DiscordBot
@@ -12,6 +11,7 @@ namespace DiscordBot
             [Description("All bot permissions")]
             public const string All = "bot.*";
 
+            [AssignedBy(Bot.All)]
             public static class Developer
             {
                 [Description("All bot-development permissions")]
@@ -24,6 +24,8 @@ namespace DiscordBot
                 public const string SetActualChessRating = "bot.developer.truerating";
                 [Description("View other users permissions")]
                 public const string ViewPermissions = "bot.developer.seeperms";
+                [Description("View nicknames of users via MLAPI, even if not present in said server")]
+                public const string ViewNicknamesAllServers = "bot.developer.nicknames";
             }
         }
     }

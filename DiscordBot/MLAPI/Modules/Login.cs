@@ -206,7 +206,10 @@ namespace DiscordBot.MLAPI.Modules
         public void SetLoginPswd(string pwd)
         {
             if (pwd.Length < 8 || pwd.Length > 32)
-                throw new InvalidOperationException("Password must be between 8 and 32 charactors in length");
+            {
+                RespondRaw($"Password must be between 8 and 32 charactors in length", 400);
+                return;
+            }
             var token = Context.User.Tokens.FirstOrDefault(x => x.Name == AuthToken.LoginPassword);
             if(token == null)
             {

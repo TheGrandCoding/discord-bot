@@ -22,8 +22,6 @@ namespace DiscordBot.MLAPI
 #else
         public const string LocalAPIUrl = "https://ml-api.uk.ms";
 #endif
-
-
         public static void Start()
         {
             Server = new HttpListener();
@@ -265,6 +263,23 @@ IP: {context.Request.RemoteEndPoint.Address}";
             }
         }
 
+
+        static void redirect(RequestLogger logger, APIContext context)
+        {
+            context.HTTP.Response.Headers["Location"] = "/login";
+            try
+            {
+                var cookie = new Cookie("Redirect", context.HTTP.Request.Url.PathAndQuery);
+                cookie.Path = "/";
+                cookie.Expires = DateTime.Now.AddSeconds(60);
+                context.HTTP.Response.Cookies.Add(cookie);
+            }
+            catch { }
+            context.HTTP.Response.StatusCode = 307;
+            context.HTTP.Response.Close();
+            logger.Append($"\r\nResult: 307\r\nMore: Authentication required");
+        }
+
         static void handleRequest(APIContext context)
         {
             context.Id = Guid.NewGuid();
@@ -295,9 +310,16 @@ IP: {context.Request.RemoteEndPoint.Address}";
             if(!seeker.Search())
             {
                 var list = new List<ErrorItem>();
+                bool loggedInErrors = true;
                 foreach (var er in seeker.Errors)
                 {
+                    loggedInErrors = loggedInErrors && (er.RequiresAuthentication && context.User == null);
                     list.Add(new ErrorItem(er.Command?.fullInfo(), er.ErrorReason));
+                }
+                if(loggedInErrors)
+                { // every error is solely about not being logged in
+                    redirect(logger, context);
+                    return;
                 }
                 sendError(new ErrorJson(list), 400);
                 return;
@@ -309,18 +331,7 @@ IP: {context.Request.RemoteEndPoint.Address}";
             {
                 if (context.Method == HttpMethod.Get.Method)
                 {
-                    commandBase.Context.HTTP.Response.Headers["Location"] = "/login";
-                    try
-                    {
-                        var cookie = new Cookie("Redirect", context.HTTP.Request.Url.PathAndQuery);
-                        cookie.Path = "/";
-                        cookie.Expires = DateTime.Now.AddSeconds(60);
-                        commandBase.Context.HTTP.Response.Cookies.Add(cookie);
-                    }
-                    catch { }
-                    commandBase.Context.HTTP.Response.StatusCode = 307;
-                    commandBase.Context.HTTP.Response.Close();
-                    logger.Append($"\r\nResult: 307\r\nMore: Authentication required");
+                    redirect(logger, context);
                 }
                 else
                 {
@@ -345,13 +356,22 @@ IP: {context.Request.RemoteEndPoint.Address}";
                 found.Command.Function.Invoke(commandBase, found.Arguments.ToArray());
                 logger.Append($"\r\nResult: {commandBase.StatusSent}");
             }
-            catch (Exception ex)
+            catch (TargetInvocationException outer)
             {
+                Exception ex = outer.InnerException;
                 try
                 {
                     sendError(new ErrorJson(ex.Message), 500);
                 } catch { }
                 Program.LogMsg(ex, "Handler");
+            } catch (Exception ex)
+            {
+                try
+                {
+                    sendError(new ErrorJson(ex.Message), 500);
+                }
+                catch { }
+                Program.LogMsg(ex, "ExHandler");
             }
             commandBase.AfterExecute();
         }

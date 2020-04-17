@@ -29,6 +29,8 @@ namespace DiscordBot.MLAPI.Modules.User
 
         bool canChangeNickname(SocketGuildUser oper, SocketGuildUser target)
         {
+            if (oper == null)
+                return false;
             var bUser = oper.Guild.CurrentUser;
             if (bUser.Hierarchy <= target.Hierarchy)
                 return false;
@@ -71,12 +73,12 @@ namespace DiscordBot.MLAPI.Modules.User
             foreach (var guild in Program.Client.Guilds)
             {
                 var doesexist = guild.GetUser(Context.User.Id);
-                if (doesexist != null)
+                if (doesexist != null || HasNode(Perms.Bot.Developer.ViewNicknamesAllServers))
                 {
                     TEXT += $"<tr class='guildsep'><th colspan='2'>{guild.Name}</th><tr>";
                     foreach (var usr in guild.Users.OrderByDescending(x => x.Hierarchy).ThenBy(x => x.Nickname ?? x.Username))
                     {
-                        if (usr.Id == doesexist.Id)
+                        if (usr.Id == doesexist?.Id)
                             continue;
                         string row = $"<tr>";
                         string botText = "";

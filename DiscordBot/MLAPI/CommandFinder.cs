@@ -103,6 +103,14 @@ namespace DiscordBot.MLAPI
                 }
             }
 
+            if(requiresAuth && context.User == null)
+            {
+                return new ParseResult(cmd, "Requires authentication (login)")
+                {
+                    RequiresAuthentication = true,
+                };
+            }
+
             foreach (var pred in preconditions)
             {
                 if (pred.Overriden)

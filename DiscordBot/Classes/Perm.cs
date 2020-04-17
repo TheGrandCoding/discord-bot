@@ -20,35 +20,50 @@ namespace DiscordBot.Classes
         public string Node => RawNode;
         public FieldInfo Field { get; set; }
 
-        public T GetAttribute<T>() where T : PermissionAttribute
+        public string Description => GetAttribute<Description>().Value;
+
+        T getAttrInParent<T>(Type parent) where T : PermissionAttribute
         {
-            return Field.GetCustomAttribute<T>();
+            if (parent == null)
+                return null;
+            return parent.GetCustomAttribute<T>() ?? getAttrInParent<T>(parent.DeclaringType);
         }
 
-        public bool HasAttr<T>() where T : PermissionAttribute
+        public T GetAttribute<T>(bool inherit = true) where T : PermissionAttribute
         {
-            return GetAttribute<T>() != null;
+            var attr = Field.GetCustomAttribute<T>();
+            if (attr == null && inherit)
+                attr = getAttrInParent<T>(Field.DeclaringType);
+            return attr;
+        }
+
+        public bool HasAttr<T>(bool inherit = true) where T : PermissionAttribute
+        {
+            return GetAttribute<T>(inherit) != null;
         }
 
         public Perm(FieldInfo info)
         {
+            Field = info;
             RawNode = (string)info.GetValue(null);
         }
 
         [JsonConstructor]
-        public Perm(string node)
+        private Perm(string node)
         {
             RawNode = node;
         }
     
-        bool grantsPerm(Perm wanted)
+        bool grantsPerm(Perm hasNode, out bool inherited)
         {
-            if (wanted.RawNode == Perms.All)
+            inherited = false;
+            if (this.RawNode == hasNode.RawNode)
                 return true;
-            if (wanted.RawNode == this.RawNode)
-                return true;
-            var hasSplit = this.Node.Split('.');
-            var wantedSplit = wanted.Node.Split('.');
+            if (this.RawNode == Perms.All)
+                return false;
+            inherited = true;
+            var hasSplit = hasNode.Node.Split('.');
+            var wantedSplit = this.Node.Split('.');
             for (int i = 0; i < hasSplit.Length && i < wantedSplit.Length; i++)
             {
                 if (hasSplit[i] == "*")
@@ -59,20 +74,28 @@ namespace DiscordBot.Classes
             return false;
         }
 
-        bool HasPerm(BotUser user)
+        /// <summary>
+        /// Determines whether the <see cref="BotUser"/> has this permission
+        /// </summary>
+        /// <param name="inheritsPerm">If true, user recieves perm from wildcard, and does not have it directly</param>
+        /// <returns></returns>
+        public bool UserHasPerm(BotUser user, out bool inheritsPerm)
         {
+            inheritsPerm = false;
             if (user == null)
                 return false;
             foreach(var node in user.Permissions)
             {
-                if (grantsPerm(node))
+                if (grantsPerm(node, out inheritsPerm))
                     return true;
             }
             return false;
         }
 
-        public bool HasPerm(BotCommandContext context) => HasPerm(context.BotUser);
-        public bool HasPerm(APIContext context) => HasPerm(context.User);
+        public bool UserHasPerm(BotUser user) => UserHasPerm(user, out _);
+
+        public bool HasPerm(BotCommandContext context) => UserHasPerm(context.BotUser);
+        public bool HasPerm(APIContext context) => UserHasPerm(context.User);
     
     }
 
@@ -91,8 +114,8 @@ namespace DiscordBot.Classes
         public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
         {
             var perm = (Perm)value;
-            var jobj = new JObject(perm.RawNode);
-            jobj.WriteTo(writer);
+            var jval = new JValue(perm.RawNode);
+            jval.WriteTo(writer);
         }
     }
 

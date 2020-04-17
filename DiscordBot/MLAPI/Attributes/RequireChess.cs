@@ -29,7 +29,7 @@ namespace DiscordBot.MLAPI
         public override PreconditionResult Check(APIContext context)
         {
             if (context.User == null)
-                return PreconditionResult.FromError("Must be logged in.");
+                return PreconditionResult.FromError("You must be logged in.");
             var player = Services.ChessService.Players.FirstOrDefault(x => x.ConnectedAccount == context.User.Id);
             if (player == null)
                 return PreconditionResult.FromError("Either no connected account, or not found");

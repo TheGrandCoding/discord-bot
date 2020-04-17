@@ -603,14 +603,9 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("GET"), Path("/chess/match")]
-        [AllowNonAuthed(ConditionIfAuthed = true)]
+        [RequireChess(ChessPerm.AddMatch)]
         public void MatchBase()
         {
-            if(!doesHavePerm(ChessPerm.AddMatch))
-            {
-                HTTPError(System.Net.HttpStatusCode.Unauthorized, "No permission", "You dont have permission to add matches");
-                return;
-            }
             string players = "";
             foreach (var player in Players.OrderByDescending(x => x.Rating))
             {
@@ -775,7 +770,6 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("GET"), Path("/chess/userlist")]
-        [AllowNonAuthed(ConditionIfAuthed = true)]
         [RequireChess(ChessPerm.Moderator, OR = "permission")]
         [RequirePermNode(DiscordBot.Perms.Bot.Developer.SetActualChessRating, OR = "permission")]
         public void ModifyUser()
@@ -1514,14 +1508,9 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("PUT"), Path("/chess/api/match")]
-        [AllowNonAuthed(ConditionIfAuthed = true)]
+        [RequireChess(ChessPerm.AddMatch)]
         public void AddNewMatch(int winner, int loser, bool draw = false)
         {
-            if(!doesHavePerm(ChessPerm.AddMatch))
-            {
-                RespondRaw("Error: You do not have permission to do that", 403);
-                return;
-            }
             var winP = Players.FirstOrDefault(x => x.Id == winner);
             var lossP = Players.FirstOrDefault(x => x.Id == loser);
             if(winP == null)
