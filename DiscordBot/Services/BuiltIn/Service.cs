@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading;
 
@@ -54,11 +55,12 @@ namespace DiscordBot.Services
                             Program.LogMsg($"Finished {name} in {stop.ElapsedMilliseconds}ms", Discord.LogSeverity.Verbose, srv.Name);
                         }
                     }
-                    catch (Exception ex)
+                    catch (TargetInvocationException tie)
                     {
+                        var ex = tie.InnerException;
                         Program.LogMsg(ex, srv.Name);
                         if (srv.IsCritical)
-                            throw;
+                            throw ex;
                     }
                 }
             }
