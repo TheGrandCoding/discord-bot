@@ -15,6 +15,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 
 [assembly: AssemblyVersion(DiscordBot.Program.VERSION)]
@@ -206,11 +207,11 @@ The entire casino section has been dropped
             }
         }
 
-        private static async Task ClientReady()
+        static void runStartups()
         {
             var servicesTypes = ReflectiveEnumerator.GetEnumerableOfType<Service>(null).Select(x => x.GetType());
             var services = new List<Service>();
-            foreach(var type in servicesTypes)
+            foreach (var type in servicesTypes)
             {
                 var req = (Service)Program.Services.GetRequiredService(type);
                 services.Add(req);
@@ -230,13 +231,21 @@ The entire casino section has been dropped
             {
                 APIHandler = new Handler();
                 Handler.Start();
-            } catch (Exception ex)
+            }
+            catch (Exception ex)
             {
                 LogMsg(ex, "StartHandler");
                 Environment.Exit(2);
                 return;
             }
             Service.SendLoad();
+        }
+
+        private static async Task ClientReady()
+        {
+            var th = new Thread(runStartups);
+            th.Name = "clientReady";
+            th.Start();
         }
         #endregion
 

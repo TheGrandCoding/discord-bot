@@ -18,6 +18,17 @@ namespace DiscordBot.MLAPI
         private string BaseFolder { get; set; }
         public APIContext Context { get; set; }
 
+        public bool HasNode(string perm)
+        {
+            var node = Perms.Parse(perm);
+            if(node == null)
+            {
+                Program.LogMsg($"Attempted checking invalid perm: {Context.Path}, '{perm}'");
+                return false;
+            }
+            return node.HasPerm(Context);
+        }
+
         public enum SidebarType
         {
             None = 0,
@@ -63,7 +74,7 @@ namespace DiscordBot.MLAPI
         const string matchRegex = "[<$]REPLACE id=['\"](\\S+)['\"]\\/[>$]";
         protected string ReplaceMatches(string input, Replacements replace)
         {
-            replace.Add("logged", Context.User);
+            replace.Add("user", Context.User);
             var REGEX = new Regex(matchRegex);
             var match = REGEX.Match(input);
             while(match != null && match.Success && match.Captures.Count > 0 && match.Groups.Count > 1)

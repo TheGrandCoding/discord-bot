@@ -143,6 +143,7 @@ namespace DiscordBot.MLAPI.Modules
         [AllowNonAuthed]
         public void OauthLogin(string code, string state = null)
         {
+            Program.LogMsg("Entered OauthLogin");
             // Funky C#8, disposed at end of this function
             using var client = new HttpClient();
             client.BaseAddress = new Uri("https://discordapp.com/api/");
@@ -156,6 +157,7 @@ namespace DiscordBot.MLAPI.Modules
             getToken["redirect_uri"] = $"{Handler.LocalAPIUrl}/login/oauth2";
             getToken["scope"] = "identify guilds.join";
             var tokenResponse = postJson(getToken, client, "oauth2/token").Result;
+            Program.LogMsg($"Token recieved: {tokenResponse.StatusCode}");
             var tokenContent = tokenResponse.Content.ReadAsStringAsync().Result;
             if (!tokenResponse.IsSuccessStatusCode)
             {
@@ -167,17 +169,22 @@ namespace DiscordBot.MLAPI.Modules
             var idenRequest = new HttpRequestMessage(HttpMethod.Get, "users/@me");
             idenRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
             var identityResponse = client.SendAsync(idenRequest).Result;
+            Program.LogMsg($"Identity recieved: {identityResponse.StatusCode}");
             if (!identityResponse.IsSuccessStatusCode)
             {
                 HTTPError(HttpStatusCode.BadRequest, $"Failed", $"Upstream error: {tokenResponse.StatusCode} <code>{tokenContent}</code>");
                 return;
             }
             var userInfo = JObject.Parse(identityResponse.Content.ReadAsStringAsync().Result);
+            Program.LogMsg($"Found user info: {userInfo["username"]}");
             try
             {
                 var usr = handleUserInfo(userInfo, client, token);
+                Program.LogMsg($"Handled user: {usr.Username}, {usr.Id}");
                 setSessionTokens(usr);
-                RespondRaw(LoadRedirectFile("/login/setpassword")); // we want them to set their password
+                Program.LogMsg("Set session tokens, now logged in.");
+                RespondRaw(LoadRedirectFile("/login/setpassword"), HttpStatusCode.TemporaryRedirect); // we want them to set their password
+                Program.LogMsg("Users redirected.");
             }
             catch (Exception ex)
             {

@@ -1,9 +1,13 @@
-﻿using Discord.WebSocket;
+﻿using Discord;
+using Discord.WebSocket;
+using DiscordBot.Utils;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
+using System.Threading;
 
 namespace DiscordBot.Services
 {
@@ -17,24 +21,38 @@ namespace DiscordBot.Services
 
         public virtual bool IsEnabled => true;
 
-        public virtual void OnReady(DiscordSocketClient client) { }
+        public virtual void OnReady() { }
         public virtual void OnLoaded() { }
         public virtual void OnSave() { }
 
         public int CompareTo([AllowNull] Service other)
             => this.Name.CompareTo(other.Name);
 
-        static List<Service> services;
+        protected static List<Service> zza_services;
 
-        static void sendFunction(string name, Action<Service> action)
+        static void sendFunction(object obj)
         {
+            if(!(obj is string name))
+            {
+                Program.LogMsg($"sendFunction recieved non-string input: {obj.GetType()}", LogSeverity.Warning);
+                return;
+            }
             try
             {
-                foreach (var srv in services)
+                var stop = new Stopwatch();
+                foreach (var srv in zza_services)
                 {
+                    var method = srv.GetType().GetMethod(name);
                     try
                     {
-                        action(srv);
+                        if (method.IsOverride())
+                        {
+                            Program.LogMsg($"Sending {name}", LogSeverity.Debug, srv.Name);
+                            stop.Restart();
+                            method.Invoke(srv, null);
+                            stop.Stop();
+                            Program.LogMsg($"Finished {name} in {stop.ElapsedMilliseconds}ms", Discord.LogSeverity.Verbose, srv.Name);
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -54,15 +72,15 @@ namespace DiscordBot.Services
 
         public static void SendReady(List<Service> _servs)
         {
-            services = _servs;
-            sendFunction("Ready", x => x.OnReady(Program.Client));
+            zza_services = _servs;
+            sendFunction("OnReady");
         }
     
         public static void SendLoad()
         {
-            sendFunction("Load", x => x.OnLoaded());
+            sendFunction("OnLoaded");
         }
 
-        public static void SendSave() => sendFunction("Save", x => x.OnSave());
+        public static void SendSave() => sendFunction("OnSave");
     }
 }

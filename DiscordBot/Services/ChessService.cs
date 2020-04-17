@@ -845,9 +845,9 @@ namespace DiscordBot.Services
             return content;
         }
 
-        public override void OnReady(DiscordSocketClient client)
+        public override void OnReady()
         {
-            client.UserJoined += Client_UserJoined;
+            Program.Client.UserJoined += Client_UserJoined;
         }
 
         private async Task Client_UserJoined(SocketGuildUser arg)

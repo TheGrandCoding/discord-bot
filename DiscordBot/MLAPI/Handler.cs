@@ -217,7 +217,7 @@ namespace DiscordBot.MLAPI
 ================================================
 Id: {context.Id}
 Method: {context.Method}
-Query: {context.Query}
+Date: {DateTime.Now}
 Path: {context.Request.Url.PathAndQuery}
 IP: {context.Request.RemoteEndPoint.Address}";
             if (context.User != null)

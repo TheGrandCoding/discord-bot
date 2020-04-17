@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 using Discord.Commands;
+using DiscordBot.Classes;
 
 namespace DiscordBot.MLAPI
 {
@@ -21,12 +22,14 @@ namespace DiscordBot.MLAPI
         {
             if (context.User == null)
                 return PreconditionResult.FromError("You must be logged in");
-            List<string> missing = new List<string>();
+            List<Perm> missing = new List<Perm>();
             foreach(var perm in Nodes)
             {
-                if(!Perms.HasPerm(context.User, perm))
+                var p = Perms.Parse(perm);
+                var val = p?.HasPerm(context) ?? false;
+                if(!val)
                 {
-                    missing.Add(perm);
+                    missing.Add(p);
                 }
             }
             if(missing.Count > 0)

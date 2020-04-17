@@ -47,7 +47,7 @@ namespace DiscordBot
         [Description("All permissions")]
         public const string All = "*";
 
-        public static Dictionary<string, FieldInfo> AllPermissions { get; set; } = new Dictionary<string, FieldInfo>();
+        public static Dictionary<string, Perm> AllPermissions { get; set; } = new Dictionary<string, Perm>();
 
         static List<FieldInfo> findPerms(Type mainType)
         {
@@ -59,39 +59,20 @@ namespace DiscordBot
             return fields;
         } 
 
+        public static Perm Parse(string n)
+        {
+            AllPermissions.TryGetValue(n, out var p);
+            return p;
+        }
+
         static Perms()
         {
             var fields = findPerms(typeof(Perms));
             foreach (var x in fields)
-                AllPermissions[(string)x.GetValue(null)] = x;
-        }
-    
-        static bool grantsPerm(string has, string wanted)
-        {
-            if (has == "*")
-                return true;
-            if (has == wanted)
-                return true;
-            var hasSplit = has.Split('.');
-            var wantedSplit = wanted.Split('.');
-            for (int i = 0; i < hasSplit.Length && i < wantedSplit.Length; i++)
             {
-                if (hasSplit[i] == "*")
-                    return true;
-                if (hasSplit[i] != wantedSplit[i])
-                    return false;
+                var perm = new Perm(x);
+                AllPermissions[perm.RawNode] = perm;
             }
-            return false;
-        }
-
-        public static bool HasPerm(this BotUser user, string permission)
-        {
-            foreach(var perm in user.Permissions)
-            {
-                if (grantsPerm(perm, permission))
-                    return true;
-            }
-            return false;
         }
     }
 }

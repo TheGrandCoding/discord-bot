@@ -38,7 +38,7 @@ namespace DiscordBot.Classes
         [JsonProperty("tokens")]
         public List<AuthToken> Tokens { get; set; } = new List<AuthToken>();
         [JsonProperty("perms")]
-        public List<string> Permissions { get; set; } = new List<string>();
+        public List<Perm> Permissions { get; set; } = new List<Perm>();
         [JsonProperty("builtin")]
         public bool BuiltIn { get; set; } = false;
 
