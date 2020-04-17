@@ -12,4 +12,4 @@ echo "createdump" >> .gitignore
 git add .
 git commit -a -m "Automatic forcepush of build"
 git remote add origin git@github.com:CheAle14/bot-binary.git
-git push origin HEAD:master --force
+git push origin HEAD:$0 --force
