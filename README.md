@@ -1,0 +1,1 @@
+[![Build Status](https://travis-ci.com/TheGrandCoding/discord-bot.svg?branch=master)](https://travis-ci.com/TheGrandCoding/discord-bot)
