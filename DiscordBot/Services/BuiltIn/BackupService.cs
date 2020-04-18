@@ -58,17 +58,30 @@ namespace DiscordBot.Services.BuiltIn
                 Directory.CreateDirectory(oldFolder);
 
             // Step 1: Zip and move any Latest files into Old
-            var zipTemp = Path.Combine(oldFolder, "temp.zip");
-            Program.LogMsg($"Creating zip; from: {latestFolder}, to: {zipTemp}");
             var files = Directory.GetFiles(latestFolder).Select(x => new InMemoryFile(x));
-            var compressed = GetZipArchive(files.ToList());
-            Program.LogMsg($"Writing {compressed.Length / 1000}kB to file: {zipTemp}");
-            File.WriteAllBytes(zipTemp, compressed);
-            File.Move(zipTemp, Path.Combine(oldFolder, $"{DateTime.Now.ToString("yyyy-MM-dd")}.zip"), true);
+            if(files.Count() > 0)
+            {
+                var zipTemp = Path.Combine(oldFolder, "temp.zip");
+                Program.LogMsg($"Creating zip; from: {latestFolder}, to: {zipTemp}");
+                Program.LogMsg($"Files to backup:");
+                foreach (var x in files)
+                    Program.LogMsg($"{x.FileName}: {x.Content.Length / 1000}kB");
+                var compressed = GetZipArchive(files.ToList());
+                Program.LogMsg($"Writing {compressed.Length / 1000}kB to file: {zipTemp}");
+                File.SetAttributes(zipTemp, FileAttributes.Normal);
+                File.WriteAllBytes(zipTemp, compressed);
+                Program.LogMsg($"File wrote!");
+                File.Move(zipTemp, Path.Combine(oldFolder, $"{DateTime.Now.ToString("yyyy-MM-dd")}.zip"), true);
+                File.SetAttributes(zipTemp, FileAttributes.Normal);
+            } else
+            {
+                Program.LogMsg("Skipping zip since empty");
+            }
 
             // Step 2: Copy current saves into Latest folder
             var mainSave = Path.Combine(Program.BASE_PATH, Program.saveName);
             File.Copy(mainSave, Path.Combine(latestFolder, Program.saveName), true);
+            File.SetAttributes(mainSave, FileAttributes.Normal);
             foreach(var possible in zza_services)
             {
                 if (!(possible is SavedService service))
@@ -76,7 +89,10 @@ namespace DiscordBot.Services.BuiltIn
                 var from = Path.Combine(Program.BASE_PATH, "Saves", service.SaveFile);
                 var to = Path.Combine(latestFolder, service.SaveFile);
                 if(File.Exists(from))
+                {
                     File.Copy(from, to, true);
+                    File.SetAttributes(to, FileAttributes.Normal);
+                }
             }
         }
     }
