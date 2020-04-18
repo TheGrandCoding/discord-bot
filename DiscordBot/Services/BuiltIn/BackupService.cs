@@ -62,6 +62,7 @@ namespace DiscordBot.Services.BuiltIn
             Program.LogMsg($"Creating zip; from: {latestFolder}, to: {zipTemp}");
             var files = Directory.GetFiles(latestFolder).Select(x => new InMemoryFile(x));
             var compressed = GetZipArchive(files.ToList());
+            Program.LogMsg($"Writing {compressed.Length / 1000}kB to file: {zipTemp}");
             File.WriteAllBytes(zipTemp, compressed);
             File.Move(zipTemp, Path.Combine(oldFolder, $"{DateTime.Now.ToString("yyyy-MM-dd")}.zip"), true);
 

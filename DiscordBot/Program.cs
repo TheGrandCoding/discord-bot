@@ -23,7 +23,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.0.1"; 
+        public const string VERSION = "0.0.2"; 
         public const string CHANGELOG = VERSION + @"
 == Rewrite Entire Bot
 **This entire bot has been re-written**
