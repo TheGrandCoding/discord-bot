@@ -24,6 +24,8 @@ namespace DiscordBot.MLAPI
 #endif
         public static void Start()
         {
+            if (Server != null)
+                return;
             Server = new HttpListener();
             Server.Prefixes.Add("http://+:8887/");
             Server.Start();

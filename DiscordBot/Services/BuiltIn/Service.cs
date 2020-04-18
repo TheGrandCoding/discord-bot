@@ -19,8 +19,8 @@ namespace DiscordBot.Services
         /// A critical service that errors during an event causes bot to fail and exit.
         /// </summary>
         public virtual bool IsCritical => false;
-
         public virtual bool IsEnabled => true;
+        public bool HasFailed { get; private set; }
 
         public virtual void OnReady() { }
         public virtual void OnLoaded() { }
@@ -59,6 +59,7 @@ namespace DiscordBot.Services
                     {
                         var ex = tie.InnerException;
                         Program.LogMsg(ex, srv.Name);
+                        srv.HasFailed = true;
                         if (srv.IsCritical)
                             throw ex;
                     }

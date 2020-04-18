@@ -39,7 +39,8 @@ namespace DiscordBot.Services.BuiltIn
                     continue;
                 var from = Path.Combine(Program.BASE_PATH, "Saves", service.SaveFile);
                 var to = Path.Combine(latestFolder, service.SaveFile);
-                File.Copy(from, to, true);
+                if(File.Exists(from))
+                    File.Copy(from, to, true);
             }
         }
     }
