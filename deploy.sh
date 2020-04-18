@@ -9,8 +9,6 @@ git init
 echo "*.*" >> .gitignore
 echo "!.gitignore" >> .gitignore
 echo "!*/*" >> .gitignore
-echo "DiscordBot" >> .gitignore
-echo "createdump" >> .gitignore
 git add .
 git commit -a -m "Automatic forcepush of build"
 git remote add origin git@github.com:CheAle14/bot-binary.git
