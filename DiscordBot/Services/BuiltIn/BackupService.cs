@@ -83,8 +83,14 @@ namespace DiscordBot.Services.BuiltIn
             // Step 2: Copy current saves into Latest folder
             var mainSave = Path.Combine(Program.BASE_PATH, Program.saveName);
             string mainTo = Path.Combine(latestFolder, Program.saveName);
+            Program.LogMsg($"Fixing attributes");
+            Program.LogMsg($"Existing: {File.GetAttributes(mainSave)}");
+            File.SetAttributes(mainSave, FileAttributes.Normal);
+            Program.LogMsg($"Attributes set.");
             File.Copy(mainSave, mainTo, true);
+            Program.LogMsg("Copied");
             File.SetAttributes(mainTo, FileAttributes.Normal);
+            Program.LogMsg("Copy set");
             foreach(var possible in zza_services)
             {
                 if (!(possible is SavedService service))
