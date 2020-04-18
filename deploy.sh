@@ -1,6 +1,6 @@
 echo Deploying
 
-openssl aes-256-cbc -K $encrypted_f4eabd9cea96_key -iv $encrypted_f4eabd9cea96_iv -in .travis/deploy_key.pem.enc -out .travis/deploy_key.pem -d
+openssl aes-256-cbc -K $encrypted_871d352bed27_key -iv $encrypted_871d352bed27_iv -in .travis/deploy_key.pem.enc -out .travis/deploy_key.pem -d
 eval "$(ssh-agent -s)" #start the ssh agent
 chmod 600 .travis/deploy_key.pem # this key should have push access
 ssh-add .travis/deploy_key.pem
