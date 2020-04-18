@@ -229,7 +229,7 @@ The entire casino section has been dropped
             }
             try
             {
-                APIHandler = new Handler();
+                APIHandler ??= new Handler();
                 Handler.Start();
             }
             catch (Exception ex)

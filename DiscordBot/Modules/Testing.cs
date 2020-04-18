@@ -1,5 +1,7 @@
 ﻿using Discord.Commands;
 using DiscordBot.Commands;
+using DiscordBot.Commands.Attributes;
+using DiscordBot.Services;
 using System;
 using System.Collections.Generic;
 using System.Text;

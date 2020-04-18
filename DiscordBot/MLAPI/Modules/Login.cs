@@ -183,7 +183,11 @@ namespace DiscordBot.MLAPI.Modules
                 Program.LogMsg($"Handled user: {usr.Username}, {usr.Id}");
                 setSessionTokens(usr);
                 Program.LogMsg("Set session tokens, now logged in.");
-                RespondRaw(LoadRedirectFile("/login/setpassword"), HttpStatusCode.TemporaryRedirect); // we want them to set their password
+                var pwd = usr.Tokens.FirstOrDefault(x => x.Name == AuthToken.LoginPassword);
+                string redirectTo = "/";
+                if(pwd == null)
+                    redirectTo = "/login/setpassword";
+                RespondRaw(LoadRedirectFile(redirectTo), HttpStatusCode.TemporaryRedirect);
                 Program.LogMsg("Users redirected.");
             }
             catch (Exception ex)
