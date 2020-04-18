@@ -27,6 +27,7 @@ namespace DiscordBot.Services.BuiltIn
 
             // Step 1: Zip and move any Latest files into Old
             var zipTemp = Path.Combine(oldFolder, "temp.zip");
+            Program.LogMsg($"Creating zip; from: {latestFolder}, to: {zipTemp}");
             ZipFile.CreateFromDirectory(latestFolder, zipTemp);
             File.Move(zipTemp, Path.Combine(oldFolder, $"{DateTime.Now.ToString("yyyy-MM-dd")}.zip"), true);
 
