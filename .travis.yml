@@ -1,12 +1,12 @@
 language: csharp
 solution: DiscordBot/DiscordBot.sln
-sudo: false
+mono: none
+dotnet: 3.1
+dist: xenial
 env:
   global:
   - DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
   - DOTNET_CLI_TELEMETRY_OPTOUT: 1
-os:
-- linux
 branches:
   only:
     - master
