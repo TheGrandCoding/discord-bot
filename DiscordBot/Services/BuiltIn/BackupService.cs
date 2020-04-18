@@ -70,17 +70,21 @@ namespace DiscordBot.Services.BuiltIn
                 Program.LogMsg($"Writing {compressed.Length / 1000}kB to file: {zipTemp}");
                 File.WriteAllBytes(zipTemp, compressed);
                 Program.LogMsg($"File wrote!");
-                File.Move(zipTemp, Path.Combine(oldFolder, $"{DateTime.Now.ToString("yyyy-MM-dd")}.zip"), true);
                 File.SetAttributes(zipTemp, FileAttributes.Normal);
-            } else
+                string dateName = Path.Combine(oldFolder, $"{DateTime.Now.ToString("yyyy-MM-dd")}.zip");
+                File.Move(zipTemp, dateName, true);
+                File.SetAttributes(dateName, FileAttributes.Normal);
+            }
+            else
             {
                 Program.LogMsg("Skipping zip since empty");
             }
 
             // Step 2: Copy current saves into Latest folder
             var mainSave = Path.Combine(Program.BASE_PATH, Program.saveName);
-            File.Copy(mainSave, Path.Combine(latestFolder, Program.saveName), true);
-            File.SetAttributes(mainSave, FileAttributes.Normal);
+            string mainTo = Path.Combine(latestFolder, Program.saveName);
+            File.Copy(mainSave, mainTo, true);
+            File.SetAttributes(mainTo, FileAttributes.Normal);
             foreach(var possible in zza_services)
             {
                 if (!(possible is SavedService service))
