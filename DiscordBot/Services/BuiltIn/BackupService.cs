@@ -68,7 +68,6 @@ namespace DiscordBot.Services.BuiltIn
                     Program.LogMsg($"{x.FileName}: {x.Content.Length / 1000}kB");
                 var compressed = GetZipArchive(files.ToList());
                 Program.LogMsg($"Writing {compressed.Length / 1000}kB to file: {zipTemp}");
-                File.SetAttributes(zipTemp, FileAttributes.Normal);
                 File.WriteAllBytes(zipTemp, compressed);
                 Program.LogMsg($"File wrote!");
                 File.Move(zipTemp, Path.Combine(oldFolder, $"{DateTime.Now.ToString("yyyy-MM-dd")}.zip"), true);
@@ -90,6 +89,7 @@ namespace DiscordBot.Services.BuiltIn
                 var to = Path.Combine(latestFolder, service.SaveFile);
                 if(File.Exists(from))
                 {
+                    Program.LogMsg($"Copying for {service.Name}; {File.GetAttributes(from)}");
                     File.Copy(from, to, true);
                     File.SetAttributes(to, FileAttributes.Normal);
                 }
