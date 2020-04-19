@@ -1,6 +1,7 @@
 ﻿using Discord;
 using Discord.WebSocket;
 using DiscordBot.Classes;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -67,5 +68,14 @@ namespace DiscordBot
             }
         }
 
+
+        public static string Serialise(object obj)
+        {
+            return JsonConvert.SerializeObject(obj, new DiscordConverter());
+        }
+        public static T Deserialise<T>(string input)
+        {
+            return JsonConvert.DeserializeObject<T>(input, new DiscordConverter());
+        }
     }
 }
