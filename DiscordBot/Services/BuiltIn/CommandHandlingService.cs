@@ -46,7 +46,7 @@ namespace DiscordBot.Services
             var argPos = 0;
             if (!message.HasCharPrefix(Program.Prefix, ref argPos)) return;
 
-
+            Program.LogMsg($"{message.Author} {message.Content}", LogSeverity.Info, "Cmd");
 
             var context = new BotCommandContext(_discord, message);
             await _commands.ExecuteAsync(context, argPos, _services);
@@ -54,9 +54,12 @@ namespace DiscordBot.Services
 
         public async Task CommandExecutedAsync(Optional<CommandInfo> command, ICommandContext context, IResult result)
         {
-            // command is unspecified when there was a search failure (command not found); we don't care about these errors
             if (!command.IsSpecified)
+            {
+                var builder = await Modules.Help.getBuilder(context, context.Message.Content.Substring(1)); 
+                await context.Channel.SendMessageAsync($":question: Unknown command", embed: builder.Build());
                 return;
+            }
 
             // the command was successful, we don't care about this result, unless we want to log that a command succeeded.
             if (result.IsSuccess)

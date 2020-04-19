@@ -58,7 +58,7 @@ namespace DiscordBot.Modules
             });
         }
     
-        string getParamaterText(ParameterInfo param)
+        static string getParamaterText(ParameterInfo param)
         {
             var s = $"`{param.Type.Name} {param.Name}";
             if (param.IsOptional)
@@ -80,7 +80,7 @@ namespace DiscordBot.Modules
             return s;
         }
 
-        void addCommandField(CommandInfo cmd, EmbedBuilder builder)
+        static void addCommandField(CommandInfo cmd, EmbedBuilder builder)
         {
             string s = "";
             foreach (var arg in cmd.Parameters)
@@ -93,28 +93,28 @@ namespace DiscordBot.Modules
                 string.IsNullOrWhiteSpace(s) ? "No arguments" : s, true);
         }
 
-        [Command("help")]
-        [Summary("View help on a specific command")]
-        public async Task SeeSpecificHelp([Remainder]string command)
+        public static async Task<EmbedBuilder> getBuilder(ICommandContext Context, string command)
         {
             EmbedBuilder builder = new EmbedBuilder();
             builder.Title = "Help - Commands";
-            foreach(var cmd in await cmdService.GetExecutableCommandsAsync(Context, services))
+            var cmdService = Program.Commands;
+            var services = Program.Services;
+            foreach (var cmd in await cmdService.GetExecutableCommandsAsync(Context, services))
             {
-                if(cmd.Aliases.Contains(command))
+                if (cmd.Aliases.Contains(command))
                 {
                     addCommandField(cmd, builder);
                 }
             }
             builder.Color = Color.Green;
-            if(builder.Fields.Count == 0)
+            if (builder.Fields.Count == 0)
             {
                 builder.Description = $"No commands matched `{command}`, searching Modules instead";
-                foreach(var mod in cmdService.Modules)
+                foreach (var mod in cmdService.Modules)
                 {
-                    if(mod.Name == command || mod.Aliases.Contains(command))
+                    if (mod.Name == command || mod.Aliases.Contains(command))
                     {
-                        foreach(var cmd in await mod.GetExecutableCommandsAsync(Context, services))
+                        foreach (var cmd in await mod.GetExecutableCommandsAsync(Context, services))
                         {
                             addCommandField(cmd, builder);
                         }
@@ -124,11 +124,20 @@ namespace DiscordBot.Modules
                 {
                     builder.AddField("No Commands", "Failed to find any commands you can execute in the current context");
                     builder.Color = Color.Red;
-                } else
+                }
+                else
                 {
                     builder.Color = Color.Blue;
                 }
             }
+            return builder;
+        }
+
+        [Command("help")]
+        [Summary("View help on a specific command")]
+        public async Task SeeSpecificHelp([Remainder]string command)
+        {
+            var builder = await getBuilder(Context, command);
             await ReplyAsync(embed: builder.Build());
         }
     }

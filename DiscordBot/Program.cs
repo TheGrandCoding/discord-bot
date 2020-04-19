@@ -23,13 +23,12 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.0.5"; 
+        public const string VERSION = "0.0.6"; 
         public const string CHANGELOG = VERSION + @"
-== Rewrite Entire Bot
-**This entire bot has been re-written**
-It is now in .NET Core v3.1;
-Any useless functions, modules or services have not been carried over.
-The entire casino section has been dropped
+== Voice Channel Locking
+Implement ability to lock a voice channel so only certain users may join it
+Bot will automaticaly disconnect users who are not on the list, and apply a UserLimit
+Locking will persist across bot downtime, and will preserve original channel name and userlimit settings
 ";
         public static DiscordSocketClient Client { get; set; }
         public static IConfigurationRoot Configuration { get; set; }
@@ -164,8 +163,7 @@ The entire casino section has been dropped
             return coll.BuildServiceProvider();
         }
 
-#region Save Info
-            
+        #region Save Info
         public static List<BotUser> Users { get; set; }
         public const string saveName = "new_bot_save.json";
 

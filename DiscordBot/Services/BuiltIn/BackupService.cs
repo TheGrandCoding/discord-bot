@@ -61,15 +61,10 @@ namespace DiscordBot.Services.BuiltIn
             var files = Directory.GetFiles(latestFolder).Select(x => new InMemoryFile(x));
             if(files.Count() > 0)
             {
+                Program.LogMsg($"Backing up {files.Count()} save files", Discord.LogSeverity.Verbose, "Backup");
                 var zipTemp = Path.Combine(oldFolder, "temp.zip");
-                Program.LogMsg($"Creating zip; from: {latestFolder}, to: {zipTemp}");
-                Program.LogMsg($"Files to backup:");
-                foreach (var x in files)
-                    Program.LogMsg($"{x.FileName}: {x.Content.Length / 1000}kB");
                 var compressed = GetZipArchive(files.ToList());
-                Program.LogMsg($"Writing {compressed.Length / 1000}kB to file: {zipTemp}");
                 File.WriteAllBytes(zipTemp, compressed);
-                Program.LogMsg($"File wrote!");
                 File.SetAttributes(zipTemp, FileAttributes.Normal);
                 string dateName = Path.Combine(oldFolder, $"{DateTime.Now.ToString("yyyy-MM-dd")}.zip");
                 File.Move(zipTemp, dateName, true);
@@ -83,14 +78,9 @@ namespace DiscordBot.Services.BuiltIn
             // Step 2: Copy current saves into Latest folder
             var mainSave = Path.Combine(Program.BASE_PATH, Program.saveName);
             string mainTo = Path.Combine(latestFolder, Program.saveName);
-            Program.LogMsg($"Fixing attributes");
-            Program.LogMsg($"Existing: {File.GetAttributes(mainSave)}");
             File.SetAttributes(mainSave, FileAttributes.Normal);
-            Program.LogMsg($"Attributes set.");
             File.Copy(mainSave, mainTo, true);
-            Program.LogMsg("Copied");
             File.SetAttributes(mainTo, FileAttributes.Normal);
-            Program.LogMsg("Copy set");
             foreach(var possible in zza_services)
             {
                 if (!(possible is SavedService service))
@@ -99,7 +89,6 @@ namespace DiscordBot.Services.BuiltIn
                 var to = Path.Combine(latestFolder, service.SaveFile);
                 if(File.Exists(from))
                 {
-                    Program.LogMsg($"Copying for {service.Name}; {File.GetAttributes(from)}");
                     File.Copy(from, to, true);
                     File.SetAttributes(to, FileAttributes.Normal);
                 }
