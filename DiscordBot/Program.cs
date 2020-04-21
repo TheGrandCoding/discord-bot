@@ -205,6 +205,7 @@ This is getting really fun.
 
         static void runStartups()
         {
+            Client.SetActivityAsync(new Game($"code v{Program.VERSION}", ActivityType.Playing));
             var servicesTypes = ReflectiveEnumerator.GetEnumerableOfType<Service>(null).Select(x => x.GetType());
             var services = new List<Service>();
             foreach (var type in servicesTypes)

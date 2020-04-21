@@ -85,6 +85,7 @@ namespace DiscordBot.Services
                 354,
                 361,
             } },
+            {1, new List<int>() },
         };
 
         public ITextChannel GameChannel;
@@ -258,7 +259,9 @@ namespace DiscordBot.Services
         public DateTime getLastPresentDate(ChessPlayer player, bool doLastPlayed = false)
         {
             if (player.DateLastPresent.HasValue && doLastPlayed == false)
+            {
                 return player.DateLastPresent.Value;
+            }
             DateTime lastPlayed = DateTime.MinValue;
             foreach(var otherPlayer in Players)
             {
@@ -277,6 +280,8 @@ namespace DiscordBot.Services
 
         public int FridaysBetween(DateTime first, DateTime second)
         {
+            if (first == DateTime.MinValue || second == DateTime.MinValue)
+                return -1;
             if (first > second)
             {
                 var timeFirst = new DateTime(first.Year, first.Month, first.Day);
@@ -580,15 +585,19 @@ namespace DiscordBot.Services
                 var playedFridays = FridaysBetween(lastPlayed, DateTime.Now);
                 if (lastPlayed == DateTime.MinValue)
                     playedFridays = 0;
+                bool sent = false;
                 if (presentFridays >= 3)
                 {
+                    sent = true;
                     setAutomatic(player, -15, $"Not present consc. three weeks (last {lastPresent.ToShortDateString()})");
                 }
                 if (playedFridays >= 3)
                 {
+                    sent = true;
                     setAutomatic(player, -5, $"Not played consc. three weeks (last {lastPlayed.ToShortDateString()})");
                 }
-                Thread.Sleep(1500);
+                if(sent)
+                    Thread.Sleep(1500);
             }
         }
 
@@ -647,7 +656,7 @@ namespace DiscordBot.Services
 
         void setQuarantine()
         {
-            var day = new DateTime(2020, 03, 13);
+            var day = new DateTime(2020, 03, 27);
             var afterNow = DateTime.Now.AddDays(30);
             do
             {
