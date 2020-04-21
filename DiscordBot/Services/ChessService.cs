@@ -74,18 +74,7 @@ namespace DiscordBot.Services
                 52,
                 59, // 28th Feb
                 87, // 27th march
-                87+7,
-                87+14,
-                87+21,
-                87+28,
-                87+28+7,
-                87+28+14,
-                87+28+21,
-                87+28+28,
-                87+28+28+7, // May 29th
-                101, // 10th Apr
-                108, // 17th Apr
-                115, // 24th Apr
+                // Quarantine automatically added
                 129, // 8th May
                 143,
                 150
@@ -270,24 +259,20 @@ namespace DiscordBot.Services
         {
             if (player.DateLastPresent.HasValue && doLastPlayed == false)
                 return player.DateLastPresent.Value;
-            DateTime start = GetFridayOfThisWeek();
-            var dates = new List<DateTime>()
+            DateTime lastPlayed = DateTime.MinValue;
+            foreach(var otherPlayer in Players)
             {
-                start,
-                start.AddDays(7 * -1),
-                start.AddDays(7 * -2),
-                start.AddDays(7 * -3),
-                start.AddDays(7 * -4),
-                start.AddDays(7 * -5),
-                start.AddDays(7 * -6)
-            };
-            foreach (var date in dates)
-            {
-                var entries = BuildEntries(player, date, true);
-                if (entries.Count > 0)
-                    return date;
+                foreach(var entry in otherPlayer.Days)
+                {
+                    if(entry.Date > lastPlayed)
+                    {
+                        var any = entry.Entries.Any(x => otherPlayer.Id == player.Id || x.againstId == player.Id);
+                        if (any)
+                            lastPlayed = entry.Date;
+                    }
+                }
             }
-            return start.AddDays(-100);
+            return lastPlayed;
         }
 
         public int FridaysBetween(DateTime first, DateTime second)
@@ -655,6 +640,17 @@ namespace DiscordBot.Services
             }
         }
 
+        void setQuarantine()
+        {
+            var day = new DateTime(2020, 03, 13);
+            var afterNow = DateTime.Now.AddDays(30);
+            do
+            {
+                Holidays[day.Year].Add(day.DayOfYear);
+                day = day.AddDays(1);
+            } while (day < afterNow);
+        }
+
         public void setElectedModerators()
         {
             var winners = GetModElectionResults().Where(x => x.Value > 0).OrderByDescending(x => x.Value).Take(ElectableModerators);
@@ -779,6 +775,7 @@ namespace DiscordBot.Services
                         }
                     }
                 }
+                setQuarantine();
                 SetBuiltInRoles();
                 CheckLastDatePlayed();
                 SendRatingChanges();

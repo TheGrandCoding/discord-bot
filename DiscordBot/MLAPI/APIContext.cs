@@ -3,6 +3,7 @@ using DiscordBot.Classes;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Text;
 
@@ -30,6 +31,8 @@ namespace DiscordBot.MLAPI
         Dictionary<string, string> postData = null;
         string getFromPostData(string key)
         {
+            if (!Request.HasEntityBody)
+                return null;
             if(postData == null)
             {
                 postData = new Dictionary<string, string>();
@@ -46,10 +49,26 @@ namespace DiscordBot.MLAPI
             return s;
         }
 
+        string getFromNamedRegex(string key)
+        {
+            if(Endpoint.Path is PathRegex rgx)
+            {
+                var keys = rgx.Regex.GetGroupNames();
+                if(keys.Contains(key))
+                {
+                    var val = rgx.RgxMatch.Groups[key];
+                    return val.Value;
+                }
+            }
+            return null;
+        }
+
         public string GetQuery(string key)
         {
             var r = Request.QueryString.Get(key);
-            return r ?? getFromPostData(key);
+            r ??= getFromNamedRegex(key);
+            r ??= getFromPostData(key);
+            return r;
         }
 
         public List<string> GetAllKeys()

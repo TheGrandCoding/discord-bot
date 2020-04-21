@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 namespace DiscordBot.Modules.Actions
 {
     [ReliesOnService(typeof(VCLockService))]
-    [Name("Voice Channel Locking")]
+    [Name("VC Locking")]
     public class VoiceLocks : BotModule
     {
         public VCLockService Locker { get; set; }

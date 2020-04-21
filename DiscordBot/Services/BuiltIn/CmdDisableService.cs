@@ -46,6 +46,11 @@ namespace DiscordBot.Services.BuiltIn
             reason = getDisabled(info);
             return !string.IsNullOrWhiteSpace(reason);
         }
+        public bool IsDisabled(ModuleInfo info, out string reason)
+        {
+            reason = getDisabled(info);
+            return !string.IsNullOrWhiteSpace(reason);
+        }
         public void SetDisabled(CommandInfo info, string reason)
         {
             disabled[getKey(info)] = reason;
