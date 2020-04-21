@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 namespace DiscordBot.Modules.MLAPI
 {
     [Group("mlapi")]
+    [Name("API Module")]
     public class APIModule : BotModule
     {
         [Command("password")]

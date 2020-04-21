@@ -1,4 +1,5 @@
 ﻿using Discord.Commands;
+using DiscordBot.Classes;
 using DiscordBot.Commands;
 using DiscordBot.Commands.Attributes;
 using DiscordBot.Services;
@@ -19,6 +20,7 @@ namespace DiscordBot.Modules
         }
 
         [Command("error")]
+        [DocBox("warn", "Some warning!")]
         public async Task Error()
         {
             throw new InvalidOperationException("Failed to do stuff!");

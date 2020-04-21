@@ -7,16 +7,18 @@ namespace DiscordBot.MLAPI
 {
     public class PathRegex : PathAttribute
     {
-        Regex _regex;
+        public Regex Regex { get; private set; }
+        public Match RgxMatch { get; private set; }
         public PathRegex(string regex)
         {
             Path = regex;
-            _regex = new Regex(regex);
+            Regex = new Regex(regex);
         }
 
         public override bool IsMatch(string obj)
         {
-            return _regex.IsMatch(obj);
+            RgxMatch = Regex.Match(obj);
+            return RgxMatch.Success;
         }
     }
 }

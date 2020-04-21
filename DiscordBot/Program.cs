@@ -23,12 +23,10 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.0.6"; 
+        public const string VERSION = "0.0.7"; 
         public const string CHANGELOG = VERSION + @"
-== Voice Channel Locking
-Implement ability to lock a voice channel so only certain users may join it
-Bot will automaticaly disconnect users who are not on the list, and apply a UserLimit
-Locking will persist across bot downtime, and will preserve original channel name and userlimit settings
+== Documentation via API
+Information on commands should be available via https://ml-api.uk.ms/docs
 ";
         public static DiscordSocketClient Client { get; set; }
         public static IConfigurationRoot Configuration { get; set; }

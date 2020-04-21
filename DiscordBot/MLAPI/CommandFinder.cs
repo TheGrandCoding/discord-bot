@@ -37,6 +37,7 @@ namespace DiscordBot.MLAPI
                 {
                     all.Add(kowalski_analysis(cmd));
                 }
+                context.Endpoint = null;
                 var success = all.Where(x => x.Valid).ToList();
                 if (success.Count == 1)
                 {
@@ -63,6 +64,7 @@ namespace DiscordBot.MLAPI
 
         ParseResult kowalski_analysis(APIEndpoint cmd)
         {
+            context.Endpoint = cmd; // temporary for PathRegex
             int weight = 0;
             var cnt = System.Activator.CreateInstance(cmd.Module, context);
             var commandBase = (APIBase)cnt;
