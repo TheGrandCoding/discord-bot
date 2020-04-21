@@ -549,12 +549,13 @@ namespace DiscordBot.Services
                 PendingGames.Remove(x);
         }
 
-        void setRatingAutomatic(ChessPlayer player, int newR, string reason)
+        void setAutomatic(ChessPlayer player, int changeModBy, string reason)
         {
-            int old = player.Rating;
+            int old = player.Rating + player.Modifier;
+            int newR = player.Rating + (player.Modifier + changeModBy);
             int diff = newR - old;
             string text = diff >= 0 ? $"+{diff}" : $"{diff}";
-            player.Rating = newR;
+            player.Modifier = player.Modifier + changeModBy;
             player.Notes.Add(new ChessNote(BuiltInCoAUser, $"{text}: {reason}"));
             LogAdmin(new EmbedBuilder()
                 .WithTitle("Automatic Deduction")
@@ -574,14 +575,18 @@ namespace DiscordBot.Services
                 var lastPresent = getLastPresentDate(player);
                 var lastPlayed = getLastPresentDate(player, true); // will ignore last present.
                 var presentFridays = FridaysBetween(lastPresent, DateTime.Now);
+                if (lastPresent == DateTime.MinValue)
+                    presentFridays = 0;
                 var playedFridays = FridaysBetween(lastPlayed, DateTime.Now);
+                if (lastPlayed == DateTime.MinValue)
+                    playedFridays = 0;
                 if (presentFridays >= 3)
                 {
-                    setRatingAutomatic(player, player.Rating - 15, $"Not present consc. three weeks (last {lastPresent.ToShortDateString()})");
+                    setAutomatic(player, -15, $"Not present consc. three weeks (last {lastPresent.ToShortDateString()})");
                 }
                 if (playedFridays >= 3)
                 {
-                    setRatingAutomatic(player, player.Rating - 5, $"Not played consc. three weeks (last {lastPlayed.ToShortDateString()})");
+                    setAutomatic(player, -5, $"Not played consc. three weeks (last {lastPlayed.ToShortDateString()})");
                 }
                 Thread.Sleep(1500);
             }

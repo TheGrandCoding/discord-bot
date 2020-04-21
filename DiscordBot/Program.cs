@@ -23,10 +23,10 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.0.7"; 
+        public const string VERSION = "0.0.8"; 
         public const string CHANGELOG = VERSION + @"
-== Documentation via API
-Information on commands should be available via https://ml-api.uk.ms/docs
+== Chess Maybe Fix
+This is getting really fun.
 ";
         public static DiscordSocketClient Client { get; set; }
         public static IConfigurationRoot Configuration { get; set; }
