@@ -5,6 +5,7 @@ using Discord.WebSocket;
 using DiscordBot.Classes;
 using DiscordBot.MLAPI;
 using DiscordBot.Services;
+using DiscordBot.TypeReaders;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
@@ -92,6 +93,10 @@ This is getting really fun.
                 client.Ready += ClientReady;
                 Commands = Services.GetRequiredService<CommandService>();
                 Commands.Log += LogAsync;
+                foreach (var typeReader in ReflectiveEnumerator.GetEnumerableOfType<BotTypeReader>(null))
+                {
+                    Commands.AddTypeReader(typeReader.Reads, typeReader);
+                }
 
                 // Tokens should be considered secret data and never hard-coded.
                 // We can read from the environment variable to avoid hardcoding.
@@ -157,7 +162,6 @@ This is getting really fun.
                 .AddSingleton<InteractiveService>();
             foreach(var service in ReflectiveEnumerator.GetEnumerableOfType<Service>(null))
                 coll.AddSingleton(service.GetType());
-
             return coll.BuildServiceProvider();
         }
 
