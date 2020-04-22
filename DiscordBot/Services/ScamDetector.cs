@@ -28,6 +28,60 @@ namespace DiscordBot.Services
         public List<Scam> Scams = new List<Scam>();
         public DateTime LastKnown { get; set; }
 
+        private static void TesseractDownloadLangFile(String folder, String lang)
+        {
+            //String subfolderName = "tessdata";
+            //String folderName = System.IO.Path.Combine(folder, subfolderName);
+            String folderName = folder;
+            if (!System.IO.Directory.Exists(folderName))
+            {
+                System.IO.Directory.CreateDirectory(folderName);
+            }
+            String dest = System.IO.Path.Combine(folderName, String.Format("{0}.traineddata", lang));
+            if (!System.IO.File.Exists(dest))
+                using (System.Net.WebClient webclient = new System.Net.WebClient())
+                {
+                    String source = Emgu.CV.OCR.Tesseract.GetLangFileUrl(lang);
+
+                    Console.WriteLine(String.Format("Downloading file from '{0}' to '{1}'", source, dest));
+                    webclient.DownloadFile(source, dest);
+                    Console.WriteLine(String.Format("Download completed"));
+                }
+        }
+
+        private bool InitOcr(String path, String lang, OcrEngineMode mode)
+        {
+            try
+            {
+                if (_ocr != null)
+                {
+                    _ocr.Dispose();
+                    _ocr = null;
+                }
+
+                if (String.IsNullOrEmpty(path))
+                    path = Emgu.CV.OCR.Tesseract.DefaultTesseractDirectory;
+
+                TesseractDownloadLangFile(path, lang);
+                TesseractDownloadLangFile(path, "osd"); //script orientation detection
+                /*
+                String pathFinal = path.Length == 0 || path.Substring(path.Length - 1, 1).Equals(Path.DirectorySeparatorChar.ToString())
+                    ? path
+                    : String.Format("{0}{1}", path, System.IO.Path.DirectorySeparatorChar);
+                */
+                _ocr = new Tesseract(path, lang, mode);
+
+                Console.WriteLine(String.Format("{0} : {1} (tesseract version {2})", lang, mode.ToString(), Emgu.CV.OCR.Tesseract.VersionString));
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _ocr = null;
+                Program.LogMsg(ex, "Attempt");
+                return false;
+            }
+        }
+
         public List<ScamResult> getPossibleScams(string testImagePath, out string[] words)
         {
             words = null;
@@ -65,8 +119,9 @@ namespace DiscordBot.Services
 
         public override void OnReady()
         {
-            _ocr = new Tesseract(Folder, "eng", OcrEngineMode.TesseractLstmCombined);
-            _ocr.SetVariable("tessedit_char_whitelist", "ABCDEFGHIJKLMNOPQRSTUVWXYZ-1234567890");
+            if(!InitOcr(Folder, "eng", OcrEngineMode.TesseractLstmCombined))
+                throw new Exception("Failed to initialised ScamDetector.");
+            //_ocr.SetVariable("tessedit_char_whitelist", "ABCDEFGHIJKLMNOPQRSTUVWXYZ-1234567890");
             var save = Program.Deserialise<SaveInfo>(ReadSave());
             Scams = save.scams ?? new List<Scam>();
             var dlt = DateTime.Now.IsDaylightSavingTime();
