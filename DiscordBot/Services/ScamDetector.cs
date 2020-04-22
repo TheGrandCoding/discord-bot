@@ -143,7 +143,12 @@ namespace DiscordBot.Services
                 refreshToken: Program.Configuration["tokens:reddit:refresh"],
                 appSecret: Program.Configuration["tokens:reddit:secret"]);
             Program.LogMsg($"Logged in as {reddit.Account.Me.Name}", LogSeverity.Warning);
-            subReddit = reddit.Subreddit("mlapi").About();
+#if DEBUG
+            string sub = "mlapi";
+#else
+            string sub = "DiscordApp";
+#endif
+            subReddit = reddit.Subreddit(sub).About();
             subReddit.Posts.GetNew();
             subReddit.Posts.NewUpdated += Posts_NewUpdated;
             subReddit.Posts.MonitorNew();

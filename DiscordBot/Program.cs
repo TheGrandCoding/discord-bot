@@ -24,10 +24,12 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.0.9"; 
+        public const string VERSION = "0.0.10"; 
         public const string CHANGELOG = VERSION + @"
 == Image Recognition
 Attempt some fun OCR.
+== Reddit Integration
+Now link it with reddit
 ";
         public static DiscordSocketClient Client { get; set; }
         public static IConfigurationRoot Configuration { get; set; }
