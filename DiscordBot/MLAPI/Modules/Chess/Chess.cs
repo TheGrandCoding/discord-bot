@@ -17,7 +17,6 @@ namespace DiscordBot.MLAPI.Modules
 {
     public partial class Chess : ChessBase
     {
-        public const int varC = 200;
         public static ChessService ChessS;
         public Chess(APIContext context) : base(context, "chess")
         {
@@ -214,7 +213,7 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("GET"), Path("/chess")]
-        [AllowNonAuthed(ConditionIfAuthed = true)]
+        //[AllowNonAuthed(ConditionIfAuthed = true)] // Possible privacy implications?
         public void Base()
         {
             string TABLE = "";
@@ -292,7 +291,7 @@ namespace DiscordBot.MLAPI.Modules
         [Method("GET"), Path("/chess/register")]
         public void MultiplePresent()
         {
-            if(!doesHavePerm(ChessPerm.ClassRoom))
+            if(!doesHavePerm(ChessPerm.ClassRoom)) // don't replace with Attribute - does specific checks
             {
                 HTTPError(System.Net.HttpStatusCode.Forbidden, "Cannot Take Register", "Must have permissin and be valid time");
                 return;

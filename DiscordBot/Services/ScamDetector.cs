@@ -13,6 +13,7 @@ using System.Net;
 using System.Collections.Immutable;
 using Reddit;
 using Reddit.Controllers;
+using Reddit.Inputs.Search;
 
 namespace DiscordBot.Services
 {
@@ -23,7 +24,8 @@ namespace DiscordBot.Services
         private RedditClient reddit;
         private Reddit.Controllers.Subreddit subReddit;
         bool isMod = false;
-        private IUser Temp => Program.Client.GetUser(144462654201790464);
+
+        private IUser adminManual;
 
         public List<Scam> Scams = new List<Scam>();
         public DateTime LastKnown { get; set; }
@@ -119,6 +121,9 @@ namespace DiscordBot.Services
 
         public override void OnReady()
         {
+            adminManual ??= Program.Client.GetApplicationInfoAsync().Result.Owner;
+            if (_ocr != null)
+                return; // already initiallised.
             if(!InitOcr(Folder, "eng", OcrEngineMode.TesseractLstmCombined))
                 throw new Exception("Failed to initialised ScamDetector.");
             //_ocr.SetVariable("tessedit_char_whitelist", "ABCDEFGHIJKLMNOPQRSTUVWXYZ-1234567890");
@@ -144,13 +149,47 @@ namespace DiscordBot.Services
             subReddit.Posts.MonitorNew();
             isMod = subReddit.Moderators.Any(x => x.Id == reddit.Account.Me.Id);
             Program.LogMsg($"Monitoring {subReddit.Name}, {(isMod ? "is a moderator" : "not a mod")}");
+            checkDeletePosts();
+            Program.Client.ReactionAdded += Client_ReactionAdded;
+        }
 
+        private async System.Threading.Tasks.Task Client_ReactionAdded(Cacheable<IUserMessage, ulong> arg1, Discord.WebSocket.ISocketMessageChannel arg2, Discord.WebSocket.SocketReaction arg3)
+        {
+            var msg = await arg1.GetOrDownloadAsync();
+            msg ??= (IUserMessage)(await arg2.GetMessageAsync(arg1.Id));
+            if (msg == null)
+                return;
+            if (msg.Author.Id != Program.Client.CurrentUser.Id)
+                return;
+            var embd = msg.Embeds.FirstOrDefault();
+            if (embd == null || string.IsNullOrWhiteSpace(embd.Url) || !embd.Url.Contains("reddit.com"))
+                return;
+            makeCommentOnPost(embd.Url, "Hi!  \r\nIn case you didn't know, an image in your post seems to be of a common DM scam, beware!" +
+                "\r\n\r\n" + embd.Description);
+            await msg.ModifyAsync(x =>
+            {
+                x.Embed = embd.ToEmbedBuilder().AddField("Sent", "Comment Sent", true).Build();
+            });
+        }
+
+        void checkDeletePosts()
+        {
+            var hist = reddit.Account.Me.GetCommentHistory(sort: "new");
+            foreach(var msg in hist.Take(25))
+            {
+                if(msg.Score <= 0)
+                {
+                    Program.LogMsg($"Removing {msg.Permalink} on {msg.Root.Permalink} as score is {msg.Score}");
+                    msg.Delete();
+                }
+            }
         }
 
         private void Posts_NewUpdated(object sender, Reddit.Controllers.EventArgs.PostsUpdateEventArgs e)
         {
             using(var client = new WebClient())
             {
+                reddit.Account.Messages.MarkAllRead();
                 foreach(var post in e.NewPosts)
                 {
                     if (post.Created.ToUniversalTime() < LastKnown.ToUniversalTime())
@@ -188,6 +227,34 @@ namespace DiscordBot.Services
                 }
             }
             return urls;
+        }
+
+        Scam testShouldPost = new Scam()
+        {
+            Name = "",
+            Reason = "",
+            Text = new string[]
+            {
+                "Is this real?", "Is this a scam?",
+                "Guys this is a scam right?",
+                "I feel like this is fake and probably a scam. Has anyone gotten this?",
+                "scam bot. is it?",
+                "is a scam",
+                "is it?",
+            }
+        };
+        bool shouldSendRedditPost(Post post)
+        { // this assumes we know its a scam, but are they asking if it is?
+            var r = testShouldPost.PercentageMatch(post.Title.ToLower().Split(' '));
+#if DEBUG
+            if (post.Subreddit != "mlapi")
+                return false;
+#endif
+#if !DEBUG
+            // Temporarily refuse all comments - will require manual approval.
+            return false;
+#endif
+            return r >= 0.9;
         }
 
         void handleRedditPost(Post post, WebClient client)
@@ -230,10 +297,61 @@ namespace DiscordBot.Services
                 .WithUrl($"https://www.reddit.com{post.Permalink}");
             if (post is LinkPost ps && isImageUrl(new Uri(ps.URL)))
                 builder.ThumbnailUrl = ps.URL;
-            Temp.SendMessageAsync(embed: builder.Build());
+            bool sendReddit = shouldSendRedditPost(post);
+            builder.AddField($"Sending to reddit?", sendReddit ? "Yes" : "No");
+            var r = adminManual.SendMessageAsync(embed: builder.Build()).Result;
+            if(sendReddit)
+            {
+                makeCommentOnPost(post, $"Hi!  \r\nThe image(s) you've submitted appear to contain a common DM scam" +
+                $"\r\n\r\n{mkdown}");
+            }
+        }
 
-            post.Reply($"Hi!  \r\nThe images you have submitted appear to contain a scam  \r\n" +
-                $"Information about it is below:\r\n\r\n{mkdown}").Submit();
+        public Post FromPermalink(string permalink)
+        {
+            // Get the ID from the permalink, then preface it with "t3_" to convert it to a Reddit fullname.  --Kris
+            Match match = Regex.Match(permalink, @"\/comments\/([a-z0-9]+)\/");
+
+            string postFullname = "t3_" + (match != null && match.Groups != null && match.Groups.Count >= 2
+                ? match.Groups[1].Value
+                : "");
+            if (postFullname.Equals("t3_"))
+            {
+                throw new Exception("Unable to extract ID from permalink.");
+            }
+
+            // Retrieve the post and return the result.  --Kris
+            return reddit.Post(postFullname).About();
+        }
+
+        void makeCommentOnPost(string link, string content)
+        {
+            var post = FromPermalink(link);
+            if (post == null)
+                throw new NullReferenceException("Unable to find post with that URL");
+            makeCommentOnPost(post, content);
+        }
+
+        Comment getPreviousComment(Post post)
+        {
+            var history = reddit.Account.Me.GetCommentHistory().Take(25);
+            foreach(var pst in history)
+            {
+                if (pst.Root.Id == post.Id)
+                    return pst;
+            }
+            return null;
+        }
+
+        void makeCommentOnPost(Post post, string content)
+        {
+            var previous = getPreviousComment(post);
+            if(previous != null)
+            {
+                previous.Edit(content);
+                return;
+            }
+            post.Reply(content);
             if (isMod)
                 post.DistinguishAsync("yes");
         }
@@ -269,6 +387,7 @@ namespace DiscordBot.Services
         {
             Text = text.Select(x => x.ToLower()).ToArray();
         }
+        public Scam () { }
 
         int numWordsContained(string[] words, string[] TestWords)
         {
