@@ -7,6 +7,12 @@ using System.Text;
 using Emgu.CV.OCR;
 using System.Text.RegularExpressions;
 using Emgu.CV;
+using Discord;
+using System.Threading;
+using System.Net;
+using System.Collections.Immutable;
+using Reddit;
+using Reddit.Controllers;
 
 namespace DiscordBot.Services
 {
@@ -14,8 +20,13 @@ namespace DiscordBot.Services
     {
         public string Folder => Path.Combine(Program.BASE_PATH, "tessdata");
         private Tesseract _ocr;
+        private RedditClient reddit;
+        private Reddit.Controllers.Subreddit subReddit;
+        bool isMod = false;
+        private IUser Temp => Program.Client.GetUser(144462654201790464);
 
         public List<Scam> Scams = new List<Scam>();
+        public DateTime LastKnown { get; set; }
 
         public List<ScamResult> getPossibleScams(string testImagePath, out string[] words)
         {
@@ -56,12 +67,130 @@ namespace DiscordBot.Services
         {
             _ocr = new Tesseract(Folder, "eng", OcrEngineMode.TesseractLstmCombined);
             _ocr.SetVariable("tessedit_char_whitelist", "ABCDEFGHIJKLMNOPQRSTUVWXYZ-1234567890");
-            Scams = Program.Deserialise<List<Scam>>(ReadSave("[]"));
+            var save = Program.Deserialise<SaveInfo>(ReadSave());
+            Scams = save.scams ?? new List<Scam>();
+            var dlt = DateTime.Now.IsDaylightSavingTime();
+            LastKnown = save.lastChanged ?? DateTime.Now.ToUniversalTime();
+
+#if WINDOWS
+            string uAgent = $"windows:mlapi-ds:v{Program.VERSION}";
+#else
+            string uAgent = $"linux:mlapi-ds:v{Program.VERSION}";
+#endif
+
+            reddit = new RedditClient(
+                appId: Program.Configuration["tokens:reddit:id"],
+                refreshToken: Program.Configuration["tokens:reddit:refresh"],
+                appSecret: Program.Configuration["tokens:reddit:secret"]);
+            Program.LogMsg($"Logged in as {reddit.Account.Me.Name}", LogSeverity.Warning);
+            subReddit = reddit.Subreddit("mlapi").About();
+            subReddit.Posts.GetNew();
+            subReddit.Posts.NewUpdated += Posts_NewUpdated;
+            subReddit.Posts.MonitorNew();
+            isMod = subReddit.Moderators.Any(x => x.Id == reddit.Account.Me.Id);
+            Program.LogMsg($"Monitoring {subReddit.Name}, {(isMod ? "is a moderator" : "not a mod")}");
+
+        }
+
+        private void Posts_NewUpdated(object sender, Reddit.Controllers.EventArgs.PostsUpdateEventArgs e)
+        {
+            using(var client = new WebClient())
+            {
+                foreach(var post in e.NewPosts)
+                {
+                    if (post.Created.ToUniversalTime() < LastKnown.ToUniversalTime())
+                        continue;
+                    handleRedditPost(post, client);
+                    if (post.Created > LastKnown)
+                        LastKnown = post.Created;
+                }
+            }
+        }
+
+        private string[] images = new string[]
+        {
+            "jpg", "jpeg", "png"
+        };
+        bool isImageUrl(Uri url)
+        {
+            var filename = Path.GetFileName(url.AbsolutePath);
+            var extension = filename.Substring(filename.LastIndexOf('.') + 1);
+            return images.Contains(extension);
+        }
+
+        const string pattern = @"https?:\/\/[\w\-%\.\/\=\?\&]+";
+        List<Uri> getImageUrls(Post post)
+        {
+            var urls = new List<Uri>();
+            if (post is LinkPost link)
+                return new List<Uri>() { new Uri(link.URL) };
+            if(post is SelfPost self)
+            {
+                var matches = Regex.Matches(self.SelfText, pattern);
+                foreach(Match mtch in matches)
+                {
+                    urls.Add(new Uri(mtch.Groups[0].Value));
+                }
+            }
+            return urls;
+        }
+
+        void handleRedditPost(Post post, WebClient client)
+        {
+            var uris = getImageUrls(post);
+            var images = uris.Where(x => isImageUrl(x)).ToList();
+            if (images.Count == 0)
+                return;
+            Program.LogMsg($"{post.Created} {post.Author}: {post.Title}", LogSeverity.Warning);
+            var foundScams = new List<ScamResult>();
+            foreach (var x in images)
+            {
+                Program.LogMsg($"Finding scams for {x}");
+                var filename = Path.GetFileName(x.AbsolutePath);
+                var temp = Path.Combine(Path.GetTempPath(), filename);
+                client.DownloadFile(x, temp);
+                var scams = getPossibleScams(temp, out var words);
+                File.WriteAllLines(Path.Combine(Path.GetTempPath(), $"words_{filename}.txt"), words);
+                var isScam = scams.Any(x => x.Confidence >= 0.9);
+                if (isScam)
+                {
+                    foundScams = scams.Where(x => x.Confidence >= 0.9).ToList();
+                    break; // dont bother looking at more images
+                }
+            }
+            if (foundScams.Count == 0)
+                return;
+
+            string mkdown = $"";
+            foreach (var scam in foundScams)
+            {
+                mkdown += $"{scam.Scam.Name}";
+                if (scam.Scam.Reason != null)
+                    mkdown += ": " + scam.Scam.Reason;
+                mkdown += "\n\n";
+            }
+            EmbedBuilder builder = new EmbedBuilder()
+                .WithTitle("Looks like a scam!")
+                .WithDescription(mkdown)
+                .WithUrl($"https://www.reddit.com{post.Permalink}");
+            if (post is LinkPost ps && isImageUrl(new Uri(ps.URL)))
+                builder.ThumbnailUrl = ps.URL;
+            Temp.SendMessageAsync(embed: builder.Build());
+
+            post.Reply($"Hi!  \r\nThe images you have submitted appear to contain a scam  \r\n" +
+                $"Information about it is below:\r\n\r\n{mkdown}").Submit();
+            if (isMod)
+                post.DistinguishAsync("yes");
         }
 
         public override string GenerateSave()
         {
-            return Program.Serialise(Scams);
+            var sve = new SaveInfo()
+            {
+                scams = Scams,
+                lastChanged = LastKnown
+            };
+            return Program.Serialise(sve);
         }
     }
 
@@ -77,6 +206,8 @@ namespace DiscordBot.Services
         public string[] Text { get; set; }
         [JsonProperty("name")]
         public string Name { get; set; }
+        [JsonProperty("reason", NullValueHandling = NullValueHandling.Include)]
+        public string Reason { get; set; }
 
         [JsonConstructor]
         private Scam(string[] text)
@@ -124,16 +255,19 @@ namespace DiscordBot.Services
             {
                 var split = possible.Split(' ');
                 var contains = numWordsContained(words, split);
-                Program.LogMsg($"{Name} {i} contains: {contains}");
                 var inOrder = numPhrasesInOrder(words.ToList(), split);
-                Program.LogMsg($"{Name} {i} order: {contains}");
                 var total = contains + inOrder;
                 var perc = (double)total / (split.Length * 2);
-                Program.LogMsg($"{Name} {i++} {(perc * 100):00}%");
                 if (perc > highest)
                     highest = perc;
             }
             return highest;
         }
+    }
+
+    public class SaveInfo
+    {
+        public List<Scam> scams;
+        public DateTime? lastChanged;
     }
 }
