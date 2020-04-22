@@ -3,6 +3,7 @@ using Discord.WebSocket;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.ComponentModel;
 using System.Text;
 using System.Threading.Tasks;
@@ -86,6 +87,7 @@ namespace DiscordBot.Classes
         {
             return ((IUser)FirstValidUser).GetOrCreateDMChannelAsync(options);
         }
+        public IImmutableSet<ClientType> ActiveClients => ((IUser)FirstValidUser).ActiveClients;
         #endregion
 
         [JsonProperty("oname", NullValueHandling = NullValueHandling.Ignore)]
@@ -95,5 +97,6 @@ namespace DiscordBot.Classes
         public ushort? OverrideDiscriminator { get; set; } = null;
 
         public string Name => OverrideName ?? FirstValidUser?.Nickname ?? Username ?? Id.ToString();
+
     }
 }

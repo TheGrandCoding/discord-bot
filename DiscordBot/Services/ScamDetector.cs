@@ -4,36 +4,39 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using Emgu.CV.OCR;
 using System.Text.RegularExpressions;
-using Tesseract;
+using Emgu.CV;
 
 namespace DiscordBot.Services
 {
     public class ScamDetector : SavedService
     {
         public string Folder => Path.Combine(Program.BASE_PATH, "tessdata");
+        private Tesseract _ocr;
 
         public List<Scam> Scams = new List<Scam>();
 
-        public List<ScamResult> getPossibleScams(string testImagePath, out string[] words, out float confidence)
+        public List<ScamResult> getPossibleScams(string testImagePath, out string[] words)
         {
             words = null;
-            confidence = 0;
-            Page page;
+            StringBuilder strBuilder = new StringBuilder();
             try
             {
-                var engine = new TesseractEngine(Folder, "eng", EngineMode.Default);
-                var img = Pix.LoadFromFile(testImagePath);
-                page = engine.Process(img);
+                var pix = new Pix(new Mat(testImagePath));
+                _ocr.SetImage(pix);
+                _ocr.Recognize();
+                var chrs = _ocr.GetCharacters();
+                for (int i = 0; i < chrs.Length; i++)
+                    strBuilder.Append(chrs[i].Text);
             }
             catch (Exception e)
             {
                 Program.LogMsg("Unexpected Error: " + e.ToString(), Discord.LogSeverity.Error, "Scam");
                 return null;
             }
-            var text = page.GetText().ToLower();
+            var text = strBuilder.ToString().ToLower();
             words = Regex.Split(text, @"\s");
-            confidence = page.GetMeanConfidence();
 
             List<ScamResult> possible = new List<ScamResult>();
             foreach(var scam in Scams)
@@ -51,6 +54,8 @@ namespace DiscordBot.Services
 
         public override void OnReady()
         {
+            _ocr = new Tesseract(Folder, "eng", OcrEngineMode.TesseractLstmCombined);
+            _ocr.SetVariable("tessedit_char_whitelist", "ABCDEFGHIJKLMNOPQRSTUVWXYZ-1234567890");
             Scams = Program.Deserialise<List<Scam>>(ReadSave("[]"));
         }
 
@@ -119,7 +124,9 @@ namespace DiscordBot.Services
             {
                 var split = possible.Split(' ');
                 var contains = numWordsContained(words, split);
+                Program.LogMsg($"{Name} {i} contains: {contains}");
                 var inOrder = numPhrasesInOrder(words.ToList(), split);
+                Program.LogMsg($"{Name} {i} order: {contains}");
                 var total = contains + inOrder;
                 var perc = (double)total / (split.Length * 2);
                 Program.LogMsg($"{Name} {i++} {(perc * 100):00}%");

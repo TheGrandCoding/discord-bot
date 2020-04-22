@@ -21,7 +21,7 @@ namespace DiscordBot.Modules
         async Task performTasks(string filename)
         {
             string temp = Path.Combine(Path.GetTempPath(), filename);
-            Program.LogMsg("Now inverting B -> W");
+            /*Program.LogMsg("Now inverting B -> W");
             Bitmap pic = new Bitmap(temp);
             for (int y = 0; (y <= (pic.Height - 1)); y++)
             {
@@ -34,11 +34,11 @@ namespace DiscordBot.Modules
             }
             temp = Path.Combine(Path.GetTempPath(), $"inverted_{filename}");
             Program.LogMsg($"Inverted image to {temp}");
-            pic.Save(temp);
-            var results = Detector.getPossibleScams(temp, out var words, out var conf);
+            pic.Save(temp);*/
+            var results = Detector.getPossibleScams(temp, out var words);
             temp = Path.Combine(Path.GetTempPath(), $"words_{filename}.txt");
             File.WriteAllLines(temp, words);
-            await ReplyAsync($"With overall word-detection confidence of {(conf * 100):00)}%:\n" +
+            await ReplyAsync($"Found:\n" +
                 string.Join("\n", results.Select(x => $"{x.Scam.Name}: {(x.Confidence * 100):00.0}%")));
             if (results.Select(x => x.Confidence).Any(x => x > 0.89))
             {
@@ -46,10 +46,7 @@ namespace DiscordBot.Modules
             }
             else
             {
-                if (conf >= 90)
-                    await ReplyAsync("I don't think thats a scam");
-                else
-                    await ReplyAsync("I'm not able to read the message clearly enough to make a determination");
+                await ReplyAsync("I don't think thats a scam");
             }
         }
 
