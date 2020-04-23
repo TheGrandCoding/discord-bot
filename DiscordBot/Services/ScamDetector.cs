@@ -189,6 +189,8 @@ namespace DiscordBot.Services
                 return;
             if (msg.Author.Id != Program.Client.CurrentUser.Id)
                 return;
+            if (arg3.UserId != adminManual.Id)
+                return;
             var embd = msg.Embeds.FirstOrDefault();
             if (embd == null || string.IsNullOrWhiteSpace(embd.Url) || !embd.Url.Contains("reddit.com"))
                 return;
