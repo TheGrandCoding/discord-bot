@@ -29,6 +29,7 @@ namespace DiscordBot.Services
 
         public List<Scam> Scams = new List<Scam>();
         public List<string> DoneIds = new List<string>();
+        DateTime lastKnown = DateTime.Now;
 
         private static void TesseractDownloadLangFile(String folder, String lang)
         {
@@ -217,12 +218,15 @@ namespace DiscordBot.Services
         {
             using(var client = new WebClient())
             {
-                reddit.Account.Messages.MarkAllRead();
                 foreach(var post in e.NewPosts)
                 {
                     if (DoneIds.Contains(post.Id))
                         continue;
                     DoneIds.Add(post.Id);
+                    if (post.Created <= lastKnown)
+                        continue;
+                    if (post.Created > lastKnown)
+                        lastKnown = post.Created;
                     handleRedditPost(post, client);
                 }
             }
