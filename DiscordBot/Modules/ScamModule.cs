@@ -53,6 +53,36 @@ namespace DiscordBot.Modules
             }
         }
 
+        [Command("inverse")]
+        [Summary("Tests the inverse of the image for a scam")]
+        public async Task CheckInverse(Uri uri)
+        {
+            string path = uri.AbsolutePath;
+            string file = path.Substring(path.LastIndexOf('/') + 1);
+            var temp = Path.Combine(Path.GetTempPath(), file);
+            Program.LogMsg("Downloading to " + temp);
+            using (WebClient client = new WebClient())
+            {
+                client.DownloadFile(uri, temp);
+            }
+            Program.LogMsg("Now inverting image");
+            Bitmap pic = new Bitmap(temp);
+            for (int y = 0; (y <= (pic.Height - 1)); y++)
+            {
+                for (int x = 0; (x <= (pic.Width - 1)); x++)
+                {
+                    System.Drawing.Color inv = pic.GetPixel(x, y);
+                    inv = System.Drawing.Color.FromArgb(255, (255 - inv.R), (255 - inv.G), (255 - inv.B));
+                    pic.SetPixel(x, y, inv);
+                }
+            }
+            file = $"inverted_{file}";
+            temp = Path.Combine(Path.GetTempPath(), file);
+            Program.LogMsg($"Inverted image to {temp}");
+            pic.Save(temp);
+            await performTasks(file);
+        }
+
         [Command("test")]
         [Summary("Tests an uploaded image for a scam")]
         public async Task<RuntimeResult> Test()
@@ -126,6 +156,61 @@ namespace DiscordBot.Modules
             }
             Detector.Scams.Add(scm);
             Detector.OnSave();
+        }
+
+        [Command("modify")]
+        [Summary("Update or remove existing triggers")]
+        public async Task<RuntimeResult> AddNewTrigger([Remainder]string name)
+        {
+            var scm = Detector.Scams.FirstOrDefault(x => x.Name == name);
+            if (scm == null)
+                return new BotResult($"No scam with name `{name}`");
+            await ReplyAsync($"Please provide the index of the trigger to text, or `-1` to add a new, or no reply to cancel",
+                embed: embedForScam(scm));
+            var nxt = await NextMessageAsync(timeout: TimeSpan.FromSeconds(45));
+            if(nxt == null || string.IsNullOrWhiteSpace(nxt.Content))
+            {
+                await ReplyAsync("Cancelling.");
+                return new BotResult();
+            }
+            if (!int.TryParse(nxt.Content, out int index))
+                return new BotResult($"Could not parse {nxt.Content} as an integer");
+            if(index == -1)
+            {
+                await ReplyAsync("Please provide new trigger");
+                var trig = await NextMessageAsync(timeout: TimeSpan.FromMinutes(5));
+                if (trig == null || string.IsNullOrWhiteSpace(trig.Content))
+                    return new BotResult("You did not provide a new trigger in time!");
+                scm.Text = scm.Text.Append(trig.Content).ToArray();
+                Detector.OnSave();
+                await ReplyAsync("Added!");
+            } else
+            {
+                if(index >= 0 && index < scm.Text.Length)
+                {
+                    var txt = scm.Text[index];
+                    await ReplyAsync("Please provide text to replace the following:\r\n>>> " + txt);
+                    var reply = await NextMessageAsync(timeout: TimeSpan.FromMinutes(5));
+                    if (reply == null)
+                        return new BotResult("You did not provide a replacement trigger.");
+                    if(string.IsNullOrWhiteSpace(reply.Content))
+                    {
+                        var ls = scm.Text.ToList();
+                        ls.RemoveAt(index);
+                        scm.Text = ls.ToArray();
+                        await ReplyAsync("Removed trigger.");
+                        Detector.OnSave();
+                        return new BotResult();
+                    }
+                    scm.Text[index] = reply.Content;
+                    Detector.OnSave();
+                    await ReplyAsync("Updated!");
+                } else
+                {
+                    return new BotResult("Your index is invalid.");
+                }
+            }
+            return new BotResult();
         }
 
         [Command("list")]

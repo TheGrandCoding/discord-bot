@@ -14,6 +14,7 @@ using System.Collections.Immutable;
 using Reddit;
 using Reddit.Controllers;
 using Reddit.Inputs.Search;
+using System.Drawing;
 
 namespace DiscordBot.Services
 {
@@ -145,7 +146,7 @@ namespace DiscordBot.Services
                 appSecret: Program.Configuration["tokens:reddit:secret"]);
             Program.LogMsg($"Logged in as {reddit.Account.Me.Name}", LogSeverity.Warning);
 #if DEBUG
-            string sub = "DiscordApp";
+            string sub = "mlapi";
 #else
             string sub = "DiscordApp";
 #endif
@@ -309,18 +310,40 @@ namespace DiscordBot.Services
             var foundScams = new List<ScamResult>();
             foreach (var x in images)
             {
-                Program.LogMsg($"Finding scams for {x}");
-                var filename = Path.GetFileName(x.AbsolutePath);
-                var temp = Path.Combine(Path.GetTempPath(), filename);
-                client.DownloadFile(x, temp);
-                var scams = getPossibleScams(temp, out var words);
-                File.WriteAllLines(Path.Combine(Path.GetTempPath(), $"words_{filename}.txt"), words);
-                var isScam = scams.Any(x => x.Confidence >= 0.9);
-                if (isScam)
+                foreach(var isInverse in new bool[] { true, false})
                 {
-                    foundScams = scams.Where(x => x.Confidence >= 0.9).ToList();
-                    break; // dont bother looking at more images
+                    Program.LogMsg($"Finding scams for {x} {(isInverse ? "inversing" : "")}");
+                    var filename = Path.GetFileName(x.AbsolutePath);
+                    var temp = Path.Combine(Path.GetTempPath(), filename);
+                    client.DownloadFile(x, temp);
+                    if(isInverse)
+                    {
+                        Bitmap pic = new Bitmap(temp);
+                        for (int y = 0; (y <= (pic.Height - 1)); y++)
+                        {
+                            for (int xp = 0; (xp <= (pic.Width - 1)); xp++)
+                            {
+                                System.Drawing.Color inv = pic.GetPixel(xp, y);
+                                inv = System.Drawing.Color.FromArgb(255, (255 - inv.R), (255 - inv.G), (255 - inv.B));
+                                pic.SetPixel(xp, y, inv);
+                            }
+                        }
+                        filename = $"inverted_{filename}";
+                        temp = Path.Combine(Path.GetTempPath(), filename);
+                        Program.LogMsg($"Inverted image to {temp}");
+                        pic.Save(temp);
+                    }
+                    var scams = getPossibleScams(temp, out var words);
+                    File.WriteAllLines(Path.Combine(Path.GetTempPath(), $"words_{filename}.txt"), words);
+                    var isScam = scams.Any(x => x.Confidence >= 0.9);
+                    if (isScam)
+                    {
+                        foundScams = scams.Where(x => x.Confidence >= 0.9).ToList();
+                        break; // dont bother looking at more images
+                    }
                 }
+                if (foundScams.Count > 0)
+                    break;
             }
             if (foundScams.Count == 0)
                 return;
