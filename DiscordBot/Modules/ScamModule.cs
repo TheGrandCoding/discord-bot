@@ -1,8 +1,10 @@
-﻿using Discord.Commands;
+﻿using Discord;
+using Discord.Commands;
 using DiscordBot.Commands;
 using DiscordBot.Commands.Attributes;
 using DiscordBot.Services;
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Linq;
@@ -14,6 +16,7 @@ namespace DiscordBot.Modules
     [Group("scam")]
     [Name("/r/DiscordApp Scam Checker")]
     [ReliesOnService(typeof(ScamDetector))]
+    [RequireOwner]
     public class ScamModule : BotModule
     {
         public ScamDetector Detector { get; set; }
@@ -82,6 +85,72 @@ namespace DiscordBot.Modules
         public async Task Test(string name)
         {
             await performTasks(name);
+        }
+    
+        [Command("add")]
+        [Summary("Adds a new scam")]
+        public async Task Add([Remainder]string name)
+        {
+            var scm = new Scam();
+            scm.Name = name;
+            await ReplyAsync("Your next message should provide the reason for why this is a scam");
+            var rsn = await NextMessageAsync(timeout: TimeSpan.FromMinutes(5));
+            if(rsn == null || string.IsNullOrWhiteSpace(rsn.Content))
+            {
+                await ReplyAsync("No message.");
+                return;
+            }
+            scm.Reason = rsn.Content;
+
+            var texts = new List<string>();
+            while(true)
+            {
+                await ReplyAsync("Next message provides a trigger for this scam, or `q` to stop adding triggers");
+                var msg = await NextMessageAsync(timeout: TimeSpan.FromMinutes(10));
+                if(msg == null || string.IsNullOrWhiteSpace(msg.Content))
+                {
+                    await ReplyAsync("No message, cancelling entire operation.");
+                    return;
+                }
+                if (msg.Content == "q")
+                    break;
+                texts.Add(msg.Content);
+            }
+            scm.Text = texts.ToArray();
+            await ReplyAsync("Does this look right? Send a message within 15 seconds to confirm.", embed: embedForScam(scm));
+            var conf = await NextMessageAsync(timeout: TimeSpan.FromSeconds(15));
+            if(conf == null || string.IsNullOrWhiteSpace(conf.Content))
+            {
+                await ReplyAsync("Cancelled.");
+                return;
+            }
+            Detector.Scams.Add(scm);
+            Detector.OnSave();
+        }
+
+        [Command("list")]
+        [Summary("Lists all scams registered")]
+        public async Task List()
+        {
+            EmbedBuilder builder = new EmbedBuilder();
+            builder.Title = "Scams";
+            foreach(var scm in Detector.Scams)
+            {
+                builder.AddField(scm.Name, $"{scm.Text.Length} triggers;\r\n{scm.Reason}");
+            }
+            await ReplyAsync(embed: builder.Build());
+        }
+
+        Embed embedForScam(Scam scm)
+        {
+            EmbedBuilder builder = new EmbedBuilder();
+            builder.Title = scm.Name;
+            builder.Description = scm.Reason ?? "No reason provided.";
+            foreach(var txt in scm.Text)
+            {
+                builder.Description += $"\r\n\r\n> {txt}";
+            }
+            return builder.Build();
         }
     }
 }

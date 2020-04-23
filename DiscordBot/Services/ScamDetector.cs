@@ -28,7 +28,7 @@ namespace DiscordBot.Services
         private IUser adminManual;
 
         public List<Scam> Scams = new List<Scam>();
-        public DateTime LastKnown { get; set; }
+        public List<string> DoneIds = new List<string>();
 
         private static void TesseractDownloadLangFile(String folder, String lang)
         {
@@ -130,7 +130,7 @@ namespace DiscordBot.Services
             var save = Program.Deserialise<SaveInfo>(ReadSave());
             Scams = save.scams ?? new List<Scam>();
             var dlt = DateTime.Now.IsDaylightSavingTime();
-            LastKnown = save.lastChanged ?? DateTime.Now.ToUniversalTime();
+            DoneIds = new List<string>();
 
 #if WINDOWS
             string uAgent = $"windows:mlapi-ds:v{Program.VERSION}";
@@ -156,6 +156,29 @@ namespace DiscordBot.Services
             Program.LogMsg($"Monitoring {subReddit.Name}, {(isMod ? "is a moderator" : "not a mod")}");
             checkDeletePosts();
             Program.Client.ReactionAdded += Client_ReactionAdded;
+            var th = new Thread(messageInboxForwarder);
+            th.Start();
+        }
+
+        private void messageInboxForwarder()
+        {
+            List<string> PmsHandled = new List<string>();
+            while(reddit != null)
+            {
+                var unread = reddit.Account.Messages.Unread;
+                reddit.Account.Messages.MarkAllRead();
+                foreach(var thing in unread)
+                {
+                    if (PmsHandled.Contains(thing.Id))
+                        continue;
+                    PmsHandled.Add(thing.Id);
+                    adminManual.SendMessageAsync(embed: new EmbedBuilder()
+                        .WithTitle("Forward /u/" + thing.Author)
+                        .WithDescription(thing.Body)
+                        .Build());
+                }
+                Thread.Sleep(60 * 1000);
+            }
         }
 
         private async System.Threading.Tasks.Task Client_ReactionAdded(Cacheable<IUserMessage, ulong> arg1, Discord.WebSocket.ISocketMessageChannel arg2, Discord.WebSocket.SocketReaction arg3)
@@ -197,11 +220,10 @@ namespace DiscordBot.Services
                 reddit.Account.Messages.MarkAllRead();
                 foreach(var post in e.NewPosts)
                 {
-                    if (post.Created.ToUniversalTime() < LastKnown.ToUniversalTime())
+                    if (DoneIds.Contains(post.Id))
                         continue;
+                    DoneIds.Add(post.Id);
                     handleRedditPost(post, client);
-                    if (post.Created > LastKnown)
-                        LastKnown = post.Created;
                 }
             }
         }
@@ -243,14 +265,16 @@ namespace DiscordBot.Services
                 "Is this real?", "Is this a scam?",
                 "Guys this is a scam right?",
                 "I feel like this is fake and probably a scam. Has anyone gotten this?",
+                "Has anyone else gotten this message?",
                 "scam bot. is it?",
                 "is a scam",
                 "is it?",
             }
         };
-        bool shouldSendRedditPost(Post post)
+        bool shouldSendRedditPost(Post post, EmbedBuilder builder)
         { // this assumes we know its a scam, but are they asking if it is?
             var r = testShouldPost.PercentageMatch(post.Title.ToLower().Split(' '));
+            builder.AddField("Maybe Send", $"{(r * 100):00.0}");
 #if DEBUG
             if (post.Subreddit != "mlapi")
                 return false;
@@ -302,13 +326,16 @@ namespace DiscordBot.Services
                 .WithUrl($"https://www.reddit.com{post.Permalink}");
             if (post is LinkPost ps && isImageUrl(new Uri(ps.URL)))
                 builder.ThumbnailUrl = ps.URL;
-            bool sendReddit = shouldSendRedditPost(post);
+            bool sendReddit = shouldSendRedditPost(post, builder);
             builder.AddField($"Sending to reddit?", sendReddit ? "Yes" : "No");
             var r = adminManual.SendMessageAsync(embed: builder.Build()).Result;
             if(sendReddit)
             {
                 makeCommentOnPost(post, $"Hi!  \r\nThe image(s) you've submitted appear to contain a common DM scam" +
                 $"\r\n\r\n{mkdown}");
+            } else
+            {
+                r.AddReactionAsync(Emojis.WHITE_CHECK_MARK);
             }
         }
 
@@ -366,7 +393,6 @@ namespace DiscordBot.Services
             var sve = new SaveInfo()
             {
                 scams = Scams,
-                lastChanged = LastKnown
             };
             return Program.Serialise(sve);
         }
