@@ -29,7 +29,7 @@ namespace DiscordBot.Services
 
         public List<Scam> Scams = new List<Scam>();
         public List<string> DoneIds = new List<string>();
-        DateTime lastKnown = DateTime.Now;
+        DateTime lastKnown = DateTime.Now.ToUniversalTime();
 
         private static void TesseractDownloadLangFile(String folder, String lang)
         {
@@ -145,20 +145,19 @@ namespace DiscordBot.Services
                 appSecret: Program.Configuration["tokens:reddit:secret"]);
             Program.LogMsg($"Logged in as {reddit.Account.Me.Name}", LogSeverity.Warning);
 #if DEBUG
-            string sub = "mlapi";
+            string sub = "DiscordApp";
 #else
             string sub = "DiscordApp";
 #endif
             subReddit = reddit.Subreddit(sub).About();
-            subReddit.Posts.GetNew();
-            subReddit.Posts.NewUpdated += Posts_NewUpdated;
-            subReddit.Posts.MonitorNew();
             isMod = subReddit.Moderators.Any(x => x.Id == reddit.Account.Me.Id);
             Program.LogMsg($"Monitoring {subReddit.Name}, {(isMod ? "is a moderator" : "not a mod")}");
             checkDeletePosts();
             Program.Client.ReactionAdded += Client_ReactionAdded;
             var th = new Thread(messageInboxForwarder);
             th.Start();
+            var lL = new Thread(listenLoop);
+            lL.Start();
         }
 
         private void messageInboxForwarder()
@@ -214,21 +213,27 @@ namespace DiscordBot.Services
             }
         }
 
-        private void Posts_NewUpdated(object sender, Reddit.Controllers.EventArgs.PostsUpdateEventArgs e)
+        private void listenLoop()
         {
-            using(var client = new WebClient())
+            using var client = new WebClient();
+            while(reddit != null)
             {
-                foreach(var post in e.NewPosts)
+                var posts = subReddit.Posts.GetNew(limit: 25);
+                posts.Reverse();
+                foreach (var post in posts) // GetNew returns newest first
                 {
-                    if (DoneIds.Contains(post.Id))
-                        continue;
-                    DoneIds.Add(post.Id);
                     if (post.Created <= lastKnown)
                         continue;
                     if (post.Created > lastKnown)
                         lastKnown = post.Created;
+                    if (DoneIds.Contains(post.Id))
+                        continue;
+                    DoneIds.Add(post.Id);
                     handleRedditPost(post, client);
                 }
+                if (DoneIds.Count > 50)
+                    DoneIds = DoneIds.Skip(25).ToList();
+                Thread.Sleep(10 * 1000);
             }
         }
 
