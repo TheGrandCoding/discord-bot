@@ -150,6 +150,9 @@ namespace DiscordBot.Services
             string sub = "DiscordApp";
 #endif
             subReddit = reddit.Subreddit(sub).About();
+#if DEBUG
+            return; // temp
+#endif
             isMod = subReddit.Moderators.Any(x => x.Id == reddit.Account.Me.Id);
             Program.LogMsg($"Monitoring {subReddit.Name}, {(isMod ? "is a moderator" : "not a mod")}");
             checkDeletePosts();
@@ -194,8 +197,7 @@ namespace DiscordBot.Services
             var embd = msg.Embeds.FirstOrDefault();
             if (embd == null || string.IsNullOrWhiteSpace(embd.Url) || !embd.Url.Contains("reddit.com"))
                 return;
-            makeCommentOnPost(embd.Url, "Hi!  \r\nIn case you didn't know, an image in your post seems to be of a common DM scam, beware!" +
-                "\r\n\r\n" + embd.Description);
+            makeCommentOnPost(embd.Url, embd.Description);
             await msg.ModifyAsync(x =>
             {
                 x.Embed = embd.ToEmbedBuilder().AddField("Sent", "Comment Sent", true).Build();
@@ -342,8 +344,7 @@ namespace DiscordBot.Services
             var r = adminManual.SendMessageAsync(embed: builder.Build()).Result;
             if(sendReddit)
             {
-                makeCommentOnPost(post, $"Hi!  \r\nThe image(s) you've submitted appear to contain a common DM scam" +
-                $"\r\n\r\n{mkdown}");
+                makeCommentOnPost(post, mkdown);
             } else
             {
                 r.AddReactionAsync(Emojis.WHITE_CHECK_MARK);
@@ -367,12 +368,12 @@ namespace DiscordBot.Services
             return reddit.Post(postFullname).About();
         }
 
-        void makeCommentOnPost(string link, string content)
+        void makeCommentOnPost(string link, string markdown)
         {
             var post = FromPermalink(link);
             if (post == null)
                 throw new NullReferenceException("Unable to find post with that URL");
-            makeCommentOnPost(post, content);
+            makeCommentOnPost(post, markdown);
         }
 
         Comment getPreviousComment(Post post)
@@ -386,17 +387,20 @@ namespace DiscordBot.Services
             return null;
         }
 
-        void makeCommentOnPost(Post post, string content)
+        const string dsTSurl = @"https://support.discordapp.com/hc/en-us/articles/360000291932-How-to-Properly-Report-Issues-to-Trust-Safety";
+        void makeCommentOnPost(Post post, string markdown)
         {
+            string msg = $"Hi!  \r\nThe image(s) you've submitted appear to contain a common DM scam" +
+                $"\r\n\r\n{markdown}";
+            msg += "\r\n\r\n- - -\r\n\r\n";
+            msg += $"^(If you believe I have not made an error, you can report scam accounts to) [^Discord]({dsTSurl})^.";
             var previous = getPreviousComment(post);
             if(previous != null)
             {
-                previous.Edit(content);
+                previous.Edit(msg);
                 return;
             }
-            post.Reply(content);
-            if (isMod)
-                post.DistinguishAsync("yes");
+            post.Reply(msg);
         }
 
         public override string GenerateSave()
