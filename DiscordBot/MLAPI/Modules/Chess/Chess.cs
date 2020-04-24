@@ -128,10 +128,20 @@ namespace DiscordBot.MLAPI.Modules
             }
         }
 
+        string getPlayerName(ChessPlayer player)
+        {
+            if (player == null)
+                return null;
+            var perm = Perms.Parse(Perms.Bot.Known);
+            if (perm.HasPerm(Context))
+                return player.Name;
+            return $"Player #{player.Id:00}";
+        }
+
         string getPlayerNameRow(ChessPlayer player, int fridays)
         {
             string warning = addIconsToRow(player, fridays);
-            return $"{aLink($"/chess/history?id={player.Id}", $"<label>{player.Name}</label>")}{warning}";
+            return $"{aLink($"/chess/history?id={player.Id}", $"<label>{getPlayerName(player)}</label>")}{warning}";
         }
 
         string loginButton()
@@ -324,6 +334,11 @@ namespace DiscordBot.MLAPI.Modules
         [Method("GET"), Path("/chess/recommend")]
         public void RecommendGames()
         {
+            if(!doesHavePerm(ChessPerm.ClassRoom))
+            {
+                RespondRaw("No permissions", 403);
+                return;
+            }
             string TABLE = "";
             var now = DateTime.Now.DayOfYear;
             var ppresent = Players.Where(shouldIncludeInRecommend);
@@ -453,7 +468,7 @@ namespace DiscordBot.MLAPI.Modules
                 {
                     bannnn = "disabled class='banned'";
                 }
-                players += $"<option {bannnn} value=\"{player.Id}\">{player.Name}</option>";
+                players += $"<option {bannnn} value=\"{player.Id}\">{getPlayerName(player)}</option>";
             }
             ReplyFile("debug_addmatch.html", 200, new Replacements().Add("playerlist", players));
         }
@@ -509,11 +524,11 @@ namespace DiscordBot.MLAPI.Modules
             string justices = "";
             foreach (var player in Players.Where(x => x.Permission == ChessPerm.Moderator || x.Permission == ChessPerm.ElectedMod).OrderBy(x => x.Name))
             {
-                mods += $"<uli>{player.Name}</uli>";
+                mods += $"<uli>{getPlayerName(player)}</uli>";
             }
             foreach(var player in Players.Where(x => x.Permission == ChessPerm.Justice).OrderBy(x => x.Name))
             {
-                justices += $"<uli>Justice {player.Name}</uli>";
+                justices += $"<uli>Justice {getPlayerName(player)}</uli>";
             }
             ReplyFile("terms/terms.html", 200, new Replacements()
                 .Add("mods", mods)
@@ -693,7 +708,7 @@ namespace DiscordBot.MLAPI.Modules
                     {
                         count++;
                         var against = ChessS.GetPlayer(entry.againstId);
-                        DATE += $"<td{(entry.onlineGame ? " class='online'" : "")}>{(against?.Name ?? "unknown")}</td><td>{entry.State}";
+                        DATE += $"<td{(entry.onlineGame ? " class='online'" : "")}>{(getPlayerName(player) ?? "unknown")}</td><td>{entry.State}";
                         if (ADMIN)
                         {
                             DATE += $"<input type='button' value='Remove' style='margin-left:5px;' onclick='dispute(\"{date.DayOfYear}\", \"{date.Year}\", \"{player.Id}\", \"{entry.Id}\");' />";
@@ -722,7 +737,7 @@ namespace DiscordBot.MLAPI.Modules
                         type = "Won";
                     else
                         type = "Loss";
-                    ROW += $"<td>{against.Name}</td>";
+                    ROW += $"<td>{getPlayerName(against)}</td>";
                     ROW += $"<td>{type} ";
                     if (thing.Player1Id == SelfPlayer.Id || thing.Player2Id == SelfPlayer.Id)
                     {
@@ -1466,6 +1481,7 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("GET"), Path("/chess/api/testmatch")]
+        [RequireChess(ChessPerm.Player)]
         public void PretendMatch(int winner, int loser, bool draw)
         {
             var winP = Players.FirstOrDefault(x => x.Id == winner);

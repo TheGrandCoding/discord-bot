@@ -24,7 +24,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.0.17"; 
+        public const string VERSION = "0.0.18"; 
         public const string CHANGELOG = VERSION + @"
 == Image Recognition
 Attempt some fun OCR.

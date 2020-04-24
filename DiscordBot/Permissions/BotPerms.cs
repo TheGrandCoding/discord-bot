@@ -11,6 +11,10 @@ namespace DiscordBot
             [Description("All bot permissions")]
             public const string All = "bot.*";
 
+            [Description("Known to the bot")]
+            [AssignedBy(Bot.All)]
+            public const string Known = "bot.known";
+
             [AssignedBy(Bot.All)]
             public static class Developer
             {

@@ -156,6 +156,7 @@ namespace DiscordBot.Modules
             }
             Detector.Scams.Add(scm);
             Detector.OnSave();
+            await ReplyAsync("Added!");
         }
 
         [Command("modify")]
@@ -209,6 +210,63 @@ namespace DiscordBot.Modules
                 {
                     return new BotResult("Your index is invalid.");
                 }
+            }
+            return new BotResult();
+        }
+
+        [Command("words")]
+        [Summary("Provides the words of the image")]
+        public async Task<RuntimeResult> ProvideWords(
+            [Summary("Forces use of original image; default uses inverted")]bool forceOriginal = false)
+        {
+            var attch = Context.Message.Attachments.FirstOrDefault();
+            if (attch == null)
+                return new BotResult("Failed to upload any attachments");
+            var uri = new Uri(attch.Url);
+            string path = uri.AbsolutePath;
+            string file = path.Substring(path.LastIndexOf('/') + 1);
+            var temp = Path.Combine(Path.GetTempPath(), file);
+            Program.LogMsg("Downloading to " + temp);
+            using (WebClient client = new WebClient())
+            {
+                client.DownloadFile(uri, temp);
+            }
+            if(!forceOriginal)
+            {
+                Program.LogMsg("Now inverting image");
+                Bitmap pic = new Bitmap(temp);
+                for (int y = 0; (y <= (pic.Height - 1)); y++)
+                {
+                    for (int x = 0; (x <= (pic.Width - 1)); x++)
+                    {
+                        System.Drawing.Color inv = pic.GetPixel(x, y);
+                        inv = System.Drawing.Color.FromArgb(255, (255 - inv.R), (255 - inv.G), (255 - inv.B));
+                        pic.SetPixel(x, y, inv);
+                    }
+                }
+                file = $"inverted_{file}";
+                temp = Path.Combine(Path.GetTempPath(), file);
+                Program.LogMsg($"Inverted image to {temp}");
+                pic.Save(temp);
+            }
+            await performTasks(file);
+            var wordFile = Path.Combine(Path.GetTempPath(), $"words_{file}.txt");
+            string[] lines;
+            try
+            {
+                lines = File.ReadAllLines(wordFile);
+            } catch (Exception ex)
+            {
+                Program.LogMsg(ex, "WordPrintScams");
+                return new BotResult($"Failed to get words, the temporary file may have been deleted");
+            }
+            var txt = string.Join("\r\n", lines);
+            if(txt.Length < 1000)
+            {
+                await ReplyAsync($"```\r\n{txt}\r\n```");
+            } else
+            {
+                await Context.Channel.SendFileAsync(wordFile, $"Too many charactors to print directly.");
             }
             return new BotResult();
         }
