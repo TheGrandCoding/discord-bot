@@ -179,6 +179,7 @@ namespace DiscordBot.Services
                     adminManual.SendMessageAsync(embed: new EmbedBuilder()
                         .WithTitle("Forward /u/" + thing.Author)
                         .WithDescription(thing.Body)
+                        .WithUrl($"https://www.reddit.com{thing.Context}")
                         .Build());
                 }
                 Thread.Sleep(60 * 1000);
@@ -270,36 +271,6 @@ namespace DiscordBot.Services
             return urls;
         }
 
-        Scam testShouldPost = new Scam()
-        {
-            Name = "",
-            Reason = "",
-            Text = new string[]
-            {
-                "Is this real?", "Is this a scam?",
-                "Guys this is a scam right?",
-                "I feel like this is fake and probably a scam. Has anyone gotten this?",
-                "Has anyone else gotten this message?",
-                "scam bot. is it?",
-                "is a scam",
-                "is it?",
-            }
-        };
-        bool shouldSendRedditPost(Post post, EmbedBuilder builder)
-        { // this assumes we know its a scam, but are they asking if it is?
-            var r = testShouldPost.PercentageMatch(post.Title.ToLower().Split(' '));
-            builder.AddField("Maybe Send", $"{(r * 100):00.0}");
-#if DEBUG
-            if (post.Subreddit != "mlapi")
-                return false;
-#endif
-#if !DEBUG
-            // Temporarily refuse all comments - will require manual approval.
-            return false;
-#endif
-            return r >= 0.9;
-        }
-
         void handleRedditPost(Post post, WebClient client)
         {
             var uris = getImageUrls(post);
@@ -362,7 +333,11 @@ namespace DiscordBot.Services
                 .WithUrl($"https://www.reddit.com{post.Permalink}");
             if (post is LinkPost ps && isImageUrl(new Uri(ps.URL)))
                 builder.ThumbnailUrl = ps.URL;
-            bool sendReddit = shouldSendRedditPost(post, builder);
+#if DEBUG
+            bool sendReddit = false;
+#else
+            bool sendReddit = true;
+#endif
             builder.AddField($"Sending to reddit?", sendReddit ? "Yes" : "No");
             var r = adminManual.SendMessageAsync(embed: builder.Build()).Result;
             if(sendReddit)
@@ -416,7 +391,13 @@ namespace DiscordBot.Services
             string msg = $"Hi!  \r\nThe image(s) you've submitted appear to contain a common DM scam" +
                 $"\r\n\r\n{markdown}";
             msg += "\r\n\r\n- - -\r\n\r\n";
-            msg += $"^(If you believe I have not made an error, you can report scam accounts to) [^Discord]({dsTSurl})^.";
+            msg += "When looking at a possible scam from a bot account, always consider if they:\r\n\r\n" +
+                "- Are new, unfamiliar or are not verified\r\n" +
+                "- Are not from Discord: not through email from them, or from a [System-tagged account](https://support.discordapp.com/hc/en-us/articles/360036118732)\r\n" +
+                "- Have poor grammar, spelling or misuse punctuation or capitalisation\r\n" +
+                "- Offer things that are 'too good to be true'";
+            msg += "\r\n\r\n- - -\r\n\r\n";
+            msg += $"^(I am a bot, if you believe I have not made an error, you can report scam accounts to) [^Discord]({dsTSurl})^.";
             var previous = getPreviousComment(post);
             if(previous != null)
             {

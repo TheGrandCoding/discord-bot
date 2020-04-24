@@ -213,6 +213,23 @@ namespace DiscordBot.Modules
             return new BotResult();
         }
 
+        [Command("modreason"), Alias("mreason")]
+        [Summary("Changes the reason of a scam")]
+        public async Task<RuntimeResult> ModifyReason([Remainder]string name)
+        {
+            var scm = Detector.Scams.FirstOrDefault(x => x.Name == name);
+            if (scm == null)
+                return new BotResult($"No scam with name `{name}`");
+            await ReplyAsync("Please provide replacement for:\r\n\r\n>>>" + scm.Reason);
+            var rsn = await NextMessageAsync(timeout: TimeSpan.FromMinutes(5));
+            if (rsn == null || string.IsNullOrWhiteSpace(rsn.Content))
+                return new BotResult("Cancelling.");
+            scm.Reason = rsn.Content;
+            Detector.OnSave();
+            await ReplyAsync("Updated reason");
+            return new BotResult();
+        }
+
         [Command("list")]
         [Summary("Lists all scams registered")]
         public async Task List()
