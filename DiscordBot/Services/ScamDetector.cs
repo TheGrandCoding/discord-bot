@@ -289,20 +289,29 @@ namespace DiscordBot.Services
                     client.DownloadFile(x, temp);
                     if(isInverse)
                     {
-                        Bitmap pic = new Bitmap(temp);
-                        for (int y = 0; (y <= (pic.Height - 1)); y++)
+                        try
                         {
-                            for (int xp = 0; (xp <= (pic.Width - 1)); xp++)
+                            Bitmap pic = new Bitmap(temp);
+                            for (int y = 0; (y <= (pic.Height - 1)); y++)
                             {
-                                System.Drawing.Color inv = pic.GetPixel(xp, y);
-                                inv = System.Drawing.Color.FromArgb(255, (255 - inv.R), (255 - inv.G), (255 - inv.B));
-                                pic.SetPixel(xp, y, inv);
+                                for (int xp = 0; (xp <= (pic.Width - 1)); xp++)
+                                {
+                                    System.Drawing.Color inv = pic.GetPixel(xp, y);
+                                    inv = System.Drawing.Color.FromArgb(255, (255 - inv.R), (255 - inv.G), (255 - inv.B));
+                                    pic.SetPixel(xp, y, inv);
+                                }
                             }
+                            filename = $"inverted_{filename}";
+                            temp = Path.Combine(Path.GetTempPath(), filename);
+                            Program.LogMsg($"Inverted image to {temp}");
+                            pic.Save(temp);
+                        } catch (Exception ex)
+                        {
+                            Program.LogMsg(ex, "InvertScam");
+                            adminManual?.SendMessageAsync($"Failed to convert `{filename}` to inverted format: {ex.Message}" +
+                                $"\r\nPost: {post.Permalink}");
+                            continue; // move to non-inverted
                         }
-                        filename = $"inverted_{filename}";
-                        temp = Path.Combine(Path.GetTempPath(), filename);
-                        Program.LogMsg($"Inverted image to {temp}");
-                        pic.Save(temp);
                     }
                     var scams = getPossibleScams(temp, out var words);
                     File.WriteAllLines(Path.Combine(Path.GetTempPath(), $"words_{filename}.txt"), words);

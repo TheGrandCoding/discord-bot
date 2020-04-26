@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using Discord.Commands;
 using DiscordBot.Classes;
@@ -33,7 +34,7 @@ namespace DiscordBot.MLAPI
                 }
             }
             if(missing.Count > 0)
-                return PreconditionResult.FromError("Missing permissions: '" + string.Join("', '", missing) + "'");
+                return PreconditionResult.FromError("Missing permissions: '" + string.Join("', '", missing.Select(x => x.Description)) + "'");
             return PreconditionResult.FromSuccess();
         }
     }

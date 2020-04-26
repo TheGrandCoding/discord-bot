@@ -708,7 +708,7 @@ namespace DiscordBot.MLAPI.Modules
                     {
                         count++;
                         var against = ChessS.GetPlayer(entry.againstId);
-                        DATE += $"<td{(entry.onlineGame ? " class='online'" : "")}>{(getPlayerName(player) ?? "unknown")}</td><td>{entry.State}";
+                        DATE += $"<td{(entry.onlineGame ? " class='online'" : "")}>{(getPlayerName(against) ?? "unknown")}</td><td>{entry.State}";
                         if (ADMIN)
                         {
                             DATE += $"<input type='button' value='Remove' style='margin-left:5px;' onclick='dispute(\"{date.DayOfYear}\", \"{date.Year}\", \"{player.Id}\", \"{entry.Id}\");' />";
