@@ -131,6 +131,7 @@ namespace DiscordBot.Services
             //_ocr.SetVariable("tessedit_char_whitelist", "ABCDEFGHIJKLMNOPQRSTUVWXYZ-1234567890");
             var save = Program.Deserialise<SaveInfo>(ReadSave());
             Scams = save.scams ?? new List<Scam>();
+            lastKnown = save.lastChanged ?? DateTime.Now;
             var dlt = DateTime.Now.IsDaylightSavingTime();
             DoneIds = new List<string>();
 
@@ -428,6 +429,7 @@ namespace DiscordBot.Services
             var sve = new SaveInfo()
             {
                 scams = Scams,
+                lastChanged = lastKnown,
             };
             return Program.Serialise(sve);
         }

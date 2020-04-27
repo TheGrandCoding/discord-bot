@@ -144,7 +144,7 @@ namespace DiscordBot.Modules
                 }
                 if (msg.Content == "q")
                     break;
-                texts.Add(msg.Content);
+                texts.Add(msg.Content.ToLower());
             }
             scm.Text = texts.ToArray();
             await ReplyAsync("Does this look right? Send a message within 15 seconds to confirm.", embed: embedForScam(scm));
@@ -182,7 +182,7 @@ namespace DiscordBot.Modules
                 var trig = await NextMessageAsync(timeout: TimeSpan.FromMinutes(5));
                 if (trig == null || string.IsNullOrWhiteSpace(trig.Content))
                     return new BotResult("You did not provide a new trigger in time!");
-                scm.Text = scm.Text.Append(trig.Content).ToArray();
+                scm.Text = scm.Text.Append(trig.Content.ToLower()).ToArray();
                 Detector.OnSave();
                 await ReplyAsync("Added!");
             } else
@@ -203,7 +203,7 @@ namespace DiscordBot.Modules
                         Detector.OnSave();
                         return new BotResult();
                     }
-                    scm.Text[index] = reply.Content;
+                    scm.Text[index] = reply.Content.ToLower();
                     Detector.OnSave();
                     await ReplyAsync("Updated!");
                 } else
