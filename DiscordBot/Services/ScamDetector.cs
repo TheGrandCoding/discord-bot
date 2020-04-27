@@ -169,18 +169,25 @@ namespace DiscordBot.Services
             List<string> PmsHandled = new List<string>();
             while(reddit != null)
             {
-                var unread = reddit.Account.Messages.Unread;
-                reddit.Account.Messages.MarkAllRead();
-                foreach(var thing in unread)
+                try
                 {
-                    if (PmsHandled.Contains(thing.Id))
-                        continue;
-                    PmsHandled.Add(thing.Id);
-                    adminManual.SendMessageAsync(embed: new EmbedBuilder()
-                        .WithTitle("Forward /u/" + thing.Author)
-                        .WithDescription(thing.Body)
-                        .WithUrl($"https://www.reddit.com{thing.Context}")
-                        .Build());
+                    var unread = reddit.Account.Messages.Unread;
+                    reddit.Account.Messages.MarkAllRead();
+                    foreach(var thing in unread)
+                    {
+                        if (PmsHandled.Contains(thing.Id))
+                            continue;
+                        PmsHandled.Add(thing.Id);
+                        adminManual.SendMessageAsync(embed: new EmbedBuilder()
+                            .WithTitle("Forward /u/" + thing.Author)
+                            .WithDescription(thing.Body)
+                            .WithUrl($"https://www.reddit.com{thing.Context}")
+                            .Build());
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Program.LogMsg(ex, "DmScamHandler");
                 }
                 Thread.Sleep(60 * 1000);
             }
