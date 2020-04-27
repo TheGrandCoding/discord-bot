@@ -279,7 +279,7 @@ namespace DiscordBot.Services
             return urls;
         }
 
-        void handleRedditPost(Post post, WebClient client)
+        public void handleRedditPost(Post post, WebClient client)
         {
             var uris = getImageUrls(post);
             var images = uris.Where(x => isImageUrl(x)).ToList();
@@ -376,7 +376,7 @@ namespace DiscordBot.Services
                 : "");
             if (postFullname.Equals("t3_"))
             {
-                throw new Exception("Unable to extract ID from permalink.");
+                return null;
             }
 
             // Retrieve the post and return the result.  --Kris

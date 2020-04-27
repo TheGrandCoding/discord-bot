@@ -301,6 +301,23 @@ namespace DiscordBot.Modules
             await ReplyAsync(embed: builder.Build());
         }
 
+        [Command("reddit")]
+        [Summary("Perform a test on a reddit post")]
+        public async Task<RuntimeResult> DoReddit(Uri uri)
+        {
+            var post = Detector.FromPermalink(uri.ToString());
+            if (post == null)
+                return new BotResult("Failed to parse post from that Url.");
+            if (post.Subreddit.ToLower() != "discordapp" && post.Subreddit != "mlapi")
+                return new BotResult("Subreddit is invalid");
+            using(var wc = new WebClient())
+            {
+                Detector.handleRedditPost(post, wc);
+            }
+            await ReplyAsync("Done.");
+            return new BotResult();
+        }
+
         Embed embedForScam(Scam scm)
         {
             EmbedBuilder builder = new EmbedBuilder();
