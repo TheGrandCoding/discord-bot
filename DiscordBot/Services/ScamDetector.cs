@@ -232,21 +232,28 @@ namespace DiscordBot.Services
             using var client = new WebClient();
             while(reddit != null)
             {
-                var posts = subReddit.Posts.GetNew(limit: 25);
-                posts.Reverse();
-                foreach (var post in posts) // GetNew returns newest first
+                try
                 {
-                    if (post.Created <= lastKnown)
-                        continue;
-                    if (post.Created > lastKnown)
-                        lastKnown = post.Created;
-                    if (DoneIds.Contains(post.Id))
-                        continue;
-                    DoneIds.Add(post.Id);
-                    handleRedditPost(post, client);
+                    var posts = subReddit.Posts.GetNew(limit: 25);
+                    posts.Reverse();
+                    foreach (var post in posts) // GetNew returns newest first
+                    {
+                        if (post.Created <= lastKnown)
+                            continue;
+                        if (post.Created > lastKnown)
+                            lastKnown = post.Created;
+                        if (DoneIds.Contains(post.Id))
+                            continue;
+                        DoneIds.Add(post.Id);
+                        handleRedditPost(post, client);
+                    }
+                    if (DoneIds.Count > 50)
+                        DoneIds = DoneIds.Skip(25).ToList();
                 }
-                if (DoneIds.Count > 50)
-                    DoneIds = DoneIds.Skip(25).ToList();
+                catch (Exception ex)
+                {
+                    Program.LogMsg(ex, "ScmDetectorMain");
+                }
                 Thread.Sleep(10 * 1000);
             }
         }
