@@ -26,7 +26,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.1.0"; 
+        public const string VERSION = "0.1.1"; 
         public const string CHANGELOG = VERSION + @"
 == Add coronavirus cases
 Constantly update message with UK stats.
