@@ -136,9 +136,9 @@ namespace DiscordBot.Services
             DoneIds = new List<string>();
 
 #if WINDOWS
-            string uAgent = $"windows:mlapi-ds:v{Program.VERSION}";
+            string uAgent = $"windows:mlapi-ds:v{Program.VER_STR}";
 #else
-            string uAgent = $"linux:mlapi-ds:v{Program.VERSION}";
+            string uAgent = $"linux:mlapi-ds:v{Program.VER_STR}";
 #endif
 
             reddit = new RedditClient(

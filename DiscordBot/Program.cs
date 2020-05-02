@@ -49,8 +49,10 @@ Constantly update message with UK stats.
 
 #if DEBUG
         public static bool BOT_DEBUG = true;
+        public static string VER_STR = VERSION + "-dev";
 #else
         public static bool BOT_DEBUG = false;
+        public static string VER_STR = VERSION;
 #endif
 
         #endregion
@@ -73,7 +75,7 @@ Constantly update message with UK stats.
         public static async Task MainAsync()
         {
             Directory.SetCurrentDirectory(BASE_PATH);
-            Program.LogMsg($"Starting bot with v{VERSION}");
+            Program.LogMsg($"Starting bot with v{VER_STR}");
             try
             {
                 buildConfig();
@@ -160,7 +162,7 @@ Constantly update message with UK stats.
                 .AddSingleton<CommandHandlingService>()
                 .AddSingleton<InteractiveService>();
             var http = new HttpClient();
-            http.DefaultRequestHeaders.Add("User-Agent", $"dsMLAPI-v{VERSION}");
+            http.DefaultRequestHeaders.Add("User-Agent", $"dsMLAPI-v{VER_STR}");
             coll.AddSingleton(typeof(HttpClient), http);
             foreach(var service in ReflectiveEnumerator.GetEnumerableOfType<Service>(null))
                 coll.AddSingleton(service.GetType());
@@ -211,7 +213,7 @@ Constantly update message with UK stats.
 
         static void runStartups()
         {
-            Client.SetActivityAsync(new Game($"code v{Program.VERSION}", ActivityType.Playing));
+            Client.SetActivityAsync(new Game($"code v{Program.VER_STR}", ActivityType.Playing));
             var servicesTypes = ReflectiveEnumerator.GetEnumerableOfType<Service>(null).Select(x => x.GetType());
             var services = new List<Service>();
             foreach (var type in servicesTypes)

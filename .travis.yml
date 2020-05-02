@@ -21,16 +21,17 @@ jobs:
       script: 
         - dotnet restore DiscordBot/DiscordBot.sln
         - dotnet publish -c LinRelease -f netcoreapp3.1 -r linux-arm DiscordBot/DiscordBot.sln
-        - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then bash deploy.sh; fi'
+        - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then bash deploy.sh master; fi'
       after_failure:
         - wget https://raw.githubusercontent.com/DiscordHooks/travis-ci-discord-webhook/master/send.sh
         - chmod +x send.sh
         - ./send.sh failure $WEBHOOK_URL
     - name: ReleaseN
-      if: branch != master
+      if: branch = dev
       script: 
         - dotnet restore DiscordBot/DiscordBot.sln
         - dotnet publish -c LinRelease -f netcoreapp3.1 -r linux-arm DiscordBot/DiscordBot.sln
+        - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then bash deploy.sh dev; fi'
       after_success:
         - wget https://raw.githubusercontent.com/DiscordHooks/travis-ci-discord-webhook/master/send.sh
         - chmod +x send.sh
