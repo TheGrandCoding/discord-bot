@@ -37,11 +37,15 @@ namespace DiscordBot.Services
             var wanted = new DateTime(DateTime.Now.Year,
                 DateTime.Now.Month,
                 DateTime.Now.Day,
-                18,
-                0,
+                19,
+                30,
                 0);
             while (wanted < DateTime.Now)
+#if DEBUG
                 wanted = wanted.AddSeconds(15);
+#else
+                wanted = wanted.AddHours(1);
+#endif
             var diff = wanted - DateTime.Now;
             Thread.Sleep((int)Math.Ceiling(diff.TotalMilliseconds));
         }

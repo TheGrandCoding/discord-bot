@@ -21,6 +21,7 @@ namespace DiscordBot.Services
         public virtual bool IsCritical => false;
         public virtual bool IsEnabled => true;
         public bool HasFailed { get; private set; }
+        public virtual int Priority => 0;
 
         public virtual void OnReady() { }
         public virtual void OnLoaded() { }
@@ -75,7 +76,7 @@ namespace DiscordBot.Services
 
         public static void SendReady(List<Service> _servs)
         {
-            zza_services = _servs;
+            zza_services = _servs.OrderBy(x => x.Priority).ToList();
             sendFunction("OnReady");
         }
     

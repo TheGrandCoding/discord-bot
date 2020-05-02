@@ -11,6 +11,7 @@ namespace DiscordBot.Services.BuiltIn
 {
     public class BackupService : Service
     {
+        public override int Priority => -10;
         public override bool IsCritical => true;
 
         public static byte[] GetZipArchive(List<InMemoryFile> files)
@@ -76,21 +77,36 @@ namespace DiscordBot.Services.BuiltIn
             }
 
             // Step 2: Copy current saves into Latest folder
-            var mainSave = Path.Combine(Program.BASE_PATH, Program.saveName);
-            string mainTo = Path.Combine(latestFolder, Program.saveName);
-            File.SetAttributes(mainSave, FileAttributes.Normal);
-            File.Copy(mainSave, mainTo, true);
-            File.SetAttributes(mainTo, FileAttributes.Normal);
+            var backupFiles = new List<string>()
+            {
+                Program.saveName
+            };
             foreach(var possible in zza_services)
             {
                 if (!(possible is SavedService service))
                     continue;
-                var from = Path.Combine(Program.BASE_PATH, "Saves", service.SaveFile);
-                var to = Path.Combine(latestFolder, service.SaveFile);
-                if(File.Exists(from))
+                backupFiles.Add(service.SaveFile);
+            }
+            foreach(var x in backupFiles)
+            {
+                var from = Path.Combine(Program.BASE_PATH, "Saves", x);
+                var to = Path.Combine(latestFolder, x);
+                if (File.Exists(from))
                 {
                     File.Copy(from, to, true);
                     File.SetAttributes(to, FileAttributes.Normal);
+                }
+            }
+            foreach(var x in Directory.GetFiles(Path.Combine(Program.BASE_PATH, "Saves")))
+            {
+                var fInfo = new FileInfo(x);
+                if(fInfo.Extension == ".new")
+                {
+                    var to = fInfo.Name.Replace(".new", "");
+                    File.SetAttributes(fInfo.FullName, FileAttributes.Normal);
+                    File.Move(fInfo.FullName, to, true);
+                    File.SetAttributes(Path.Combine(Program.BASE_PATH, "Saves", to), FileAttributes.Normal);
+                    Program.LogMsg($"Installed new DL file", Discord.LogSeverity.Debug, to);
                 }
             }
         }

@@ -15,7 +15,9 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Reflection;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -44,7 +46,11 @@ Constantly update message with UK stats.
 #if WINDOWS
         public const string BASE_PATH = @"D:\Bot\";
 #else
+#if DEBUG
+        public const string BASE_PATH = @"/mnt/drive/bot/DebugData/";
+#else
         public const string BASE_PATH = @"/mnt/drive/bot/Data/";
+#endif
 #endif
 
 #if DEBUG
@@ -70,6 +76,54 @@ Constantly update message with UK stats.
             Configuration = builder.Build();
 
             Prefix = Configuration["prefix"][0];
+        }
+
+#if WINDOWS
+        static void fetchFile(string fName)
+        {
+            var client = Services.GetRequiredService<HttpClient>();
+            var remote = Configuration["urls:download"];
+            var authPwd = Configuration["tokens:download"];
+            var fullRemote = string.Format(remote, fName);
+            var request = new HttpRequestMessage(HttpMethod.Get, fullRemote);
+            var authValue = new AuthenticationHeaderValue("Basic", 
+                Convert.ToBase64String(Encoding.UTF8.GetBytes($"bot:{authPwd}")));
+            request.Headers.Authorization = authValue;
+            var response = client.SendAsync(request).Result;
+            var text = response.Content.ReadAsStringAsync().Result;
+            if(!response.IsSuccessStatusCode)
+            {
+                Program.LogMsg($"Failed to download: {response.StatusCode} {text}", LogSeverity.Error, fName);
+                return;
+            }
+            var local = Path.Combine(BASE_PATH, "Saves", fName + ".new");
+            File.WriteAllText(local, text);
+            long length = new System.IO.FileInfo(local).Length;
+            Program.LogMsg($"Downloaded {length / 1000}kB", LogSeverity.Debug, fName);
+        }
+#else
+        static void fetchFile(string fName)
+        {
+            var from = string.Format(Configuration["urls:download"], fName);
+            var to = Path.Join(BASE_PATH, "Saves", fName + ".new");
+            File.Copy(from, to, true);
+            Program.LogMsg("Copied for debug use", LogSeverity.Debug, fName);
+        }
+#endif
+
+        static void fetchServiceFiles(List<Service> services)
+        {
+#if !DEBUG
+            // Release shouldn't be downloading the files.. from itself
+            return;
+#endif
+            var savedServices = services.Where(x => x is SavedService);
+            var files = savedServices.Select(x => ((SavedService)x).SaveFile).ToList();
+            files.Add(saveName);
+            foreach(var x in files)
+            {
+                fetchFile(x);
+            }
         }
 
         public static async Task MainAsync()
@@ -169,7 +223,7 @@ Constantly update message with UK stats.
             return coll.BuildServiceProvider();
         }
 
-        #region Save Info
+#region Save Info
         public static List<BotUser> Users { get; set; }
         public const string saveName = "new_bot_save.json";
 
@@ -184,7 +238,7 @@ Constantly update message with UK stats.
             string content;
             try
             {
-                content = File.ReadAllText(saveName);
+                content = File.ReadAllText(Path.Combine(BASE_PATH, "Saves", saveName));
             }
             catch (FileNotFoundException ex)
             {
@@ -204,7 +258,7 @@ Constantly update message with UK stats.
                 states = states,
             };
             var str = JsonConvert.SerializeObject(bSave);
-            File.WriteAllText(saveName, str);
+            File.WriteAllText(Path.Combine(BASE_PATH, "Saves", saveName), str);
             if(saveServices)
             {
                 Service.SendSave();
@@ -221,6 +275,7 @@ Constantly update message with UK stats.
                 var req = (Service)Program.Services.GetRequiredService(type);
                 services.Add(req);
             }
+            fetchServiceFiles(services);
             Service.SendReady(services); // TODO: remove ready?
             try
             {
@@ -252,9 +307,9 @@ Constantly update message with UK stats.
             th.Name = "clientReady";
             th.Start();
         }
-        #endregion
+#endregion
 
-        #region AntiRepeat Functions
+#region AntiRepeat Functions
 
         static Dictionary<string, int> states = new Dictionary<string, int>();
 
@@ -277,6 +332,6 @@ Constantly update message with UK stats.
             return val;
         }
 
-        #endregion
+#endregion
     }
 }
