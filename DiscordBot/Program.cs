@@ -24,12 +24,10 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.0.23"; 
+        public const string VERSION = "0.1.0"; 
         public const string CHANGELOG = VERSION + @"
-== Image Recognition
-Attempt some fun OCR.
-== Reddit Integration
-Now link it with reddit
+== Add coronavirus cases
+Constantly update message with UK stats.
 ";
         public static DiscordSocketClient Client { get; set; }
         public static IConfigurationRoot Configuration { get; set; }
@@ -160,8 +158,10 @@ Now link it with reddit
                     CaseSensitiveCommands = false
                 }))
                 .AddSingleton<CommandHandlingService>()
-                .AddSingleton<HttpClient>()
                 .AddSingleton<InteractiveService>();
+            var http = new HttpClient();
+            http.DefaultRequestHeaders.Add("User-Agent", $"dsMLAPI-v{VERSION}");
+            coll.AddSingleton(typeof(HttpClient), http);
             foreach(var service in ReflectiveEnumerator.GetEnumerableOfType<Service>(null))
                 coll.AddSingleton(service.GetType());
             return coll.BuildServiceProvider();
@@ -251,7 +251,6 @@ Now link it with reddit
             th.Start();
         }
         #endregion
-
 
         #region AntiRepeat Functions
 
