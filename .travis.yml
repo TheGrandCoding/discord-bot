@@ -30,7 +30,7 @@ jobs:
       if: branch = dev
       script: 
         - dotnet restore DiscordBot/DiscordBot.sln
-        - dotnet publish -c LinDebug -f netcoreapp3.1 -r linux-arm DiscordBot/DiscordBot.sln
+        - dotnet publish -c LinDebug -f netcoreapp3.1 -r linux-arm DiscordBot/DiscordBot.sln -o /home/travis/build/TheGrandCoding/discord-bot/DiscordBot/bin/LinRelease/netcoreapp3.1/linux-arm/publish/
         - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then bash deploy.sh dev; fi'
       after_success:
         - wget https://raw.githubusercontent.com/DiscordHooks/travis-ci-discord-webhook/master/send.sh
