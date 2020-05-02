@@ -26,7 +26,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.1.1"; 
+        public const string VERSION = "0.1.2"; 
         public const string CHANGELOG = VERSION + @"
 == Add coronavirus cases
 Constantly update message with UK stats.
@@ -105,6 +105,11 @@ Constantly update message with UK stats.
         static void fetchFile(string fName)
         {
             var from = string.Format(Configuration["urls:download"], fName);
+            if(!File.Exists(from))
+            {
+                Program.LogMsg($"File does not exist", LogSeverity.Error, fName);
+                return;
+            }
             var to = Path.Join(BASE_PATH, "Saves", fName + ".new");
             File.Copy(from, to, true);
             Program.LogMsg("Copied for debug use", LogSeverity.Debug, fName);

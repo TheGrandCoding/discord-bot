@@ -102,11 +102,11 @@ namespace DiscordBot.Services.BuiltIn
                 var fInfo = new FileInfo(x);
                 if(fInfo.Extension == ".new")
                 {
-                    var to = fInfo.Name.Replace(".new", "");
+                    var to = Path.Combine(Program.BASE_PATH, "Saves", fInfo.Name.Replace(".new", ""));
                     File.SetAttributes(fInfo.FullName, FileAttributes.Normal);
                     File.Move(fInfo.FullName, to, true);
-                    File.SetAttributes(Path.Combine(Program.BASE_PATH, "Saves", to), FileAttributes.Normal);
-                    Program.LogMsg($"Installed new DL file", Discord.LogSeverity.Debug, to);
+                    File.SetAttributes(to, FileAttributes.Normal);
+                    Program.LogMsg($"Installed new DL file", Discord.LogSeverity.Debug, fInfo.Name);
                 }
             }
         }
