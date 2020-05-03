@@ -37,15 +37,10 @@ namespace DiscordBot.Services
             var wanted = new DateTime(DateTime.Now.Year,
                 DateTime.Now.Month,
                 DateTime.Now.Day,
-                19,
-                30,
+                DateTime.Now.Hour,
+                0,
                 0);
-            while (wanted < DateTime.Now)
-#if DEBUG
-                wanted = wanted.AddSeconds(15);
-#else
-                wanted = wanted.AddHours(1);
-#endif
+            wanted = wanted.AddHours(3);
             var diff = wanted - DateTime.Now;
             Thread.Sleep((int)Math.Ceiling(diff.TotalMilliseconds));
         }
@@ -56,10 +51,12 @@ namespace DiscordBot.Services
             return input.ToString("#,##0");
         }
 
+        const string flagUrl = @"https://www.countryflags.io/{0}/flat/64.png";
         public EmbedBuilder getEmbed(CoronaData data)
         {
             EmbedBuilder builder = new EmbedBuilder();
             builder.Title = $"Coronavirus -- {data.Name}";
+            builder.ThumbnailUrl = string.Format(flagUrl, data.Code.ToLower());
             int millionsOfPop = (int)Math.Round(data.Population / (double)Amounts.Denary.Million);
             int casesPerMil = (data.Latest.Confirmed ?? 1) / millionsOfPop;
             builder.Description = $"Population: {thousand(data.Population)}\r\n" +
