@@ -20,6 +20,9 @@ namespace DiscordBot.Services
 {
     public class ScamDetector : SavedService
     {
+        // Disabled: PRAW file taking over.
+        public override bool IsEnabled => false;
+        
         public string Folder => Path.Combine(Program.BASE_PATH, "tessdata");
         private Tesseract _ocr;
         private RedditClient reddit;
