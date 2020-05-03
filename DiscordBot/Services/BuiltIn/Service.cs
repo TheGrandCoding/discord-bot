@@ -49,6 +49,8 @@ namespace DiscordBot.Services
                 var stop = new Stopwatch();
                 foreach (var srv in zza_services)
                 {
+                    if (!srv.IsEnabled)
+                        continue;
                     var method = srv.GetType().GetMethod(name);
                     try
                     {
