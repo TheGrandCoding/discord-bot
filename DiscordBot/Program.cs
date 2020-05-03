@@ -3,6 +3,7 @@ using Discord.Addons.Interactive;
 using Discord.Commands;
 using Discord.WebSocket;
 using DiscordBot.Classes;
+using DiscordBot.Classes.Calculator;
 using DiscordBot.MLAPI;
 using DiscordBot.Services;
 using DiscordBot.TypeReaders;
@@ -26,10 +27,10 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.1.3"; 
+        public const string VERSION = "0.2.0"; 
         public const string CHANGELOG = VERSION + @"
-== Add coronavirus cases
-Constantly update message with UK stats.
+== Add calculator
+$calculator - Input any string and we'll do the rest.
 ";
         public static DiscordSocketClient Client { get; set; }
         public static IConfigurationRoot Configuration { get; set; }
