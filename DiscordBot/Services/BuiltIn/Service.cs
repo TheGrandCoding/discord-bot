@@ -1,6 +1,7 @@
 ﻿using Discord;
 using Discord.WebSocket;
 using DiscordBot.Utils;
+using RestSharp.Deserializers;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -32,6 +33,7 @@ namespace DiscordBot.Services
 
         protected static List<Service> zza_services;
 
+        static Dictionary<string, bool> doneFunctions = new Dictionary<string, bool>();
         static void sendFunction(object obj)
         {
             if(!(obj is string name))
@@ -39,6 +41,9 @@ namespace DiscordBot.Services
                 Program.LogMsg($"sendFunction recieved non-string input: {obj.GetType()}", LogSeverity.Warning);
                 return;
             }
+            if (doneFunctions.TryGetValue(name, out var d) && d)
+                return;
+            doneFunctions[name] = true;
             try
             {
                 var stop = new Stopwatch();
