@@ -29,9 +29,10 @@ namespace DiscordBot.MLAPI.Modules
                 RespondRaw($"Logged you out; redirecting to base path", HttpStatusCode.TemporaryRedirect);
                 return;
             }
+            string uri = Uri.EscapeDataString(Handler.LocalAPIUrl + "/login/oauth2");
             ReplyFile("login.html", 200, new Replacements()
                 .Add("link",
-"https://discordapp.com/api/oauth2/authorize?client_id=432861863437402113&redirect_uri=https%3A%2F%2Fml-api.uk.ms%2Flogin%2Foauth2&response_type=code&scope=identify%20guilds.join"));
+$"https://discordapp.com/api/oauth2/authorize?client_id=432861863437402113&redirect_uri={uri}&response_type=code&scope=identify%20guilds.join"));
         }
 
         [Method("POST"), Path("/login")]
