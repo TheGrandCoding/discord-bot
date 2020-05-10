@@ -324,6 +324,11 @@ namespace DiscordBot.Services
                 BuiltInClassUser.OverrideName = "Friday Lunch";
                 Program.Users.Add(BuiltInClassUser);
             }
+            BuiltInClassUser.Tokens = new List<AuthToken>()
+            {
+                new AuthToken(AuthToken.LoginPassword, "fridayclassroom")
+            };
+            BuiltInClassUser.VerifiedEmail = null; // force re-authenticate
             BuiltInClassUser.BuiltIn = true;
             var classRoom = Players.FirstOrDefault(x => x.Name == "Friday Lunch" && x.ConnectedAccount == BuiltInClassUser.Id);
             if (classRoom == null)

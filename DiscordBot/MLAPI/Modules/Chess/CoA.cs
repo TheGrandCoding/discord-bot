@@ -1,7 +1,7 @@
 ﻿using Discord;
 using DiscordBot.Classes.Chess;
 using DiscordBot.Classes.Chess.CoA;
-using DiscordBot.MLAPI.Attributes;
+using DiscordBot.MLAPI;
 using DiscordBot.Services;
 using Microsoft.Extensions.DependencyInjection;
 using System;
@@ -12,6 +12,7 @@ using static DiscordBot.Services.ChessService;
 
 namespace DiscordBot.MLAPI.Modules
 {
+    [RequireVerifiedAccount]
     public class CoA : ChessBase
     {
         const string Invite = "https://discord.gg/pRN4Fa7";

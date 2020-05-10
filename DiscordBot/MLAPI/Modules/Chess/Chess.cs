@@ -1,5 +1,6 @@
 ﻿using Discord;
 using DiscordBot.Classes.Chess;
+using DiscordBot.MLAPI.Exceptions;
 using DiscordBot.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json.Linq;
@@ -15,6 +16,7 @@ using static DiscordBot.Services.ChessService;
 
 namespace DiscordBot.MLAPI.Modules
 {
+    [RequireVerifiedAccount]
     public partial class Chess : ChessBase
     {
         public static ChessService ChessS;
@@ -87,7 +89,20 @@ namespace DiscordBot.MLAPI.Modules
         {
             if(!string.IsNullOrWhiteSpace(ChessService.LoadException))
             { // service failed to load
-                throw new DiscordBot.MLAPI.Attributes.HaltExecutionException(LoadException);
+                throw new DiscordBot.MLAPI.HaltExecutionException(LoadException);
+            }
+            if (Context.User == null)
+                return;
+            if(Context.User.Id == ChessService.BuiltInClassRoomBotUser)
+            {
+                var chiefId = ulong.Parse(Program.Configuration["chess:chief:id"]);
+                var chiefUser = Program.GetUserOrDefault(chiefId);
+                if(chiefUser.VerifiedEmail != Context.User.VerifiedEmail)
+                {
+                    Context.User.VerifiedEmail = null;
+                    throw new RedirectException(MLAPI.Modules.MicrosoftOauth.getUrl(Context.User),
+                        "ClassRoom must be authed by Chief Justice.");
+                }
             }
         }
 
@@ -132,10 +147,7 @@ namespace DiscordBot.MLAPI.Modules
         {
             if (player == null)
                 return null;
-            var perm = Perms.Parse(Perms.Bot.Known);
-            if (perm.HasPerm(Context))
-                return player.Name;
-            return $"Player #{player.Id:00}";
+            return player.Name;
         }
 
         string getPlayerNameRow(ChessPlayer player, int fridays)
@@ -223,7 +235,6 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("GET"), Path("/chess")]
-        //[AllowNonAuthed(ConditionIfAuthed = true)] // Possible privacy implications?
         public void Base()
         {
             string TABLE = "";
@@ -409,7 +420,8 @@ namespace DiscordBot.MLAPI.Modules
 
 #region Chess Clock
         [Method("GET"), Path("/chess/clock")]
-        [AllowNonAuthed(ConditionIfAuthed = true)]
+        [RequireVerifiedAccount(false)]
+        [RequireAuthentication(false)]
         public void Clock(int seconds = 300, int black = 300)
         {
             if(seconds > (60 * 59) || black > (60 * 59))
@@ -488,7 +500,8 @@ namespace DiscordBot.MLAPI.Modules
 #region Thing
         [Method("POST"), Path("/chess/api/pullr")]
         [RequireValidHTTPAgent(false)]
-        [AllowNonAuthed(ConditionIfAuthed = true)]
+        [RequireAuthentication(false)]
+        [RequireVerifiedAccount(false)]
         public void HandleHTTPFilesPr()
         {
             RespondRaw("Ok");
@@ -503,21 +516,18 @@ namespace DiscordBot.MLAPI.Modules
 #endregion
 
         [Method("GET"), Path("/chess/api/lawcss")]
-        [AllowNonAuthed(ConditionIfAuthed = true)]
         public void LawStyle()
         {
             ReplyFile("terms/lawstyle.css", 200);
         }
 
         [Method("GET"), Path("/chess/conduct")]
-        [AllowNonAuthed(ConditionIfAuthed = true)]
         public void Regulations()
         {
             ReplyFile("terms/conduct.html", 200);
         }
 
         [Method("GET"), Path("/chess/terms")]
-        [AllowNonAuthed(ConditionIfAuthed = true)]
         public void TermsAndCons()
         {
             string mods = "";
@@ -637,7 +647,6 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("GET"), Path("/chess/history")]
-        [AllowNonAuthed(ConditionIfAuthed = true)]
         public void UserHistory(int id, bool full = false)
         {
             var player = Players.FirstOrDefault(x => x.Id == id);
@@ -831,7 +840,8 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("GET"), Path("/chess/account")]
-        [AllowNonAuthed(ConditionIfAuthed = true)]
+        [RequireVerifiedAccount(false)]
+        [RequireAuthentication(false)]
         public void GetAccountInfo()
         {
             var accn = SelfPlayer;

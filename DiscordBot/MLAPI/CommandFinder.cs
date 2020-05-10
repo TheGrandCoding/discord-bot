@@ -27,7 +27,7 @@ namespace DiscordBot.MLAPI
             var match = methodCmds.Where(x => x.Path.IsMatch(Request.Url.AbsolutePath)).ToList();
             if (match.Count == 0)
             {
-                Errors.Add(new ParseResult("No endpoint matched the given path"));
+                Errors.Add(new ParseResult(null).WithError("No endpoint matched the given path"));
                 return false;
             }
             else
@@ -46,7 +46,7 @@ namespace DiscordBot.MLAPI
                 }
                 else if (success.Count > 1)
                 {
-                    Errors.Add(new ParseResult($"Conflict: Multiple endpoints are valid: " +
+                    Errors.Add(new ParseResult(null).WithError($"Conflict: Multiple endpoints are valid: " +
                     string.Join(", ", success.Select(x => x.Command.fullInfo()))));
                     return false;
                 }
@@ -69,30 +69,30 @@ namespace DiscordBot.MLAPI
             var cnt = System.Activator.CreateInstance(cmd.Module, context);
             var commandBase = (APIBase)cnt;
             var preconditions = new List<APIPrecondition>();
-            preconditions.AddRange(cmd.Preconditions);
-            preconditions.AddRange(commandBase.BasePreconditions);
+            var final = new ParseResult(cmd);
+            final.CommandBase = commandBase;
 
-            bool requiresAuth = true;
             var ORS = new Dictionary<string, List<PreconditionResult>>();
             var ANDS = new Dictionary<string, List<PreconditionResult>>();
+            var building = new List<APIPrecondition>();
+            building.Add(new RequireAuthentication());
+            building.AddRange(commandBase.BasePreconditions);
+            building.AddRange(cmd.Preconditions);
+            foreach(var nextThing in building)
+            {
+                var previousThing = preconditions.FirstOrDefault(x => x.TypeId == nextThing.TypeId);
+                if(previousThing != null)
+                {
+                    if (!previousThing.CanChildOverride(nextThing))
+                    {
+                        continue;
+                    }
+                    preconditions.Remove(previousThing);
+                }
+                preconditions.Add(nextThing);
+            }
             foreach (var pred in preconditions)
             {
-                if (pred.Overriden)
-                    continue;
-                if (pred is AllowNonAuthed allow)
-                {
-                    requiresAuth = false;
-                }
-                else
-                {
-                    var others = preconditions.Where(x => x != pred && x.GetType() == pred.GetType());
-                    var first = others.FirstOrDefault();
-                    if (first != null)
-                    {
-                        if (pred.CanChildOverride(first))
-                            first.Overriden = true;
-                    }
-                }
                 if (string.IsNullOrWhiteSpace(pred.OR))
                 {
                     ANDS.TryAdd(pred.AND, new List<PreconditionResult>());
@@ -105,19 +105,18 @@ namespace DiscordBot.MLAPI
                 }
             }
 
-            if(requiresAuth && context.User == null)
-            {
-                return new ParseResult(cmd, "Requires authentication (login)")
-                {
-                    RequiresAuthentication = true,
-                };
-            }
-
             foreach (var pred in preconditions)
             {
-                if (pred.Overriden)
-                    continue;
-                var result = pred.Check(context);
+                PreconditionResult result = null;
+                try
+                {
+                    result = pred.Check(context);
+                }
+                catch (HaltExecutionException e)
+                {
+                    final.WithException(e);
+                    result = PreconditionResult.FromError(e.ToString());
+                }
                 if (ORS.TryGetValue(pred.OR, out var orls))
                     orls.Add(result);
                 if((string.IsNullOrWhiteSpace(pred.AND) && string.IsNullOrWhiteSpace(pred.OR))
@@ -131,7 +130,7 @@ namespace DiscordBot.MLAPI
                 var ls = ORS[or];
                 var anySuccess = ls.FirstOrDefault(x => x.IsSuccess);
                 if (anySuccess == null)
-                    return new ParseResult(cmd, $"{string.Join(",", ls.Where(x => !x.IsSuccess).Select(x => x.ErrorReason))}");
+                    return final.WithError($"{string.Join(",", ls.Where(x => !x.IsSuccess).Select(x => x.ErrorReason))}");
             }
 
             weight += 5;
@@ -141,7 +140,7 @@ namespace DiscordBot.MLAPI
                 var ls = ANDS[and];
                 var anyFailure = ls.FirstOrDefault(x => x.IsSuccess == false);
                 if (anyFailure != null)
-                    return new ParseResult(cmd, $"{string.Join(",", ls.Where(x => !x.IsSuccess).Select(x => x.ErrorReason))}");
+                    return final.WithError($"{string.Join(",", ls.Where(x => !x.IsSuccess).Select(x => x.ErrorReason))}");
             }
 
             weight += 5;
@@ -152,7 +151,7 @@ namespace DiscordBot.MLAPI
             {
                 var value = context.GetQuery(param.Name);
                 if (value == null && param.IsOptional == false)
-                    return new ParseResult(cmd, $"No argument specified for required item {param.Name}");
+                    return final.WithError($"No argument specified for required item {param.Name}");
                 if (value == null)
                 {
                     args.Add(param.DefaultValue);
@@ -171,7 +170,7 @@ namespace DiscordBot.MLAPI
                     }
                     else
                     {
-                        return new ParseResult(cmd, $"Could not parse value for {param.Name} as {param.ParameterType.Name}: {typeResult.ErrorReason}");
+                        return final.WithError($"Could not parse value for {param.Name} as {param.ParameterType.Name}: {typeResult.ErrorReason}");
                     }
                 }
             }
@@ -180,12 +179,9 @@ namespace DiscordBot.MLAPI
             {
                 var para = paramaters.FirstOrDefault(x => x.Name == key);
                 if (para == null)
-                    return new ParseResult(cmd, $"Unknown argument specified: {key}");
+                    return final.WithError($"Unknown argument specified: {key}");
             }
             weight += 50;
-            var final = new ParseResult(cmd, null);
-            final.RequiresAuthentication = requiresAuth;
-            final.CommandBase = commandBase;
             final.Arguments = args;
             return final;
         }
@@ -228,17 +224,29 @@ namespace DiscordBot.MLAPI
         public APIBase CommandBase { get; set; }
         public string ErrorReason { get; set; }
 
+        public List<HaltExecutionException> Exceptions { get; set; }
+
 
         public bool RequiresAuthentication { get; set; }
         public List<object> Arguments { get; set; }
 
 
-        public ParseResult(APIEndpoint cmd, string r)
+        public ParseResult(APIEndpoint cmd)
         {
+            Exceptions = new List<HaltExecutionException>();
             Command = cmd;
-            ErrorReason = r;
         }
-        public ParseResult(string r) : this(null, r) { }
+
+        public ParseResult WithException(HaltExecutionException e)
+        {
+            Exceptions.Add(e);
+            return this;
+        }
+        public ParseResult WithError(string e)
+        {
+            ErrorReason = e;
+            return this;
+        }
     }
 
     public class CommandFindResult
