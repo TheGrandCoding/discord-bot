@@ -28,7 +28,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.3.1"; 
+        public const string VERSION = "0.3.2"; 
         public const string CHANGELOG = VERSION + @"
 == Add calculator
 $calculator - Input any string and we'll do the rest.
@@ -43,7 +43,7 @@ $calculator - Input any string and we'll do the rest.
 
         public static Random RND { get; set; } = new Random();
 
-        public static bool ShouldDownload { get; set; } = false;
+        public static bool ShouldDownload { get; set; } = true;
 
         #region Configuration Specific Settings
 
@@ -308,6 +308,23 @@ $calculator - Input any string and we'll do the rest.
                 LogMsg(ex, "StartHandler");
                 Environment.Exit(2);
                 return;
+            }
+            try
+            {
+                var owner = Client.GetApplicationInfoAsync().Result.Owner.Id;
+                var bUser = GetUserOrDefault(owner);
+                if(bUser != null)
+                {
+                    var perm = Perms.Parse(Perms.Bot.All);
+                    if(!perm.UserHasPerm(bUser))
+                    {
+                        bUser.Permissions.Add(perm);
+                        Program.Save();
+                    }
+                }
+            } catch (Exception ex)
+            {
+                LogMsg(ex, "SetOwnerDev");
             }
             Service.SendLoad();
         }
