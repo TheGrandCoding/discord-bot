@@ -29,7 +29,7 @@ namespace DiscordBot.MLAPI.Modules
                 clientId: Program.Configuration["ms_auth:client_id"],
                 responseType: "id_token code",
                 responseMode: "form_post",
-                redirectUri: "http://localhost:8887/login/msoauth",
+                redirectUri: Handler.LocalAPIUrl + "/login/msoauth",
                 nonce: DateTime.Now.DayOfYear.ToString(),
                 state: user.Id.ToString(),
                 scope: "openid https://graph.microsoft.com/user.read");
