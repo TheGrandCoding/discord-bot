@@ -7,6 +7,7 @@ using DiscordBot.Classes.Calculator;
 using DiscordBot.MLAPI;
 using DiscordBot.Services;
 using DiscordBot.TypeReaders;
+using IdentityModel.Client;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
@@ -27,7 +28,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.2.3"; 
+        public const string VERSION = "0.3.0"; 
         public const string CHANGELOG = VERSION + @"
 == Add calculator
 $calculator - Input any string and we'll do the rest.
@@ -41,6 +42,8 @@ $calculator - Input any string and we'll do the rest.
         public static Handler APIHandler { get; set; }
 
         public static Random RND { get; set; } = new Random();
+
+        public static bool ShouldDownload { get; set; } = false;
 
         #region Configuration Specific Settings
 
@@ -123,6 +126,8 @@ $calculator - Input any string and we'll do the rest.
             // Release shouldn't be downloading the files.. from itself
             return;
 #endif
+            if (!ShouldDownload)
+                return;
             var savedServices = services.Where(x => x is SavedService);
             var files = savedServices.Select(x => ((SavedService)x).SaveFile).ToList();
             files.Add(saveName);

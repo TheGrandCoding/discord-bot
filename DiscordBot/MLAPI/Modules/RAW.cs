@@ -24,7 +24,7 @@ namespace DiscordBot.RESTAPI.Functions.HTML
         }
 
         [Path("/"), Method("GET")]
-        [AllowNonAuthed(ConditionIfAuthed = true)]
+        [RequireAuthentication(false)]
         public void BaseHTML()
         {
             if(Context.User == null)
@@ -37,7 +37,7 @@ namespace DiscordBot.RESTAPI.Functions.HTML
         }
 
         [Method("GET"), PathRegex(@"(\/|\\)_(\/|\\)((js|css|img)(\/|\\)[a-zA-Z0-9\/.-]*.\.(js|css|png|jpeg))")]
-        [AllowNonAuthed(ConditionIfAuthed = true)]
+        [RequireAuthentication(false)]
         public void BackgroundWork()
         {
             if(Context.Endpoint == null || !(Context.Endpoint.Path is PathRegex pR))

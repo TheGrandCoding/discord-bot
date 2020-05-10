@@ -98,5 +98,7 @@ namespace DiscordBot.Classes
 
         public string Name => OverrideName ?? FirstValidUser?.Nickname ?? Username ?? Id.ToString();
 
+        [JsonProperty("mail", NullValueHandling = NullValueHandling.Ignore)]
+        public string VerifiedEmail { get; set; }
     }
 }

@@ -17,7 +17,7 @@ namespace DiscordBot.MLAPI.Modules
         public Login(APIContext c) : base(c, "login") { }
 
         [Method("GET"), Path("/login")]
-        [AllowNonAuthed(ConditionIfAuthed = true)]
+        [RequireAuthentication(false)]
         public void LoginBase()
         {
             if(Context.User != null)
@@ -38,7 +38,7 @@ namespace DiscordBot.MLAPI.Modules
         // We expect this data to be sent in form-data-encoded or wahtever form in the content/body
         // rather than in the Query string
         // the APIContext has the means to parse both, and CommandFinder uses both.
-        [AllowNonAuthed]
+        [RequireAuthentication(false)]
         public void LoginPassword(string identifier, string password)
         {
             if(Context.User != null)
@@ -140,7 +140,7 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("GET"), Path("/login/oauth2")]
-        [AllowNonAuthed]
+        [RequireAuthentication(false)]
         public void OauthLogin(string code, string state = null)
         {
             Program.LogMsg("Entered OauthLogin");
@@ -184,7 +184,9 @@ namespace DiscordBot.MLAPI.Modules
                 setSessionTokens(usr);
                 Program.LogMsg("Set session tokens, now logged in.");
                 var pwd = usr.Tokens.FirstOrDefault(x => x.Name == AuthToken.LoginPassword);
-                string redirectTo = "/";
+                string redirectTo = Context.Request.Cookies["Redirect"]?.Value;
+                if (string.IsNullOrWhiteSpace(redirectTo))
+                    redirectTo = "/";
                 if(pwd == null)
                     redirectTo = "/login/setpassword";
                 RespondRaw(LoadRedirectFile(redirectTo), HttpStatusCode.TemporaryRedirect);

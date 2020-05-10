@@ -1,5 +1,7 @@
 ﻿using Discord;
 using DiscordBot.Classes;
+using DiscordBot.MLAPI.Exceptions;
+using Emgu.CV.CvEnum;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -265,10 +267,9 @@ IP: {context.Request.RemoteEndPoint.Address}";
             }
         }
 
-
-        static void redirect(RequestLogger logger, APIContext context)
+        static void redirect(RequestLogger logger, APIContext context, string url)
         {
-            context.HTTP.Response.Headers["Location"] = "/login";
+            context.HTTP.Response.Headers["Location"] = url;
             try
             {
                 var cookie = new Cookie("Redirect", context.HTTP.Request.Url.PathAndQuery);
@@ -279,7 +280,7 @@ IP: {context.Request.RemoteEndPoint.Address}";
             catch { }
             context.HTTP.Response.StatusCode = 307;
             context.HTTP.Response.Close();
-            logger.Append($"\r\nResult: 307\r\nMore: Authentication required");
+            logger.Append($"\r\nResult: 307\r\nMore: " + url);
         }
 
         static void handleRequest(APIContext context)
@@ -312,15 +313,18 @@ IP: {context.Request.RemoteEndPoint.Address}";
             if(!seeker.Search())
             {
                 var list = new List<ErrorItem>();
-                bool loggedInErrors = true;
+                var mustRedirectTo = new List<string>();
                 foreach (var er in seeker.Errors)
                 {
-                    loggedInErrors = loggedInErrors && (er.RequiresAuthentication && context.User == null);
+                    var redirects = er.Exceptions.Where(x => x is RedirectException).Select(x => x as RedirectException);
+                    foreach (var thing in redirects)
+                        if (!mustRedirectTo.Contains(thing.URL))
+                            mustRedirectTo.Add(thing.URL);
                     list.Add(new ErrorItem(er.Command?.fullInfo(), er.ErrorReason));
                 }
-                if(loggedInErrors)
+                if(mustRedirectTo.Count == 1)
                 { // every error is solely about not being logged in
-                    redirect(logger, context);
+                    redirect(logger, context, mustRedirectTo[0]);
                     return;
                 }
                 sendError(new ErrorJson(list), 400);
@@ -329,16 +333,17 @@ IP: {context.Request.RemoteEndPoint.Address}";
 
             var found = seeker.BestFind;
             var commandBase = found.CommandBase;
-            if (found.RequiresAuthentication && context.User == null)
+            var exceptions = found.Exceptions;
+            var failures = exceptions.Where(x => x.CompleteFailure).ToList();
+            if(failures.Count > 0)
             {
-                if (context.Method == HttpMethod.Get.Method)
-                {
-                    redirect(logger, context);
-                }
-                else
-                {
-                    commandBase.RespondRaw("Authentication is required for this endpoint", HttpStatusCode.Forbidden);
-                }
+                commandBase.RespondRaw($"{string.Join(", ", failures.ToString())}", 500);
+                return;
+            }
+            var redirectEx = exceptions.FirstOrDefault(x => x is RedirectException) as RedirectException;
+            if(redirectEx != null)
+            {
+                redirect(logger, context, redirectEx.URL);
                 return;
             }
             commandBase.Context.Endpoint = found.Command;
@@ -346,7 +351,13 @@ IP: {context.Request.RemoteEndPoint.Address}";
             {
                 commandBase.BeforeExecute();
             }
-            catch (Attributes.HaltExecutionException ex)
+            catch (RedirectException ex)
+            {
+                redirect(logger, context, ex.URL);
+                logger.Append($"\r\nResult: Redirect: {ex.URL}\r\nMore: {ex.Message}");
+                return;
+            }
+            catch (HaltExecutionException ex)
             {
                 Program.LogMsg(ex, $"{context.Id}");
                 commandBase.ResponseHalted(ex);
