@@ -14,7 +14,7 @@ namespace DiscordBot.Classes.Calculator.Process
 
         protected override string RegStr => @"([\d]*)[d]([\d]+)";
 
-        public override string Process(string input, Match m)
+        public override double Process(string input, Match m)
         {
             var numRolls = m.Groups[1].Value;
             if (string.IsNullOrWhiteSpace(numRolls))
@@ -30,7 +30,7 @@ namespace DiscordBot.Classes.Calculator.Process
                 results.Add(Program.RND.Next(1, sides + 1));
             }
             Calculator.AddStep($"| Rolls: " + string.Join(", ", results));
-            return results.Sum().ToString();
+            return results.Sum();
         }
     }
 }

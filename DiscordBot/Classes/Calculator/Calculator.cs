@@ -1,6 +1,9 @@
-﻿using DiscordBot.Classes.Calculator.Process;
+﻿using DiscordBot.Classes.Calculator.Functions;
+using DiscordBot.Classes.Calculator.Process;
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 using System.Runtime.InteropServices.ComTypes;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -21,8 +24,42 @@ namespace DiscordBot.Classes.Calculator
             Processes = parent?.Processes ?? new List<CalcProcess>();
             Steps = new List<string>();
         }
+
+        bool validArg(Type argType)
+        {
+            return argType == typeof(int)
+                || argType == typeof(double);
+        }
+
+        void LoadMathFunctions(Type mathsType)
+        {
+            foreach(var method in mathsType.GetMethods(BindingFlags.Public | BindingFlags.Static))
+            {
+                if (validArg(method.ReturnType) == false)
+                    continue;
+                var args = method.GetParameters();
+                bool anyInvalid = args.Any(x => validArg(x.ParameterType) == false);
+                if (anyInvalid)
+                    continue;
+                var methFunction = new MethodFunction(this, method);
+                var existing = Processes.Where(x => x is MethodFunction)
+                    .Select(x => x as MethodFunction)
+                    .Any(x => x.Name == methFunction.Name && x.Arguments.Count == methFunction.Arguments.Count);
+                if(!existing)
+                    Processes.Add(methFunction);
+            }
+        }
+
+        class Constants
+        {
+            public static double PI() => Math.PI;
+            public static double E() => Math.E;
+        }
+
         public Calculator() : this(null)
         {
+            LoadMathFunctions(typeof(Constants));
+            LoadMathFunctions(typeof(Math));
             Processes.Add(new Brackets(this));
             Processes.Add(new SumDice(this));
             Processes.Add(new Indices(this));
@@ -40,7 +77,7 @@ namespace DiscordBot.Classes.Calculator
             Steps.Add(i);
         } 
 
-        public string Output(string input)
+        public double Output(string input)
         {
             foreach (var x in Processes)
                 x.Calculator = this;
@@ -56,7 +93,7 @@ namespace DiscordBot.Classes.Calculator
                     if (mtch.Success)
                     {
                         performed = true;
-                        string result;
+                        double result;
                         try
                         {
                             result = x.Process(mtch.Value, mtch);
@@ -78,7 +115,9 @@ namespace DiscordBot.Classes.Calculator
             } while (performed);
             foreach (var x in Processes)
                 x.Calculator = Parent;
-            return input;
+            if (double.TryParse(input, out var s))
+                return s;
+            throw new InvalidOperationException($"Could not complete calculation");
         }
     }
 }

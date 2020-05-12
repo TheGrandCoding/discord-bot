@@ -3,17 +3,18 @@ using System.Collections.Generic;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace DiscordBot.Classes.Calculator.Process
+namespace DiscordBot.Classes.Calculator
 {
-    public class Division : CalcProcess
+    public abstract class TwoSideProcess : CalcProcess
     {
-        public Division(Calculator t) : base(t)
+        public TwoSideProcess(Calculator t) : base(t)
         {
         }
+        protected abstract string SymbolRegStr { get; }
 
-        protected override string RegStr => @"([\d\.\-]+)\ ?[\/]\ ?([\d\.\-]+)";
+        protected override string RegStr => DOUBLE + SymbolRegStr + DOUBLE;
 
-        public override string Process(string input, Match m)
+        public override double Process(string input, Match m)
         {
             string leftS = m.Groups[1].Value;
             string rightS = m.Groups[2].Value;
@@ -21,7 +22,9 @@ namespace DiscordBot.Classes.Calculator.Process
                 throw new Exception($"Could not parse '{leftS}' as a number");
             if (!double.TryParse(rightS, out var right))
                 throw new Exception($"Could not parse '{rightS}' as a number");
-            return (left / right).ToString();
+            return Process(left, right);
         }
+
+        protected abstract double Process(double left, double right);
     }
 }

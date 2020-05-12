@@ -11,9 +11,9 @@ namespace DiscordBot.Classes.Calculator.Process
         {
         }
 
-        protected override string RegStr => @"([\d-]+)!";
+        protected override string RegStr => @"(-?[\d]+)!";
 
-        public override string Process(string input, Match m)
+        public override double Process(string input, Match m)
         {
             var digit = m.Groups[1].Value;
             if (!long.TryParse(digit, out var num))
@@ -21,7 +21,7 @@ namespace DiscordBot.Classes.Calculator.Process
             long result = 1;
             for (long i = num; i > 0; i--)
                 result *= i;
-            return result.ToString();
+            return result;
         }
     }
 }
