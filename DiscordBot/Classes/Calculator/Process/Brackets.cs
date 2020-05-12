@@ -10,7 +10,7 @@ namespace DiscordBot.Classes.Calculator.Process
         public Brackets(Calculator t) : base(t)
         {
         }
-        protected override string RegStr => @"\((?>\((?<c>)|[^()]+|\)(?<-c>))*(?(c)(?!))\)";
+        protected override string RegStr => @"(?<![a-z])\((?>\((?<c>)|[^()]+|\)(?<-c>))*(?(c)(?!))\)";
         public override double Process(string input, Match m)
         {
             var subC = new Calculator(Calculator);
