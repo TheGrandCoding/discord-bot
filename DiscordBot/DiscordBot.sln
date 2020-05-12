@@ -5,19 +5,37 @@ VisualStudioVersion = 16.0.30011.22
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DiscordBot", "DiscordBot.csproj", "{589192A2-D9CE-473F-BD6C-CC58A4ED86EA}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DiscordBot.Tests", "..\DiscordBot.Tests\DiscordBot.Tests.csproj", "{13097B99-B2FB-46C5-A4B2-69A3056F80E4}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
 		LinDebug|Any CPU = LinDebug|Any CPU
 		LinRelease|Any CPU = LinRelease|Any CPU
+		Release|Any CPU = Release|Any CPU
 		WinDebug|Any CPU = WinDebug|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{589192A2-D9CE-473F-BD6C-CC58A4ED86EA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{589192A2-D9CE-473F-BD6C-CC58A4ED86EA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{589192A2-D9CE-473F-BD6C-CC58A4ED86EA}.LinDebug|Any CPU.ActiveCfg = LinDebug|Any CPU
 		{589192A2-D9CE-473F-BD6C-CC58A4ED86EA}.LinDebug|Any CPU.Build.0 = LinDebug|Any CPU
 		{589192A2-D9CE-473F-BD6C-CC58A4ED86EA}.LinRelease|Any CPU.ActiveCfg = Release|Any CPU
 		{589192A2-D9CE-473F-BD6C-CC58A4ED86EA}.LinRelease|Any CPU.Build.0 = Release|Any CPU
+		{589192A2-D9CE-473F-BD6C-CC58A4ED86EA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{589192A2-D9CE-473F-BD6C-CC58A4ED86EA}.Release|Any CPU.Build.0 = Release|Any CPU
 		{589192A2-D9CE-473F-BD6C-CC58A4ED86EA}.WinDebug|Any CPU.ActiveCfg = Debug|Any CPU
 		{589192A2-D9CE-473F-BD6C-CC58A4ED86EA}.WinDebug|Any CPU.Build.0 = Debug|Any CPU
+		{13097B99-B2FB-46C5-A4B2-69A3056F80E4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{13097B99-B2FB-46C5-A4B2-69A3056F80E4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{13097B99-B2FB-46C5-A4B2-69A3056F80E4}.LinDebug|Any CPU.ActiveCfg = Debug|Any CPU
+		{13097B99-B2FB-46C5-A4B2-69A3056F80E4}.LinDebug|Any CPU.Build.0 = Debug|Any CPU
+		{13097B99-B2FB-46C5-A4B2-69A3056F80E4}.LinRelease|Any CPU.ActiveCfg = Release|Any CPU
+		{13097B99-B2FB-46C5-A4B2-69A3056F80E4}.LinRelease|Any CPU.Build.0 = Release|Any CPU
+		{13097B99-B2FB-46C5-A4B2-69A3056F80E4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{13097B99-B2FB-46C5-A4B2-69A3056F80E4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{13097B99-B2FB-46C5-A4B2-69A3056F80E4}.WinDebug|Any CPU.ActiveCfg = Debug|Any CPU
+		{13097B99-B2FB-46C5-A4B2-69A3056F80E4}.WinDebug|Any CPU.Build.0 = Debug|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

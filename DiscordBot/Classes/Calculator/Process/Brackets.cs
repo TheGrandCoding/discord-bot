@@ -11,7 +11,7 @@ namespace DiscordBot.Classes.Calculator.Process
         {
         }
         protected override string RegStr => @"\((?>\((?<c>)|[^()]+|\)(?<-c>))*(?(c)(?!))\)";
-        public override string Process(string input, Match m)
+        public override double Process(string input, Match m)
         {
             var subC = new Calculator(Calculator);
             return subC.Output(input.Substring(1, input.Length - 2));

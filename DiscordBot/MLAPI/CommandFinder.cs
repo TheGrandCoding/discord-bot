@@ -163,7 +163,7 @@ namespace DiscordBot.MLAPI
                 }
                 else
                 {
-                    var typeResult = attemptParse(value, param.ParameterType);
+                    var typeResult = Program.AttemptParseInput(value, param.ParameterType);
                     if (typeResult.IsSuccess)
                     {
                         args.Add(typeResult.BestMatch);
@@ -184,35 +184,6 @@ namespace DiscordBot.MLAPI
             weight += 50;
             final.Arguments = args;
             return final;
-        }
-
-        Discord.Commands.TypeReaderResult attemptParse(string input, Type desired)
-        {
-            var thing = Program.Commands.GetType().GetField("_defaultTypeReaders", BindingFlags.NonPublic | BindingFlags.Instance);
-            var defaultTypeReaders = thing.GetValue(Program.Commands) as IDictionary<Type, Discord.Commands.TypeReader>;
-
-            Dictionary<Type, Discord.Commands.TypeReader> combined = new Dictionary<Type, Discord.Commands.TypeReader>();
-            foreach (var keypair in defaultTypeReaders)
-                combined.Add(keypair.Key, keypair.Value);
-            foreach (var keypair in Program.Commands.TypeReaders)
-                combined[keypair.Key] = keypair?.FirstOrDefault();
-
-            var reader = combined[desired];
-            if (reader == null)
-            {
-                return Discord.Commands.TypeReaderResult.FromError(
-                    Discord.Commands.CommandError.Exception, $"Endpoint expects parser for {desired.Name}, but unavailable - my error; not yours");
-            }
-            var result = reader.ReadAsync(null, input, Program.Services).Result;
-            if (result.IsSuccess)
-            {
-                return Discord.Commands.TypeReaderResult.FromSuccess(result.BestMatch);
-            }
-            else
-            {
-                return Discord.Commands.TypeReaderResult.FromError(
-                    Discord.Commands.CommandError.ParseFailed, result.ErrorReason);
-            }
         }
     }
 

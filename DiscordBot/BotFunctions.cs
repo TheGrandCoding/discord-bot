@@ -5,6 +5,7 @@ using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 
 namespace DiscordBot
@@ -76,6 +77,37 @@ namespace DiscordBot
         public static T Deserialise<T>(string input)
         {
             return JsonConvert.DeserializeObject<T>(input, new DiscordConverter());
+        }
+
+        public static Discord.Commands.TypeReaderResult AttemptParseInput<TArg>(string input) =>
+            AttemptParseInput(input, typeof(TArg));
+        public static Discord.Commands.TypeReaderResult AttemptParseInput(string input, Type desired)
+        {
+            var thing = Program.Commands.GetType().GetField("_defaultTypeReaders", BindingFlags.NonPublic | BindingFlags.Instance);
+            var defaultTypeReaders = thing.GetValue(Program.Commands) as IDictionary<Type, Discord.Commands.TypeReader>;
+
+            Dictionary<Type, Discord.Commands.TypeReader> combined = new Dictionary<Type, Discord.Commands.TypeReader>();
+            foreach (var keypair in defaultTypeReaders)
+                combined.Add(keypair.Key, keypair.Value);
+            foreach (var keypair in Program.Commands.TypeReaders)
+                combined[keypair.Key] = keypair?.FirstOrDefault();
+
+            var reader = combined[desired];
+            if (reader == null)
+            {
+                return Discord.Commands.TypeReaderResult.FromError(
+                    Discord.Commands.CommandError.Exception, $"Parser for {desired.Name} unavailabe");
+            }
+            var result = reader.ReadAsync(null, input, Program.Services).Result;
+            if (result.IsSuccess)
+            {
+                return Discord.Commands.TypeReaderResult.FromSuccess(result.BestMatch);
+            }
+            else
+            {
+                return Discord.Commands.TypeReaderResult.FromError(
+                    Discord.Commands.CommandError.ParseFailed, result.ErrorReason);
+            }
         }
     }
 }
