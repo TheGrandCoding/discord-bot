@@ -75,9 +75,15 @@ namespace DiscordBot.MLAPI
             var ORS = new Dictionary<string, List<PreconditionResult>>();
             var ANDS = new Dictionary<string, List<PreconditionResult>>();
             var building = new List<APIPrecondition>();
-            building.Add(new RequireAuthentication());
-            building.AddRange(commandBase.BasePreconditions);
             building.AddRange(cmd.Preconditions);
+            Type parent = commandBase.GetType();
+            do
+            {
+                var attrs = parent.GetCustomAttributes<APIPrecondition>();
+                building.AddRange(attrs);
+                parent = parent.BaseType;
+            } while (parent != null);
+            building.Reverse();
             foreach(var nextThing in building)
             {
                 var previousThing = preconditions.FirstOrDefault(x => x.TypeId == nextThing.TypeId);

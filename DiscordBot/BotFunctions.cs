@@ -71,11 +71,15 @@ namespace DiscordBot
 
         public static string Serialise(object obj)
         {
-            return JsonConvert.SerializeObject(obj, new DiscordConverter());
+            return JsonConvert.SerializeObject(obj, 
+                new DiscordConverter(), 
+                new Classes.ServerList.MLJsonConverter());
         }
         public static T Deserialise<T>(string input)
         {
-            return JsonConvert.DeserializeObject<T>(input, new DiscordConverter());
+            return JsonConvert.DeserializeObject<T>(input, 
+                new DiscordConverter(), 
+                new Classes.ServerList.MLJsonConverter());
         }
     }
 }

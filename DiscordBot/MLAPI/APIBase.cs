@@ -8,6 +8,7 @@ using System.Text.RegularExpressions;
 
 namespace DiscordBot.MLAPI
 {
+    [RequireAuthentication]
     public class APIBase
     {
         public APIBase(APIContext context, string path)
@@ -37,8 +38,6 @@ namespace DiscordBot.MLAPI
         }
 
         protected SidebarType Sidebar { get; set; } = SidebarType.None;
-
-        public List<APIPrecondition> BasePreconditions { get; protected set; } = new List<APIPrecondition>();
 
         public int StatusSent { get; set; } = 0;
         protected bool HasResponded => StatusSent != 0;
