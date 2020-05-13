@@ -18,9 +18,9 @@ namespace DiscordBot.Classes.Calculator
         {
             string leftS = m.Groups[1].Value;
             string rightS = m.Groups[2].Value;
-            if (!double.TryParse(leftS, out var left))
+            if (!parseDouble(leftS, out var left))
                 throw new Exception($"Could not parse '{leftS}' as a number");
-            if (!double.TryParse(rightS, out var right))
+            if (!parseDouble(rightS, out var right))
                 throw new Exception($"Could not parse '{rightS}' as a number");
             return Process(left, right);
         }

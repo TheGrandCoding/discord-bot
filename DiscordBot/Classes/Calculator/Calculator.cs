@@ -31,6 +31,12 @@ namespace DiscordBot.Classes.Calculator
                 || argType == typeof(double);
         }
 
+        class manualToConstant
+        {
+            public static double PI() => throw new ReplaceStringException("π");
+            public static double E() => throw new ReplaceStringException("e");
+        }
+
         void LoadMathFunctions(Type mathsType)
         {
             foreach(var method in mathsType.GetMethods(BindingFlags.Public | BindingFlags.Static))
@@ -50,15 +56,17 @@ namespace DiscordBot.Classes.Calculator
             }
         }
 
-        class Constants
+        public static Dictionary<string, double> Constants = new Dictionary<string, double>()
         {
-            public static double PI() => Math.PI;
-            public static double E() => Math.E;
-        }
+            { "π", Math.PI },
+            { "e", Math.PI },
+            { "TRUE", 1 },
+            { "FALSE", 0 },
+        };
 
         public Calculator() : this(null)
         {
-            LoadMathFunctions(typeof(Constants));
+            LoadMathFunctions(typeof(manualToConstant));
             LoadMathFunctions(typeof(Math));
             Processes.Add(new Brackets(this));
             Processes.Add(new SumDice(this));
@@ -68,6 +76,7 @@ namespace DiscordBot.Classes.Calculator
             Processes.Add(new Multiplication(this));
             Processes.Add(new Addition(this));
             Processes.Add(new Subtraction(this));
+            Processes.Add(new Boolean(this));
         }
 
 
@@ -100,6 +109,12 @@ namespace DiscordBot.Classes.Calculator
                         } catch (ReplaceStringException ex)
                         {
                             result = ex.Message;
+                        } catch(TargetInvocationException ex)
+                        {
+                            if (ex.InnerException is ReplaceStringException e)
+                                result = e.Message;
+                            else
+                                throw ex.InnerException;
                         }
                         catch (Exception ex)
                         {
@@ -118,7 +133,7 @@ namespace DiscordBot.Classes.Calculator
             } while (performed);
             foreach (var x in Processes)
                 x.Calculator = Parent;
-            if (double.TryParse(input, out var s))
+            if (CalcProcess.TryParseDouble(input, out var s))
                 return s;
             throw new InvalidOperationException($"Could not complete calculation");
         }
