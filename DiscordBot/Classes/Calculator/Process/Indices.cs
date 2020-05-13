@@ -11,7 +11,7 @@ namespace DiscordBot.Classes.Calculator.Process
         {
         }
 
-        protected override string RegStr => @"([\d\.]+)\^([-\d]+)";
+        protected override string RegStr => DOUBLE + @"\^" + DOUBLE;
 
         public override double Process(string input, Match m)
         {

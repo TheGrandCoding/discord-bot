@@ -28,7 +28,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.3.4"; 
+        public const string VERSION = "0.3.5"; 
         public const string CHANGELOG = VERSION + @"
 == Add calculator
 $calculator - Input any string and we'll do the rest.

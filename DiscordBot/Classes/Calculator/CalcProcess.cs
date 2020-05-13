@@ -23,9 +23,10 @@ namespace DiscordBot.Classes.Calculator
                 return REG_OR(DiscordBot.Classes.Calculator.Calculator.Constants.Keys.ToArray());
             }
         }
-        protected static string DOUBLE_STRICT = @"[\-]?[\d\.]+";
+        protected static string DIGIT = @"-?[\d\.]+";
+        protected static string DOUBLE_STRICT = @$"{DIGIT}(?:E-?[\d\.]+)?";
         protected static string LETTER_STRICT = @"[a-z]+";
-        protected static string ALPHAN_STRICT = @"[a-zA-Z0-9\.]+";
+        protected static string ALPHAN_STRICT = @"[a-zA-Z0-9\.\-]+";
         protected static string SPC = @"\ ?";
         protected static string DOUBLE = SPC + "(" + REG_OR(DOUBLE_STRICT, CONSTANT) + ")" + SPC;
         protected static string LETTER = SPC + "(" + REG_OR(LETTER_STRICT, CONSTANT) + ")" + SPC;

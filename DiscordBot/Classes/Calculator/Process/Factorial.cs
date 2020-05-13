@@ -11,11 +11,13 @@ namespace DiscordBot.Classes.Calculator.Process
         {
         }
 
-        protected override string RegStr => @"(-?[\d]+)!";
+        protected override string RegStr => DIGIT + "!";
 
         public override double Process(string input, Match m)
         {
             var digit = m.Groups[1].Value;
+            if (digit.Contains('.'))
+                throw new Exception($"Factorial cannot be used on non-whole numbers");
             if (!long.TryParse(digit, out var num))
                 throw new Exception($"Could not parse '{digit}' as integer");
             long result = 1;

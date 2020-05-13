@@ -59,7 +59,10 @@ namespace DiscordBot.Classes.Calculator
         public static Dictionary<string, double> Constants = new Dictionary<string, double>()
         {
             { "π", Math.PI },
-            { "e", Math.PI },
+            { "e", Math.E },
+            { "g", 9.81 },
+            { "c", 3E8 },
+            { "eV", 1.6E-19 },
             { "TRUE", 1 },
             { "FALSE", 0 },
         };
@@ -70,13 +73,16 @@ namespace DiscordBot.Classes.Calculator
             LoadMathFunctions(typeof(Math));
             Processes.Add(new Brackets(this));
             Processes.Add(new SumDice(this));
+            Processes.Add(new MultIndices(this));
             Processes.Add(new Indices(this));
             Processes.Add(new Factorial(this));
             Processes.Add(new Division(this));
             Processes.Add(new Multiplication(this));
             Processes.Add(new Addition(this));
             Processes.Add(new Subtraction(this));
-            Processes.Add(new Boolean(this));
+            Processes.Add(new BooleanEQ(this));
+            Processes.Add(new BooleanAND(this));
+            Processes.Add(new BooleanOR(this));
         }
 
 
