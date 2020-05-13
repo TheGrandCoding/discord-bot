@@ -93,10 +93,13 @@ namespace DiscordBot.Classes.Calculator
                     if (mtch.Success)
                     {
                         performed = true;
-                        double result;
+                        string result;
                         try
                         {
-                            result = x.Process(mtch.Value, mtch);
+                            result = x.Process(mtch.Value, mtch).ToString();
+                        } catch (ReplaceStringException ex)
+                        {
+                            result = ex.Message;
                         }
                         catch (Exception ex)
                         {
