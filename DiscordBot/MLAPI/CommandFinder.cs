@@ -194,17 +194,19 @@ namespace DiscordBot.MLAPI
 
         Discord.Commands.TypeReaderResult attemptParse(string input, Type desired)
         {
-            var thing = Program.Commands.GetType().GetField("_defaultTypeReaders", BindingFlags.NonPublic | BindingFlags.Instance);
+            var type = Program.Commands.GetType();
+            var thing = type.GetField("_defaultTypeReaders", BindingFlags.NonPublic | BindingFlags.Instance);
             var defaultTypeReaders = thing.GetValue(Program.Commands) as IDictionary<Type, Discord.Commands.TypeReader>;
+            var thing2 = type.GetField("_typeReaders", BindingFlags.NonPublic | BindingFlags.Instance);
+            var ownTypeReaders = thing2.GetValue(Program.Commands) as System.Collections.Concurrent.ConcurrentDictionary<System.Type, System.Collections.Concurrent.ConcurrentDictionary<System.Type, Discord.Commands.TypeReader>>;
 
             Dictionary<Type, Discord.Commands.TypeReader> combined = new Dictionary<Type, Discord.Commands.TypeReader>();
             foreach (var keypair in defaultTypeReaders)
                 combined.Add(keypair.Key, keypair.Value);
-            foreach (var keypair in Program.Commands.TypeReaders)
-                combined[keypair.Key] = keypair?.FirstOrDefault();
+            foreach (var keypair in ownTypeReaders)
+                combined[keypair.Key] = keypair.Value.Values.First();
 
-            var reader = combined[desired];
-            if (reader == null)
+            if(!combined.TryGetValue(desired, out var reader))
             {
                 return Discord.Commands.TypeReaderResult.FromError(
                     Discord.Commands.CommandError.Exception, $"Endpoint expects parser for {desired.Name}, but unavailable - my error; not yours");

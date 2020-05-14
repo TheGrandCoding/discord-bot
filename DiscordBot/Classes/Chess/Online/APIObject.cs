@@ -7,8 +7,8 @@ namespace DiscordBot.Classes.Chess.Online
 {
     public abstract class APIObject
     {
-        public virtual void LoadJson(ChessClient.Classes.Packet p) => LoadJson(p.Content);
-        public abstract void LoadJson(JObject json);
+        public virtual void LoadJson(ChessClient.Classes.Chess.ChessPacket p) => LoadJson(p.Content);
+        public abstract void LoadJson(JToken json);
         public abstract JObject ToJson();
     }
     public abstract class APIObject<T> : APIObject

@@ -1,4 +1,5 @@
 ﻿using ChessClient.Classes;
+using ChessClient.Classes.Chess;
 using DiscordBot.Classes.Chess;
 using DiscordBot.Classes.Chess.Online;
 using DiscordBot.Services;
@@ -77,19 +78,19 @@ namespace DiscordBot.WebSockets
                 var jobj = new JObject();
                 jobj["reason"] = result.Reason;
                 jobj["id"] = result.Winner?.Player?.Id ?? 0;
-                Broadcast(new Packet(PacketId.GameEnd, jobj));
+                Broadcast(new ChessPacket(PacketId.GameEnd, jobj));
             }
             checkingGameEnd = false;
             finishedChecks.Set();
         }
 
-        public virtual void Send(Packet p)
+        public virtual void Send(ChessPacket p)
         {
             log($"{REF} <<< {p.ToString()}");
             this.Send(p.ToString());
         }
 
-        public void Broadcast(Packet p)
+        public void Broadcast(ChessPacket p)
         {
             log($"{REF} === {p.ToString()}");
             string data = p.ToString();
@@ -124,7 +125,7 @@ namespace DiscordBot.WebSockets
             { // no point sending message if player never joined, or game not started
                 var jobj = new JObject();
                 jobj["id"] = Player.Id;
-                Broadcast(new Packet(PacketId.UserDisconnected, jobj));
+                Broadcast(new ChessPacket(PacketId.UserDisconnected, jobj));
             }
         }
 
@@ -167,7 +168,7 @@ namespace DiscordBot.WebSockets
             return "k"; // king
         }
 
-        void handleInGame(Packet ping)
+        void handleInGame(ChessPacket ping)
         {
             if(ping.Id == PacketId.MoveRequest)
             {
@@ -177,12 +178,13 @@ namespace DiscordBot.WebSockets
                 string sTo = ping.Content["to"].ToObject<string>();
                 if(!(Side == PlayerSide.White && g.InnerGame.turn == "w" || Side == PlayerSide.Black && g.InnerGame.turn == "b"))
                 {
-                    Send(new Packet(PacketId.MoveRequestRefuse, new MoveRefuse($"{sFrom} -> {sTo}", $"It is not your turn").ToJson()));
+                    Send(new ChessPacket(PacketId.MoveRequestRefuse, new MoveRefuse($"{sFrom} -> {sTo}", $"It is not your turn").ToJson()));
                     return;
                 }
                 r.from = g.InnerGame.parseAlgebraic(sFrom);
                 r.to = g.InnerGame.parseAlgebraic(sTo);
-                if (ping.Content.TryGetValue("promote", out var promVal))
+                var promVal = ping.Content["promote"];
+                if (promVal != null)
                     r.promotion = getPieceSimple(promVal.ToObject<int>());
 
                 var legalMoves = g.InnerGame.generate_moves(new Dictionary<string, string>() { { "legal", "true" }, { "square", r.from.ToString() } });
@@ -211,14 +213,14 @@ namespace DiscordBot.WebSockets
                 }
                 if(legalMove.HasValue == false)
                 {
-                    Send(new Packet(PacketId.MoveRequestRefuse, new MoveRefuse($"{sFrom} -> {sTo}", $"No legal move to that location").ToJson()));
+                    Send(new ChessPacket(PacketId.MoveRequestRefuse, new MoveRefuse($"{sFrom} -> {sTo}", $"No legal move to that location").ToJson()));
                     return;
                 }
                 g.InnerGame.make_move(legalMove.Value);
                 g.InnerGame.registerMoveMade();
                 Program.LogMsg("Player made move", Discord.LogSeverity.Error, "Player");
                 ChessService.CurrentGame.updateBoard();
-                Broadcast(new Packet(PacketId.MoveMade, ping.Content));
+                Broadcast(new ChessPacket(PacketId.MoveMade, ping.Content));
                 CheckGameEnd();
             } else if (ping.Id == PacketId.IdentRequest)
             {
@@ -226,7 +228,7 @@ namespace DiscordBot.WebSockets
                 var player = CurrentGame.GetPlayer(id);
                 var jobj = ping.Content;
                 jobj["player"] = player?.ToJson() ?? JObject.FromObject(null);
-                Send(new Packet(PacketId.PlayerIdent, jobj));
+                Send(new ChessPacket(PacketId.PlayerIdent, jobj));
             } else if (ping.Id == PacketId.RequestScreen)
             {
                 if(Player.Permission.HasFlag(ChessPerm.Moderator))
@@ -235,7 +237,7 @@ namespace DiscordBot.WebSockets
                     if(player != null)
                     {
                         player.ExpectDemand = true;
-                        player.Send(new Packet(PacketId.DemandScreen, new JObject()));
+                        player.Send(new ChessPacket(PacketId.DemandScreen, new JObject()));
                     }
                 }
             } else if (ping.Id == PacketId.RequestGameEnd)
@@ -252,7 +254,7 @@ namespace DiscordBot.WebSockets
                     if (player != null)
                     {
                         player.ExpectDemand = true;
-                        player.Send(new Packet(PacketId.DemandProcesses, new JObject()));
+                        player.Send(new ChessPacket(PacketId.DemandProcesses, new JObject()));
                     }
                 }
             } else if (ping.Id == PacketId.ResignRequest)
@@ -274,16 +276,16 @@ namespace DiscordBot.WebSockets
                 if(Player.Permission.HasFlag(ChessPerm.Moderator))
                 {
                     CurrentGame.InnerGame.undo_move();
-                    Broadcast(new Packet(PacketId.MoveReverted, ping.Content));
+                    Broadcast(new ChessPacket(PacketId.MoveReverted, ping.Content));
                 }
             }
         }
 
-        void handleMessage(Packet ping)
+        void handleMessage(ChessPacket ping)
         {
             if (ChessService.CurrentGame == null || ChessService.CurrentGame.HasEnded)
             {
-                Send(new Packet(PacketId.GameEnd, new JObject()));
+                Send(new ChessPacket(PacketId.GameEnd, new JObject()));
                 return;
             }
             if (Player != null)
@@ -405,7 +407,7 @@ namespace DiscordBot.WebSockets
         {
             ChessService.CurrentGame.updateBoard(); // since board is not initialised until both players are in.
             var conn = new ConnectionBroadcast(this, Side == PlayerSide.None ? "spectate" : "join");
-            Broadcast(new Packet(PacketId.ConnectionMade, conn.ToJson()));
+            Broadcast(new ChessPacket(PacketId.ConnectionMade, conn.ToJson()));
             foreach (var p in CurrentGame.GetPlayers())
             {
                 if (p.ID == this.ID)
@@ -413,16 +415,16 @@ namespace DiscordBot.WebSockets
                 var jobj = new JObject();
                 jobj["id"] = p.Player.Id;
                 jobj["player"] = p?.ToJson() ?? JObject.FromObject(null);
-                Send(new Packet(PacketId.PlayerIdent, jobj));
+                Send(new ChessPacket(PacketId.PlayerIdent, jobj));
                 System.Threading.Thread.Sleep(500);
             }
             if(Player.Permission.HasFlag(ChessPerm.Moderator) && Side == PlayerSide.None)
             { // must be a Mod/Justice AND must be Spectating - not playing
                 System.Threading.Thread.Sleep(500);
-                Send(new Packet(PacketId.NotifyAdmin, new JObject()));
+                Send(new ChessPacket(PacketId.NotifyAdmin, new JObject()));
             }
             System.Threading.Thread.Sleep(500);
-            Broadcast(new Packet(PacketId.GameStatus, CurrentGame.ToJson((CurrentGame.InnerGame?.move_number ?? 0) > 1)));
+            Broadcast(new ChessPacket(PacketId.GameStatus, CurrentGame.ToJson((CurrentGame.InnerGame?.move_number ?? 0) > 1)));
             if (ChessService.CurrentGame.InnerGame == null)
                 return; // black hasnt joined yet
             if(ChessService.CurrentGame.InnerGame.move_number == 1 && 
@@ -457,7 +459,7 @@ namespace DiscordBot.WebSockets
                 log($"{REF} >>> {e.Data}");
                 Program.LogMsg($"{e.Data}", Discord.LogSeverity.Critical, REF);
                 var jobj = JObject.Parse(e.Data);
-                var packet = new Packet(jobj["id"].ToObject<PacketId>(), JObject.Parse(jobj["content"].ToString()));
+                var packet = new ChessPacket(jobj["id"].ToObject<PacketId>(), JObject.Parse(jobj["content"].ToString()));
                 handleMessage(packet);
             } catch (Exception ex)
             {

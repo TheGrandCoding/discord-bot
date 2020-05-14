@@ -6,13 +6,11 @@ using System.Text;
 
 namespace DiscordBot.TypeReaders
 {
-    public abstract class BotTypeReader : TypeReader, IComparable<BotTypeReader>
+    public abstract class BotTypeReader<T> : TypeReader
     {
-        public abstract Type Reads { get; }
-
-        public int CompareTo([AllowNull] BotTypeReader other)
+        public void Register(CommandService cmds)
         {
-            return Reads.Name.CompareTo(other?.Reads?.Name);
+            cmds.AddTypeReader<T>(this);
         }
     }
 }

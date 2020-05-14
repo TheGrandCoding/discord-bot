@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using ChessClient.Classes;
+using ChessClient.Classes.Chess;
 using DiscordBot.Classes.Chess;
 using DiscordBot.Classes.Chess.Online;
 using DiscordBot.Services;
@@ -153,7 +154,7 @@ namespace DiscordBot.Classes.Chess
             jobj["to"] = OtherGame.algebraic(mv.to).ToUpper();
             if (!string.IsNullOrWhiteSpace(mv.promotion))
                 jobj["promote"] = simpleToComplex(mv.promotion);
-            Broadcast(new Packet(PacketId.MoveMade, jobj));
+            Broadcast(new ChessPacket(PacketId.MoveMade, jobj));
             CheckGameEnd();
         }
 
@@ -202,7 +203,7 @@ namespace DiscordBot.Classes.Chess
 
         void handlePacket(object obj)
         {
-            if (!(obj is Packet ping))
+            if (!(obj is ChessPacket ping))
                 return;
             if(ping.Id == PacketId.MoveMade)
             {
@@ -210,13 +211,13 @@ namespace DiscordBot.Classes.Chess
             }
         }
 
-        public void recievePacket(Packet p)
+        public void recievePacket(ChessPacket p)
         {
             var th = new Thread(handlePacket);
             th.Start(p);
         }
 
-        public override void Send(Packet p)
+        public override void Send(ChessPacket p)
         {
             recievePacket(p);
         }
