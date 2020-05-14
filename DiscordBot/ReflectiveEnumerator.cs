@@ -10,7 +10,7 @@ namespace DiscordBot
     {
         static ReflectiveEnumerator() { }
 
-        public static IEnumerable<T> GetEnumerableOfType<T>(params object[] constructorArgs) where T : class, IComparable<T>
+        public static IEnumerable<T> GetEnumerableOfType<T>(params object[] constructorArgs) where T : class
         {
             List<T> objects = new List<T>();
             foreach (Type type in

@@ -89,19 +89,6 @@ namespace DiscordBot.MLAPI
                     api.Function = func;
                     api.Module = module;
                     var prec = api.Function.GetCustomAttributes<APIPrecondition>().ToList();
-                    var parentPrec = module.GetCustomAttributes<APIPrecondition>();
-                    if (parentPrec != null && parentPrec.Count() > 0)
-                    {
-                        foreach (var p in parentPrec)
-                        {
-                            var child = prec.FirstOrDefault(x => x.ToString() == p.ToString());
-                            if ((child != null && !child.CanChildOverride(p)) || child == null)
-                            {
-                                prec.Remove(child);
-                                prec.Add(p);
-                            }
-                        }
-                    }
                     api.Preconditions = prec.ToArray();
                     if (Endpoints.ContainsKey(api.Method))
                     {

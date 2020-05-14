@@ -1,28 +1,17 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using DiscordBot.Classes;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ChessClient.Classes
+namespace ChessClient.Classes.Chess
 {
-    public class Packet
+    public class ChessPacket : Packet<PacketId>
     {
-        public PacketId Id { get; set; }
-        public JObject Content { get; set; }
-        public Packet(PacketId id, JObject content)
+        public ChessPacket(PacketId id, JToken content) : base(id, content)
         {
-            Id = id;
-            Content = content;
-        }
-
-        public override string ToString()
-        {
-            var jobj = new JObject();
-            jobj["id"] = Id.ToString();
-            jobj["content"] = Content.ToString();
-            return jobj.ToString();
         }
     }
 

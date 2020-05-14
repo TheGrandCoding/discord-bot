@@ -6,9 +6,8 @@ using System.Threading.Tasks;
 
 namespace DiscordBot.TypeReaders
 {
-    public class UriTypeReader : BotTypeReader
+    public class UriTypeReader : BotTypeReader<Uri>
     {
-        public override Type Reads => typeof(Uri);
         public override Task<TypeReaderResult> ReadAsync(ICommandContext context, string input, IServiceProvider services)
         {
             if(Uri.TryCreate(input, UriKind.Absolute, out var res))

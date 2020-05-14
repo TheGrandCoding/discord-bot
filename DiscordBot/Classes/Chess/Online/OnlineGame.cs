@@ -1,4 +1,5 @@
 ﻿using ChessClient.Classes;
+using ChessClient.Classes.Chess;
 using Discord;
 using DiscordBot.Services;
 using DiscordBot.WebSockets;
@@ -72,7 +73,7 @@ namespace DiscordBot.Classes.Chess.Online
         }
 
 
-        public override void LoadJson(JObject json)
+        public override void LoadJson(JToken json)
         {
         }
 
@@ -167,7 +168,7 @@ namespace DiscordBot.Classes.Chess.Online
             jobj["id"] = player.Player?.Id ?? 0;
             jobj["reason"] = end.Reason;
             var anyPlayer = ChessService.CurrentGame.GetPlayers().FirstOrDefault();
-            anyPlayer?.Broadcast(new Packet(PacketId.GameEnd, jobj));
+            anyPlayer?.Broadcast(new ChessPacket(PacketId.GameEnd, jobj));
             ChessService.CurrentGame = null;
         }
     }

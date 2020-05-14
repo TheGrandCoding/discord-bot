@@ -10,12 +10,7 @@ namespace DiscordBot.MLAPI
         public HttpMethod Method;
         public MethodAttribute(string method)
         {
-            if(method == "GET")
-                Method = HttpMethod.Get;
-            else if(method == "POST")
-                Method = HttpMethod.Post;
-            else if(method == "PUT")
-                Method = HttpMethod.Put;
+            Method = new HttpMethod(method);
         }
     }
 }

@@ -1,5 +1,7 @@
 ﻿using Discord;
+using DiscordBot.Websockets;
 using DiscordBot.WebSockets;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -18,6 +20,10 @@ namespace DiscordBot.Services
             Server = new WebSocketServer(System.Net.IPAddress.Any, 4650);
             // Server.AddWebSocketService<Chat>("/Chat"); // add a '/Feedback' for the Pi-Hole at Marj's?
             Server.AddWebSocketService<ChessConnection>("/chess");
+            Server.AddWebSocketService<MLServer>("/masterlist", x =>
+            {
+                x.Service = Program.Services.GetRequiredService<MLService>();
+            });
             //Server.Log.Level = LogLevel.Trace;
             Server.Log.Output = (x, y) =>
             {

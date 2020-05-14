@@ -11,6 +11,7 @@ using IdentityModel.Client;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
+using Reddit.Things;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -28,7 +29,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.3.5"; 
+        public const string VERSION = "0.4.0"; 
         public const string CHANGELOG = VERSION + @"
 == Add calculator
 $calculator - Input any string and we'll do the rest.
@@ -160,9 +161,14 @@ $calculator - Input any string and we'll do the rest.
                 client.Ready += ClientReady;
                 Commands = Services.GetRequiredService<CommandService>();
                 Commands.Log += LogAsync;
-                foreach (var typeReader in ReflectiveEnumerator.GetEnumerableOfType<BotTypeReader>(null))
+                var genericType = typeof(BotTypeReader<>);
+                foreach (Type type in
+                    Assembly.GetAssembly(genericType).GetTypes()
+                    .Where(myType => myType.IsClass && !myType.IsAbstract 
+                        && myType.BaseType.IsGenericType && myType.BaseType.GetGenericTypeDefinition() == genericType))
                 {
-                    Commands.AddTypeReader(typeReader.Reads, typeReader);
+                    dynamic instance = Activator.CreateInstance(type);
+                    instance.Register(Commands);
                 }
 
                 // Tokens should be considered secret data and never hard-coded.

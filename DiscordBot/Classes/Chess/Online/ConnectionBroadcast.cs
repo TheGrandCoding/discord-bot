@@ -15,7 +15,7 @@ namespace DiscordBot.Classes.Chess.Online
             Player = p;
             Mode = m;
         }
-        public override void LoadJson(JObject json)
+        public override void LoadJson(JToken json)
         {
         }
 
