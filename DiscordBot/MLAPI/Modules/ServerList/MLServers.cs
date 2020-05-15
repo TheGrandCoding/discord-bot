@@ -36,7 +36,7 @@ namespace DiscordBot.MLAPI.Modules.ServerList
         }
 
         #region Browser Visible
-        [Method("GET"), Path("/servers/list")]
+        [Method("GET"), Path("/masterlist")]
         public void Servers()
         {
             var builder = new StringBuilder();
@@ -52,14 +52,57 @@ namespace DiscordBot.MLAPI.Modules.ServerList
                 {
                     using (var row = table.AddRow(x.Id.ToString()))
                     {
-                        row.AddCell(x.Name);
+                        row.AddCell(aLink("/masterlist/" + x.Id, x.Name));
                         row.AddCell(x.GameName);
                         row.AddCell($"{x.Players.Count}");
                     }
                 }
             }
             ReplyFile("base.html", HttpStatusCode.OK, new Replacements()
-                .Add("table", builder.ToString()));
+                .Add("table", builder.ToString())
+                .Add("count", Service.Servers.Count));
+        }
+
+        string getConnectionInfo(Server server)
+        {
+            string ip = "[withheld]";
+            if(server.ExternalIP.Equals(Context.Request.RemoteEndPoint.Address))
+                ip = server.InternalIP.ToString();
+            if (!server.IsPrivate)
+                ip = server.ExternalIP.ToString();
+            return $"<p>Connection IP: <strong>{ip}</strong></p>";
+        }
+
+        [Method("GET"), PathRegex(@"\/masterlist\/(?!.*\/.)(?<id>[a-zA-Z0-9-]+)")]
+        public void SeeSpecificServer(Guid id)
+        {
+            if(!Service.Servers.TryGetValue(id, out var server))
+            {
+                HTTPError(HttpStatusCode.NotFound, "No server", "Could not find a server by that Id.");
+                return;
+            }
+            var builder = new StringBuilder();
+            using(var table = new HTMLTable(builder))
+            {
+                using(var headers = table.AddHeaderRow())
+                {
+                    headers.AddHeaderCell("Name");
+                    headers.AddHeaderCell("Score");
+                    headers.AddHeaderCell("Latency");
+                }
+                foreach(var player in server.Players.OrderByDescending(x => x.Score))
+                {
+                    using(var row = table.AddRow())
+                    {
+                        row.AddCell(player.Name);
+                        row.AddCell(player.Score.ToString());
+                        row.AddCell(player.Latency.ToString());
+                    }
+                }
+            }
+            ReplyFile("server.html", HttpStatusCode.OK, new Replacements()
+                .Add("server", server)
+                .Add("players", builder.ToString()));
         }
         #endregion
 

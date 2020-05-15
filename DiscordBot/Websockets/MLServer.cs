@@ -61,17 +61,17 @@ namespace DiscordBot.Websockets
                 Server.Players.Add(player);
             } else if (packet.Id == PacketId.PatchPlayer)
             {
-                var name = packet.Content["name"].ToObject<string>();
+                var hwid = packet.Content["hwid"].ToObject<string>();
                 var payload = packet.Content["value"];
                 if(payload == null)
                 {
-                    Server.Players.RemoveAll(x => x.Name == name);
+                    Server.Players.RemoveAll(x => x.HWID == hwid);
                 } else
                 {
-                    var ply = Server.Players.FirstOrDefault(x => x.Name == name);
+                    var ply = Server.Players.FirstOrDefault(x => x.HWID == hwid);
                     if(ply == null)
                     {
-                        ReplyError($"Cannot PATCH player with name '{name}' as none exists");
+                        ReplyError($"Cannot PATCH player with name '{hwid}' as none exists");
                     } else
                     {
                         var reader = payload.CreateReader();

@@ -8,6 +8,7 @@ namespace DiscordBot.Classes.ServerList
 {
     public class Player
     {
+        public string HWID { get; set; }
         public string Name { get; set; }
         public int Score { get; set; }
         public int Latency { get; set; }
@@ -17,14 +18,15 @@ namespace DiscordBot.Classes.ServerList
             var array = (JArray)JArray.ReadFrom(reader);
             return new Player()
             {
-                Name = array[0].ToObject<string>(),
-                Score = array[1].ToObject<int>(),
-                Latency = array[2].ToObject<int>()
+                HWID = array[0].ToObject<string>(),
+                Name = array[1].ToObject<string>(),
+                Score = array[2].ToObject<int>(),
+                Latency = array[3].ToObject<int>()
             };
         }
         public void ToJson(JsonWriter writer)
         {
-            var jArray = new JArray(Name, Score, Latency);
+            var jArray = new JArray(HWID, Name, Score, Latency);
             jArray.WriteTo(writer);
         }
     }

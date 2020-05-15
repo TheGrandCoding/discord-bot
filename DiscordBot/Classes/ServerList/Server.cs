@@ -15,6 +15,7 @@ namespace DiscordBot.Classes.ServerList
         {
             Name = name;
             GameName = gameName;
+            m_players = new List<Player>();
             InternalIP = internalIP;
             ExternalIP = externalIP;
             Port = port;
@@ -26,7 +27,7 @@ namespace DiscordBot.Classes.ServerList
         {
             Id = clone.Id;
             Players = clone.Players;
-            ActiveSession = clone.ActiveSession; // for Online
+            ActiveSession = clone.ActiveSession; // for Online to display properly
             if (safeClone)
                 Authentication = null;
         }
@@ -36,8 +37,18 @@ namespace DiscordBot.Classes.ServerList
         public string GameName { get; set; }
         [JsonProperty("id")]
         public Guid Id { get; set; }
-        [JsonProperty("players")]
-        public List<Player> Players { get; set; }
+        List<Player> m_players;
+        public List<Player> Players
+        {
+            get
+            {
+                // An offline server cannot have any servers on it.
+                return Online ? m_players : new List<Player>();
+            } set
+            {
+                m_players = value;
+            }
+        }
         [JsonProperty("intIP")]
         public IPAddress InternalIP { get; set; }
         [JsonProperty("extIP")]
