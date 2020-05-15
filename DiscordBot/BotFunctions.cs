@@ -89,14 +89,17 @@ namespace DiscordBot
             AttemptParseInput(input, typeof(TArg));
         public static Discord.Commands.TypeReaderResult AttemptParseInput(string input, Type desired)
         {
-            var thing = Program.Commands.GetType().GetField("_defaultTypeReaders", BindingFlags.NonPublic | BindingFlags.Instance);
+            var type = typeof(Discord.Commands.CommandService);
+            var thing = type.GetField("_defaultTypeReaders", BindingFlags.NonPublic | BindingFlags.Instance);
             var defaultTypeReaders = thing.GetValue(Program.Commands) as IDictionary<Type, Discord.Commands.TypeReader>;
+            var thing2 = type.GetField("_typeReaders", BindingFlags.NonPublic | BindingFlags.Instance);
+            var ownTypeReaders = thing2.GetValue(Program.Commands) as System.Collections.Concurrent.ConcurrentDictionary<System.Type, System.Collections.Concurrent.ConcurrentDictionary<System.Type, Discord.Commands.TypeReader>>;
 
             Dictionary<Type, Discord.Commands.TypeReader> combined = new Dictionary<Type, Discord.Commands.TypeReader>();
             foreach (var keypair in defaultTypeReaders)
                 combined.Add(keypair.Key, keypair.Value);
-            foreach (var keypair in Program.Commands.TypeReaders)
-                combined[keypair.Key] = keypair?.FirstOrDefault();
+            foreach (var keypair in ownTypeReaders)
+                combined[keypair.Key] = keypair.Value.Values.First();
 
             var reader = combined[desired];
             if (reader == null)

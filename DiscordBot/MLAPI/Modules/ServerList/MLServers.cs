@@ -37,7 +37,7 @@ namespace DiscordBot.MLAPI.Modules.ServerList
 
         #region Browser Visible
         [Method("GET"), Path("/masterlist")]
-        public void Servers()
+        public void Servers(string game = null)
         {
             var builder = new StringBuilder();
             using(var table = new HTMLTable(builder))
@@ -50,10 +50,12 @@ namespace DiscordBot.MLAPI.Modules.ServerList
                 }
                 foreach(var x in Service.Servers.Values)
                 {
+                    if (game != null && x.GameName != game)
+                        continue;
                     using (var row = table.AddRow(x.Id.ToString()))
                     {
                         row.AddCell(aLink("/masterlist/" + x.Id, x.Name));
-                        row.AddCell(x.GameName);
+                        row.AddCell(aLink($"/masterlist?game={x.GameName}", x.GameName));
                         row.AddCell($"{x.Players.Count}");
                     }
                 }
@@ -68,7 +70,7 @@ namespace DiscordBot.MLAPI.Modules.ServerList
             string ip = "[withheld]";
             if(server.ExternalIP.Equals(Context.Request.RemoteEndPoint.Address))
                 ip = server.InternalIP.ToString();
-            if (!server.IsPrivate)
+            else if (!server.IsPrivate)
                 ip = server.ExternalIP.ToString();
             return $"<p>Connection IP: <strong>{ip}</strong></p>";
         }
@@ -102,7 +104,8 @@ namespace DiscordBot.MLAPI.Modules.ServerList
             }
             ReplyFile("server.html", HttpStatusCode.OK, new Replacements()
                 .Add("server", server)
-                .Add("players", builder.ToString()));
+                .Add("players", builder.ToString())
+                .Add("connection", getConnectionInfo(server)));
         }
         #endregion
 
