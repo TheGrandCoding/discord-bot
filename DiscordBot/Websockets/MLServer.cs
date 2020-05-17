@@ -19,7 +19,6 @@ namespace DiscordBot.Websockets
         }
         public MLService Service { get; set; }
         public Server Server { get; set; }
-
         void ReplyError(string e, bool close = false)
         {
             var jobj = new JObject();
@@ -44,6 +43,20 @@ namespace DiscordBot.Websockets
 
         protected void HandleMessage(MLPacket packet)
         {
+            Action<string, bool> ERROR = (string reason, bool close) =>
+            {
+                var jobj = new JObject();
+                jobj["close"] = close;
+                jobj["reason"] = reason;
+                var reply = packet.ReplyWith(jobj);
+                Send(reply.ToString());
+                if (close)
+                    Context.WebSocket.Close(CloseStatusCode.Abnormal, reason);
+            };
+            Action<JToken> REPLY = (JToken content) =>
+            {
+                Send(packet.ReplyWith(content).ToString());
+            };
             if(packet.Id == PacketId.SetPlayers)
             {
                 var players = new List<Player>();
@@ -54,24 +67,33 @@ namespace DiscordBot.Websockets
                     players.Add(p);
                 }
                 Server.Players = players;
+                REPLY(JToken.FromObject("OK"));
             } else if (packet.Id == PacketId.AddPlayer)
             {
                 var reader = packet.Content.CreateReader();
                 var player = Player.FromJson(reader);
                 Server.Players.Add(player);
+                REPLY(JToken.FromObject("OK"));
             } else if (packet.Id == PacketId.PatchPlayer)
             {
                 var hwid = packet.Content["hwid"].ToObject<string>();
                 var payload = packet.Content["value"];
                 if(payload == null)
                 {
-                    Server.Players.RemoveAll(x => x.HWID == hwid);
+                    int c = Server.Players.RemoveAll(x => x.HWID == hwid);
+                    if(c == 0)
+                    {
+                        ERROR($"No players removed", false);
+                    } else
+                    {
+                        REPLY($"OK");
+                    }
                 } else
                 {
                     var ply = Server.Players.FirstOrDefault(x => x.HWID == hwid);
                     if(ply == null)
                     {
-                        ReplyError($"Cannot PATCH player with name '{hwid}' as none exists");
+                        ERROR($"Cannot PATCH player with name '{hwid}' as none exists", false);
                     } else
                     {
                         var reader = payload.CreateReader();
@@ -79,8 +101,12 @@ namespace DiscordBot.Websockets
                         ply.Name = player.Name;
                         ply.Latency = player.Latency;
                         ply.Score = player.Score;
+                        REPLY(JToken.FromObject("OK"));
                     }
                 }
+            } else
+            {
+                ERROR("Unknown packet id", false);
             }
         }
 
@@ -89,7 +115,7 @@ namespace DiscordBot.Websockets
             if(!e.IsText)
                 return;
             var jobj = JObject.Parse(e.Data);
-            var packet = new MLPacket(jobj["id"].ToObject<PacketId>(), jobj["content"]);
+            var packet = new MLPacket(jobj);
             Service.Lock.WaitOne();
             try
             {
@@ -99,7 +125,11 @@ namespace DiscordBot.Websockets
                 Program.LogMsg(ex, $"ML:{Server.Id}");
                 try
                 {
-                    ReplyError(ex.Message, true);
+                    var err = new JObject();
+                    err["close"] = true;
+                    err["reason"] = ex.Message;
+                    var pong = packet.ReplyWith(err);
+                    Send(pong.ToString());
                 } catch { }
                 this.Context.WebSocket.Close(CloseStatusCode.Abnormal, $"Error");
             } finally
@@ -137,7 +167,7 @@ namespace DiscordBot.Websockets
             }
             server.ActiveSession = this;
             Server = server;
-            this.Send("Ok");
+            this.Send(new MLPacket(PacketId.Connected, JToken.FromObject("OK")).ToString());
         }
     }
 }

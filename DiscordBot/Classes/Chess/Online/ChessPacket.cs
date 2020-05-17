@@ -10,7 +10,8 @@ namespace ChessClient.Classes.Chess
 {
     public class ChessPacket : Packet<PacketId>
     {
-        public ChessPacket(PacketId id, JToken content) : base(id, content)
+        public ChessPacket(PacketId id, JToken token) : base(id, token) { }
+        public ChessPacket(JObject obj) : base(obj)
         {
         }
     }

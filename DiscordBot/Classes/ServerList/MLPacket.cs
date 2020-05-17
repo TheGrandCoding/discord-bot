@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -7,7 +8,12 @@ namespace DiscordBot.Classes.ServerList
 {
     public class MLPacket : Packet<PacketId>
     {
-        public MLPacket(PacketId id, JToken content) : base(id, content) { }
+        public MLPacket(PacketId id, JToken token) : base(id, token)
+        {
+        }
+        public MLPacket(JObject token) : base(token)
+        {
+        }
     }
 
     public enum PacketId 
@@ -21,10 +27,12 @@ namespace DiscordBot.Classes.ServerList
         #endregion
 
         #region Server -> Client 
+        Connected,
         #endregion
 
         #region Multipurpose
         Error,
+        Response,
         #endregion
     }
 }

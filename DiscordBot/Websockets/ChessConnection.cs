@@ -459,7 +459,7 @@ namespace DiscordBot.WebSockets
                 log($"{REF} >>> {e.Data}");
                 Program.LogMsg($"{e.Data}", Discord.LogSeverity.Critical, REF);
                 var jobj = JObject.Parse(e.Data);
-                var packet = new ChessPacket(jobj["id"].ToObject<PacketId>(), JObject.Parse(jobj["content"].ToString()));
+                var packet = new ChessPacket(jobj);
                 handleMessage(packet);
             } catch (Exception ex)
             {

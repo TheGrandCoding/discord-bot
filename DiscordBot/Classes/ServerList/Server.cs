@@ -38,6 +38,7 @@ namespace DiscordBot.Classes.ServerList
         [JsonProperty("id")]
         public Guid Id { get; set; }
         List<Player> m_players;
+        [JsonProperty("players")]
         public List<Player> Players
         {
             get
