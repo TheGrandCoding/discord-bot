@@ -13,7 +13,14 @@ namespace DiscordBot.Classes.Legislation.Amending
 
         public override string GetDescription()
         {
-            return $"Words substitued by {User} on {Date}";
+            var s = $"through #{GroupId}, by {Group.Author.Name} on {Group.Date}";
+            if (Type == AmendType.Insert)
+                return $"Words inserted {s}";
+            if(Type == AmendType.Repeal)
+                return $"Words removed {s}";
+            if(Type == AmendType.Replace)
+                return $"Words substitued {s}";
+            return "Unknown action";
         }
     }
 }

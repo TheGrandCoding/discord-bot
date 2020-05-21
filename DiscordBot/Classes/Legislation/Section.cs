@@ -24,6 +24,7 @@ namespace DiscordBot.Classes.Legislation
             Header = header;
             Children = new List<Paragraph>();
             Amendments = new List<SectionAmendment>();
+            TextAmendments = new List<TextAmendment>();
         }
         [JsonProperty("no")]
         public string Number { get; set; }
@@ -31,11 +32,19 @@ namespace DiscordBot.Classes.Legislation
         public string Header { get; set; }
         [JsonProperty("c")]
         public List<Paragraph> Children { get; set; }
+        [JsonProperty("ta")]
+        public List<TextAmendment> TextAmendments { get; set; }
         [JsonProperty("a")]
         public List<SectionAmendment> Amendments { get; set; }
         [JsonProperty("g", DefaultValueHandling = DefaultValueHandling.IgnoreAndPopulate)]
         [DefaultValue(false)]
         public bool Group { get; set; } = false;
+
+        string getAmendedText(AmendmentBuilder builder)
+        {
+            var amender = new TextAmenderBuilder(Header, builder, TextAmendments);
+            return builder.TextOnly ? amender.NiceWords : amender.RawText;
+        }
 
         public virtual void WriteTo(HTMLBase parent, int depth, AmendmentBuilder builder, ActAmendment amendAppliesThis)
         {
@@ -46,13 +55,13 @@ namespace DiscordBot.Classes.Legislation
                 {
                     Children =
                     {
-                        new Span(cls: "LegPblockTitle") {RawText = Header}
+                        new Span(cls: "LegPblockTitle") {RawText = getAmendedText(builder)}
                     }
                 });
                 return;
             }
             var LHS = new Span(cls: $"LegDS LegP{depth}No") { RawText = Number };
-            var RHS = new Span(cls: $"LegDS LegP{depth}GroupTitle") { RawText = Header };
+            var RHS = new Span(cls: $"LegDS LegP{depth}GroupTitle") { RawText = getAmendedText(builder) };
             var header = new H3($"section-{Number}", $"LegClearFix LegP{depth}Container{(Number == "1" ? "First" : "")}")
             {
                 Children =
@@ -66,12 +75,12 @@ namespace DiscordBot.Classes.Legislation
                 var next = builder.GetNextNumber(amendAppliesThis);
                 if (amendAppliesThis.Type == AmendType.Repeal)
                 {
-                    RHS.RawText = ". . . ." + LegHelpers.GetChangeAnchor(next);
+                    RHS.RawText = builder.TextOnly ? "..." :  ". . . ." + LegHelpers.GetChangeAnchor(next);
                     return;
                 }
                 if (amendAppliesThis.Type == AmendType.Insert)
                 {
-                    LHS.RawText = $"{LegHelpers.GetChangeDeliminator(true)}{LegHelpers.GetChangeAnchor(next)}{Number}";
+                    LHS.RawText = (builder.TextOnly ? "" : $"{LegHelpers.GetChangeDeliminator(true)}{LegHelpers.GetChangeAnchor(next)}") + $"{Number}";
                 }
             }
             var children = new List<Paragraph>();
@@ -84,7 +93,7 @@ namespace DiscordBot.Classes.Legislation
 
                 child.WriteTo(parent, depth + 1, this, builder, mostRelevant);
             }
-            if (amendAppliesThis?.Type == AmendType.Insert)
+            if (amendAppliesThis?.Type == AmendType.Insert && !builder.TextOnly)
             {
                 var last = parent.Children[^1];
                 last.Children.Add(LegHelpers.GetChangeDeliminator(false));

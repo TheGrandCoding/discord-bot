@@ -17,14 +17,14 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("GET"), PathRegex(@"\/laws\/(?!.*\/.)(?<name>[a-z0-9-]+)")]
-        public void SeeLaw(string name)
+        public void SeeLaw(string name, bool raw = false)
         {
             if(!Service.Laws.TryGetValue(name, out var act))
             {
                 HTTPError(HttpStatusCode.NotFound, "", "No law by that path name");
                 return;
             }
-            var page = Service.PageForAct(act);
+            var page = Service.PageForAct(act, raw);
             RespondRaw(ReplaceMatches(page, new Replacements()), HttpStatusCode.OK);
         }
     }

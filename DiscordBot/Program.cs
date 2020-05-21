@@ -31,7 +31,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.5.0"; 
+        public const string VERSION = "0.5.1"; 
         public const string CHANGELOG = VERSION + @"
 == Add legislation
 Actually redid legislation.
@@ -46,7 +46,7 @@ Actually redid legislation.
 
         public static Random RND { get; set; } = new Random();
 
-        public static bool ShouldDownload { get; set; } = true;
+        public static bool ShouldDownload { get; set; } = false;
 
         #region Configuration Specific Settings
 

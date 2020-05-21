@@ -1,4 +1,5 @@
 ﻿using DiscordBot.Classes.HTMLHelpers;
+using Markdig;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,6 +11,7 @@ namespace DiscordBot.Classes.Legislation.Amending
     {
         public AmendmentBuilder Builder { get; set; }
         public List<TextAmendment> Amends { get; set; }
+        public bool MarkDown { get; set; }
 
         AmendedText Text { get; set; }
 
@@ -27,7 +29,7 @@ namespace DiscordBot.Classes.Legislation.Amending
 
         public string NiceWords {  get
             {
-                return string.Join("", AllWords);
+                return string.Join(" ", AllWords);
             } }
 
         public List<string> AllWords { get
@@ -40,8 +42,30 @@ namespace DiscordBot.Classes.Legislation.Amending
                 return string.Join("", texts().Select(x => x.FullText));
             } }
 
-        public TextAmenderBuilder(string text, AmendmentBuilder builder, List<TextAmendment> amends)
+        string lhsInsertReplace(string next)
         {
+            if (MarkDown)
+                return "[";
+            return LegHelpers.GetChangeDeliminator(true) + LegHelpers.GetChangeAnchor(next);
+        }
+
+        string lhsRemove(string next)
+        {
+            if (MarkDown)
+                return "...";
+            return ". . . ." + LegHelpers.GetChangeAnchor(next);
+        }
+
+        string rhs()
+        {
+            if (MarkDown)
+                return "]";
+            return LegHelpers.GetChangeDeliminator(false);
+        }
+
+        public TextAmenderBuilder(string text, AmendmentBuilder builder, List<TextAmendment> amends, bool markDown = false)
+        {
+            MarkDown = markDown;
             Builder = builder;
             Amends = amends;
             Text = new AmendedText()
@@ -73,8 +97,8 @@ namespace DiscordBot.Classes.Legislation.Amending
             var next = Builder.GetNextNumber(amend);
             var remover = new AmendedText()
             {
-                LHS = LegHelpers.GetChangeDeliminator(true) + LegHelpers.GetChangeAnchor(next),
-                RHS = LegHelpers.GetChangeDeliminator(false),
+                LHS = lhsInsertReplace(next),
+                RHS = rhs(),
                 InnerText = amend.New,
             };
             var wordsAfter = toAmend.Words.Skip(amend.Start);
@@ -97,7 +121,6 @@ namespace DiscordBot.Classes.Legislation.Amending
             toAmend.Next = remover;
             remover.Next = after;
         }
-
         void remove(TextAmendment amend)
         {
             AmendedText toAmend = Text;
@@ -110,7 +133,7 @@ namespace DiscordBot.Classes.Legislation.Amending
             var next = Builder.GetNextNumber(amend);
             var remover = new AmendedText()
             {
-                LHS = ". . . ." + LegHelpers.GetChangeAnchor(next),
+                LHS = lhsRemove(next),
                 RHS = "",
                 InnerText = ""
             };
@@ -135,7 +158,6 @@ namespace DiscordBot.Classes.Legislation.Amending
             remover.Next = after;
 
         }
-
         void insert(TextAmendment amend)
         {
             AmendedText toAmend = Text;
@@ -148,12 +170,13 @@ namespace DiscordBot.Classes.Legislation.Amending
             var next = Builder.GetNextNumber(amend);
             var inserter = new AmendedText()
             {
-                LHS = LegHelpers.GetChangeDeliminator(true) + LegHelpers.GetChangeAnchor(next),
-                RHS = LegHelpers.GetChangeDeliminator(false),
+                LHS = lhsInsertReplace(next),
+                RHS = rhs(),
                 InnerText = amend.New
             };
             var wordsAfter = toAmend.Words.Skip(amend.Start - toAmend.StartIndex);
-            toAmend.InnerText = toAmend.InnerText.Substring(0, toAmend.InnerText.Length - string.Join(' ', wordsAfter).Length);
+            var wordsBefore = toAmend.Words.Take(toAmend.Words.Count - wordsAfter.Count());
+            toAmend.InnerText = string.Join(' ', wordsBefore);
             var after = new AmendedText()
             {
                 RHS = toAmend.RHS,
@@ -169,8 +192,6 @@ namespace DiscordBot.Classes.Legislation.Amending
 
             toAmend.Next = inserter;
         }
-
-
     }
 
     class AmendedText
@@ -217,6 +238,6 @@ namespace DiscordBot.Classes.Legislation.Amending
                 return c;
             } }
         public int Length => Words.Count;
-        public List<string> Words => InnerText.Split(' ').ToList();
+        public List<string> Words => InnerText.Split(' ', StringSplitOptions.RemoveEmptyEntries).ToList();
     }
 }

@@ -13,7 +13,7 @@ namespace DiscordBot.Classes.Legislation
         public Clause(string text)
         {
             Text = text;
-            Amendments = new List<TextAmendment>();
+            TextAmendments = new List<TextAmendment>();
         }
         [JsonProperty("tc")]
         public string Text { get; set; }
@@ -21,14 +21,14 @@ namespace DiscordBot.Classes.Legislation
         public string Number { get; set; }
 
         [JsonProperty("a")]
-        public List<TextAmendment> Amendments { get; set; }
+        public List<TextAmendment> TextAmendments { get; set; }
 
         string getAmendedText(AmendmentBuilder builder)
         {
             string TEXT = Markdown.ToHtml(Text).Replace("<p>", "").Replace("</p>", "");
 
-            var amender = new TextAmenderBuilder(TEXT, builder, Amendments);
-            return amender.RawText;
+            var amender = new TextAmenderBuilder(TEXT, builder, TextAmendments);
+            return builder.TextOnly ? amender.NiceWords : amender.RawText;
         }
 
         public void WriteTo(HTMLBase parent, int depth, Section section, Paragraph paragraph, AmendmentBuilder builder, ParagraphAmendment amendAppliesThis)
@@ -52,13 +52,13 @@ namespace DiscordBot.Classes.Legislation
                 var next = builder.GetNextNumber(amendAppliesThis);
                 if (amendAppliesThis.Type == AmendType.Repeal)
                 {
-                    RHS.RawText = ". . . ." + LegHelpers.GetChangeAnchor(next);
+                    RHS.RawText = builder.TextOnly ? "..." : ". . . ." + LegHelpers.GetChangeAnchor(next);
                     return;
                 }
                 if (amendAppliesThis.Type == AmendType.Insert)
                 {
-                    LHS.RawText = $"{LegHelpers.GetChangeDeliminator(true)}{LegHelpers.GetChangeAnchor(next)}({Number})";
-                    RHS.RawText += LegHelpers.GetChangeDeliminator(false);
+                    LHS.RawText = (builder.TextOnly ? "" : $"{LegHelpers.GetChangeDeliminator(true)}{LegHelpers.GetChangeAnchor(next)}") + $"({Number})";
+                    RHS.RawText += builder.TextOnly ? "" : LegHelpers.GetChangeDeliminator(false);
                 }
             }
         }

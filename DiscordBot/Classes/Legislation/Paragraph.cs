@@ -35,7 +35,7 @@ namespace DiscordBot.Classes.Legislation
             string TEXT = Markdown.ToHtml(Text).Replace("<p>", "").Replace("</p>", "");
 
             var amender = new TextAmenderBuilder(TEXT, builder, TextAmendments);
-            return amender.RawText;
+            return builder.TextOnly ? amender.NiceWords : amender.RawText;
         }
 
         public void WriteTo(HTMLBase parent, int depth, Section section, AmendmentBuilder builder, SectionAmendment amendAppliesThis)
@@ -56,14 +56,14 @@ namespace DiscordBot.Classes.Legislation
             if(amendAppliesThis != null)
             {
                 var next = builder.GetNextNumber(amendAppliesThis);
-                if(amendAppliesThis.Type == AmendType.Repeal)
+                if (amendAppliesThis.Type == AmendType.Repeal)
                 {
-                    RHS.RawText = ". . . ." + LegHelpers.GetChangeAnchor(next);
+                    RHS.RawText = builder.TextOnly ? "..." : ". . . ." + LegHelpers.GetChangeAnchor(next);
                     return;
                 }
-                if(amendAppliesThis.Type == AmendType.Insert)
+                if (amendAppliesThis.Type == AmendType.Insert)
                 {
-                    LHS.RawText = $"{LegHelpers.GetChangeDeliminator(true)}{LegHelpers.GetChangeAnchor(next)}({Number})";
+                    LHS.RawText = (builder.TextOnly ? "" : $"{LegHelpers.GetChangeDeliminator(true)}{LegHelpers.GetChangeAnchor(next)}") + $"{Number}";
                 }
             }
             foreach (var child in Children)
@@ -73,7 +73,7 @@ namespace DiscordBot.Classes.Legislation
 
                 child.WriteTo(parent, depth + 1, section, this, builder, mostRelevant);
             }
-            if(amendAppliesThis?.Type == AmendType.Insert)
+            if(amendAppliesThis?.Type == AmendType.Insert && !builder.TextOnly)
             {
                 var last = parent.Children[^1];
                 var text = last.Children[1];

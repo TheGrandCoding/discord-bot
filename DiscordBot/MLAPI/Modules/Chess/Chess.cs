@@ -522,7 +522,7 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("GET"), Path("/chess/conduct")]
-        public void Regulations()
+        public void Regulations(bool raw = false)
         {
             var service = Program.Services.GetRequiredService<LegislationService>();
             if (!service.Laws.TryGetValue("conduct", out var act))
@@ -530,12 +530,12 @@ namespace DiscordBot.MLAPI.Modules
                 HTTPError(HttpStatusCode.NotFound, "", "Could not find Conduct Regulations");
                 return;
             }
-            var page = service.PageForAct(act);
+            var page = service.PageForAct(act, raw);
             RespondRaw(ReplaceMatches(page, new Replacements()), HttpStatusCode.OK);
         }
 
         [Method("GET"), Path("/chess/terms")]
-        public void TermsAndCons()
+        public void TermsAndCons(bool raw = false)
         {
             string mods = "";
             string justices = "<br/>- Chief Justice Alex C<br/>";
@@ -553,7 +553,7 @@ namespace DiscordBot.MLAPI.Modules
                 HTTPError(HttpStatusCode.NotFound, "", "Could not find Terms and Conditions");
                 return;
             }
-            var page = service.PageForAct(act);
+            var page = service.PageForAct(act, raw);
             RespondRaw(ReplaceMatches(page, new Replacements()
                 .Add("mods", mods)
                 .Add("justices", justices)), HttpStatusCode.OK);

@@ -15,7 +15,8 @@ namespace DiscordBot.Classes
 
         public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
         {
-            var id = (ulong)reader.Value;
+            var lng = (long)reader.Value;
+            var id = Convert.ToUInt64(lng);
             return Program.GetUserOrDefault(id);
         }
 

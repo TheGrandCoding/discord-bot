@@ -9,9 +9,11 @@ namespace DiscordBot.Classes.Legislation.Amending
     public class AmendmentBuilder
     {
         public List<BaseAmendment> Performed { get; set; }
+        public bool TextOnly { get; set; }
         int startCount;
-        public AmendmentBuilder(int start)
+        public AmendmentBuilder(int start, bool printOnlyText)
         {
+            TextOnly = printOnlyText;
             Performed = new List<BaseAmendment>();
             startCount = start;
         }
@@ -25,6 +27,8 @@ namespace DiscordBot.Classes.Legislation.Amending
 
         public HTMLBase GetDiv()
         {
+            if (TextOnly)
+                return null;
             var div = new Div(cls: "LegAnnotations");
             div.Children.Add(new HTMLHelpers.Objects.Paragraph("Textual Amendments", cls: "LegAnnotationsGroupHeading"));
             for(int i = 0; i < Performed.Count; i++)

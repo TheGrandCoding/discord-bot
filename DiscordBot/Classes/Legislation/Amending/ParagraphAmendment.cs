@@ -11,10 +11,11 @@ namespace DiscordBot.Classes.Legislation.Amending
 
         public override string GetDescription()
         {
+            string s = $"through #{GroupId}, by {Group.Author.Name} on {Group.Date}";
             if (Type == AmendType.Insert)
-                return $"Clause inserted by {User} on {Date}";
+                return $"Clause inserted {s}";
             if (Type == AmendType.Repeal)
-                return $"Clause repealed by {User} on {Date}";
+                return $"Clause repealed {s}";
             return $"Clause replacement invalid amendment";
         }
     }

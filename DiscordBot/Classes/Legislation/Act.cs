@@ -12,11 +12,39 @@ namespace DiscordBot.Classes.Legislation
 {
     public class Act
     {
+        [JsonConstructor]
+        private Act(List<ActAmendment> a, List<Section> c)
+        {
+            Children = c;
+            Amendments = a;
+            foreach (var x in Amendments)
+                x.AmendsAct = this;
+            foreach (var x in Children)
+            {
+                foreach (var y in x.TextAmendments)
+                    y.AmendsAct = this;
+                foreach (var y in x.Amendments)
+                    y.AmendsAct = this;
+                foreach(var p in x.Children)
+                {
+                    foreach (var y in p.Amendments)
+                        y.AmendsAct = this;
+                    foreach (var y in p.TextAmendments)
+                        y.AmendsAct = this;
+                    foreach (var cl in p.Children)
+                        foreach (var y in cl.TextAmendments)
+                            y.AmendsAct = this;
+                }
+            }
+            AmendmentReferences = new Dictionary<int, AmendmentGroup>();
+        }
+
         public Act(string title)
         {
             Title = title;
             Children = new List<Section>();
             Amendments = new List<ActAmendment>();
+            AmendmentReferences = new Dictionary<int, AmendmentGroup>();
         }
         [JsonProperty("t")]
         public string Title { get; set; }
@@ -29,11 +57,17 @@ namespace DiscordBot.Classes.Legislation
         [JsonProperty("a")]
         public List<ActAmendment> Amendments { get; set; }
 
+        [JsonIgnore]
+        public string URL => $"{MLAPI.Handler.LocalAPIUrl}/laws/{PathName}";
+
         [JsonProperty("d", DefaultValueHandling = DefaultValueHandling.IgnoreAndPopulate)]
         [DefaultValue(false)]
         public bool Draft { get; set; } = false;
         [JsonProperty("ed", NullValueHandling = NullValueHandling.Ignore)]
         public DateTime? EnactedDate { get; set; }
+
+        [JsonProperty("amr")]
+        public Dictionary<int, AmendmentGroup> AmendmentReferences { get; set; }
 
         HTMLBase GetPrelimBlock()
         {
@@ -55,7 +89,7 @@ namespace DiscordBot.Classes.Legislation
             return div;
         }
 
-        public HTMLBase GetDiv()
+        public HTMLBase GetDiv(bool printTextOnly)
         {
             var div = new Div(cls: "LegSnippet");
             div.Children.Add(GetPrelimBlock());
@@ -79,13 +113,14 @@ namespace DiscordBot.Classes.Legislation
                 // It's possible that an inserted section is repealed - but we'll handle repeals first anyway.
                 var amendmentApplies = Amendments.Where(x => x.Target == child.Number);
                 ActAmendment mostRelevant = amendmentApplies.FirstOrDefault(x => x.Type == AmendType.Repeal) ?? amendmentApplies.FirstOrDefault(x => x.Type == AmendType.Insert);
-                var builder = new AmendmentBuilder(amendmentCount);
+                var builder = new AmendmentBuilder(amendmentCount, printTextOnly);
 
                 child.WriteTo(div, 1, builder, mostRelevant);
                 if(builder.Performed.Count > 0)
                 {
                     amendmentCount += builder.Performed.Count;
-                    div.Children.Add(builder.GetDiv());
+                    if(!builder.TextOnly)
+                        div.Children.Add(builder.GetDiv());
                 }
             }
             return div;

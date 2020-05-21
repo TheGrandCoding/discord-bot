@@ -7,11 +7,16 @@ namespace DiscordBot.Classes.Legislation.Amending
 {
     public abstract class BaseAmendment
     {
+        [JsonIgnore]
+        public Act AmendsAct { get; set; }
+        [JsonIgnore]
+        public AmendmentGroup Group => AmendsAct.AmendmentReferences[GroupId];
+
+        [JsonProperty("id")]
+        public int GroupId { get; set; }
         public AmendType Type { get; set; }
-        public DateTime Date { get; set; }
-        [JsonConverter(typeof(BotUserConverter))]
-        public BotUser User { get; set; }
         public abstract string GetDescription();
+
     }
 
     public enum AmendType
