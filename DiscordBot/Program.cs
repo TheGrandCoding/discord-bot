@@ -31,7 +31,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.5.1"; 
+        public const string VERSION = "0.5.2"; 
         public const string CHANGELOG = VERSION + @"
 == Add legislation
 Actually redid legislation.

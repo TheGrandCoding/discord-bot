@@ -258,6 +258,8 @@ namespace DiscordBot.Modules.Legislation
                     if (resp.StartsWith("y"))
                         break;
                     amendments.Remove(amendment);
+                    amendment.New = null;
+                    continue; // reset.
                 }
                 await ReplyAsync($"Text words:\r\n>>> {wordStr}");
                 var index = await GetResponse($"Please provide the index of the word that this text will be inserted BEFORE");
@@ -308,7 +310,6 @@ namespace DiscordBot.Modules.Legislation
             do
             {
                 var builder = new TextAmenderBuilder(_TEXT, new AmendmentBuilder(0, false), amendments, true);
-                string wordStr = getWords(builder);
                 if (amendment.Length > 0 && !string.IsNullOrWhiteSpace(amendment.New))
                 {
                     await ReplyAsync("Does this look right to you?\r\n>>> " + builder.RawText);
@@ -316,7 +317,11 @@ namespace DiscordBot.Modules.Legislation
                     if (resp.StartsWith("y"))
                         break;
                     amendments.Remove(amendment);
+                    amendment.Length = 0;
+                    amendment.New = null;
+                    continue; // reset.
                 }
+                string wordStr = getWords(builder);
                 await ReplyAsync($"Text words:\r\n>>> {wordStr}");
                 var index = await GetResponse($"Please provide the index of the first word that this amendment will replace");
                 if (!int.TryParse(index, out var number))
@@ -375,7 +380,6 @@ namespace DiscordBot.Modules.Legislation
             do
             {
                 var builder = new TextAmenderBuilder(_TEXT, new AmendmentBuilder(0, false), amendments, true);
-                string wordStr = getWords(builder);
                 if (amendment.Length > 0)
                 {
                     await ReplyAsync("Does this look right to you?\r\n>>> " + builder.RawText);
@@ -383,7 +387,10 @@ namespace DiscordBot.Modules.Legislation
                     if (resp.StartsWith("y"))
                         break;
                     amendments.Remove(amendment);
+                    amendment.Length = 0;
+                    continue; // reset.
                 }
+                string wordStr = getWords(builder);
                 await ReplyAsync($"Text words:\r\n>>> {wordStr}");
                 var index = await GetResponse($"Please provide the index of the first word that this amendment will remove");
                 if (!int.TryParse(index, out var number))
