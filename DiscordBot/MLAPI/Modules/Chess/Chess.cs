@@ -524,25 +524,39 @@ namespace DiscordBot.MLAPI.Modules
         [Method("GET"), Path("/chess/conduct")]
         public void Regulations()
         {
-            ReplyFile("terms/conduct.html", 200);
+            var service = Program.Services.GetRequiredService<LegislationService>();
+            if (!service.Laws.TryGetValue("conduct", out var act))
+            {
+                HTTPError(HttpStatusCode.NotFound, "", "Could not find Conduct Regulations");
+                return;
+            }
+            var page = service.PageForAct(act);
+            RespondRaw(ReplaceMatches(page, new Replacements()), HttpStatusCode.OK);
         }
 
         [Method("GET"), Path("/chess/terms")]
         public void TermsAndCons()
         {
             string mods = "";
-            string justices = "";
+            string justices = "<br/>- Chief Justice Alex C<br/>";
             foreach (var player in Players.Where(x => x.Permission == ChessPerm.Moderator || x.Permission == ChessPerm.ElectedMod).OrderBy(x => x.Name))
             {
-                mods += $"<uli>{getPlayerName(player)}</uli>";
+                mods += $"- {getPlayerName(player)}<br/>";
             }
             foreach(var player in Players.Where(x => x.Permission == ChessPerm.Justice).OrderBy(x => x.Name))
             {
-                justices += $"<uli>Justice {getPlayerName(player)}</uli>";
+                justices += $"- Justice {getPlayerName(player)}<br/>";
             }
-            ReplyFile("terms/terms.html", 200, new Replacements()
+            var service = Program.Services.GetRequiredService<LegislationService>();
+            if(!service.Laws.TryGetValue("terms", out var act))
+            {
+                HTTPError(HttpStatusCode.NotFound, "", "Could not find Terms and Conditions");
+                return;
+            }
+            var page = service.PageForAct(act);
+            RespondRaw(ReplaceMatches(page, new Replacements()
                 .Add("mods", mods)
-                .Add("justices", justices));
+                .Add("justices", justices)), HttpStatusCode.OK);
         }
 
         [Method("GET"), Path("/chess/moderators")]

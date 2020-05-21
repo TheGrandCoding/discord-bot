@@ -64,8 +64,10 @@ namespace DiscordBot.MLAPI
         protected string LoadFile(string path)
         {
             string proper = Path.Combine(Program.BASE_PATH, "HTTP");
-            if (!path.StartsWith("_"))
+            if (!path.StartsWith("_") && !path.StartsWith("/"))
                 proper = Path.Combine(proper, BaseFolder);
+            if (path.StartsWith("/"))
+                path = path.Substring(1);
             proper = Path.Combine(proper, path);
             return File.ReadAllText(proper, Encoding.UTF8);
         }

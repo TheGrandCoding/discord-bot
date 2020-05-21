@@ -4,6 +4,8 @@ using Discord.Commands;
 using Discord.WebSocket;
 using DiscordBot.Classes;
 using DiscordBot.Classes.Calculator;
+using DiscordBot.Classes.HTMLHelpers.Objects;
+using DiscordBot.Classes.Legislation.Amending;
 using DiscordBot.MLAPI;
 using DiscordBot.Services;
 using DiscordBot.TypeReaders;
@@ -29,10 +31,10 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.4.1"; 
+        public const string VERSION = "0.5.0"; 
         public const string CHANGELOG = VERSION + @"
-== Add calculator
-$calculator - Input any string and we'll do the rest.
+== Add legislation
+Actually redid legislation.
 ";
         public static DiscordSocketClient Client { get; set; }
         public static IConfigurationRoot Configuration { get; set; }

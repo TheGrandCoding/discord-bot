@@ -1,4 +1,5 @@
 ﻿using DiscordBot.Classes.HTMLHelpers;
+using DiscordBot.Classes.HTMLHelpers.Objects;
 using DiscordBot.Classes.ServerList;
 using DiscordBot.Services;
 using Emgu.CV.CvEnum;
@@ -39,29 +40,38 @@ namespace DiscordBot.MLAPI.Modules.ServerList
         [Method("GET"), Path("/masterlist")]
         public void Servers(string game = null)
         {
-            var builder = new StringBuilder();
-            using(var table = new HTMLTable(builder))
+            var table = new Table()
             {
-                using(var headers = table.AddHeaderRow())
+                Children =
                 {
-                    headers.AddHeaderCell("Name");
-                    headers.AddHeaderCell("Game");
-                    headers.AddHeaderCell("Players");
-                }
-                foreach(var x in Service.Servers.Values)
-                {
-                    if (game != null && x.GameName != game)
-                        continue;
-                    using (var row = table.AddRow(x.Id.ToString()))
+                    new TableRow()
                     {
-                        row.AddCell(aLink("/masterlist/" + x.Id, x.Name));
-                        row.AddCell(aLink($"/masterlist?game={x.GameName}", x.GameName));
-                        row.AddCell($"{x.Players.Count}");
+                        Children =
+                        {
+                            new TableHeader("Name"),
+                            new TableHeader("Game"),
+                            new TableHeader("Players")
+                        }
                     }
                 }
+            };
+            foreach(var x in Service.Servers.Values)
+            {
+                if (game != null && x.GameName != game)
+                    continue;
+                var row = new TableRow(x.Id.ToString())
+                {
+                    Children =
+                    {
+                        new TableData(aLink("/masterlist/" + x.Id, x.Name)),
+                        new TableData(aLink($"/masterlist?game={x.GameName}", x.GameName)),
+                        new TableData(x.Players.Count.ToString())
+                    }
+                };
+                table.Children.Add(row);
             }
             ReplyFile("base.html", HttpStatusCode.OK, new Replacements()
-                .Add("table", builder.ToString())
+                .Add("table", table.ToString())
                 .Add("count", Service.Servers.Count));
         }
 
@@ -83,28 +93,37 @@ namespace DiscordBot.MLAPI.Modules.ServerList
                 HTTPError(HttpStatusCode.NotFound, "No server", "Could not find a server by that Id.");
                 return;
             }
-            var builder = new StringBuilder();
-            using(var table = new HTMLTable(builder))
+            var table = new Table()
             {
-                using(var headers = table.AddHeaderRow())
+                Children =
                 {
-                    headers.AddHeaderCell("Name");
-                    headers.AddHeaderCell("Score");
-                    headers.AddHeaderCell("Latency");
-                }
-                foreach(var player in server.Players.OrderByDescending(x => x.Score))
-                {
-                    using(var row = table.AddRow())
+                    new TableRow()
                     {
-                        row.AddCell(player.Name);
-                        row.AddCell(player.Score.ToString());
-                        row.AddCell(player.Latency.ToString());
+                        Children =
+                        {
+                            new TableHeader("Name"),
+                            new TableHeader("Score"),
+                            new TableHeader("Latency")
+                        }
                     }
                 }
+            };
+            foreach(var player in server.Players.OrderByDescending(x => x.Score))
+            {
+                var row = new TableRow()
+                {
+                    Children =
+                    {
+                        new TableData(player.Name),
+                        new TableData(player.Score.ToString()),
+                        new TableData(player.Latency.ToString())
+                    }
+                };
+                table.Children.Add(row);
             }
             ReplyFile("server.html", HttpStatusCode.OK, new Replacements()
                 .Add("server", server)
-                .Add("players", builder.ToString())
+                .Add("players", table)
                 .Add("connection", getConnectionInfo(server)));
         }
         #endregion
