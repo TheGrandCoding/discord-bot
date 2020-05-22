@@ -22,7 +22,7 @@ namespace DiscordBot.Services
 
         string[] MATH_SYMBOLS = new string[]
         {
-            "+", "-", "*", "/", "{", "}", "\\over", "\\sqrt", "^"
+            "=", "+", "-", "*", "/", "{", "}", "\\over", "\\sqrt", "^"
         };
         Dictionary<string, string> REPLACEMENTS = new Dictionary<string, string>()
         {
@@ -31,8 +31,8 @@ namespace DiscordBot.Services
 
         bool shouldRespond(string msg)
         {
-            if (msg.StartsWith('.'))
-                return true;
+            if (!msg.StartsWith('.'))
+                return false;
             foreach (var s in MATH_SYMBOLS)
                 if (msg.Contains(s))
                     return true;

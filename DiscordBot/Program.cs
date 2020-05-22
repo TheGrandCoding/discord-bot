@@ -31,7 +31,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.6.0"; 
+        public const string VERSION = "0.6.1"; 
         public const string CHANGELOG = VERSION + @"
 == LaTeX formatting
 Allow #maths channels to recieve LaTeX formatted images.
