@@ -149,7 +149,7 @@ namespace DiscordBot.MLAPI.Modules.ServerList
 
         #region Server API
         [Method("POST"), Path("/servers")]
-        public void CreateServer(string name, string type, int port, string internalIP)
+        public void CreateServer(string name, string type, int port, string internalIP, bool skipPort = false)
         {
             if(!IPAddress.TryParse(internalIP, out var intIP))
             {
@@ -163,7 +163,7 @@ namespace DiscordBot.MLAPI.Modules.ServerList
                 return;
             }
             var externalIP = Context.Request.RemoteEndPoint.Address;
-            var portForwarded = testPortForward(externalIP, port);
+            var portForwarded = skipPort || testPortForward(externalIP, port);
             var srv = new Server(name, type, intIP, externalIP, port);
             srv.Id = Guid.NewGuid();
             Service.Servers[srv.Id] = srv;
@@ -192,6 +192,7 @@ namespace DiscordBot.MLAPI.Modules.ServerList
             }
             server.Port = port ?? server.Port;
             server.InternalIP = intIP ?? server.InternalIP;
+            server.LastDateOnline = DateTime.Now;
             var extIP = Context.Request.RemoteEndPoint.Address;
             if(extIP != server.ExternalIP)
             {
@@ -201,6 +202,23 @@ namespace DiscordBot.MLAPI.Modules.ServerList
             RespondRaw(Program.Serialise(server), HttpStatusCode.OK);
         }
         
+        [Method("POST"), PathRegex(@"\/servers\/(?!.*\/.)(?<id>[a-zA-Z0-9-]+)")]
+        public void ServerInfo(Guid id, string auth)
+        {
+            if (!Service.Servers.TryGetValue(id, out var server))
+            {
+                RespondRaw("Unknown server", 404);
+                return;
+            }
+            if (server.Authentication != auth)
+            {
+                RespondRaw("Unknown server", 404);
+                return;
+            }
+            server.LastDateOnline = DateTime.Now;
+            RespondRaw("Ok", HttpStatusCode.OK);
+        }
+
         [Method("DELETE"), PathRegex(@"\/servers\/(?!.*\/.)(?<id>[a-zA-Z0-9-]+)")]
         public void DeleteServer(Guid id, string auth)
         {

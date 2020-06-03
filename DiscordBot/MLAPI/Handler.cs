@@ -273,6 +273,7 @@ IP: {context.Request.RemoteEndPoint.Address}";
         static void handleRequest(APIContext context)
         {
             context.Id = Guid.NewGuid();
+            Console.WriteLine($"{context.Id}: {context.Request.RemoteEndPoint} {context.Request.Url}");
             var idSplit = context.Id.ToString().Split('-');
             var logger = new RequestLogger(context);
             Func<ErrorJson, int, string> sendError = (ErrorJson reply, int code) =>
@@ -374,6 +375,7 @@ IP: {context.Request.RemoteEndPoint.Address}";
                 Program.LogMsg(ex, "ExHandler");
             }
             commandBase.AfterExecute();
+            Console.WriteLine($"{context.Id}: Returned {commandBase.StatusSent}");
         }
     }
 }

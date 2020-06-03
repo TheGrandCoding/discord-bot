@@ -29,6 +29,7 @@ namespace DiscordBot.Websockets
 
         protected override void OnClose(CloseEventArgs e)
         {
+            Console.WriteLine($"Closed WS: {e.Code} {e.Reason}");
             if(Server != null)
                 Server.ActiveSession = null;
             base.OnClose(e);
@@ -36,6 +37,7 @@ namespace DiscordBot.Websockets
 
         protected override void OnError(ErrorEventArgs e)
         {
+            Console.WriteLine($"Errored: {e.Message} {e.Exception}");
             if (Server != null)
                 Server.ActiveSession = null;
             base.OnError(e);
@@ -112,6 +114,7 @@ namespace DiscordBot.Websockets
 
         protected override void OnMessage(MessageEventArgs e)
         {
+            Console.WriteLine($"Data {e.Data}");
             if(!e.IsText)
                 return;
             var jobj = JObject.Parse(e.Data);
@@ -140,6 +143,7 @@ namespace DiscordBot.Websockets
 
         protected override void OnOpen()
         {
+            Console.WriteLine($"Opened WS");
             var serverId = Context.QueryString["id"];
             var auth = Context.QueryString["auth"];
             if(!Guid.TryParse(serverId, out var id))

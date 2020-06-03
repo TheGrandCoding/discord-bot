@@ -21,6 +21,7 @@ namespace DiscordBot.Classes.ServerList
             Port = port;
             IsPrivate = isPrivate;
             Authentication = authentication ?? AuthToken.Generate(32);
+            LastDateOnline = DateTime.Now;
         }
         private Server(Server clone, bool safeClone = true) 
             : this(clone.Name, clone.GameName, clone.InternalIP, clone.ExternalIP, clone.Port, clone.IsPrivate, clone.Authentication)
@@ -59,7 +60,10 @@ namespace DiscordBot.Classes.ServerList
         [JsonProperty("private")]
         public bool IsPrivate { get; set; }
         [JsonProperty("online")]
-        public bool Online => ActiveSession != null;
+        public bool Online => ((LastDateOnline - DateTime.Now).TotalMinutes <= 30) || ActiveSession != null;
+        [JsonProperty("lastSeen")]
+        public DateTime LastDateOnline { get; set; }
+
         [JsonProperty("auth", NullValueHandling = NullValueHandling.Ignore)]
         public string Authentication { get; set; }
 

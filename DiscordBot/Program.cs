@@ -31,10 +31,10 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.6.1"; 
+        public const string VERSION = "0.7.0"; 
         public const string CHANGELOG = VERSION + @"
-== LaTeX formatting
-Allow #maths channels to recieve LaTeX formatted images.
+== Muted
+Ensure Muted role is muted.
 ";
         public static DiscordSocketClient Client { get; set; }
         public static IConfigurationRoot Configuration { get; set; }
