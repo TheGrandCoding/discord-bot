@@ -1,4 +1,5 @@
 ﻿using Discord;
+using Discord.WebSocket;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json.Linq;
 using System;
@@ -6,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace DiscordBot.Services
 {
@@ -39,15 +41,9 @@ namespace DiscordBot.Services
             return false;
         }
 
-        private async System.Threading.Tasks.Task Client_MessageReceived(Discord.WebSocket.SocketMessage arg)
+        public async Task ReplyTeXMessage(string message, SocketMessage arg)
         {
-            if (arg.Channel.Name != "maths")
-                return;
-            string message = arg.Content;
-            if (!shouldRespond(message))
-                return;
             var json = new JObject();
-            message = message[0] == '.' ? message.Substring(1) : message;
             foreach (var keypair in REPLACEMENTS)
                 message = message.Replace(keypair.Key, keypair.Value);
             json["q"] = message;
@@ -56,7 +52,7 @@ namespace DiscordBot.Services
             var response = await Client.PostAsync($"{API}/media/math/check/tex", sendContent);
             var content = await response.Content.ReadAsStringAsync();
             var jResponse = JObject.Parse(content);
-            if(!response.IsSuccessStatusCode)
+            if (!response.IsSuccessStatusCode)
             {
                 string detail = jResponse["detail"]?.ToString() ?? $"No information gathered.";
                 if (detail.Length >= 1024)
@@ -67,6 +63,7 @@ namespace DiscordBot.Services
                     .AddField("Title", jResponse["title"]?.ToString() ?? $"{response.StatusCode} {response.ReasonPhrase}")
                     .AddField("Detail", detail)
                     .WithColor(Discord.Color.Red)
+                    .WithFooter(arg.Author.Username, arg.Author.GetAvatarUrl() ?? arg.Author.GetDefaultAvatarUrl())
                     .WithUrl(arg.GetJumpUrl())
                     .Build());
                 return;
@@ -82,8 +79,20 @@ namespace DiscordBot.Services
                 .WithFooter(hash)
                 .WithImageUrl(imageUrl)
                 .WithColor(Discord.Color.Green)
+                .WithFooter(arg.Author.Username, arg.Author.GetAvatarUrl() ?? arg.Author.GetDefaultAvatarUrl())
                 .WithUrl(imageUrl)
                 .Build());
+        }
+
+        private async System.Threading.Tasks.Task Client_MessageReceived(Discord.WebSocket.SocketMessage arg)
+        {
+            if (arg.Channel.Name != "maths")
+                return;
+            string message = arg.Content;
+            if (!shouldRespond(message))
+                return;
+            message = message[0] == '.' ? message.Substring(1) : message;
+            await ReplyTeXMessage(message, arg);
         }
     }
 }

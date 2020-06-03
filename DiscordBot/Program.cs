@@ -31,10 +31,12 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.7.0"; 
+        public const string VERSION = "0.7.1"; 
         public const string CHANGELOG = VERSION + @"
 == Muted
 Ensure Muted role is muted.
+== TeX formatting
+`$show` command
 ";
         public static DiscordSocketClient Client { get; set; }
         public static IConfigurationRoot Configuration { get; set; }

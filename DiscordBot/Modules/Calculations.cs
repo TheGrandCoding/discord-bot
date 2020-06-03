@@ -2,6 +2,7 @@
 using DiscordBot.Classes.Calculator;
 using DiscordBot.Classes.Calculator.Functions;
 using DiscordBot.Commands;
+using DiscordBot.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,6 +14,7 @@ namespace DiscordBot.Modules
     [Name("Calculator")]
     public class Calculations : BotModule
     {
+        public TeXFormatter Service { get; set; }
         [Command("calculate")]
         [Summary("Parses and calculates the given input, eg '3 + 5' = '8'")]
         [Alias("c", "calc", "calculator")]
@@ -46,6 +48,14 @@ namespace DiscordBot.Modules
                 sb.Append($"*{meth.method.ReturnType.Name}* **{meth.Name}**({string.Join(", ", args)})\n");
             }
             await ReplyAsync(sb.ToString());
+        }
+    
+        [Command("display")]
+        [Alias("tex", "show")]
+        [Summary("Transforms provided TeX string into image for display")]
+        public async Task ShowTeX([Remainder]string tex)
+        {
+            await Service.ReplyTeXMessage(tex, Context.Message);
         }
     }
 }
