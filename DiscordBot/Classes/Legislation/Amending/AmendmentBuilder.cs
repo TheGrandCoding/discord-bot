@@ -47,7 +47,7 @@ namespace DiscordBot.Classes.Legislation.Amending
                                 {
                                     Children =
                                     {
-                                        new Anchor($"#reference-F{n}", "Return to text") {RawText = $"F{n}" }
+                                        new Anchor($"#reference-F{n}", $"F{n}","Return to text")
                                     }
                                 },
                                 new Span(cls: "LegCommentaryText")

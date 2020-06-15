@@ -20,9 +20,11 @@ namespace DiscordBot.MLAPI
         static Thread listenThread;
 
 #if WINDOWS
-        public const string LocalAPIUrl = "http://localhost:8887";
+        public const string LocalAPIDomain = "example.com";
+        public const string LocalAPIUrl = "http://ml-api." + LocalAPIDomain + ":8887";
 #else
-        public const string LocalAPIUrl = "https://ml-api.uk.ms";
+        public const string LocalAPIDomain = "uk.ms";
+        public const string LocalAPIUrl = "https://ml-api." + LocalAPIDomain;
 #endif
         public static void Start()
         {

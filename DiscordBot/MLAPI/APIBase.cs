@@ -9,6 +9,7 @@ using System.Text.RegularExpressions;
 namespace DiscordBot.MLAPI
 {
     [RequireAuthentication]
+    [RequireServerName("ml-api." + Handler.LocalAPIDomain)]
     public class APIBase
     {
         public APIBase(APIContext context, string path)

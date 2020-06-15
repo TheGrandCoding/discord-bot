@@ -17,6 +17,11 @@ namespace DiscordBot.MLAPI
         public string Query => Request.Url.Query;
         public string Method => Request.HttpMethod;
 
+        public string Host {  get
+            {
+                return Request.Headers["X-Forwarded-Host"] ?? Request.Url.Host;
+            } }
+
         string m_body;
         public string Body { get
             {

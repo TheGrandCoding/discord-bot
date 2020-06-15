@@ -151,6 +151,10 @@ namespace DiscordBot.MLAPI
 
             weight += 5;
 
+            var serverName = (RequireServerName)preconditions.Last(x => x is RequireServerName);
+            if (serverName.Domain == context.Host)
+                weight += 5;
+
             var args = new List<object>();
             var paramaters = cmd.Function.GetParameters();
             foreach (var param in paramaters)
