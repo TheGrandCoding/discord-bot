@@ -1,4 +1,5 @@
-﻿using DiscordBot.Classes.HTMLHelpers.Objects;
+﻿using DiscordBot.Classes.HTMLHelpers;
+using DiscordBot.Classes.HTMLHelpers.Objects;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -25,6 +26,23 @@ namespace DiscordBot.MLAPI.Modules
             };
         }
 
+        HTMLPage getPage(params HTMLBase[] objects)
+        {
+            var page = new HTMLPage()
+            {
+                Children =
+                {
+                    new PageHeader()
+                        .WithStyle("/_/css/common.css"),
+                }
+            };
+            var body = new PageBody();
+            foreach (var x in objects)
+                body.Children.Add(x);
+            page.Children.Add(body);
+            return page;
+        }
+
         [Method("GET"), Path("/")]
         [RequireServerName("c:speedtest")]
         [RequireAuthentication(false)]
@@ -40,12 +58,24 @@ namespace DiscordBot.MLAPI.Modules
             var files = directory.GetFiles("*.csv");
             int mustSkip = files.Length - 7;
             int i = 0;
+            string today = DateTime.Now.ToString("yy-MM-dd");
             foreach (var file in files)
             {
                 string date = file.Name.Replace(file.Extension, "");
                 double download = 0;
                 double upload = 0;
                 double ping = 0;
+                if(today == date)
+                {
+                    var diff = DateTime.UtcNow - file.LastWriteTimeUtc;
+                    int remainders = (int)diff.TotalMinutes % 30;
+                    if(remainders >= 28)
+                    {
+                        var errPage = getPage(new Paragraph("Speed test is in progress, cannot load data; please check back in 5 minutes"));
+                        RespondRaw(errPage, System.Net.HttpStatusCode.Conflict);
+                        return;
+                    }
+                }
                 var lines = File.ReadAllLines(file.FullName).Skip(1).ToList();
                 foreach(var line in lines)
                 {
@@ -80,24 +110,10 @@ namespace DiscordBot.MLAPI.Modules
                 };
                 WEEKLY.Children.Add(weeklyRow);
             }
-            var page = new HTMLPage()
-            {
-                Children =
-                {
-                    new PageHeader()
-                        .WithStyle("/_/css/common.css"),
-                    new PageBody()
-                    {
-                        Children =
-                        {
-                            new Paragraph("Average speeds across days."),
+            var page = getPage(new Paragraph("Average speeds across days."),
                             WEEKLY,
                             new Paragraph("Recorded speeds today"),
-                            DAILY
-                        }
-                    }
-                }
-            };
+                            DAILY);
             RespondRaw(page.ToString(), 200);
         }
 
