@@ -43,4 +43,4 @@ jobs:
     - name: Windows
       script: 
         - dotnet restore DiscordBot/DiscordBot.sln
-        - dotnet build -c WinDebug -f netcoreapp3.1 -r linux-arm DiscordBot/DiscordBot.sln
+        - dotnet build -c WinDebug -f netcoreapp3.1 DiscordBot/DiscordBot.sln

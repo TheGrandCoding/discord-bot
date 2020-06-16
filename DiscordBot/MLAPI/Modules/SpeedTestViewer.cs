@@ -80,15 +80,18 @@ namespace DiscordBot.MLAPI.Modules
                 foreach(var line in lines)
                 {
                     var array = line.Split(','); 
-                    var row = new TableRow();
-                    row.Children.Add(new TableHeader(DateTime.Parse(array[0]).ToShortTimeString()));
                     double dl = double.Parse(array[1]) / 1024;
                     double ul = double.Parse(array[2]) / 1024;
-                    row.Children.Add(new TableData(dl.ToString("00.00")));
-                    row.Children.Add(new TableData(ul.ToString("00.00")));
                     double pg = double.Parse(array[3]);
-                    row.Children.Add(new TableData(pg.ToString("00")));
-                    DAILY.Children.Add(row);
+                    if(date == today)
+                    {
+                        var row = new TableRow();
+                        row.Children.Add(new TableHeader(DateTime.Parse(array[0]).ToShortTimeString()));
+                        row.Children.Add(new TableData(dl.ToString("00.00")));
+                        row.Children.Add(new TableData(ul.ToString("00.00")));
+                        row.Children.Add(new TableData(pg.ToString("00")));
+                        DAILY.Children.Add(row);
+                    }
                     download += dl;
                     upload += ul;
                     ping += pg;

@@ -31,7 +31,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.7.2"; 
+        public const string VERSION = "0.7.3"; 
         public const string CHANGELOG = VERSION + @"
 == Speed Test Viewer
 Viewing of speed
