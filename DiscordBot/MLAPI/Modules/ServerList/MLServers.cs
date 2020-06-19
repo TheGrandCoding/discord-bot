@@ -63,8 +63,8 @@ namespace DiscordBot.MLAPI.Modules.ServerList
                 {
                     Children =
                     {
-                        new TableData(aLink("/masterlist/" + x.Id, x.Name)),
-                        new TableData(aLink($"/masterlist?game={x.GameName}", x.GameName)),
+                        new TableData(null) { Children = { new Anchor("/masterlist/" + x.Id, x.Name) } },
+                        new TableData(null) { Children = { new Anchor($"/masterlist?game={x.GameName}", x.GameName) } },
                         new TableData(x.Players.Count.ToString())
                     }
                 };
@@ -85,7 +85,7 @@ namespace DiscordBot.MLAPI.Modules.ServerList
             return $"<p>Connection IP: <strong>{ip}</strong></p>";
         }
 
-        [Method("GET"), PathRegex(@"\/masterlist\/(?!.*\/.)(?<id>[a-zA-Z0-9-]+)")]
+        [Method("GET"), PathRegex(@"\/masterlist\/(?!.*\/.)(?<id>[a-zA-Z0-9-]+)", "/masterlist/<id>")]
         public void SeeSpecificServer(Guid id)
         {
             if(!Service.Servers.TryGetValue(id, out var server))

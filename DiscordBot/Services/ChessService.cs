@@ -324,22 +324,22 @@ namespace DiscordBot.Services
                 BuiltInClassUser.OverrideName = "Friday Lunch";
                 Program.Users.Add(BuiltInClassUser);
             }
+            BuiltInClassUser.VerifiedEmail = "@";
             BuiltInClassUser.Tokens = new List<AuthToken>()
             {
                 new AuthToken(AuthToken.LoginPassword, "fridayclassroom")
             };
-            BuiltInClassUser.VerifiedEmail = null; // force re-authenticate
             BuiltInClassUser.BuiltIn = true;
             var classRoom = Players.FirstOrDefault(x => x.Name == "Friday Lunch" && x.ConnectedAccount == BuiltInClassUser.Id);
             if (classRoom == null)
             {
                 classRoom = new ChessPlayer();
-                classRoom.Name = "Friday Lunch";
                 classRoom.IsBuiltInAccount = true;
                 classRoom.Id = BuiltInClassRoomChess;
                 classRoom.ConnectedAccount = BuiltInClassUser.Id;
                 Players.Add(classRoom);
             }
+            classRoom.Name = "Friday Lunch";
             classRoom.Permission = ChessPerm.ClassRoom;
 
             BuiltInCoAUser = Program.GetUserOrDefault(5);

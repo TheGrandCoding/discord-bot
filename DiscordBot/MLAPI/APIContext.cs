@@ -17,6 +17,18 @@ namespace DiscordBot.MLAPI
         public string Query => Request.Url.Query;
         public string Method => Request.HttpMethod;
 
+        static string[] browser_uas = new string[]
+        {
+            "Chrome",
+            "Safari",
+            "Firefox",
+            "Edge"
+        };
+        public bool WantsHTML { get
+            {
+                return Request.AcceptTypes.Contains("text/html");
+            } }
+
         public string Host {  get
             {
                 return Request.Headers["X-Forwarded-Host"] ?? Request.Url.Host;

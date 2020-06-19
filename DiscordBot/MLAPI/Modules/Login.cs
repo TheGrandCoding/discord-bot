@@ -89,7 +89,10 @@ $"https://discordapp.com/api/oauth2/authorize?client_id=432861863437402113&redir
             // New session, so we'll invalidate any other login
             session.Value = AuthToken.Generate(32);
             Program.Save(); // ensure we save the session so it persists for multiple days
-            Context.HTTP.Response.Cookies.Add(new Cookie(AuthToken.SessionToken, session.Value, "/"));
+            Context.HTTP.Response.Cookies.Add(new Cookie(AuthToken.SessionToken, session.Value, "/")
+            {
+                Expires = DateTime.Now.AddDays(3)
+            });
         }
 
         async Task<HttpResponseMessage> postJson(JObject json, HttpClient client, string url)

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Web;
 
 namespace DiscordBot.Classes.HTMLHelpers
 {
@@ -9,7 +10,15 @@ namespace DiscordBot.Classes.HTMLHelpers
         public string Tag { get; protected set; }
         public string Id => tagValues["id"];
         public string Class => tagValues["class"];
-        public string RawText { get; set; }
+        private string _raw;
+        public string RawText {  get
+            {
+                return _raw;
+            } set
+            {
+                _raw = HttpUtility.HtmlEncode(value);
+            }
+        }
         protected Dictionary<string, string> tagValues { get; set; }
         public HTMLBase(string tag, string id, string cls)
         {

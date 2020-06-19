@@ -9,9 +9,9 @@ namespace DiscordBot.MLAPI
     {
         public Regex Regex { get; private set; }
         public Match RgxMatch { get; private set; }
-        public PathRegex(string regex)
+        public PathRegex(string regex, string userFriendly = null)
         {
-            Path = regex;
+            Path = userFriendly ?? regex;
             Regex = new Regex(regex);
         }
 

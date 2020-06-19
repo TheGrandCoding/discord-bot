@@ -71,18 +71,31 @@ namespace DiscordBot.MLAPI.Modules
             request.Headers.Add("Authorization", "Bearer " + response.AccessToken);
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
             var identityResponse = client.SendAsync(request).Result;
+            if(!identityResponse.IsSuccessStatusCode)
+            {
+                RespondRaw("Could not complete Oauth", identityResponse.StatusCode);
+                return;
+            }
             var content = identityResponse.Content.ReadAsStringAsync().Result;
             var jobj = JObject.Parse(content);
             Context.User.VerifiedEmail = jobj["mail"].ToObject<string>();
             var service = Program.Services.GetRequiredService<ChessService>();
-            if(service != null)
+            if(service != null && !Context.User.BuiltIn)
             {
-                var chs = ChessService.Players.FirstOrDefault(x => x.ConnectedAccount == Context.User.Id);
-                if(chs != null)
+                string name = $"{jobj["givenName"]} {jobj["surname"].ToObject<string>()[0]}";
+                var existing = ChessService.Players.FirstOrDefault(x => x.Name == name && !x.IsBuiltInAccount);
+                if(existing != null)
                 {
-                    chs.Name = $"{jobj["givenName"]} {jobj["surname"].ToObject<string>()[0]}";
-                    service.OnSave();
+                    existing.ConnectedAccount = Context.User.Id;
+                } else
+                {
+                    var chs = ChessService.Players.FirstOrDefault(x => x.ConnectedAccount == Context.User.Id && !x.IsBuiltInAccount);
+                    if(chs != null)
+                    {
+                        chs.Name = name;
+                    }
                 }
+                service.OnSave();
             }
             Program.Save();
             var redirect = Context.Request.Cookies["Redirect"]?.Value;
@@ -90,5 +103,6 @@ namespace DiscordBot.MLAPI.Modules
                 redirect = "/";
             RespondRaw(LoadRedirectFile(redirect), 303);
         }
+    
     }
 }

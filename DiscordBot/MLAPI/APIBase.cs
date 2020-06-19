@@ -1,4 +1,5 @@
 ﻿using DiscordBot.MLAPI;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -9,7 +10,11 @@ using System.Text.RegularExpressions;
 namespace DiscordBot.MLAPI
 {
     [RequireAuthentication]
+#if LINUX
     [RequireServerName("ml-api." + Handler.LocalAPIDomain)]
+#else
+    [RequireServerName("localhost")]
+#endif
     public class APIBase
     {
         public APIBase(APIContext context, string path)
@@ -123,7 +128,18 @@ namespace DiscordBot.MLAPI
         protected string aLink(string url, string display) => $"<a href='{url}'>{display}</a>";
 
         public virtual void BeforeExecute() { }
-        public virtual void ResponseHalted(HaltExecutionException ex) { }
+        public virtual void ResponseHalted(HaltExecutionException ex) 
+        { 
+            var er = new ErrorJson(ex.Message);
+            if(Context.WantsHTML)
+            {
+                RespondRaw(er.GetPrettyPage(Context), HttpStatusCode.InternalServerError);
+            } else
+            {
+                var json = JsonConvert.SerializeObject(er);
+                RespondRaw(json, HttpStatusCode.InternalServerError);
+            }
+        }
         public virtual void AfterExecute() { }
     }
 }

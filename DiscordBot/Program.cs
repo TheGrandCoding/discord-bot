@@ -31,12 +31,10 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.7.3"; 
+        public const string VERSION = "0.7.4"; 
         public const string CHANGELOG = VERSION + @"
-== Speed Test Viewer
-Viewing of speed
-== Domain Names
-Allow for different domain names to be used
+== Class Room Changes
+Require each request/modification done for the Class Room account to require a login via email.
 ";
         public static DiscordSocketClient Client { get; set; }
         public static IConfigurationRoot Configuration { get; set; }

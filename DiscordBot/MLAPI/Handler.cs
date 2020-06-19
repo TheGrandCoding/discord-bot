@@ -20,8 +20,8 @@ namespace DiscordBot.MLAPI
         static Thread listenThread;
 
 #if WINDOWS
-        public const string LocalAPIDomain = "example.com";
-        public const string LocalAPIUrl = "http://ml-api." + LocalAPIDomain + ":8887";
+        public const string LocalAPIDomain = "localhost";
+        public const string LocalAPIUrl = "http://localhost:8887";
 #else
         public const string LocalAPIDomain = "uk.ms";
         public const string LocalAPIUrl = "https://ml-api." + LocalAPIDomain;
@@ -282,6 +282,10 @@ IP: {context.Request.RemoteEndPoint.Address}";
             {
                 var str = Newtonsoft.Json.JsonConvert.SerializeObject(reply, Newtonsoft.Json.Formatting.None);
                 logger.Append($"\r\nResult: {code}\r\nMore: {str}");
+                if(context.WantsHTML)
+                {
+                    str = reply.GetPrettyPage(context);
+                }
                 var bytes = System.Text.Encoding.UTF8.GetBytes(str);
                 context.HTTP.Response.StatusCode = code;
                 context.HTTP.Response.Close(bytes, true);

@@ -30,7 +30,14 @@ namespace DiscordBot.MLAPI.Modules
             EmbedBuilder builder = new EmbedBuilder();
             builder.WithTitle(title);
             builder.WithDescription(desc);
-            builder.WithFooter(Context.User.Name, Context.User.FirstValidUser?.GetAvatarUrl());
+            if(Context.User.Id == ChessService.BuiltInClassRoomBotUser)
+            {
+                builder.WithFooter(Context.User.VerifiedEmail);
+            }
+            else
+            {
+                builder.WithFooter(Context.User.Name, Context.User.FirstValidUser?.GetAvatarUrl());
+            }
             foreach (var tuple in fields)
                 builder.AddField(tuple.key, tuple.value);
             ChessS.LogAdmin(builder);
@@ -85,6 +92,12 @@ namespace DiscordBot.MLAPI.Modules
 
         bool doesHavePerm(ChessPerm perm) => doesHavePerm(perm, Context.User);
 
+        public override void ResponseHalted(HaltExecutionException ex)
+        {
+            if (!this.HasResponded)
+                base.ResponseHalted(ex);
+        }
+
         public override void BeforeExecute()
         {
             if(!string.IsNullOrWhiteSpace(ChessService.LoadException))
@@ -93,15 +106,22 @@ namespace DiscordBot.MLAPI.Modules
             }
             if (Context.User == null)
                 return;
-            if(Context.User.Id == ChessService.BuiltInClassRoomBotUser)
+            if(Context.Path != "/chess" && Context.Path != "/chess/history")
             {
-                var chiefId = ulong.Parse(Program.Configuration["chess:chief:id"]);
-                var chiefUser = Program.GetUserOrDefault(chiefId);
-                if(chiefUser.VerifiedEmail != Context.User.VerifiedEmail)
+                if(string.IsNullOrWhiteSpace(Context.User.VerifiedEmail) || (Context.User.VerifiedEmail == "@"))
                 {
                     Context.User.VerifiedEmail = null;
-                    throw new RedirectException(MLAPI.Modules.MicrosoftOauth.getUrl(Context.User),
-                        "ClassRoom must be authed by Chief Justice.");
+                    string url = MLAPI.Modules.MicrosoftOauth.getUrl(Context.User);
+                    if(Context.WantsHTML)
+                    {
+                        throw new RedirectException(url, "Must verifiy email.");
+                    } else
+                    {
+                        // intentionally don't set Location header
+                        // so we can handle this in fetch.
+                        RespondRaw(url, HttpStatusCode.FailedDependency);
+                        throw new HaltExecutionException("Must verify email");
+                    }
                 }
             }
         }
@@ -110,6 +130,10 @@ namespace DiscordBot.MLAPI.Modules
         {
             if (didChange)
                 ChessS.OnSave();
+            if(Context.Method != "GET" && SelfPlayer != null && SelfPlayer.Id == ChessService.BuiltInClassRoomChess)
+            {
+                Context.User.VerifiedEmail = "@";
+            }
         }
 
         string suffix(int val)
