@@ -18,6 +18,8 @@ namespace DiscordBot
                 public const string All = "bot.developer.*";
                 [Description("View todays bot log")]
                 public const string SeeLatestLog = "bot.developer.latest";
+                [Description("View bot logs, even from other users")]
+                public const string SeeAPILogs = "bot.developer.apilogs";
                 [Description("Link Discord and Chess accounts ")]
                 public const string ConnectChess = "bot.developer.connect";
                 [Description("Make technical modifications to a Chess players true rating")]

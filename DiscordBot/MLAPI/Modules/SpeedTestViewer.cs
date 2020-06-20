@@ -33,7 +33,6 @@ namespace DiscordBot.MLAPI.Modules
                 Children =
                 {
                     new PageHeader()
-                        .WithStyle("/_/css/common.css"),
                 }
             };
             var body = new PageBody();

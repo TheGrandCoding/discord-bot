@@ -61,15 +61,19 @@ namespace DiscordBot.Classes
                 return true;
             if (this.RawNode == Perms.All)
                 return false;
-            inherited = true;
+            inherited = false;
             var hasSplit = hasNode.Node.Split('.');
             var wantedSplit = this.Node.Split('.');
             for (int i = 0; i < hasSplit.Length && i < wantedSplit.Length; i++)
             {
                 if (hasSplit[i] == "*")
+                {
+                    inherited = true;
                     return true;
-                if (hasSplit[i] != wantedSplit[i])
+                } else if (hasSplit[i] != wantedSplit[i])
+                {
                     return false;
+                }
             }
             return false;
         }

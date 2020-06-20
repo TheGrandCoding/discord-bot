@@ -198,36 +198,7 @@ namespace DiscordBot.MLAPI
             }
         }
 
-        static string[] streamableTypes = new string[]
-        {
-            "text/plain", "application/json"
-        };
-        static string getLoggable(APIContext context)
-        {
-            string basic = @$"
-================================================
-Id: {context.Id}
-Method: {context.Method}
-Date: {DateTime.Now}
-Path: {context.Request.Url.PathAndQuery}
-IP: {context.Request.RemoteEndPoint.Address}";
-            if (context.User != null)
-                basic += $"\r\nUser: {context.User.Id}/{context.User.Name}";
-            foreach(var x in context.Request.Headers.AllKeys)
-            {
-                var header = context.Request.Headers[x];
-                basic += $"\r\nh:{x}: {header}";
-            }
-            if(context.Request.HasEntityBody && streamableTypes.Any(x => context.Request.ContentType.StartsWith(x)))
-            {
-                string thing = "\r\n>>>>>>\r\n";
-                thing += context.Body;
-                thing += "\r\n<<<<<<";
-                if (thing.Length > 10)
-                    basic += thing;
-            }
-            return basic;
-        }
+        public static object logLock = new object();
 
         class RequestLogger
         {
@@ -235,24 +206,50 @@ IP: {context.Request.RemoteEndPoint.Address}";
             string logFolder;
             string logFile;
             bool logged = false;
+            public APILogEntry Entry { get; set; }
             public RequestLogger(APIContext c)
             {
+                Entry = new APILogEntry(c);
                 context = c;
                 logFolder = Path.Combine(Program.BASE_PATH, "APILogs");
                 logFile = Path.Combine(logFolder, $"{DateTime.Now.ToString("yyyy-MM-dd")}.txt");
                 if (!Directory.Exists(logFolder))
                     Directory.CreateDirectory(logFolder);
             }
-            public void Write(string text)
+            public void End(HttpStatusCode code, params string[] more) 
             {
-                File.AppendAllText(logFile, text);
-                logged = true;
-            }
-            public void Append(string text)
-            {
+                Entry.End(code, more);
                 if (!logged)
                     return;
-                File.AppendAllText(logFile, text);
+                lock (logLock)
+                {
+                    using var fs = File.Open(logFile, FileMode.OpenOrCreate, FileAccess.ReadWrite);
+                    using var reader = new StreamReader(fs);
+                    using var writer = new StreamWriter(fs);
+                    string line;
+                    string desired = $"Id: {Entry.Id}";
+                    do
+                    {
+                        if (reader.EndOfStream)
+                            return;
+                        line = reader.ReadLine();
+                    } while (line.Trim() != desired);
+                    do
+                    {
+                        line = reader.ReadLine();
+                    } while (!line.StartsWith("===") && !reader.EndOfStream);
+                    writer.WriteLine("Result: " + ((int)code).ToString());
+                    foreach (var x in more)
+                        writer.WriteLine("More: " + x);
+                }
+            }
+            public void Write()
+            {
+                logged = true;
+                lock(logLock)
+                {
+                    File.AppendAllText(logFile, Entry.ToString());
+                }
             }
         }
 
@@ -269,7 +266,7 @@ IP: {context.Request.RemoteEndPoint.Address}";
             catch { }
             context.HTTP.Response.StatusCode = 307;
             context.HTTP.Response.Close();
-            logger.Append($"\r\nResult: 307\r\nMore: " + url);
+            logger.End(HttpStatusCode.TemporaryRedirect, url);
         }
 
         static void handleRequest(APIContext context)
@@ -281,7 +278,7 @@ IP: {context.Request.RemoteEndPoint.Address}";
             Func<ErrorJson, int, string> sendError = (ErrorJson reply, int code) =>
             {
                 var str = Newtonsoft.Json.JsonConvert.SerializeObject(reply, Newtonsoft.Json.Formatting.None);
-                logger.Append($"\r\nResult: {code}\r\nMore: {str}");
+                logger.End((HttpStatusCode)code, str);
                 if(context.WantsHTML)
                 {
                     str = reply.GetPrettyPage(context);
@@ -293,12 +290,12 @@ IP: {context.Request.RemoteEndPoint.Address}";
             };
 
             if(!context.Path.Contains("/_/"))
-                logger.Write(getLoggable(context));
+                logger.Write();
 
             List<APIEndpoint> endpoints;
             if(!Endpoints.TryGetValue(context.Method, out endpoints))
             {
-                logger.Append($"\r\nResult: 400\r\nMore: Method unrecognised ({context.Method})");
+                logger.End((HttpStatusCode)400, $"Method unrecognised ({context.Method})");
                 sendError(new ErrorJson("Method is not recognised"), 400);
                 return;
             }
@@ -348,20 +345,20 @@ IP: {context.Request.RemoteEndPoint.Address}";
             catch (RedirectException ex)
             {
                 redirect(logger, context, ex.URL);
-                logger.Append($"\r\nResult: Redirect: {ex.URL}\r\nMore: {ex.Message}");
+                logger.End(HttpStatusCode.TemporaryRedirect, ex.Message);
                 return;
             }
             catch (HaltExecutionException ex)
             {
                 Program.LogMsg(ex, $"{context.Id}");
                 commandBase.ResponseHalted(ex);
-                logger.Append($"\r\nResult: 500\r\nMore: {ex.Message}");
+                logger.End(HttpStatusCode.InternalServerError, ex.Message);
                 return;
             }
             try
             {
                 found.Command.Function.Invoke(commandBase, found.Arguments.ToArray());
-                logger.Append($"\r\nResult: {commandBase.StatusSent}");
+                logger.End((HttpStatusCode)commandBase.StatusSent);
             }
             catch (TargetInvocationException outer)
             {

@@ -18,14 +18,23 @@ namespace DiscordBot.Classes.HTMLHelpers.Objects
     }
     public class PageHeader : HTMLBase
     {
-        public PageHeader() : base ("head", null, null)
+        public PageHeader(bool addCommon = true) : base ("head", null, null)
         {
+            if (addCommon)
+                WithCommon();
         }
         public PageHeader WithStyle(string href)
         {
+            if (!href.StartsWith("http"))
+            {
+                if (!href.StartsWith("/"))
+                    href = "/" + href;
+                href = "/_/css" + href;
+            }
             Children.Add(new PageLink("stylesheet", "text/css", href));
             return this;
         }
+        public PageHeader WithCommon() => WithStyle("common.css");
         public PageHeader WithMeta(Meta meta)
         {
             Children.Add(meta);
