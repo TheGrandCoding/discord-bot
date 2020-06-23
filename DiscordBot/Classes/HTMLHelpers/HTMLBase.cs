@@ -10,15 +10,7 @@ namespace DiscordBot.Classes.HTMLHelpers
         public string Tag { get; protected set; }
         public string Id => tagValues["id"];
         public string Class => tagValues["class"];
-        private string _raw;
-        public string RawText {  get
-            {
-                return _raw;
-            } set
-            {
-                _raw = HttpUtility.HtmlEncode(value);
-            }
-        }
+        public string RawText { get; set; }
         protected Dictionary<string, string> tagValues { get; set; }
         public HTMLBase(string tag, string id, string cls)
         {

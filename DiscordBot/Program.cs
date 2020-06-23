@@ -31,10 +31,10 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.7.4"; 
+        public const string VERSION = "0.7.5"; 
         public const string CHANGELOG = VERSION + @"
-== Class Room Changes
-Require each request/modification done for the Class Room account to require a login via email.
+== Xkcd
+Allow automatic fetching of Xkcd comics.
 ";
         public static DiscordSocketClient Client { get; set; }
         public static IConfigurationRoot Configuration { get; set; }
