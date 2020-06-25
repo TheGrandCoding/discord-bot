@@ -16,9 +16,10 @@ namespace DiscordBot.Classes.HTMLHelpers.Objects
         public UnorderedList(string id = null, string cls = null) : base("ul", id, cls)
         {
         }
-        public void AddItem(string item)
+        public UnorderedList AddItem(string item)
         {
             this.Children.Add(new ListItem(item));
+            return this;
         }
     }
     public class OrderedList : HTMLBase

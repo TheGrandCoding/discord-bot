@@ -329,7 +329,7 @@ namespace DiscordBot.Services
             {
                 new AuthToken(AuthToken.LoginPassword, "fridayclassroom")
             };
-            BuiltInClassUser.BuiltIn = true;
+            BuiltInClassUser.ServiceUser = true;
             var classRoom = Players.FirstOrDefault(x => x.Name == "Friday Lunch" && x.ConnectedAccount == BuiltInClassUser.Id);
             if (classRoom == null)
             {
@@ -349,7 +349,7 @@ namespace DiscordBot.Services
                 BuiltInCoAUser.OverrideName = "Court of Appeals";
                 Program.Users.Add(BuiltInCoAUser);
             }
-            BuiltInCoAUser.BuiltIn = true;
+            BuiltInCoAUser.ServiceUser = true;
             var court = Players.FirstOrDefault(x => x.Name == "Court of Appeals" && x.ConnectedAccount == BuiltInCoAUser.Id);
             if (court == null)
             {

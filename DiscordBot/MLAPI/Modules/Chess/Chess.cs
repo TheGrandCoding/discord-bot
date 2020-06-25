@@ -191,7 +191,7 @@ namespace DiscordBot.MLAPI.Modules
 
         string getDiscordLink()
         {
-            if (Context.User == null || Context.User.BuiltIn)
+            if (Context.User == null || Context.User.ServiceUser)
                 return "";
             if (SelfPlayer == null)
                 return "";

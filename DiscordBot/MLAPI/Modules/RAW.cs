@@ -87,7 +87,7 @@ namespace DiscordBot.RESTAPI.Functions.HTML
         {
             var TABLE = "";
             bool change = false;
-            foreach(var usrs in Program.Users.Where(x => x.BuiltIn))
+            foreach(var usrs in Program.Users.Where(x => x.ServiceUser))
             {
                 string ROW = "<tr>";
                 ROW += $"<td>{usrs.Id}</td>";

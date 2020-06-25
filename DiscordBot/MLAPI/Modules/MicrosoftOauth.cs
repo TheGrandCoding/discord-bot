@@ -80,7 +80,7 @@ namespace DiscordBot.MLAPI.Modules
             var jobj = JObject.Parse(content);
             Context.User.VerifiedEmail = jobj["mail"].ToObject<string>();
             var service = Program.Services.GetRequiredService<ChessService>();
-            if(service != null && !Context.User.BuiltIn)
+            if(service != null && !Context.User.ServiceUser && !Context.User.GeneratedUser)
             {
                 string name = $"{jobj["givenName"]} {jobj["surname"].ToObject<string>()[0]}";
                 var existing = ChessService.Players.FirstOrDefault(x => x.Name == name && !x.IsBuiltInAccount);

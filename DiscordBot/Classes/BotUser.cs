@@ -28,6 +28,7 @@ namespace DiscordBot.Classes
             // set overrides
             OverrideName = webuser.Username;
             OverrideDiscriminator = webuser.Discriminator;
+            GeneratedUser = true;
         }
         public BotUser(ulong id)
         {
@@ -40,8 +41,17 @@ namespace DiscordBot.Classes
         public List<AuthToken> Tokens { get; set; } = new List<AuthToken>();
         [JsonProperty("perms")]
         public List<Perm> Permissions { get; set; } = new List<Perm>();
+        
+        /// <summary>
+        /// Indicates this user is specifically for an internal usage
+        /// </summary>
         [JsonProperty("builtin")]
-        public bool BuiltIn { get; set; } = false;
+        public bool ServiceUser { get; set; } = false;
+        /// <summary>
+        /// Indicates this user has been automatically created and is not tied to a Discord account
+        /// </summary>
+        [JsonProperty("generated")]
+        public bool GeneratedUser { get; set; } = false;
 
         public SocketGuildUser FirstValidUser 
         { 
