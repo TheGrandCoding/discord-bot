@@ -96,7 +96,7 @@ namespace DiscordBot.Classes
         [JsonProperty("oshort", NullValueHandling = NullValueHandling.Ignore)]
         public ushort? OverrideDiscriminator { get; set; } = null;
 
-        public string Name => OverrideName ?? FirstValidUser?.Nickname ?? Username ?? Id.ToString();
+        public string Name => OverrideName ?? FirstValidUser?.Nickname ?? FirstValidUser?.Username ?? Id.ToString();
 
         [JsonProperty("mail", NullValueHandling = NullValueHandling.Ignore)]
         public string VerifiedEmail { get; set; }

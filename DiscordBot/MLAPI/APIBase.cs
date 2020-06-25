@@ -59,11 +59,13 @@ namespace DiscordBot.MLAPI
         public void RespondRaw(string obj, HttpStatusCode code)
             => RespondRaw(obj, (int)code);
 
-        protected string LoadRedirectFile(string url)
+        public string LoadRedirectFile(string url, string returnTo = null)
         {
             Context.HTTP.Response.Headers["Location"] = url;
             string file = LoadFile("_redirect.html");
-            file = ReplaceMatches(file, new Replacements().Add("url", url));
+            file = ReplaceMatches(file, new Replacements()
+                .Add("url", url)
+                .Add("return", returnTo ?? "false"));
             return file;
         }
 

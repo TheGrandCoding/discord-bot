@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Web;
 
 namespace DiscordBot.MLAPI
 {
@@ -58,7 +59,8 @@ namespace DiscordBot.MLAPI
                     foreach(var item in Body.Split('&', StringSplitOptions.RemoveEmptyEntries))
                     {
                         var pair = item.Split('=');
-                        postData[pair[0]] = Uri.UnescapeDataString(pair[1]);
+                        //postData[pair[0]] = Uri.UnescapeDataString(pair[1].Replace("+", " ");
+                        postData[pair[0]] = HttpUtility.UrlDecode(pair[1]);
                     }
                 }
             }

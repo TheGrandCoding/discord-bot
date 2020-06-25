@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace DiscordBot.MLAPI.Modules.User
+namespace DiscordBot.MLAPI.Modules.UserModule
 {
     public class User : APIBase
     {

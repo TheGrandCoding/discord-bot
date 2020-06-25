@@ -273,7 +273,7 @@ namespace DiscordBot.MLAPI.Modules
                     }
                 }
             }
-            LoadRedirectFile("/chess/coa");
+            RespondRaw(LoadRedirectFile("/chess/coa", null), System.Net.HttpStatusCode.TemporaryRedirect);
         }
 
         (string k, object o)[] sideBarObjects(CoAHearing hearing, params (string key, object o)[] args)

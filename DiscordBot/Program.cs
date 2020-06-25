@@ -239,6 +239,8 @@ Allow automatic fetching of Xkcd comics.
             coll.AddSingleton(typeof(HttpClient), http);
             foreach(var service in ReflectiveEnumerator.GetEnumerableOfType<Service>(null))
                 coll.AddSingleton(service.GetType());
+            var client = new MongoDB.Driver.MongoClient("mongodb://127.0.0.1:27017");
+            coll.AddSingleton(client);
             return coll.BuildServiceProvider();
         }
 

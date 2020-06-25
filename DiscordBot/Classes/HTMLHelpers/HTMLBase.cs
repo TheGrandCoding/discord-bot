@@ -59,13 +59,18 @@ namespace DiscordBot.Classes.HTMLHelpers
             WriteCloseTag(sb);
         }
 
+        public HTMLBase WithTag(string name, string value)
+        {
+            tagValues[name] = value;
+            return this;
+        }
+
         public override string ToString()
         {
             var sb = new StringBuilder();
             Write(sb);
             return sb.ToString();
         }
-
         public static implicit operator string(HTMLBase b) => b.ToString();
     }
 }
