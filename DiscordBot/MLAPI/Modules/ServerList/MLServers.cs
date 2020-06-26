@@ -2,7 +2,6 @@
 using DiscordBot.Classes.HTMLHelpers.Objects;
 using DiscordBot.Classes.ServerList;
 using DiscordBot.Services;
-using Emgu.CV.CvEnum;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;

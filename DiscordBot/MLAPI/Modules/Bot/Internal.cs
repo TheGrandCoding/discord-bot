@@ -48,6 +48,15 @@ namespace DiscordBot.MLAPI.Modules.Bot
             Environment.Exit(0);
         }
 
+        [Method("GET"), Path("/bot/close")]
+        [RequireOwner]
+        public void CloseBot()
+        {
+            RespondRaw("OK");
+            Program.Close(0);
+        }
+
+
         [Method("POST"), Path("/bot/build")]
         [RequireAuthentication(false)]
         public void GithubWebhook()

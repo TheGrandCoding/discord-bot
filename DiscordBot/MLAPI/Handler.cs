@@ -1,7 +1,6 @@
 ﻿using Discord;
 using DiscordBot.Classes;
 using DiscordBot.MLAPI.Exceptions;
-using Emgu.CV.CvEnum;
 using System;
 using System.Collections.Generic;
 using System.IO;
