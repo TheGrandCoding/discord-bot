@@ -3,6 +3,7 @@ using DiscordBot.Classes.HTMLHelpers.Objects;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Net;
 using System.Text;
 
@@ -42,19 +43,27 @@ namespace DiscordBot.MLAPI.Modules
             var thing = Program.Configuration["tokens:padlock"];
             if(thing == code.ToString())
             {
-                var bUser = new BotUser(new WebUser()
+                var bUser = Program.GetUserOrDefault(666);
+                if(bUser == null)
                 {
-                    Username = "Teacher",
-                    Discriminator = 1,
-                    Id = 666
-                });
-                var token = new AuthToken(AuthToken.SessionToken, 24);
+                    new BotUser(new WebUser()
+                    {
+                        Username = "Teacher",
+                        Discriminator = 1,
+                        Id = 666
+                    });
+                    Program.Users.Add(bUser);
+                }
+                var token = bUser.Tokens.FirstOrDefault(x => x.Name == AuthToken.SessionToken);
+                if(token == null)
+                {
+                    token = new AuthToken(AuthToken.SessionToken, 24);
+                    bUser.Tokens.Add(token);
+                }
                 Context.HTTP.Response.AppendCookie(new Cookie(AuthToken.SessionToken, token.Value, "/")
                 {
                     Expires = DateTime.Now.AddDays(3)
                 });
-                bUser.Tokens.Add(token);
-                Program.Users.Add(bUser);
                 RespondRaw(token.Value, HttpStatusCode.OK);
             } else
             {
