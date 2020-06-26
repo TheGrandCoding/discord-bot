@@ -31,10 +31,10 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.7.6"; 
+        public const string VERSION = "0.7.7"; 
         public const string CHANGELOG = VERSION + @"
-== Xkcd
-Allow automatic fetching of Xkcd comics.
+== Closing bot
+Via api /bot/close when localhost
 ";
         public static DiscordSocketClient Client { get; set; }
         public static IConfigurationRoot Configuration { get; set; }
