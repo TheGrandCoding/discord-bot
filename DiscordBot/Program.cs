@@ -31,7 +31,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.7.7"; 
+        public const string VERSION = "0.7.8"; 
         public const string CHANGELOG = VERSION + @"
 == Closing bot
 Via api /bot/close when localhost
