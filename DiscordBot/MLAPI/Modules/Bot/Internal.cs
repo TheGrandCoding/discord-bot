@@ -35,12 +35,15 @@ namespace DiscordBot.MLAPI.Modules.Bot
                 Program.LogMsg("OnClose did not complete in time! Hopefully won't break too much...", Discord.LogSeverity.Critical, "Internal");
             }
 #if LINUX
+            Program.LogMsg("Running restart script...");
             ProcessStartInfo Info = new ProcessStartInfo();
             Info.Arguments = "-c \"sleep 5 && /home/pi/Desktop/runasbot.sh new\"";
-            //Info.WindowStyle = ProcessWindowStyle.Normal;
-            //Info.CreateNoWindow = true;
+            Info.WindowStyle = ProcessWindowStyle.Normal;
+            Info.CreateNoWindow = false;
+            Info.UseShellExecute = true;
             Info.FileName = "/bin/bash";
-            Process.Start(Info);
+            var proc = Process.Start(Info);
+            Program.LogMsg($"New instance running under PID {proc.Id}");
 #endif
             Environment.Exit(0);
         }

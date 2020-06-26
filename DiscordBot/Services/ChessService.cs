@@ -664,12 +664,11 @@ namespace DiscordBot.Services
             var afterNow = DateTime.Now.AddDays(30);
             do
             {
-                if(Holidays[day.Year].Contains(day.DayOfYear))
+                if(!Holidays[day.Year].Contains(day.DayOfYear))
                 {
-                    // already ran this function, we will exit.
-                    return;
+                    // recognise issue with looping through it, but memory issues if the bot keeps calling this function.
+                    Holidays[day.Year].Add(day.DayOfYear);
                 }
-                Holidays[day.Year].Add(day.DayOfYear);
                 day = day.AddDays(1);
             } while (day < afterNow);
         }

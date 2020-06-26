@@ -25,6 +25,11 @@ namespace DiscordBot.Services
         public bool HasFailed { get; private set; }
         public virtual int Priority => 0;
 
+        public virtual int DefaultTimeout => 10_000;
+        public virtual int CloseTimeout => DefaultTimeout / 2;
+
+        protected CancellationToken CancelToken { get; private set; }
+
         public virtual void OnReady() { }
         public virtual void OnLoaded() { }
         public virtual void OnSave() { }
@@ -60,6 +65,8 @@ namespace DiscordBot.Services
                         if (method.IsOverride())
                         {
                             Program.LogMsg($"Sending {name}", LogSeverity.Debug, srv.Name);
+                            //var source = new CancellationTokenSource();
+                            //srv.CancelToken = source.Token;
                             var task = new Task(() =>
                             {
                                 try
@@ -76,16 +83,17 @@ namespace DiscordBot.Services
                                 }
                             });
                             stop.Restart();
+                            int timeout = name == "OnClose" ? srv.CloseTimeout : srv.DefaultTimeout;
                             task.Start();
-                            bool completed = task.Wait(2000);
+                            bool completed = task.Wait(timeout);
                             stop.Stop();
+                            //source.Cancel(false);
                             if(completed)
                             {
                                 Program.LogMsg($"Finished {name} in {stop.ElapsedMilliseconds}ms", Discord.LogSeverity.Verbose, srv.Name);
                             } else
                             {
-                                Program.LogMsg($"Failed to complete {name} in {stop.ElapsedMilliseconds}ms; disabling", LogSeverity.Warning, srv.Name);
-                                srv.HasFailed = true;
+                                Program.LogMsg($"Failed to complete {name} in {stop.ElapsedMilliseconds}ms; continuing...", LogSeverity.Warning, srv.Name);
                             }
                         }
                     }
