@@ -31,7 +31,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.7.16"; 
+        public const string VERSION = "0.7.17"; 
         public const string CHANGELOG = VERSION + @"
 == OnDailyTick
 Moved some services to use OnDailyTick; ensured lowercase `redirect` cookie.
@@ -315,17 +315,6 @@ Moved some services to use OnDailyTick; ensured lowercase `redirect` cookie.
             }
             try
             {
-                APIHandler ??= new Handler();
-                Handler.Start();
-            }
-            catch (Exception ex)
-            {
-                LogMsg(ex, "StartHandler");
-                Environment.Exit(2);
-                return;
-            }
-            try
-            {
                 var owner = Client.GetApplicationInfoAsync().Result.Owner.Id;
                 var bUser = GetUserOrDefault(owner);
                 if(bUser != null)
@@ -342,6 +331,17 @@ Moved some services to use OnDailyTick; ensured lowercase `redirect` cookie.
                 LogMsg(ex, "SetOwnerDev");
             }
             Service.SendLoad();
+            try
+            {
+                APIHandler ??= new Handler();
+                Handler.Start();
+            }
+            catch (Exception ex)
+            {
+                LogMsg(ex, "StartHandler");
+                Environment.Exit(2);
+                return;
+            }
         }
 
         private static async Task ClientReady()

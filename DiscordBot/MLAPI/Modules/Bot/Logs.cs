@@ -229,6 +229,8 @@ namespace DiscordBot.MLAPI.Modules.Bot
                 RespondRaw("Not found.", 404);
                 return;
             }
+            bool dontlogContent = logEntry.Path.StartsWith("/login")
+                || logEntry.Path == "/bot/build"; // since the JSON code there is... big.
             var page = new HTMLPage()
             {
                 Children =
@@ -239,7 +241,7 @@ namespace DiscordBot.MLAPI.Modules.Bot
                     {
                         Children =
                         {
-                            new Pre(logEntry.ToString(!logEntry.Path.StartsWith("/login")), cls: "code")
+                            new Pre(logEntry.ToString(!dontlogContent), cls: "code")
                         }
                     }
                 }
