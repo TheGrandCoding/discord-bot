@@ -13,6 +13,7 @@ using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using static DiscordBot.Services.BuiltIn.BuiltInUsers;
 
 namespace DiscordBot.Services
 {
@@ -303,9 +304,7 @@ namespace DiscordBot.Services
             }
         }
 
-        public const int BuiltInClassRoomBotUser = 3;
         public const int BuiltInClassRoomChess = -10;
-        public const int BuiltInAIUser = 15;
         public const int BuiltInAIChess = -15;
         public BotUser BuiltInCoAUser;
         public BotUser BuiltInClassUser;
@@ -317,10 +316,10 @@ namespace DiscordBot.Services
             var uu = Players.FirstOrDefault(x => x.Name == chiefName || x.ConnectedAccount == chiefJustice);
             uu.Permission = ChessPerm.CourtOfAppeals;
 
-            BuiltInClassUser = Program.GetUserOrDefault(BuiltInClassRoomBotUser);
+            BuiltInClassUser = Program.GetUserOrDefault(ChessClass);
             if (BuiltInClassUser == null)
             {
-                BuiltInClassUser = new Classes.BotUser(BuiltInClassRoomBotUser);
+                BuiltInClassUser = new Classes.BotUser(ChessClass);
                 BuiltInClassUser.OverrideName = "Friday Lunch";
                 Program.Users.Add(BuiltInClassUser);
             }
@@ -342,10 +341,10 @@ namespace DiscordBot.Services
             classRoom.Name = "Friday Lunch";
             classRoom.Permission = ChessPerm.ClassRoom;
 
-            BuiltInCoAUser = Program.GetUserOrDefault(5);
+            BuiltInCoAUser = Program.GetUserOrDefault(ChessCoA);
             if (BuiltInCoAUser == null)
             {
-                BuiltInCoAUser = new Classes.BotUser(5);
+                BuiltInCoAUser = new Classes.BotUser(ChessCoA);
                 BuiltInCoAUser.OverrideName = "Court of Appeals";
                 Program.Users.Add(BuiltInCoAUser);
             }
@@ -362,10 +361,10 @@ namespace DiscordBot.Services
             }
             court.Permission = ChessPerm.CourtOfAppeals;
 
-            var aiuser = Program.GetUserOrDefault(BuiltInAIUser);
+            var aiuser = Program.GetUserOrDefault(ChessAI);
             if (aiuser == null)
             {
-                aiuser = new BotUser(BuiltInAIUser);
+                aiuser = new BotUser(ChessAI);
                 aiuser.OverrideName = "AI Player";
                 Program.Users.Add(aiuser);
             }

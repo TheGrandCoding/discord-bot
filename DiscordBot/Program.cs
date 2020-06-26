@@ -31,7 +31,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.7.8"; 
+        public const string VERSION = "0.7.9"; 
         public const string CHANGELOG = VERSION + @"
 == Closing bot
 Via api /bot/close when localhost
@@ -240,6 +240,13 @@ Via api /bot/close when localhost
             foreach(var service in ReflectiveEnumerator.GetEnumerableOfType<Service>(null))
                 coll.AddSingleton(service.GetType());
             return coll.BuildServiceProvider();
+        }
+
+        public static void Close(int code)
+        {
+            Service.SendClose();
+            Program.Save(true);
+            Environment.Exit(code);
         }
 
 #region Save Info

@@ -30,7 +30,7 @@ namespace DiscordBot.MLAPI.Modules
             EmbedBuilder builder = new EmbedBuilder();
             builder.WithTitle(title);
             builder.WithDescription(desc);
-            if(Context.User.Id == ChessService.BuiltInClassRoomBotUser)
+            if(Context.User.Id == Services.BuiltIn.BuiltInUsers.ChessClass)
             {
                 builder.WithFooter(Context.User.VerifiedEmail);
             }

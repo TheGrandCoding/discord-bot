@@ -40,5 +40,13 @@ namespace DiscordBot.Services
             }
         }
 
+        public override void OnClose()
+        {
+            try
+            {
+                Server.Stop(WebSocketSharp.CloseStatusCode.Abnormal, "Bot is closing");
+            } catch { }
+        }
+
     }
 }

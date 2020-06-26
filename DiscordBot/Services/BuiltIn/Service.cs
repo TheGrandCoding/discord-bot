@@ -10,6 +10,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace DiscordBot.Services
 {
@@ -27,6 +28,8 @@ namespace DiscordBot.Services
         public virtual void OnReady() { }
         public virtual void OnLoaded() { }
         public virtual void OnSave() { }
+        public virtual void OnDailyTick() { }
+        public virtual void OnClose() { }
 
         public int CompareTo([AllowNull] Service other)
             => this.Name.CompareTo(other.Name);
@@ -90,8 +93,47 @@ namespace DiscordBot.Services
         public static void SendLoad()
         {
             sendFunction("OnLoaded");
+            if (cancel == null)
+                StartDailyTick();
         }
 
         public static void SendSave() => sendFunction("OnSave");
+
+        static CancellationTokenSource cancel;
+        public static void StartDailyTick()
+        {
+            cancel = new CancellationTokenSource();
+            var th = new Thread(thread);
+            th.Start();
+        }
+        public static void SendClose()
+        {
+            cancel.Cancel();
+            sendFunction("OnClose");
+        }
+
+        static void thread()
+        {
+            var token = cancel.Token;
+            try
+            {
+                do
+                {
+                    var now = DateTime.Now;
+                    var then = new DateTime(now.Year, now.Month, now.Day, 4, 0, 0); // 4 am
+                    if (then <= now)
+                        then = then.AddDays(1);
+                    var diff = then - now;
+                    var miliseconds = (int)Math.Floor(diff.TotalMilliseconds);
+                    if (miliseconds < 2500)
+                        miliseconds = 2500;
+                    Task.Delay(miliseconds, token).Wait(token);
+                    doneFunctions.Remove("OnDailyTick");
+                    sendFunction("OnDailyTick");
+                } while (!token.IsCancellationRequested);
+            } catch(OperationCanceledException)
+            {
+            }
+        }
     }
 }
