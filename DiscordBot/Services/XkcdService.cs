@@ -27,6 +27,7 @@ namespace DiscordBot.Services
             Channels = save.channels;
             LatestComic = save.latestComic;
         }
+        public override void OnDailyTick() => OnLoaded();
 
         public class XkcdInfo
         {

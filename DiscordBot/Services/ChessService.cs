@@ -664,6 +664,11 @@ namespace DiscordBot.Services
             var afterNow = DateTime.Now.AddDays(30);
             do
             {
+                if(Holidays[day.Year].Contains(day.DayOfYear))
+                {
+                    // already ran this function, we will exit.
+                    return;
+                }
                 Holidays[day.Year].Add(day.DayOfYear);
                 day = day.AddDays(1);
             } while (day < afterNow);
@@ -793,36 +798,7 @@ namespace DiscordBot.Services
                         }
                     }
                 }
-                setQuarantine();
-                SetBuiltInRoles();
-                CheckLastDatePlayed();
-                SendRatingChanges();
-                setElectedModerators();
-                SetConnectedRoles();
-                SetIds();
-                SetNickNames();
-                CheckExpiredNotes();
-                RemoveExpiredPending();
-                fixIdIssue();
-                setOnlineTokens();
-                try
-                {
-                    getChessOnlineVersion();
-                }
-                catch (Exception ex)
-                {
-                    Program.LogMsg("ChessService", ex);
-                }
-                try
-                {
-                    foreach (var h in Hearings)
-                        h.SetChannelPermissions();
-                }
-                catch (Exception ex)
-                {
-                    Program.LogMsg("ChessService2", ex);
-                }
-                OnSave();
+                OnDailyTick();
             }
             catch (Exception ex)
             {
@@ -837,6 +813,40 @@ namespace DiscordBot.Services
                 }
                 catch { }
             }
+        }
+
+        public override void OnDailyTick()
+        {
+            setQuarantine();
+            SetBuiltInRoles();
+            CheckLastDatePlayed();
+            SendRatingChanges();
+            setElectedModerators();
+            SetConnectedRoles();
+            SetIds();
+            SetNickNames();
+            CheckExpiredNotes();
+            RemoveExpiredPending();
+            fixIdIssue();
+            setOnlineTokens();
+            try
+            {
+                getChessOnlineVersion();
+            }
+            catch (Exception ex)
+            {
+                Program.LogMsg("ChessService", ex);
+            }
+            try
+            {
+                foreach (var h in Hearings)
+                    h.SetChannelPermissions();
+            }
+            catch (Exception ex)
+            {
+                Program.LogMsg("ChessService2", ex);
+            }
+            OnSave();
         }
 
         public override string GenerateSave()
