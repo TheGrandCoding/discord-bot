@@ -36,7 +36,7 @@ namespace DiscordBot.MLAPI.Modules.Bot
             }
 #if LINUX
             ProcessStartInfo Info = new ProcessStartInfo();
-            Info.Arguments = "-c ping 127.0.0.1 -c 2 && /home/pi/Desktop/runasbot.sh new";
+            Info.Arguments = "-c sleep 5 && /home/pi/Desktop/runasbot.sh new";
             //Info.WindowStyle = ProcessWindowStyle.Normal;
             //Info.CreateNoWindow = true;
             Info.FileName = "/bin/bash";
