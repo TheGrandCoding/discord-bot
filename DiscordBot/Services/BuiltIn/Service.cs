@@ -52,7 +52,7 @@ namespace DiscordBot.Services
                 var stop = new Stopwatch();
                 foreach (var srv in zza_services)
                 {
-                    if (!srv.IsEnabled)
+                    if (!srv.IsEnabled || srv.HasFailed)
                         continue;
                     var method = srv.GetType().GetMethod(name);
                     try
@@ -60,10 +60,33 @@ namespace DiscordBot.Services
                         if (method.IsOverride())
                         {
                             Program.LogMsg($"Sending {name}", LogSeverity.Debug, srv.Name);
+                            var task = new Task(() =>
+                            {
+                                try
+                                {
+                                    method.Invoke(srv, null);
+                                }
+                                catch (TargetInvocationException tie)
+                                {
+                                    var ex = tie.InnerException;
+                                    Program.LogMsg(ex, srv.Name);
+                                    srv.HasFailed = true;
+                                    if (srv.IsCritical)
+                                        throw ex;
+                                }
+                            });
                             stop.Restart();
-                            method.Invoke(srv, null);
+                            task.Start();
+                            bool completed = task.Wait(2000);
                             stop.Stop();
-                            Program.LogMsg($"Finished {name} in {stop.ElapsedMilliseconds}ms", Discord.LogSeverity.Verbose, srv.Name);
+                            if(completed)
+                            {
+                                Program.LogMsg($"Finished {name} in {stop.ElapsedMilliseconds}ms", Discord.LogSeverity.Verbose, srv.Name);
+                            } else
+                            {
+                                Program.LogMsg($"Failed to complete {name} in {stop.ElapsedMilliseconds}ms; disabling", LogSeverity.Warning, srv.Name);
+                                srv.HasFailed = true;
+                            }
                         }
                     }
                     catch (TargetInvocationException tie)
