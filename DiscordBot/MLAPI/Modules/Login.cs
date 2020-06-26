@@ -188,7 +188,7 @@ $"https://discordapp.com/api/oauth2/authorize?client_id=432861863437402113&redir
                 setSessionTokens(usr);
                 Program.LogMsg("Set session tokens, now logged in.");
                 var pwd = usr.Tokens.FirstOrDefault(x => x.Name == AuthToken.LoginPassword);
-                string redirectTo = Context.Request.Cookies["Redirect"]?.Value;
+                string redirectTo = Context.Request.Cookies["redirect"]?.Value;
                 if (string.IsNullOrWhiteSpace(redirectTo))
                     redirectTo = "/";
                 if(pwd == null)

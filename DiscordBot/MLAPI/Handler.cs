@@ -258,7 +258,7 @@ namespace DiscordBot.MLAPI
             context.HTTP.Response.Headers["Location"] = url;
             try
             {
-                var cookie = new Cookie("Redirect", context.HTTP.Request.Url.PathAndQuery);
+                var cookie = new Cookie("redirect", context.HTTP.Request.Url.PathAndQuery);
                 cookie.Path = "/";
                 cookie.Expires = DateTime.Now.AddSeconds(60);
                 context.HTTP.Response.Cookies.Add(cookie);

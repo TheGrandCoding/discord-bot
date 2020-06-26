@@ -51,6 +51,11 @@ namespace DiscordBot.Services.BuiltIn
         {
             if (doneOnce)
                 return;
+            OnDailyTick();
+        }
+
+        public override void OnDailyTick()
+        {
             var latestFolder = Path.Combine(Program.BASE_PATH, "Backups", "Saves", "Latest");
             var oldFolder = Path.Combine(Program.BASE_PATH, "Backups", "Saves", "Old");
             if (!Directory.Exists(latestFolder))
@@ -60,7 +65,7 @@ namespace DiscordBot.Services.BuiltIn
 
             // Step 1: Zip and move any Latest files into Old
             var files = Directory.GetFiles(latestFolder).Select(x => new InMemoryFile(x));
-            if(files.Count() > 0)
+            if (files.Count() > 0)
             {
                 Program.LogMsg($"Backing up {files.Count()} save files", Discord.LogSeverity.Verbose, "Backup");
                 var zipTemp = Path.Combine(oldFolder, "temp.zip");
@@ -81,13 +86,13 @@ namespace DiscordBot.Services.BuiltIn
             {
                 Program.saveName
             };
-            foreach(var possible in zza_services)
+            foreach (var possible in zza_services)
             {
                 if (!(possible is SavedService service))
                     continue;
                 backupFiles.Add(service.SaveFile);
             }
-            foreach(var x in backupFiles)
+            foreach (var x in backupFiles)
             {
                 var from = Path.Combine(Program.BASE_PATH, "Saves", x);
                 var to = Path.Combine(latestFolder, x);
@@ -97,10 +102,10 @@ namespace DiscordBot.Services.BuiltIn
                     File.SetAttributes(to, FileAttributes.Normal);
                 }
             }
-            foreach(var x in Directory.GetFiles(Path.Combine(Program.BASE_PATH, "Saves")))
+            foreach (var x in Directory.GetFiles(Path.Combine(Program.BASE_PATH, "Saves")))
             {
                 var fInfo = new FileInfo(x);
-                if(fInfo.Extension == ".new")
+                if (fInfo.Extension == ".new")
                 {
                     var to = Path.Combine(Program.BASE_PATH, "Saves", fInfo.Name.Replace(".new", ""));
                     File.SetAttributes(fInfo.FullName, FileAttributes.Normal);

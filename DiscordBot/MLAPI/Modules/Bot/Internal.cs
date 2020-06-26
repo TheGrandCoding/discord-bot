@@ -30,7 +30,7 @@ namespace DiscordBot.MLAPI.Modules.Bot
                 closeReset.Set();
             });
             th.Start();
-            if(!closeReset.Wait(10_000))
+            if(!closeReset.Wait(20_000))
             {
                 Program.LogMsg("OnClose did not complete in time! Hopefully won't break too much...", Discord.LogSeverity.Critical, "Internal");
             }

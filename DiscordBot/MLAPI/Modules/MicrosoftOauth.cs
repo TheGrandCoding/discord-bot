@@ -98,7 +98,7 @@ namespace DiscordBot.MLAPI.Modules
                 service.OnSave();
             }
             Program.Save();
-            var redirect = Context.Request.Cookies["Redirect"]?.Value;
+            var redirect = Context.Request.Cookies["redirect"]?.Value;
             if (string.IsNullOrWhiteSpace(redirect))
                 redirect = "/";
             RespondRaw(LoadRedirectFile(redirect), 303);
