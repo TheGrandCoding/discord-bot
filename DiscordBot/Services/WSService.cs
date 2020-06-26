@@ -44,7 +44,9 @@ namespace DiscordBot.Services
         {
             try
             {
-                Server.Stop(WebSocketSharp.CloseStatusCode.Abnormal, "Bot is closing");
+                Server.RemoveWebSocketService("/chess");
+                Server.RemoveWebSocketService("/masterlist");
+                Server.Stop();
             } catch { }
         }
 

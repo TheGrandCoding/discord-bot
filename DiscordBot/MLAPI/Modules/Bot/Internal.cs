@@ -5,6 +5,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace DiscordBot.MLAPI.Modules.Bot
 {
@@ -13,14 +15,25 @@ namespace DiscordBot.MLAPI.Modules.Bot
     {
         public Internal(APIContext c) : base(c, "/") { }
 
+        static ManualResetEventSlim closeReset;
         [Method("GET"), Path("/bot/restart")]
         [RequireOwner]
         public void RestartBot()
         {
             Program.LogMsg("Starting to restart due to request", Discord.LogSeverity.Critical, "Internal");
             Program.Save(true);
-            Service.SendClose();
-            RespondRaw("OK", 200);
+            RespondRaw("OK", 200); // since we've acknowledged the reqeuest, we'll respond now.
+            closeReset = new ManualResetEventSlim();
+            var th = new Thread(() =>
+            {
+                Service.SendClose();
+                closeReset.Set();
+            });
+            th.Start();
+            if(!closeReset.Wait(10_000))
+            {
+                Program.LogMsg("OnClose did not complete in time! Hopefully won't break too much...", Discord.LogSeverity.Critical, "Internal");
+            }
 #if LINUX
             ProcessStartInfo Info = new ProcessStartInfo();
             Info.Arguments = "-c ping 127.0.0.1 -c 2 && /home/pi/Desktop/runasbot.sh new";
