@@ -56,7 +56,8 @@ namespace DiscordBot.Classes
             Method = new HttpMethod(context.Method);
             Date = DateTime.Now;
             Path = context.Request.Url.PathAndQuery;
-            IP = context.Request.RemoteEndPoint.Address.ToString();
+            IP = context.Request.Headers["X-Forwarded-For"];
+            IP ??= context.Request.RemoteEndPoint.Address.ToString();
             if (context.User != null)
                 User = $"{context.User.Id}/{context.User.Name}";
             var headers = new List<string>();
@@ -90,7 +91,16 @@ namespace DiscordBot.Classes
             do
             {
                 if (line.StartsWith("h:"))
-                    line = line.Substring("h:".Length);
+                {
+                    var header = line.Substring("h:".Length);
+                    var pair = header.Split(':');
+                    if (LINES.TryGetValue("h:" + pair[0], out ls))
+                        ls.Add(pair[1]);
+                    else
+                        LINES["h:" + pair[0]] = new List<string>() { pair[1] };
+                    line = reader.ReadLine();
+                    continue;
+                }
                 var split = line.Split(':');
                 if((!addingBody && line == body) || line == ">>>>>>")
                     addingBody = true;
@@ -104,11 +114,12 @@ namespace DiscordBot.Classes
                 }
                 if(split.Length > 1)
                 {
-                    var value = string.Join(':', split.Skip(1)).Substring(1);
-                    if (LINES.TryGetValue(split[0], out ls))
+                    var key = split[0];
+                    var value = string.Join(":", split.Skip(1)).Substring(1);
+                    if (LINES.TryGetValue(key, out ls))
                         ls.Add(value);
                     else
-                        LINES.Add(split[0], new List<string>() { value });
+                        LINES[key] = new List<string>() { value };
                 }
                 line = reader.ReadLine();
             } while (!(reader.EndOfStream || string.IsNullOrWhiteSpace(line) || line == seperator));
