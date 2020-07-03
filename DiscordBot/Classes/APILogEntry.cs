@@ -66,7 +66,7 @@ namespace DiscordBot.Classes
                 headers.Add($"{x}: {context.Request.Headers[x]}");
             }
             Headers = headers.ToArray();
-            if(context.Request.HasEntityBody && streamableTypes.Any(x => context.Request.ContentType.StartsWith(x)))
+            if(context.Request.HasEntityBody && context.Request.ContentType != null && streamableTypes.Any(x => context.Request.ContentType.StartsWith(x)))
             {
                 Body = context.Body;
             }

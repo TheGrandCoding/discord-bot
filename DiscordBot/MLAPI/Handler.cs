@@ -257,14 +257,16 @@ namespace DiscordBot.MLAPI
             context.HTTP.Response.Headers["Location"] = url;
             try
             {
-                var cookie = new Cookie("redirect", context.HTTP.Request.Url.PathAndQuery);
-                cookie.Path = "/";
-                cookie.Expires = DateTime.Now.AddSeconds(60);
-                context.HTTP.Response.Cookies.Add(cookie);
+                var bs = new APIBase(context, "/");
+                string current = context.Request.Url.PathAndQuery;
+                context.HTTP.Response.AppendCookie(new Cookie("redirect", current)
+                {
+                    Expires = DateTime.Now.AddDays(1),
+                    Path = "/"
+                });
+                bs.RespondRaw(bs.LoadRedirectFile(url, current), HttpStatusCode.TemporaryRedirect);
             }
             catch { }
-            context.HTTP.Response.StatusCode = 307;
-            context.HTTP.Response.Close();
             logger.End(HttpStatusCode.TemporaryRedirect, url);
         }
 
@@ -345,6 +347,11 @@ namespace DiscordBot.MLAPI
             {
                 redirect(logger, context, ex.URL);
                 logger.End(HttpStatusCode.TemporaryRedirect, ex.Message);
+                return;
+            }
+            catch(ReqHandledException ex)
+            {
+                logger.End((HttpStatusCode)commandBase.StatusSent);
                 return;
             }
             catch (HaltExecutionException ex)

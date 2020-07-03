@@ -38,6 +38,7 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("POST"), Path("/login/msoauth")]
+        [RequireAuthentication(requireAuth:true, requireValid:false)]
         public void LoginCallback(string id_token, string code, string session_state = null, string state = null, string nonce = null)
         {
             if(!string.IsNullOrWhiteSpace(Context.User.VerifiedEmail))
@@ -79,6 +80,10 @@ namespace DiscordBot.MLAPI.Modules
             var content = identityResponse.Content.ReadAsStringAsync().Result;
             var jobj = JObject.Parse(content);
             Context.User.VerifiedEmail = jobj["mail"].ToObject<string>();
+            if(string.IsNullOrWhiteSpace(Context.User.Name) || Context.User.Name == Context.User.Id.ToString())
+            {
+                Context.User.OverrideName = jobj["displayName"].ToObject<string>();
+            }
             var service = Program.Services.GetRequiredService<ChessService>();
             if(service != null && !Context.User.ServiceUser && !Context.User.GeneratedUser)
             {
@@ -100,7 +105,8 @@ namespace DiscordBot.MLAPI.Modules
             Program.Save();
             var redirect = Context.Request.Cookies["redirect"]?.Value;
             if (string.IsNullOrWhiteSpace(redirect))
-                redirect = "/";
+                redirect = "%2F";
+            redirect = Uri.UnescapeDataString(redirect);
             RespondRaw(LoadRedirectFile(redirect), 303);
         }
     

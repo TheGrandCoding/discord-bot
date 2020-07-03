@@ -11,6 +11,7 @@ namespace DiscordBot.Services
 {
     public class VoteService : Service
     {
+        public override bool IsEnabled => false; 
         public Semaphore Lock { get; set; }
         public IMongoDatabase Database { get; set; }
 

@@ -9,9 +9,11 @@ namespace DiscordBot.MLAPI
     public class RequireAuthentication : APIPrecondition
     {
         private readonly bool _auth;
-        public RequireAuthentication(bool requireAuth = true)
+        private readonly bool _valid;
+        public RequireAuthentication(bool requireAuth = true, bool requireValid = true)
         {
             _auth = requireAuth;
+            _valid = requireValid;
         }
 
         public override bool CanChildOverride(APIPrecondition child)
@@ -21,9 +23,17 @@ namespace DiscordBot.MLAPI
 
         public override PreconditionResult Check(APIContext context)
         {
-            return (context.User != null && _auth) || (!_auth)
-                ? PreconditionResult.FromSuccess()
-                : throw new RedirectException("/login", $"Requires authentication");
+            if(_auth)
+            {
+                if (context.User == null)
+                    throw new RedirectException("/login", "Requires authentication");
+                if(_valid)
+                {
+                    if (context.User.DiscriminatorValue == 0 || string.IsNullOrWhiteSpace(context.User.Name))
+                        return PreconditionResult.FromError("Requires valid user account");
+                }
+            }
+            return PreconditionResult.FromSuccess();
         }
     }
 }
