@@ -1,5 +1,8 @@
-﻿using Discord.Commands;
+﻿using Discord;
+using Discord.Commands;
 using DiscordBot.Commands;
+using DiscordBot.Services;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -17,6 +20,24 @@ namespace DiscordBot.Modules
         {
             await Success("Closing");
             Program.Close(code);
+        }
+
+        [Command("dyndns")]
+        [Summary("Sets dynamic DNS link for bot to GET to.")]
+        [RequireOwner]
+        public async Task UpdateURL(Uri url)
+        {
+            var serv = Program.Services.GetRequiredService<DynDNService>();
+            serv.URL = url.ToString();
+            var response = await serv.Perform();
+            await ReplyAsync(embed:
+                new EmbedBuilder()
+                .WithTitle($"GET Response")
+                .WithFooter(url.ToString())
+                .WithColor(response.IsSuccessStatusCode ? Color.Green : Color.Red)
+                .AddField("Status Code", response.StatusCode, true)
+                .AddField("Status Text", response.ReasonPhrase)
+                .Build());
         }
     }
 }
