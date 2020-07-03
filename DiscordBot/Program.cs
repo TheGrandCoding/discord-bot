@@ -239,6 +239,11 @@ Moved some services to use OnDailyTick; ensured lowercase `redirect` cookie.
             coll.AddSingleton(typeof(HttpClient), http);
             foreach(var service in ReflectiveEnumerator.GetEnumerableOfType<Service>(null))
                 coll.AddSingleton(service.GetType());
+            string password = Program.Configuration["tokens:atlas:password"];
+            string dbName = "awards";
+            var client = new MongoDB.Driver.MongoClient(
+                $"mongodb+srv://rpi4:{password}@cluster0-mz2ro.mongodb.net/{dbName}?retryWrites=true&w=majority");
+            coll.AddSingleton(client);
             return coll.BuildServiceProvider();
         }
 
