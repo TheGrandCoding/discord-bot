@@ -80,13 +80,10 @@ namespace DiscordBot.Classes.Chess.CoA
 
         void setPerm(ChessPlayer player, OverwritePermissions perm)
         {
-            var usr = Program.ChessGuild.GetUser(player.ConnectedAccount);
-            if (usr == null)
-            {
-                Program.LogMsg($"Failed set permission on {player.Name} -- account not in guild", source:this.witnessId.ToString(), sev:LogSeverity.Warning);
+            var bUser = Program.GetUserOrDefault(player.ConnectedAccount);
+            if (bUser == null || bUser.ServiceUser || bUser.GeneratedUser)
                 return;
-            }
-            Channel.AddPermissionOverwriteAsync(usr, perm);
+            Channel.AddPermissionOverwriteAsync(bUser, perm);
         }
 
         public void SetPermissions()
