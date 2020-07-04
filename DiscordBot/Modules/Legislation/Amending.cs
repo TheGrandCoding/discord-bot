@@ -13,6 +13,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace DiscordBot.Modules.Legislation
@@ -98,21 +99,9 @@ namespace DiscordBot.Modules.Legislation
             int oldId = group.Id;
             group.Id = original.AmendmentReferences.Count + 1; // may have changed since last.
             original.AmendmentReferences[group.Id] = group;
-            foreach (var actAmendment in act.Amendments.Where(x => x.GroupId == oldId))
-            {
-                actAmendment.GroupId = group.Id;
-                actAmendment.AmendsAct = original;
-                original.Amendments.Add(actAmendment);
-            }
             foreach (var section in act.Children)
             {
                 var oSection = original.Children.FirstOrDefault(x => x.Number == section.Number && x.Group == section.Group);
-                foreach (var sectionAmendment in section.Amendments.Where(x => x.GroupId == oldId))
-                {
-                    sectionAmendment.GroupId = group.Id;
-                    sectionAmendment.AmendsAct = original;
-                    oSection.Amendments.Add(sectionAmendment);
-                }
                 foreach (var sectionAmendment in section.TextAmendments.Where(x => x.GroupId == oldId))
                 {
                     sectionAmendment.GroupId = group.Id;
@@ -123,12 +112,6 @@ namespace DiscordBot.Modules.Legislation
                 foreach (var paragraph in section.Children)
                 {
                     var oParagraph = oSection.Children.FirstOrDefault(x => x.Number == paragraph.Number);
-                    foreach (var paragraphAmendment in paragraph.Amendments.Where(x => x.GroupId == oldId))
-                    {
-                        paragraphAmendment.GroupId = group.Id;
-                        paragraphAmendment.AmendsAct = original;
-                        oParagraph.Amendments.Add(paragraphAmendment);
-                    }
                     foreach (var paragraphAmendment in paragraph.TextAmendments.Where(x => x.GroupId == oldId))
                     {
                         paragraphAmendment.GroupId = group.Id;
@@ -545,7 +528,6 @@ namespace DiscordBot.Modules.Legislation
             return await replaceThing(Paragraph);
         }
         #endregion
-
         #region Section
         // Change Section's Header.
         [Command("insert text")]
@@ -583,17 +565,7 @@ namespace DiscordBot.Modules.Legislation
             var Section = Act.Children.FirstOrDefault(x => x.Number == number);
             if (Section == null)
                 return new BotResult($"That section does not exist");
-            var applies = Act.Amendments.FirstOrDefault(x => x.Target == Section.Number && x.Type == AmendType.Repeal);
-            if (applies != null)
-                return new BotResult($"This section is already repealed: {applies.GetDescription()}");
-            var amend = new ActAmendment()
-            {
-                Type = AmendType.Repeal,
-                Target = number,
-                GroupId = Group.Id,
-                AmendsAct = Act
-            };
-            Act.Amendments.Add(amend);
+            Section.RepealedById = Group.Id;
             await ReplyAsync("Repealed");
             return new BotResult();
         }
@@ -605,23 +577,14 @@ namespace DiscordBot.Modules.Legislation
             var Section = Act.Children.FirstOrDefault(x => x.Number == section);
             if (Section == null)
                 return new BotResult($"That section does not exist");
-            var sectionApplies = Act.Amendments.FirstOrDefault(x => x.Target == Section.Number && x.Type == AmendType.Repeal);
-            if (sectionApplies != null)
-                return new BotResult($"This section is already repealed: {sectionApplies.GetDescription()}");
+            if (Section.RepealedById.HasValue)
+                return new BotResult($"This section is already repealed: {Section.RepealedBy.GetDescription()}");
             var Paragraph = Section.Children.FirstOrDefault(x => x.Number == number);
             if (Paragraph == null)
                 return new BotResult($"That paragraph does not exist");
-            var paragraphApplies = Section.Amendments.FirstOrDefault(x => x.Target == number && x.Type == AmendType.Repeal);
-            if (paragraphApplies != null)
-                return new BotResult("That paragraph is already repealed: " + paragraphApplies.GetDescription());
-            var amend = new SectionAmendment()
-            {
-                Type = AmendType.Repeal,
-                Target = number,
-                GroupId = Group.Id,
-                AmendsAct = Act
-            };
-            Section.Amendments.Add(amend);
+            if (Paragraph.RepealedById.HasValue)
+                return new BotResult("That paragraph is already repealed: " + Paragraph.RepealedBy.GetDescription());
+            Paragraph.RepealedById = Group.Id;
             await ReplyAsync("Repealed");
             return new BotResult();
         }
@@ -633,34 +596,86 @@ namespace DiscordBot.Modules.Legislation
             var Section = Act.Children.FirstOrDefault(x => x.Number == section);
             if (Section == null)
                 return new BotResult($"That section does not exist");
-            var sectionApplies = Act.Amendments.FirstOrDefault(x => x.Target == Section.Number && x.Type == AmendType.Repeal);
-            if (sectionApplies != null)
-                return new BotResult($"This section is already repealed: {sectionApplies.GetDescription()}");
+            if (Section.RepealedById.HasValue)
+                return new BotResult($"This section is already repealed: {Section.RepealedBy.GetDescription()}");
             var Paragraph = Section.Children.FirstOrDefault(x => x.Number == paragraph);
             if (Paragraph == null)
                 return new BotResult($"That paragraph does not exist");
-            var paragraphApplies = Section.Amendments.FirstOrDefault(x => x.Target == paragraph && x.Type == AmendType.Repeal);
-            if (paragraphApplies != null)
-                return new BotResult("That paragraph is already repealed: " + paragraphApplies.GetDescription());
+            if (Paragraph.RepealedById.HasValue)
+                return new BotResult("That paragraph is already repealed: " + Paragraph.RepealedBy.GetDescription());
             var Clause = Paragraph.Children.FirstOrDefault(x => x.Number == number);
             if (Clause == null)
                 return new BotResult("That clause does not exist");
-            var clauseApplies = Paragraph.Amendments.FirstOrDefault(x => x.Target == number && x.Type == AmendType.Repeal);
-            if (clauseApplies != null)
-                return new BotResult("That clause is already repealed: " + paragraphApplies.GetDescription());
-            var amend = new ParagraphAmendment()
-            {
-                Type = AmendType.Repeal,
-                Target = number,
-                GroupId = Group.Id,
-                AmendsAct = Act
-            };
-            Paragraph.Amendments.Add(amend);
+            if (Clause.RepealedById != null)
+                return new BotResult("That clause is already repealed: " + Clause.RepealedBy.GetDescription());
+            Clause.RepealedById = Group.Id;
             await ReplyAsync("Repealed");
             return new BotResult();
         }
         #endregion
-    
-    
+
+        #region Thing Insertion
+        string getNextLetter(string letter)
+        {
+            int code = Convert.ToInt32(letter[^1]); // gets last char
+            code = code + 1; // moves to next letter in alphabet.
+            if (code >= 91)
+                return letter + "A"; // append entire new letter
+            return letter[0..^1] + Convert.ToChar(code); // cycle upwards.
+        }
+        #region Clause
+
+
+        string getNextValidClause(string start, Paragraph para)
+        {
+            Clause existing;
+            do
+            {
+                existing = para.Children.FirstOrDefault(x => x.Number == start);
+                if (existing != null)
+                    start = getNextLetter(start);
+            } while (existing != null);
+            return start;
+        }
+
+        [Command("insert clause")]
+        [Summary("Inserts a clause at the specified location")]
+        public async Task<RuntimeResult> InsertClause(string section, string paragraph, string number)
+        {
+            var Section = Act.Children.FirstOrDefault(x => x.Number == section);
+            if (Section == null)
+                return new BotResult($"That section does not exist");
+            if (Section.RepealedById.HasValue)
+                return new BotResult($"This section is repealed: {Section.RepealedBy.GetDescription()}");
+            var Paragraph = Section.Children.FirstOrDefault(x => x.Number == paragraph);
+            if (Paragraph == null)
+                return new BotResult($"That paragraph does not exist");
+            if (Paragraph.RepealedById.HasValue)
+                return new BotResult("That paragraph is repealed: " + Paragraph.RepealedBy.GetDescription());
+            var Clause = Paragraph.Children.FirstOrDefault(x => x.Number == number);
+            if (Clause != null)
+            {
+                var suggest = getNextValidClause(number, Paragraph);
+                await ReplyAsync($"That clause already exists. Would you like to insert a new one with number **{suggest}** instead? Reply if yes, wait to cancel");
+                var next = await NextMessageAsync();
+                if (next == null || string.IsNullOrWhiteSpace(next.Content))
+                    return new BotResult("Cancelled");
+                number = suggest;
+                Clause = null;
+            }
+            Clause = new Clause("")
+            {
+                Number = number,
+                InsertedById = Group.Id,
+            };
+            Paragraph.Children.Add(Clause);
+            await ReplyAsync("Inserted, please amend the text of the clause.");
+            return new BotResult();
+
+        }
+
+        #endregion
+
+        #endregion
     }
 }

@@ -39,11 +39,9 @@ namespace DiscordBot.Services
         public HTMLPage PageForSection(Act act, Section section)
         {
             var div = new Div(cls: "LegSnippet");
-            var amendmentApplies = act.Amendments.Where(x => x.Target == section.Number);
-            var mostRelevant = amendmentApplies.FirstOrDefault(x => x.Type == AmendType.Repeal) ?? amendmentApplies.FirstOrDefault(x => x.Type == AmendType.Insert);
             var builder = new AmendmentBuilder(0, false);
 
-            section.WriteTo(div, 1, builder, mostRelevant);
+            section.WriteTo(div, 1, builder);
             if (builder.Performed.Count > 0)
             {
                 div.Children.Add(builder.GetDiv());
@@ -112,6 +110,7 @@ namespace DiscordBot.Services
                     {
                         act.EnactedDate = DateTime.Now;
                     }
+                    act.Register(null);
                     Laws[act.PathName] = act;
                 }
             }

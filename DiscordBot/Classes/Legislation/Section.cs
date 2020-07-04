@@ -2,6 +2,7 @@
 using DiscordBot.Classes.HTMLHelpers.Objects;
 using DiscordBot.Classes.Legislation.Amending;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Serialization;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -10,7 +11,7 @@ using System.Text;
 
 namespace DiscordBot.Classes.Legislation
 {
-    public class Section
+    public class Section : LawThing<Paragraph>
     {
         public static Section NewGroup(string name)
         {
@@ -23,19 +24,12 @@ namespace DiscordBot.Classes.Legislation
         {
             Header = header;
             Children = new List<Paragraph>();
-            Amendments = new List<SectionAmendment>();
             TextAmendments = new List<TextAmendment>();
         }
-        [JsonProperty("no")]
-        public string Number { get; set; }
         [JsonProperty("h")]
         public string Header { get; set; }
-        [JsonProperty("c")]
-        public List<Paragraph> Children { get; set; }
         [JsonProperty("ta")]
         public List<TextAmendment> TextAmendments { get; set; }
-        [JsonProperty("a")]
-        public List<SectionAmendment> Amendments { get; set; }
         [JsonProperty("g", DefaultValueHandling = DefaultValueHandling.IgnoreAndPopulate)]
         [DefaultValue(false)]
         public bool Group { get; set; } = false;
@@ -46,7 +40,7 @@ namespace DiscordBot.Classes.Legislation
             return builder.TextOnly ? amender.NiceWords : amender.RawText;
         }
 
-        public virtual void WriteTo(HTMLBase parent, int depth, AmendmentBuilder builder, ActAmendment amendAppliesThis)
+        public virtual void WriteTo(HTMLBase parent, int depth, AmendmentBuilder builder)
         {
             if(Group)
             {
@@ -70,30 +64,25 @@ namespace DiscordBot.Classes.Legislation
                 }
             };
             parent.Children.Add(header);
-            if (amendAppliesThis != null)
+            if(RepealedById.HasValue)
             {
-                var next = builder.GetNextNumber(amendAppliesThis);
-                if (amendAppliesThis.Type == AmendType.Repeal)
-                {
-                    RHS.RawText = builder.TextOnly ? "..." :  ". . . ." + LegHelpers.GetChangeAnchor(next);
-                    return;
-                }
-                if (amendAppliesThis.Type == AmendType.Insert)
-                {
-                    LHS.RawText = (builder.TextOnly ? "" : $"{LegHelpers.GetChangeDeliminator(true)}{LegHelpers.GetChangeAnchor(next)}") + $"{Number}";
-                }
+                var amend = Law.AmendmentReferences[RepealedById.Value];
+                var next = builder.GetNextNumber(new ThingAmendment(this, RepealedById.Value, AmendType.Repeal));
+                RHS.RawText = builder.TextOnly ? "..." :  ". . . ." + LegHelpers.GetChangeAnchor(next);
+                return;
+            } else if (InsertedById.HasValue)
+            {
+                var amend = Law.AmendmentReferences[InsertedById.Value];
+                var next = builder.GetNextNumber(new ThingAmendment(this, RepealedById.Value, AmendType.Insert));
+                LHS.RawText = (builder.TextOnly ? "" : $"{LegHelpers.GetChangeDeliminator(true)}{LegHelpers.GetChangeAnchor(next)}") + $"{Number}";
             }
             var children = new List<Paragraph>();
             children.AddRange(Children);
-            children.AddRange(Amendments.Where(x => x.Type == AmendType.Insert && x.NewParagraph != null).Select(x => x.NewParagraph));
             foreach(var child in children.OrderBy(x => x.Number, new NumberComparer()))
             {
-                var amendmentApplies = Amendments.Where(x => x.Target == child.Number);
-                var mostRelevant = amendmentApplies.FirstOrDefault(x => x.Type == AmendType.Repeal) ?? amendmentApplies.FirstOrDefault(x => x.Type == AmendType.Insert);
-
-                child.WriteTo(parent, depth + 1, this, builder, mostRelevant);
+                child.WriteTo(parent, depth + 1, builder);
             }
-            if (amendAppliesThis?.Type == AmendType.Insert && !builder.TextOnly)
+            if (InsertedById.HasValue && !builder.TextOnly)
             {
                 var last = parent.Children[^1];
                 last.Children.Add(LegHelpers.GetChangeDeliminator(false));
