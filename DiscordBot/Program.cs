@@ -31,10 +31,10 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.7.17"; 
+        public const string VERSION = "0.7.18"; 
         public const string CHANGELOG = VERSION + @"
-== OnDailyTick
-Moved some services to use OnDailyTick; ensured lowercase `redirect` cookie.
+== Get team information
+Gather information on class and subjects via Teams.
 ";
         public static DiscordSocketClient Client { get; set; }
         public static IConfigurationRoot Configuration { get; set; }

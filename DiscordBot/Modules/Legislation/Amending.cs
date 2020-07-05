@@ -623,19 +623,78 @@ namespace DiscordBot.Modules.Legislation
                 return letter + "A"; // append entire new letter
             return letter[0..^1] + Convert.ToChar(code); // cycle upwards.
         }
+
+        string getNextLetter<TChild>(LawThing<TChild> parent, string letter) where TChild: LawThing
+        {
+            while (parent.Children.Any(x => x.Number == letter))
+                letter = getNextLetter(letter);
+            return letter;
+        }
+
         #region Clause
 
-
-        string getNextValidClause(string start, Paragraph para)
+        [Command("insert section")]
+        [Summary("Inserts a section at the specified location")]
+        public async Task<RuntimeResult> InsertSection(string section)
         {
-            Clause existing;
-            do
+            var Section = Act.Children.FirstOrDefault(x => x.Number == section);
+            if (Section != null)
             {
-                existing = para.Children.FirstOrDefault(x => x.Number == start);
-                if (existing != null)
-                    start = getNextLetter(start);
-            } while (existing != null);
-            return start;
+                var nextLetter = getNextLetter(Act, section);
+                await ReplyAsync($"Section already exists by that number, reply if to use **{nextLetter}** instead; wait to cancel");
+                var next = await NextMessageAsync();
+                if(next == null || string.IsNullOrWhiteSpace(next.Content))
+                    return new BotResult("Cancelled due to no response on conflict.");
+                section = nextLetter;
+            }
+            var noticeMsg = await ReplyAsync("Please send the header of the section; react if group.");
+            await noticeMsg.AddReactionAsync(Emotes.THUMBS_UP);
+            var textMsg = await NextMessageAsync(timeout: TimeSpan.FromMinutes(5));
+            if (textMsg == null || string.IsNullOrWhiteSpace(textMsg.Content))
+                return new BotResult("Cancelled.");
+            Section = new Section(textMsg.Content);
+            Section.Number = section;
+            int count = await noticeMsg.GetReactionUsersAsync(Emotes.THUMBS_UP, 5).CountAsync();
+            Section.Group = count > 1;
+            Section.InsertedById = Group.Id;
+            Act.Children.Add(Section);
+            Act.Sort();
+            await ReplyAsync("Inserted.");
+            return new BotResult();
+        }
+
+        [Command("insert paragraph")]
+        [Summary("Inserts a paragraph to the specified location")]
+        public async Task<RuntimeResult> InsertParagraph(string section, string paragraph)
+        {
+            var Section = Act.Children.FirstOrDefault(x => x.Number == section);
+            if (Section == null)
+                return new BotResult($"Section does not exist; use `{Program.Prefix}amend insert section {section}` to insert it first.");
+            if (Section.RepealedById.HasValue)
+                return new BotResult("That section has been repealed");
+            var Paragraph = Section.Children.FirstOrDefault(x => x.Number == paragraph);
+            if(Paragraph != null)
+            {
+                var nextLetter = getNextLetter(Section, paragraph);
+                await ReplyAsync($"Paragraph already exists by that number, reply if to use **{nextLetter}** instead; wait to cancel");
+                var next = await NextMessageAsync();
+                if (next == null || string.IsNullOrWhiteSpace(next.Content))
+                    return new BotResult("Cancelled due to no response on conflict.");
+                paragraph = nextLetter;
+            }
+            await ReplyAsync("Please provide any text for the paragraph; reply with `-` for null");
+            var textMsg = await NextMessageAsync(timeout: TimeSpan.FromMinutes(15));
+            if (textMsg == null || string.IsNullOrWhiteSpace(textMsg.Content))
+                return new BotResult("Cancelled");
+            var text = textMsg.Content == "-" ? null : textMsg.Content;
+            Paragraph = new Paragraph(text)
+            {
+                InsertedById = Group.Id,
+                Number = paragraph
+            };
+            Section.Children.Add(Paragraph);
+            await ReplyAsync("Inserted");
+            return new BotResult();
         }
 
         [Command("insert clause")]
@@ -655,7 +714,7 @@ namespace DiscordBot.Modules.Legislation
             var Clause = Paragraph.Children.FirstOrDefault(x => x.Number == number);
             if (Clause != null)
             {
-                var suggest = getNextValidClause(number, Paragraph);
+                var suggest = getNextLetter(Paragraph, number);
                 await ReplyAsync($"That clause already exists. Would you like to insert a new one with number **{suggest}** instead? Reply if yes, wait to cancel");
                 var next = await NextMessageAsync();
                 if (next == null || string.IsNullOrWhiteSpace(next.Content))
@@ -663,7 +722,11 @@ namespace DiscordBot.Modules.Legislation
                 number = suggest;
                 Clause = null;
             }
-            Clause = new Clause("")
+            await ReplyAsync("Please provide any text for the clause");
+            var textMsg = await NextMessageAsync(timeout: TimeSpan.FromMinutes(15));
+            if (textMsg == null || string.IsNullOrWhiteSpace(textMsg.Content))
+                return new BotResult("Cancelled");
+            Clause = new Clause(textMsg.Content)
             {
                 Number = number,
                 InsertedById = Group.Id,
@@ -671,7 +734,6 @@ namespace DiscordBot.Modules.Legislation
             Paragraph.Children.Add(Clause);
             await ReplyAsync("Inserted, please amend the text of the clause.");
             return new BotResult();
-
         }
 
         #endregion

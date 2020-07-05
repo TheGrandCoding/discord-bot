@@ -1,4 +1,5 @@
 ﻿using Discord;
+using DiscordBot.Classes;
 using DiscordBot.Services;
 using IdentityModel;
 using IdentityModel.Client;
@@ -22,8 +23,18 @@ namespace DiscordBot.MLAPI.Modules
         {
         }
 
-        public static string getUrl(IUser user)
+        public static string getUrl(IUser user, Action<MSScopeOptions> action = null)
         {
+            var msScope = new MSScopeOptions();
+            if (action == null)
+                action = x =>
+                {
+                    x.OpenId = true;
+                    x.User_Read = true;
+                };
+            action(msScope);
+            string stateValue = user.Id.ToString();
+            stateValue += "." + Program.ToBase64(msScope.ToString());
             var ru = new RequestUrl($"https://login.microsoftonline.com/{Program.Configuration["ms_auth:tenant_id"]}/oauth2/v2.0/authorize");
             var url = ru.CreateAuthorizeUrl(
                 clientId: Program.Configuration["ms_auth:client_id"],
@@ -31,10 +42,81 @@ namespace DiscordBot.MLAPI.Modules
                 responseMode: "form_post",
                 redirectUri: Handler.LocalAPIUrl + "/login/msoauth",
                 nonce: DateTime.Now.DayOfYear.ToString(),
-                state: user.Id.ToString(),
-                scope: "openid https://graph.microsoft.com/user.read");
+                state: stateValue,
+                scope: msScope.GetScopes());
             Console.WriteLine(url);
             return url;
+        }
+
+        bool actOnUserProfile(TokenResponse response, HttpClient client)
+        {
+            var request = new HttpRequestMessage(HttpMethod.Get, "https://graph.microsoft.com/v1.0/me");
+            request.Headers.Add("Authorization", "Bearer " + response.AccessToken);
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            var identityResponse = client.SendAsync(request).Result;
+            if (!identityResponse.IsSuccessStatusCode)
+            {
+                RespondRaw("Could not complete Oauth", identityResponse.StatusCode);
+                return false;
+            }
+            var content = identityResponse.Content.ReadAsStringAsync().Result;
+            var jobj = JObject.Parse(content);
+            Context.User.VerifiedEmail = jobj["mail"].ToObject<string>();
+            if (string.IsNullOrWhiteSpace(Context.User.Name) || Context.User.Name == Context.User.Id.ToString())
+            {
+                Context.User.OverrideName = jobj["displayName"].ToObject<string>();
+            }
+            var service = Program.Services.GetRequiredService<ChessService>();
+            if (service != null && !Context.User.ServiceUser && !Context.User.GeneratedUser)
+            {
+                string name = $"{jobj["givenName"]} {jobj["surname"].ToObject<string>()[0]}";
+                var existing = ChessService.Players.FirstOrDefault(x => x.Name == name && !x.IsBuiltInAccount);
+                if (existing != null)
+                {
+                    existing.ConnectedAccount = Context.User.Id;
+                }
+                else
+                {
+                    var chs = ChessService.Players.FirstOrDefault(x => x.ConnectedAccount == Context.User.Id && !x.IsBuiltInAccount);
+                    if (chs != null)
+                    {
+                        chs.Name = name;
+                    }
+                }
+                service.OnSave();
+            }
+            return true;
+        }
+
+        bool actOnTeams(TokenResponse response, HttpClient client)
+        {
+            var teamsRequest = new HttpRequestMessage(HttpMethod.Get, "https://graph.microsoft.com/v1.0/me/joinedTeams");
+            teamsRequest.Headers.Add("Authorization", "Bearer " + response.AccessToken);
+            teamsRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            var teamsResponse = client.SendAsync(teamsRequest).Result;
+            if (!teamsResponse.IsSuccessStatusCode)
+            {
+                RespondRaw("Could not retrieve your teams information", teamsResponse.StatusCode);
+                return false;
+            }
+            var content = teamsResponse.Content.ReadAsStringAsync().Result;
+            var jobj = JObject.Parse(content);
+            var jvalue = jobj["value"];
+            var teamsArray = (JArray)jvalue;
+            Dictionary<string, string> classes = new Dictionary<string, string>();
+            foreach(JToken jTeam in teamsArray)
+            {
+                var name = jTeam["displayName"].ToObject<string>();
+                var split = name.Split('-');
+                if (split.Length != 2)
+                    continue;
+                // class - Subject
+                // eg
+                // 1Mt3 - Maths
+                classes[split[0].Trim()] = split[1].Trim();
+            }
+            Context.User.Classes = classes;
+            return true;
         }
 
         [Method("POST"), Path("/login/msoauth")]
@@ -46,7 +128,9 @@ namespace DiscordBot.MLAPI.Modules
                 RespondRaw($"This account is already verified", 400);
                 return;
             }
-            if(state != Context.User.Id.ToString())
+            var stateSplit = state.Split('.');
+            var scopes = new MSScopeOptions(Program.ToUTF8(stateSplit[1]).Split(' '));
+            if(stateSplit[0] != Context.User.Id.ToString())
             {
                 RespondRaw("State mismatch", 400);
                 return;
@@ -64,44 +148,22 @@ namespace DiscordBot.MLAPI.Modules
                 GrantType = "authorization_code",
                 Parameters =
                 {
-                    {"scope", "https://graph.microsoft.com/user.read" }
+                    {"scope", new MSScopeOptions() {
+                        User_Read = true,
+                        Team_ReadBasic_All = scopes.Team_ReadBasic_All
+                    }}
                 }
             }).Result;
 
-            var request = new HttpRequestMessage(HttpMethod.Get, "https://graph.microsoft.com/v1.0/me");
-            request.Headers.Add("Authorization", "Bearer " + response.AccessToken);
-            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-            var identityResponse = client.SendAsync(request).Result;
-            if(!identityResponse.IsSuccessStatusCode)
-            {
-                RespondRaw("Could not complete Oauth", identityResponse.StatusCode);
+            if (!actOnUserProfile(response, client))
                 return;
-            }
-            var content = identityResponse.Content.ReadAsStringAsync().Result;
-            var jobj = JObject.Parse(content);
-            Context.User.VerifiedEmail = jobj["mail"].ToObject<string>();
-            if(string.IsNullOrWhiteSpace(Context.User.Name) || Context.User.Name == Context.User.Id.ToString())
+
+            if(scopes.Team_ReadBasic_All)
             {
-                Context.User.OverrideName = jobj["displayName"].ToObject<string>();
+                if (!actOnTeams(response, client))
+                    return;
             }
-            var service = Program.Services.GetRequiredService<ChessService>();
-            if(service != null && !Context.User.ServiceUser && !Context.User.GeneratedUser)
-            {
-                string name = $"{jobj["givenName"]} {jobj["surname"].ToObject<string>()[0]}";
-                var existing = ChessService.Players.FirstOrDefault(x => x.Name == name && !x.IsBuiltInAccount);
-                if(existing != null)
-                {
-                    existing.ConnectedAccount = Context.User.Id;
-                } else
-                {
-                    var chs = ChessService.Players.FirstOrDefault(x => x.ConnectedAccount == Context.User.Id && !x.IsBuiltInAccount);
-                    if(chs != null)
-                    {
-                        chs.Name = name;
-                    }
-                }
-                service.OnSave();
-            }
+
             Program.Save();
             var redirect = Context.Request.Cookies["redirect"]?.Value;
             if (string.IsNullOrWhiteSpace(redirect))

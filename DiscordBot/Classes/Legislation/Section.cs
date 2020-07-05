@@ -73,7 +73,7 @@ namespace DiscordBot.Classes.Legislation
             } else if (InsertedById.HasValue)
             {
                 var amend = Law.AmendmentReferences[InsertedById.Value];
-                var next = builder.GetNextNumber(new ThingAmendment(this, RepealedById.Value, AmendType.Insert));
+                var next = builder.GetNextNumber(new ThingAmendment(this, InsertedById.Value, AmendType.Insert));
                 LHS.RawText = (builder.TextOnly ? "" : $"{LegHelpers.GetChangeDeliminator(true)}{LegHelpers.GetChangeAnchor(next)}") + $"{Number}";
             }
             var children = new List<Paragraph>();
@@ -85,6 +85,9 @@ namespace DiscordBot.Classes.Legislation
             if (InsertedById.HasValue && !builder.TextOnly)
             {
                 var last = parent.Children[^1];
+                var lastChildThere = last.Children[^1];
+                if (lastChildThere != null)
+                    last = lastChildThere;
                 last.Children.Add(LegHelpers.GetChangeDeliminator(false));
             }
         }

@@ -53,16 +53,16 @@ namespace DiscordBot.Classes.Legislation
                 var next = builder.GetNextNumber(new ThingAmendment(this, RepealedById.Value, AmendType.Repeal));
                 RHS.RawText = builder.TextOnly ? "..." : ". . . ." + LegHelpers.GetChangeAnchor(next);
                 return;
-            } else if (InsertedById.HasValue)
+            } else if (InsertedById.HasValue && Parent.InsertedById != InsertedById)
             {
-                var next = builder.GetNextNumber(new ThingAmendment(this, RepealedById.Value, AmendType.Insert));
+                var next = builder.GetNextNumber(new ThingAmendment(this, InsertedById.Value, AmendType.Insert));
                 LHS.RawText = (builder.TextOnly ? "" : $"{LegHelpers.GetChangeDeliminator(true)}{LegHelpers.GetChangeAnchor(next)}") + $"{Number}";
             }
             foreach (var child in Children)
             {
                 child.WriteTo(parent, depth + 1, builder);
             }
-            if(InsertedById.HasValue && !builder.TextOnly)
+            if(InsertedById.HasValue && !builder.TextOnly && Parent.InsertedById != InsertedById)
             {
                 var last = parent.Children[^1];
                 var text = last.Children[1];

@@ -137,5 +137,17 @@ namespace DiscordBot
                     return "th";
             }
         }
+    
+        public static string ToBase64(string utf)
+        {
+            var bytes = Encoding.UTF8.GetBytes(utf);
+            return Convert.ToBase64String(bytes);
+        }
+        public static string ToUTF8(string b64)
+        {
+            var bytes = Convert.FromBase64String(b64);
+            return Encoding.UTF8.GetString(bytes);
+        }
+    
     }
 }

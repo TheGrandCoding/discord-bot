@@ -54,9 +54,9 @@ namespace DiscordBot.Classes.Legislation
                 RHS.RawText = builder.TextOnly ? "..." : ". . . ." + LegHelpers.GetChangeAnchor(next);
                 return;
             }
-            else if (InsertedById.HasValue)
+            else if (InsertedById.HasValue && InsertedById != Parent.InsertedById)
             {
-                var next = builder.GetNextNumber(new ThingAmendment(this, RepealedById.Value, AmendType.Insert));
+                var next = builder.GetNextNumber(new ThingAmendment(this, InsertedById.Value, AmendType.Insert));
                 LHS.RawText = (builder.TextOnly ? "" : $"{LegHelpers.GetChangeDeliminator(true)}{LegHelpers.GetChangeAnchor(next)}") + $"({Number})";
                 RHS.RawText += builder.TextOnly ? "" : LegHelpers.GetChangeDeliminator(false);
             }

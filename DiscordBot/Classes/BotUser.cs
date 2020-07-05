@@ -41,6 +41,9 @@ namespace DiscordBot.Classes
         public List<AuthToken> Tokens { get; set; } = new List<AuthToken>();
         [JsonProperty("perms")]
         public List<Perm> Permissions { get; set; } = new List<Perm>();
+
+        [JsonProperty("subjs")]
+        public Dictionary<string, string> Classes { get; set; } = new Dictionary<string, string>();
         
         /// <summary>
         /// Indicates this user is specifically for an internal usage
