@@ -31,7 +31,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.7.18"; 
+        public const string VERSION = "0.7.19"; 
         public const string CHANGELOG = VERSION + @"
 == Get team information
 Gather information on class and subjects via Teams.

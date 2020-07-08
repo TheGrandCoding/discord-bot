@@ -33,6 +33,7 @@ namespace DiscordBot.MLAPI.Modules
                 Children =
                 {
                     new PageHeader()
+                        .WithMeta(Meta.Charset("UTF-8"))
                 }
             };
             var body = new PageBody();
@@ -61,14 +62,11 @@ namespace DiscordBot.MLAPI.Modules
             foreach (var file in files)
             {
                 string date = file.Name.Replace(file.Extension, "");
-                double download = 0;
-                double upload = 0;
-                double ping = 0;
                 if(today == date)
                 {
                     var diff = DateTime.UtcNow - file.LastWriteTimeUtc;
-                    int remainders = (int)diff.TotalMinutes % 30;
-                    if(remainders >= 28)
+                    int remainders = (int)diff.TotalMinutes % 60;
+                    if(remainders >= 58)
                     {
                         var errPage = getPage(new Paragraph("Speed test is in progress, cannot load data; please check back in 5 minutes"));
                         RespondRaw(errPage, System.Net.HttpStatusCode.Conflict);
@@ -76,6 +74,7 @@ namespace DiscordBot.MLAPI.Modules
                     }
                 }
                 var lines = File.ReadAllLines(file.FullName).Skip(1).ToList();
+                var STATS = new DayStats(date);
                 foreach(var line in lines)
                 {
                     var array = line.Split(','); 
@@ -91,26 +90,11 @@ namespace DiscordBot.MLAPI.Modules
                         row.Children.Add(new TableData(pg.ToString("00")));
                         DAILY.Children.Add(row);
                     }
-                    download += dl;
-                    upload += ul;
-                    ping += pg;
+                    STATS.Add(dl, ul, pg);
                 }
                 if (i++ < mustSkip)
                     continue;
-                var dlAverage = download / lines.Count;
-                var ulAverage = upload / lines.Count;
-                var pgAverage = ping / lines.Count;
-                var weeklyRow = new TableRow()
-                {
-                    Children =
-                    {
-                        new TableHeader(date),
-                        new TableData(dlAverage.ToString("00.00")),
-                        new TableData(ulAverage.ToString("0.00")),
-                        new TableData(pgAverage.ToString("00.0"))
-                    }
-                };
-                WEEKLY.Children.Add(weeklyRow);
+                WEEKLY.Children.Add(STATS.Row);
             }
             var page = getPage(new Paragraph("Average speeds across days."),
                             WEEKLY,
@@ -121,5 +105,59 @@ namespace DiscordBot.MLAPI.Modules
 
         [Method("GET"), Path("/speed")]
         public void MLBase() => Base();
+    
+    
+    
+        class DayStats
+        {
+            public string Date { get; set; }
+            public string Download => strGet(DlValues);
+            public string Upload => strGet(UlValues);
+            public string Ping => strGet(PnValues);
+
+            (double average, double percUnc) get(List<double> values)
+            {
+                var avg = values.Average();
+                var range = values.Max() - values.Min();
+                var absUnc = range / 2;
+                return (avg, absUnc / avg);
+            }
+
+            string strGet(List<double> values)
+            {
+                (double average, double percUnc) = get(values);
+                return $"{average:#0.00} ± {(percUnc * 100):#0}%";
+            }
+
+            public TableRow Row { get
+                {
+                    return new TableRow(id: Date)
+                    {
+                        Children =
+                        {
+                            new TableData(Date),
+                            new TableData(Download),
+                            new TableData(Upload),
+                            new TableData(Ping)
+                        }
+                    };
+                } }
+
+            List<double> DlValues { get; set; } = new List<double>();
+            List<double> UlValues { get; set; } = new List<double>();
+            List<double> PnValues { get; set; } = new List<double>();
+
+            public void Add(double dl, double ul, double pn)
+            {
+                DlValues.Add(dl);
+                UlValues.Add(ul);
+                PnValues.Add(pn);
+            }
+
+            public DayStats(string date)
+            {
+                Date = date;
+            }
+        }
     }
 }
