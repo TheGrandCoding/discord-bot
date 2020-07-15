@@ -14,8 +14,10 @@ namespace DiscordBot.Services
 
         public async Task CleanTheSlate()
         {
+#if DEBUG
             if (Program.DailyValidateFailed())
                 return;
+#endif
             var guild = Program.Client.GetGuild(365230804734967840);
             var chnl = guild.GetTextChannel(516708276851834926);
             IMessage last = null;
@@ -35,9 +37,7 @@ namespace DiscordBot.Services
                     if(msg.Author.Id == 133622884122886144 && msg.Attachments.Count > 0)
                     {
                         deleted++;
-#if DEBUG
                         Program.LogMsg($"{deleted:000}/{total:000} Would remove {msg.Id}, {msg.CreatedAt}", LogSeverity.Debug, "CleanSlate");
-#endif
                         blk.Add(msg.Id);
                     }
                     last = msg;
