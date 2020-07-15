@@ -31,7 +31,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.7.20"; 
+        public const string VERSION = "0.7.21"; 
         public const string CHANGELOG = VERSION + @"
 == Get team information
 Gather information on class and subjects via Teams.
@@ -307,7 +307,7 @@ Gather information on class and subjects via Teams.
                 services.Add(req);
             }
             fetchServiceFiles(services);
-            Service.SendReady(services); // TODO: remove ready?
+            Service.SendReady(services);
             try
             {
                 Load();
@@ -347,6 +347,7 @@ Gather information on class and subjects via Teams.
                 Environment.Exit(2);
                 return;
             }
+            Program.Save(); // for some DailyValidationFailed things.
         }
 
         private static async Task ClientReady()
@@ -370,7 +371,9 @@ Gather information on class and subjects via Teams.
             var stack = new StackTrace(1, false); // skips this function call
             var frames = stack.GetFrames();
             var frame = frames.First();
-            string name = $"{frame.GetMethod().Name}";
+            var method = frame.GetMethod();
+            var parent = method.DeclaringType.ReflectedType ?? method.DeclaringType;
+            string name = $"{parent.Name}:{method.Name}";
             bool val = true;
             if(states.TryGetValue(name, out int v))
             {

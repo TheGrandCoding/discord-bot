@@ -1,26 +1,34 @@
 ﻿using Discord;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace DiscordBot.Services
 {
     public class CleanSlateProtocol : Service
     {
-        public override void OnDailyTick()
+        public override void OnLoaded() => CleanTheSlate().Wait();
+        public override void OnDailyTick() => CleanTheSlate().Wait();
+
+        public async Task CleanTheSlate()
         {
+            if (Program.DailyValidateFailed())
+                return;
             var guild = Program.Client.GetGuild(365230804734967840);
             var chnl = guild.GetTextChannel(516708276851834926);
             IMessage last = null;
             int total = 0;
             int deleted = 0;
+            var blk = new List<ulong>();
             do
             {
                 IEnumerable<IMessage> messages;
                 if (last == null)
-                    messages = chnl.GetMessagesAsync().FlattenAsync().Result;
+                    messages = await chnl.GetMessagesAsync().FlattenAsync();
                 else
-                    messages = chnl.GetMessagesAsync(last, Direction.Before).FlattenAsync().Result;
+                    messages = await chnl.GetMessagesAsync(last, Direction.Before).FlattenAsync();
                 foreach(var msg in messages)
                 {
                     total++;
@@ -29,16 +37,22 @@ namespace DiscordBot.Services
                         deleted++;
 #if DEBUG
                         Program.LogMsg($"{deleted:000}/{total:000} Would remove {msg.Id}, {msg.CreatedAt}", LogSeverity.Debug, "CleanSlate");
-#else
-                        msg.DeleteAsync(new RequestOptions()
-                        {
-                            AuditLogReason = "Clean slate protocol"
-                        });
 #endif
+                        blk.Add(msg.Id);
                     }
                     last = msg;
                 }
-            } while (last.CreatedAt.DayOfYear == DateTime.Now.DayOfYear);
+            } while (last.CreatedAt.DayOfYear == DateTime.Now.DayOfYear || last.CreatedAt.DayOfYear == (DateTime.Now.DayOfYear-1));
+#if !DEBUG
+            while(blk.Count > 0)
+            {
+                await chnl.DeleteMessagesAsync(blk.Take(100), new RequestOptions()
+                {
+                    AuditLogReason = "Clean slate protocol"
+                });
+                blk = blk.Skip(100).ToList();
+            }
+#endif
             Program.LogMsg($"{deleted:000}/{total:000} removed", LogSeverity.Info, "CleanSlate");
         }
     }
