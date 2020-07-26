@@ -28,9 +28,13 @@ namespace DiscordBot.Services
         public static Dictionary<ulong, IInvite> Invites = new Dictionary<ulong, IInvite>();
         public static string LoadException;
 
-        public const int ElectableModerators = 2;
         public const int OnlineMaxTotal = 5;
         public const int OnlineMaxPlayer = 3;
+
+        /// <summary>
+        /// Number of games a Member must play to be eligible to vote; see section 14A(6)(a)
+        /// </summary>
+        public const int VoterGamesRequired = 2;
 
         /// <summary>
         /// Number of Justices required for a petition to be allowed.
@@ -40,12 +44,12 @@ namespace DiscordBot.Services
         public static Semaphore OnlineLock = new Semaphore(1, 1);
         public static string LatestChessVersion;
 
-        public static Dictionary<ChessPlayer, int> GetModElectionResults()
+        public static Dictionary<ChessPlayer, int> GetArbiterElectionResults()
         {
             Dictionary<ChessPlayer, int> results = new Dictionary<ChessPlayer, int>();
-            foreach (var player in Players.Where(x => !x.IsBuiltInAccount && !x.IsBanned))
+            foreach (var player in Players.Where(x => !x.IsBuiltInAccount))
             {
-                foreach (var vote in player.ModVotePreferences)
+                foreach (var vote in player.ArbiterVotePreferences)
                 {
                     var other = Players.FirstOrDefault(x => x.Id == vote.Key);
                     if (other == null)
@@ -104,16 +108,16 @@ namespace DiscordBot.Services
 
         public static bool meetsCandidacyRequirements(ChessPlayer player)
         {
-            int total = player.Wins + player.Losses;
-            if (total < 5)
+            if (player.DismissalReason != null)
                 return false;
             if (player.Permission.HasFlag(ChessPerm.Justice))
                 return false;
-            if (player.ConnectedAccount == 0)
-                return false; // no connected Discord account
-            if (player.Bans.Count > 0)
+            if (player.Permission == ChessPerm.Moderator)
                 return false;
-            if (player.WithdrawnModVote)
+            var playersPlayedAgainst = GetPlayedAgainst(player);
+            if (playersPlayedAgainst.Count < 10)
+                return false;
+            if (playersPlayedAgainst.Distinct().Count() < 4)
                 return false;
             return true;
         }
@@ -631,10 +635,10 @@ namespace DiscordBot.Services
                             entry.againstId = p.Id;
                     }
                 }
-                if (player.ModVotePreferences.TryGetValue(0, out var vote))
+                if (player.ArbiterVotePreferences.TryGetValue(0, out var vote))
                 {
-                    player.ModVotePreferences.Remove(0);
-                    player.ModVotePreferences[p.Id] = vote;
+                    player.ArbiterVotePreferences.Remove(0);
+                    player.ArbiterVotePreferences[p.Id] = vote;
                 }
             }
         }
@@ -667,45 +671,22 @@ namespace DiscordBot.Services
             } while (day < afterNow);
         }
 
-        public void setElectedModerators()
+        public void setElectedArbiter()
         {
-            var winners = GetModElectionResults().Where(x => x.Value > 0).OrderByDescending(x => x.Value).Take(ElectableModerators);
-            var existing = Players.Where(x => x.Permission == ChessPerm.Arbiter);
-            string elected = "";
-            string removed = "";
-            foreach (var person in winners)
+            var winner = GetArbiterElectionResults().Where(x => x.Value > 0).OrderByDescending(x => x.Value).FirstOrDefault().Key;
+            var existing = Players.FirstOrDefault(x => x.Permission == ChessPerm.Arbiter);
+
+            if (winner?.Id != existing?.Id)
             {
-                if (existing.Contains(person.Key))
-                { // already a mod, so we dont need to do anything.
-                }
-                else
-                { // not a mod, but they should be.
-                    person.Key.Permission = ChessPerm.Arbiter;
-                    elected += person.Key.Name + "\r\n";
-                }
-            }
-            var winnerKeys = winners.Select(x => x.Key);
-            foreach (var person in existing)
-            {
-                if (winnerKeys.Contains(person))
-                { // they are a mod, and should be.
-                }
-                else
-                { // they are a mod, but shouldnt.
-                    person.Permission = ChessPerm.Player;
-                    removed += person.Name + "\r\n";
-                }
-            }
-            if (!(string.IsNullOrWhiteSpace(elected) && string.IsNullOrWhiteSpace(removed)))
-            {
+                if(winner != null)
+                    winner.Permission = winner.Permission | ChessPerm.Arbiter; // add flag
+                if(existing != null)
+                    existing.Permission = existing.Permission & ~ChessPerm.Arbiter; // remove flag
                 var builder = new EmbedBuilder();
-                builder.Title = "Moderator Election";
-                builder.Description = "Due to changes in votes, the below changes have occured.\r\n" +
-                    "Current Moderators therefore are:\r\n" + string.Join(", ", winners.Select(x => x.Key.Name));
-                if (!string.IsNullOrWhiteSpace(elected))
-                    builder.AddField("Elected", elected, true);
-                if (!string.IsNullOrWhiteSpace(removed))
-                    builder.AddField("Removed", removed, true);
+                builder.Title = "Arbiter Election";
+                builder.Description = "Due to changes in votes, the below changes have occured.";
+                builder.AddField("Arbiter", $"**{winner?.Name ?? "N/A"}**", true);
+                builder.AddField("Removed", $"*No longer arbiter*\r\n{existing?.Name ?? "N/A"}", true);
                 DiscussionChannel.SendMessageAsync(embed: builder.Build());
             }
         }
@@ -749,11 +730,36 @@ namespace DiscordBot.Services
             }
             return lst;
         }
+        public static List<int> GetPlayedAgainst(ChessPlayer p, int stopAt = int.MaxValue)
+        {
+            List<int> ids = new List<int>();
+            foreach(var x in ChessService.Players)
+            {
+                foreach(var day in x.Days)
+                {
+                    foreach(var entry in day.Entries)
+                    {
+                        if (x.Id == p.Id)
+                            ids.Add(entry.againstId);
+                        if (entry.againstId == p.Id)
+                            ids.Add(x.Id);
+                        if (ids.Count > stopAt)
+                            break;
+
+                    }
+                    if (ids.Count > stopAt)
+                        break;
+                }
+                if (ids.Count > stopAt)
+                    break;
+            }
+            return ids;
+        }
+
 
         class chessSave
         {
             public List<ChessPlayer> players;
-            public List<CoAHearing> hearings;
             public List<ChessPendingGame> pending;
             public Dictionary<ulong, string> invites;
         }
@@ -812,7 +818,7 @@ namespace DiscordBot.Services
             SetBuiltInRoles();
             CheckLastDatePlayed();
             SendRatingChanges();
-            setElectedModerators();
+            setElectedArbiter();
             SetConnectedRoles();
             SetIds();
             SetNickNames();

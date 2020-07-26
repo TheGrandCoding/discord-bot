@@ -56,6 +56,12 @@ namespace DiscordBot.Classes.Chess
         [DefaultValue(false)]
         public bool IsBuiltInAccount { get; set; } = false;
 
+        /// <summary>
+        /// If this Member has been dismissed from office by the CoA, what reason. Null if not dismissed.
+        /// </summary>
+        [JsonProperty("dism", NullValueHandling = NullValueHandling.Ignore)]
+        public string DismissalReason { get; set; }
+
         public List<ChessDay> Days { get; set; } = new List<ChessDay>();
 
         [JsonProperty("score")]
@@ -188,7 +194,7 @@ namespace DiscordBot.Classes.Chess
         public List<int> OnlineGamesPlayedAgainst { get; set; } = new List<int>();
 
         [JsonProperty("elect")]
-        public Dictionary<int, int> ModVotePreferences { get; set; } = new Dictionary<int, int>();
+        public Dictionary<int, int> ArbiterVotePreferences { get; set; } = new Dictionary<int, int>();
 
         [JsonProperty("noelect")]
         public bool WithdrawnModVote { get; set; } = false;

@@ -56,8 +56,8 @@ namespace DiscordBot.Classes.Chess
         // not actually random, but name reserved.
         public double calc_Random()
         {
-            var vote = Math.Min(0, Self.ModVotePreferences.GetValueOrDefault(Other.Id, 0));
-            vote += Math.Min(0, Other.ModVotePreferences.GetValueOrDefault(Self.Id, 0));
+            var vote = Math.Min(0, Self.ArbiterVotePreferences.GetValueOrDefault(Other.Id, 0));
+            vote += Math.Min(0, Other.ArbiterVotePreferences.GetValueOrDefault(Self.Id, 0));
             // ignore positive values, since we dont want to *prefer* they play.
             // also include their vote of us.
             return vote * 50;

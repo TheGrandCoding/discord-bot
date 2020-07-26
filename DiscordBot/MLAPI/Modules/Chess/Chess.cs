@@ -1,5 +1,6 @@
 ﻿using Discord;
 using DiscordBot.Classes.Chess;
+using DiscordBot.Classes.HTMLHelpers.Objects;
 using DiscordBot.MLAPI.Exceptions;
 using DiscordBot.Services;
 using Microsoft.Extensions.DependencyInjection;
@@ -170,6 +171,33 @@ namespace DiscordBot.MLAPI.Modules
                     "alt='Mark as present' " +
                     "style='margin-left: 5px' " +
                     $"width='20' height='20' valign='middle' style='margin-left: 5px;' title='Mark Player as present' onclick='doMarkPresent({player.Id});'>";
+            }
+            if(player.Permission == ChessPerm.Arbiter)
+            {
+                warning += "<img " +
+                    "src='https://masterlist.uk.ms/imgs/arbiter.png' " +
+                    "alt='Arbiter' " +
+                    "style='margin-left: 5px' " +
+                    $"width='18' height='20' valign='middle' style='margin-left: 5px;' title='This player is the Arbiter'>";
+
+            }
+            if (player.Permission == ChessPerm.Moderator)
+            {
+                warning += "<img " +
+                    "src='https://masterlist.uk.ms/imgs/moderator.png' " +
+                    "alt='Moderator' " +
+                    "style='margin-left: 5px' " +
+                    $"width='18' height='20' valign='middle' style='margin-left: 5px;' title='This player is a Moderator'>";
+
+            }
+            if (player.Permission.HasFlag(ChessPerm.Justice))
+            {
+                warning += "<img " +
+                    "src='https://sweetclipart.com/multisite/sweetclipart/files/legal_scales_black_silhouette.png' " +
+                    "alt='Justice' " +
+                    "style='margin-left: 5px' " +
+                    $"width='20' height='20' valign='middle' style='margin-left: 5px;' title='This player is on the Court of Appeals'>";
+
             }
             if (player.IsBanned)
             {
@@ -536,23 +564,27 @@ namespace DiscordBot.MLAPI.Modules
                 .Add("justices", justices)), HttpStatusCode.OK);
         }
 
-        [Method("GET"), Path("/chess/moderators")]
+        [Method("GET"), Path("/chess/arbiter")]
         [RequireChess(ChessPerm.Player)]
         public void GetElections()
         {
-            if(SelfPlayer.IsBanned || SelfPlayer.IsBuiltInAccount)
+            int satisfies = ChessService.GetPlayedAgainst(SelfPlayer, ChessService.VoterGamesRequired).Count;
+            if(satisfies < ChessService.VoterGamesRequired)
             {
-                HTTPError(HttpStatusCode.Forbidden, "Not Able to Vote", "You are unable to vote");
-                return;
-            }
-            if (SelfPlayer.Removed)
-            {
-                if (SelfPlayer.Permission.HasFlag(ChessPerm.Moderator) || SelfPlayer.Permission.HasFlag(ChessPerm.Justice))
+                RespondRaw(new HTMLPage()
                 {
-                } else { 
-                    RespondRaw("Invalid player: removed from leaderboard", 400);
-                    return;
-                }
+                    Children =
+                    {
+                        new PageHeader(),
+                        new PageBody()
+                        {
+                            Children =
+                            {
+                                new Paragraph($"You are not able to vote; " + new Anchor("/chess/terms#14A-6-a", "please see the Terms and Conditions for eligibility conditions"))
+                            }
+                        }
+                    }
+                }, 403);
             }
             string table = "";
             foreach(var player in Players.OrderBy(x => x.Name))
@@ -561,28 +593,23 @@ namespace DiscordBot.MLAPI.Modules
                     continue;
                 if (!meetsCandidacyRequirements(player))
                 {
-                    SelfPlayer.ModVotePreferences.Remove(player.Id);
+                    SelfPlayer.ArbiterVotePreferences.Remove(player.Id);
                     didChange = true;
                     continue;
                 }
                 string ROW = "<tr>";
                 ROW += $"<td>{player.Name}</td>";
-                int current = SelfPlayer.ModVotePreferences.GetValueOrDefault(player.Id, 0);
+                int current = SelfPlayer.ArbiterVotePreferences.GetValueOrDefault(player.Id, 0);
                 for(int i = -2; i <= 2; i++)
                 {
                     ROW += $"<td><input type='checkbox' {(i == current ? "checked" : "")} onclick='setVote({player.Id}, {i})'></td>";
                 }
                 table += ROW + "</tr>";
             }
-            string mods = "";
-            foreach(var player in ChessService.Players.Where(x => x.Permission.HasFlag(ChessPerm.Arbiter)))
-            {
-                mods += $"<li>{player.Name}</li>";
-            }
             ReplyFile("election.html", 200, new Replacements()
                 .Add("table", table)
-                .Add("moderators", mods)
-                .Add("numMods", ChessService.ElectableModerators));
+                .Add("arbiter", Players.FirstOrDefault(x => x.Permission.HasFlag(ChessPerm.Arbiter)).Name)
+                );
         }
 
         [Method("PUT"), Path("/chess/api/elect")]
@@ -612,7 +639,7 @@ namespace DiscordBot.MLAPI.Modules
                 return;
             }
             value = Math.Clamp(value, -2, 2);
-            SelfPlayer.ModVotePreferences[id] = value;
+            SelfPlayer.ArbiterVotePreferences[id] = value;
             didChange = true;
             RespondRaw("");
         }
@@ -637,6 +664,25 @@ namespace DiscordBot.MLAPI.Modules
                 .Add("playerlist", players));
         }
 
+
+        List<DateTime> getDatesForHistory()
+        {
+            var dates = new List<DateTime>();
+            DateTime start = ChessS.GetFridayOfThisWeek();
+            do
+            {
+                if (ChessS.Holidays.TryGetValue(start.Year, out var ls) && ls.Contains(start.DayOfYear))
+                {
+                }
+                else
+                {
+                    dates.Add(start);
+                }
+                start = start.AddDays(-7);
+            } while (dates.Count < 6);
+            return dates;
+        }
+
         [Method("GET"), Path("/chess/history")]
         public void UserHistory(int id, bool full = false)
         {
@@ -658,19 +704,7 @@ namespace DiscordBot.MLAPI.Modules
             }
             bool ADMIN = doesHavePerm(ChessPerm.ChiefJustice);
             string TABLE = "";
-            DateTime start = ChessS.GetFridayOfThisWeek();
-            var dates = new List<DateTime>()
-            {
-#if DEBUG
-                DateTime.Now,
-#endif
-                start,
-                start.AddDays(7 * -1),
-                start.AddDays(7 * -2),
-                start.AddDays(7 * -3),
-                start.AddDays(7 * -4),
-                start.AddDays(7 * -5)
-            };
+            List<DateTime> dates;
             if(full)
             {
                 dates = new List<DateTime>();
@@ -688,6 +722,9 @@ namespace DiscordBot.MLAPI.Modules
                     }
                 }
                 dates = dates.Distinct(new Classes.DateEquality()).OrderBy(x => x).ToList();
+            } else
+            {
+                dates = getDatesForHistory();
             }
             foreach (var date in dates)
             {
