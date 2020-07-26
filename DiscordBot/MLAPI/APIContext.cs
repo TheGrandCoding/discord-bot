@@ -1,5 +1,6 @@
 ﻿using Discord.Commands;
 using DiscordBot.Classes;
+using HttpMultipartParser;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -45,26 +46,47 @@ namespace DiscordBot.MLAPI
                 }
                 return m_body;
             } }
+        public List<FilePart> Files { get; set; } = new List<FilePart>();
 
-        Dictionary<string, string> postData = null;
-        string getFromPostData(string key)
+        void parseUrlEncode()
+        {
+            if (!string.IsNullOrWhiteSpace(Body))
+            {
+                foreach (var item in Body.Split('&', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    var pair = item.Split('=');
+                    //postData[pair[0]] = Uri.UnescapeDataString(pair[1].Replace("+", " ");
+                    paramaters[pair[0]] = HttpUtility.UrlDecode(pair[1]);
+                }
+            }
+        }
+        void parseMultipartForm()
+        {
+            var parsed = MultipartFormDataParser.Parse(Request.InputStream);
+            foreach(var x in parsed.Parameters)
+            {
+                paramaters[x.Name] = x.Data;
+            }
+            Files = parsed.Files;
+        }
+
+        Dictionary<string, string> paramaters = null;
+        string getFromParamaters(string key)
         {
             if (!Request.HasEntityBody)
                 return null;
-            if(postData == null)
+            if(paramaters == null)
             {
-                postData = new Dictionary<string, string>();
-                if(!string.IsNullOrWhiteSpace(Body))
+                paramaters = new Dictionary<string, string>();
+                if(Request.ContentType != null)
                 {
-                    foreach(var item in Body.Split('&', StringSplitOptions.RemoveEmptyEntries))
-                    {
-                        var pair = item.Split('=');
-                        //postData[pair[0]] = Uri.UnescapeDataString(pair[1].Replace("+", " ");
-                        postData[pair[0]] = HttpUtility.UrlDecode(pair[1]);
-                    }
+                    if (Request.ContentType.StartsWith("multipart/form-data"))
+                        parseMultipartForm();
+                    else //if (Request.ContentType.StartsWith("application/x-www-form-urlencoded"))
+                        parseUrlEncode();
                 }
             }
-            postData.TryGetValue(key, out var s);
+            paramaters.TryGetValue(key, out var s);
             return s;
         }
 
@@ -86,7 +108,7 @@ namespace DiscordBot.MLAPI
         {
             var r = Request.QueryString.Get(key);
             r ??= getFromNamedRegex(key);
-            r ??= getFromPostData(key);
+            r ??= getFromParamaters(key);
             return r;
         }
 
@@ -94,8 +116,8 @@ namespace DiscordBot.MLAPI
         {
             var query = new List<string>();
             query.AddRange(Request.QueryString.AllKeys);
-            if(postData != null)
-                query.AddRange(postData.Keys);
+            if(paramaters != null)
+                query.AddRange(paramaters.Keys);
             return query;
         }
 

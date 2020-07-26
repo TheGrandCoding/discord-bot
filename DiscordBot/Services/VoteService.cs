@@ -31,7 +31,10 @@ namespace DiscordBot.Services
         public override void OnReady()
         {
             Lock = new Semaphore(1, 1);
-            var client = Program.Services.GetRequiredService<MongoClient>();
+            string password = Program.Configuration["tokens:atlas:password"];
+            string dbName = "awards";
+            var client = new MongoDB.Driver.MongoClient(
+                $"mongodb+srv://rpi4:{password}@cluster0-mz2ro.mongodb.net/{dbName}?retryWrites=true&w=majority");
             Database = client.GetDatabase("awards");
         }
     }

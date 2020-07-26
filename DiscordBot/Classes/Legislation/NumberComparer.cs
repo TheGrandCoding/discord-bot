@@ -8,7 +8,8 @@ namespace DiscordBot.Classes.Legislation
 {
     public class NumberComparer : IComparer<string>
     {
-        const string PATTERN = @"([0-9]+)([A-Z]*)(=?)";
+        const string PATTERN = @"([0-9]*)([A-Za-z]*)(=?)";
+
         public int Compare([AllowNull] string x, [AllowNull] string y)
         {
             if (x == y || (x == null && y == null))
@@ -20,7 +21,6 @@ namespace DiscordBot.Classes.Legislation
             var REGEX = new Regex(PATTERN);
             var a = REGEX.Match(x);
             var b = REGEX.Match(y);
-
             var aNum = a.Groups[1].Value;
             var bNum = b.Groups[1].Value;
             if(aNum != bNum)

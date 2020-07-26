@@ -101,7 +101,7 @@ namespace DiscordBot.Classes.Legislation.Amending
                 RHS = rhs(),
                 InnerText = amend.New,
             };
-            var wordsAfter = toAmend.Words.Skip(amend.Start);
+            var wordsAfter = toAmend.Words.Skip(amend.Start - toAmend.StartIndex);
             var wordsRemoved = wordsAfter.Take(amend.Length);
             var wordsAfterStr = string.Join(' ', wordsAfter);
             var wordsRemStr = string.Join(' ', wordsRemoved);
@@ -137,7 +137,7 @@ namespace DiscordBot.Classes.Legislation.Amending
                 RHS = "",
                 InnerText = ""
             };
-            var wordsAfter = toAmend.Words.Skip(amend.Start);
+            var wordsAfter = toAmend.Words.Skip(amend.Start - toAmend.StartIndex);
             var wordsRemoved = wordsAfter.Take(amend.Length);
             var wordsAfterStr = string.Join(' ', wordsAfter);
             var wordsRemStr = string.Join(' ', wordsRemoved);

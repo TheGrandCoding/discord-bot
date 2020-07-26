@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Web;
 
@@ -8,18 +9,16 @@ namespace DiscordBot.Classes.HTMLHelpers
     public abstract class HTMLBase
     {
         public string Tag { get; protected set; }
-        public string Id => tagValues["id"];
-        public string Class => tagValues["class"];
+
+        public string Id { get => get("id"); set => set("id", value); }
+        public string Class { get => get("class"); set => set("class", value); }
         public string RawText { get; set; }
-        protected Dictionary<string, string> tagValues { get; set; }
+        protected Dictionary<string, string> tagValues { get; set; } = new Dictionary<string, string>();
         public HTMLBase(string tag, string id, string cls)
         {
             Tag = tag;
-            tagValues = new Dictionary<string, string>()
-            {
-                {"id", id },
-                {"class", cls }
-            };
+            Id = id;
+            Class = cls;
             Children = new List<HTMLBase>();
         }
     
@@ -37,6 +36,8 @@ namespace DiscordBot.Classes.HTMLHelpers
             }
             sb.Append(">");
         }
+        protected string get(string thing) => tagValues.GetValueOrDefault(thing.ToLower());
+        protected void set(string thing, string val) => tagValues[thing.ToLower()] = val;
 
         protected virtual void WriteCloseTag(StringBuilder sb)
         {
@@ -71,6 +72,25 @@ namespace DiscordBot.Classes.HTMLHelpers
             Write(sb);
             return sb.ToString();
         }
+
         public static implicit operator string(HTMLBase b) => b.ToString();
+    }
+
+    public abstract class DOMBase : HTMLBase
+    {
+        public DOMBase(string tag, string id, string cls) : base(tag, id, cls)
+        {
+        }
+
+        public bool ReadOnly {  get
+            {
+                return bool.Parse(get("readonly"));
+            } set
+            {
+                set("readonly", value.ToString());
+            }
+        }
+
+        public string OnClick { get => get(nameof(OnClick)); set => set(nameof(OnClick), value); }
     }
 }

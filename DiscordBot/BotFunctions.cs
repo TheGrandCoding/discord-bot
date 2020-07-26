@@ -1,4 +1,5 @@
 ﻿using Discord;
+using Discord.Commands;
 using Discord.WebSocket;
 using DiscordBot.Classes;
 using Newtonsoft.Json;
@@ -69,20 +70,27 @@ namespace DiscordBot
             }
         }
 
-
-        public static string Serialise(object obj)
+        static JsonSerializerSettings getSettings(params JsonConverter[] conv)
         {
-            return JsonConvert.SerializeObject(obj, 
-                new DiscordConverter(), 
-                new Classes.ServerList.MLJsonConverter(),
-                new Classes.ServerList.IPConverter());
+            var settings = new JsonSerializerSettings();
+            settings.Converters.Add(new DiscordConverter());
+            settings.Converters.Add(new Classes.ServerList.MLJsonConverter());
+            settings.Converters.Add(new Classes.ServerList.IPConverter());
+            if(conv != null)
+            {
+                foreach (var x in conv)
+                    settings.Converters.Add(x);
+            }
+            return settings;
         }
-        public static T Deserialise<T>(string input)
+
+        public static string Serialise(object obj, params JsonConverter[] conv)
         {
-            return JsonConvert.DeserializeObject<T>(input, 
-                new DiscordConverter(), 
-                new Classes.ServerList.MLJsonConverter(),
-                new Classes.ServerList.IPConverter());
+            return JsonConvert.SerializeObject(obj, getSettings(conv));
+        }
+        public static T Deserialise<T>(string input, params JsonConverter[] conv)
+        {
+            return JsonConvert.DeserializeObject<T>(input, getSettings(conv));
         }
 
         public static Discord.Commands.TypeReaderResult AttemptParseInput<TArg>(string input) =>
@@ -100,6 +108,21 @@ namespace DiscordBot
                 combined.Add(keypair.Key, keypair.Value);
             foreach (var keypair in ownTypeReaders)
                 combined[keypair.Key] = keypair.Value.Values.First();
+
+            if(desired.BaseType == typeof(Array))
+            { // we'll try to split the input, then parse each individual item.
+                var typeOfElement = desired.GetMethod("Get").ReturnType;
+                var elements = input.Split(',');
+                dynamic array = Activator.CreateInstance(desired, elements.Length);
+                for(int i = 0; i < elements.Length; i++)
+                {
+                    var inner = AttemptParseInput(elements[i], typeOfElement);
+                    if (!inner.IsSuccess)
+                        return TypeReaderResult.FromError(CommandError.ParseFailed, $"Attempts to parse element of {typeOfElement.Name}[] failed: {inner.ErrorReason}");
+                    array[i] = (dynamic)inner.BestMatch;
+                }
+                return TypeReaderResult.FromSuccess(array);
+            }
 
             var reader = combined[desired];
             if (reader == null)

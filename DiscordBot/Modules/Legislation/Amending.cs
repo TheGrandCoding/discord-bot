@@ -273,7 +273,7 @@ namespace DiscordBot.Modules.Legislation
                 "You must specific the START index to which the inserted text will preceed.");
             var amendment = new TextAmendment()
             {
-                Type = AmendType.Replace,
+                Type = AmendType.Substitute,
                 Start = 0,
                 Length = 0,
                 New = ""
@@ -687,12 +687,12 @@ namespace DiscordBot.Modules.Legislation
             if (textMsg == null || string.IsNullOrWhiteSpace(textMsg.Content))
                 return new BotResult("Cancelled");
             var text = textMsg.Content == "-" ? null : textMsg.Content;
-            Paragraph = new Paragraph(text)
+            Paragraph = new TextualLawThing(text)
             {
                 InsertedById = Group.Id,
                 Number = paragraph
             };
-            Section.Children.Add(Paragraph);
+            Section.Children.Add((TextualLawThing)Paragraph);
             await ReplyAsync("Inserted");
             return new BotResult();
         }
@@ -726,7 +726,7 @@ namespace DiscordBot.Modules.Legislation
             var textMsg = await NextMessageAsync(timeout: TimeSpan.FromMinutes(15));
             if (textMsg == null || string.IsNullOrWhiteSpace(textMsg.Content))
                 return new BotResult("Cancelled");
-            Clause = new Clause(textMsg.Content)
+            Clause = new TextualLawThing(textMsg.Content)
             {
                 Number = number,
                 InsertedById = Group.Id,

@@ -14,6 +14,7 @@ namespace DiscordBot.Commands
 {
     public class BotModule : InteractiveBase<BotCommandContext>
     {
+
         static CmdDisableService cmdDisableService { get; set; }
         protected override void BeforeExecute(CommandInfo command)
         {

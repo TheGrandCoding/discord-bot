@@ -24,7 +24,7 @@ namespace DiscordBot.MLAPI.Modules
                 HTTPError(HttpStatusCode.NotFound, "", "No law by that path name");
                 return;
             }
-            var page = Service.PageForAct(act, raw);
+            var page = LegislationService.PageForAct(act, raw);
             RespondRaw(ReplaceMatches(page, new Replacements()), HttpStatusCode.OK);
         }
     }

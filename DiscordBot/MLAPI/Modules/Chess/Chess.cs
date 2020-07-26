@@ -45,53 +45,6 @@ namespace DiscordBot.MLAPI.Modules
 
         bool didChange = false;
 
-        bool canClassRoomAccn(ChessPlayer player)
-        {
-            if (player == null)
-                return false;
-            if(player.Id == BuiltInClassRoomChess)
-            {
-                if(DateTime.Now.DayOfWeek == DayOfWeek.Friday)
-                {
-                    var halfTwelve = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day,
-                        12, 30, 0);
-                    var tenPastOne = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day,
-                        13, 20, 0); // allow an extra ten minutes just in case
-                    return DateTime.Now >= halfTwelve && DateTime.Now <= tenPastOne;
-                }
-                return false;
-            }
-            return doesHavePerm(ChessPerm.AddMatch, player);
-        }
-
-        bool doesHavePerm(ChessPerm perm, ChessPlayer user)
-        {
-            if (perm == ChessPerm.Player)
-                return true;
-            if (user == null)
-                return false;
-            return user.Permission.HasFlag(perm);
-        }
-        
-        bool doesHavePerm(ChessPerm perm, Classes.BotUser bUser)
-        {
-            if (bUser == null)
-                return perm == ChessPerm.Player;
-            if(SelfPlayer != null)
-            {
-                if (ChessPerm.ClassRoom.HasFlag(perm) || perm == ChessPerm.ClassRoom)
-#if DEBUG
-                    return true;
-#else
-                    return canClassRoomAccn(SelfPlayer);
-#endif
-                return doesHavePerm(perm, SelfPlayer);
-            }
-            return false;
-        }
-
-        bool doesHavePerm(ChessPerm perm) => doesHavePerm(perm, Context.User);
-
         public override void ResponseHalted(HaltExecutionException ex)
         {
             if (!this.HasResponded)
@@ -532,7 +485,7 @@ namespace DiscordBot.MLAPI.Modules
         }
         static string thing;
         [Method("GET"), Path("/chess/api/pullr")]
-        [RequireChess(ChessPerm.CourtOfAppeals)]
+        [RequireChess(ChessPerm.ChiefJustice)]
         public void GetThing()
         {
             RespondRaw(thing ?? "Not set");
@@ -554,7 +507,7 @@ namespace DiscordBot.MLAPI.Modules
                 HTTPError(HttpStatusCode.NotFound, "", "Could not find Conduct Regulations");
                 return;
             }
-            var page = service.PageForAct(act, raw);
+            var page = LegislationService.PageForAct(act, raw);
             RespondRaw(ReplaceMatches(page, new Replacements()), HttpStatusCode.OK);
         }
 
@@ -563,7 +516,7 @@ namespace DiscordBot.MLAPI.Modules
         {
             string mods = "";
             string justices = "<br/>- Chief Justice Alex C<br/>";
-            foreach (var player in Players.Where(x => x.Permission == ChessPerm.Moderator || x.Permission == ChessPerm.ElectedMod).OrderBy(x => x.Name))
+            foreach (var player in Players.Where(x => x.Permission.HasFlag(ChessPerm.Moderator)).OrderBy(x => x.Name))
             {
                 mods += $"- {getPlayerName(player)}<br/>";
             }
@@ -577,7 +530,7 @@ namespace DiscordBot.MLAPI.Modules
                 HTTPError(HttpStatusCode.NotFound, "", "Could not find Terms and Conditions");
                 return;
             }
-            var page = service.PageForAct(act, raw);
+            var page = LegislationService.PageForAct(act, raw);
             RespondRaw(ReplaceMatches(page, new Replacements()
                 .Add("mods", mods)
                 .Add("justices", justices)), HttpStatusCode.OK);
@@ -622,7 +575,7 @@ namespace DiscordBot.MLAPI.Modules
                 table += ROW + "</tr>";
             }
             string mods = "";
-            foreach(var player in ChessService.Players.Where(x => x.Permission.HasFlag(ChessPerm.ElectedMod)))
+            foreach(var player in ChessService.Players.Where(x => x.Permission.HasFlag(ChessPerm.Arbiter)))
             {
                 mods += $"<li>{player.Name}</li>";
             }
@@ -703,7 +656,7 @@ namespace DiscordBot.MLAPI.Modules
                 HTTPError(System.Net.HttpStatusCode.NotFound, "Account Removed", "That account has been removed from the Leaderboard");
                 return;
             }
-            bool ADMIN = doesHavePerm(ChessPerm.CourtOfAppeals);
+            bool ADMIN = doesHavePerm(ChessPerm.ChiefJustice);
             string TABLE = "";
             DateTime start = ChessS.GetFridayOfThisWeek();
             var dates = new List<DateTime>()
@@ -841,7 +794,7 @@ namespace DiscordBot.MLAPI.Modules
                 string ROW = "<tr";
                 if(user.Removed)
                 {
-                    if (doesHavePerm(ChessPerm.CourtOfAppeals))
+                    if (doesHavePerm(ChessPerm.ChiefJustice))
                         ROW += " class='removed'";
                     else
                         continue;
@@ -860,7 +813,7 @@ namespace DiscordBot.MLAPI.Modules
                 string banOnClick = "";
                 if (user.IsBanned)
                 { // only CoA can unban
-                    if(doesHavePerm(ChessPerm.CourtOfAppeals))
+                    if(doesHavePerm(ChessPerm.ChiefJustice))
                     {
                         banOnClick = $"unBanUser('{user.Id}');";
                     } else
@@ -892,7 +845,7 @@ namespace DiscordBot.MLAPI.Modules
                 {"addMatch", doesHavePerm(ChessPerm.AddMatch).ToString() },
                 {"mod", doesHavePerm(ChessPerm.Moderator).ToString() },
                 {"justice", doesHavePerm(ChessPerm.Justice).ToString() },
-                {"coa", doesHavePerm(ChessPerm.CourtOfAppeals).ToString() }
+                {"coa", doesHavePerm(ChessPerm.ChiefJustice).ToString() }
             };
             string TEXT = "";
             foreach(var keypair in dict)
@@ -927,7 +880,7 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("PUT"), Path("/chess/api/connect")]
-        [RequireChess(ChessPerm.CourtOfAppeals, OR = "permission")]
+        [RequireChess(ChessPerm.ChiefJustice, OR = "permission")]
         [RequirePermNode(DiscordBot.Perms.Bot.Developer.ConnectChess, OR = "permission")]
         public void ConnectPlayer(int chessId, ulong discord)
         {
@@ -966,7 +919,7 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("PUT"), Path("/chess/api/setperm")]
-        [RequireChess(ChessPerm.CourtOfAppeals)]
+        [RequireChess(ChessPerm.ChiefJustice)]
         public void SetPermPlayer(int id, int role)
         {
             var perm = (ChessPerm)role;
@@ -1310,7 +1263,7 @@ namespace DiscordBot.MLAPI.Modules
                 RespondRaw("Unknown player", 404);
                 return;
             }
-            if (!doesHavePerm(ChessPerm.CourtOfAppeals))
+            if (!doesHavePerm(ChessPerm.ChiefJustice))
             {
                 RespondRaw("No permission", 403);
                 return;

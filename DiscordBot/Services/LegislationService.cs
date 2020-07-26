@@ -4,6 +4,7 @@ using DiscordBot.Classes.HTMLHelpers.Objects;
 using DiscordBot.Classes.Legislation;
 using DiscordBot.Classes.Legislation.Amending;
 using Newtonsoft.Json;
+using RestSharp.Extensions;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -65,7 +66,7 @@ namespace DiscordBot.Services
             return page;
         }
 
-        public HTMLPage PageForAct(Act act, bool printOnlyText)
+        public static HTMLPage PageForAct(Act act, bool printOnlyText)
         {
             var div = act.GetDiv(printOnlyText);
             var page = new HTMLPage()

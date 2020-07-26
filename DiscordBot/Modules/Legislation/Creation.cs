@@ -20,14 +20,14 @@ namespace DiscordBot.Modules.Legislation
         {
             public Act act { get; set; }
             public Section section { get; set; }
-            public Paragraph paragraph { get; set; }
-            public Clause clause { get; set; }
+            public TextualLawThing paragraph { get; set; }
+            public TextualLawThing clause { get; set; }
         }
         static Dictionary<ulong, SaveInfo> saves = new Dictionary<ulong, SaveInfo>();
         public Act Act;
         public Section Section;
-        public Paragraph Paragraph;
-        public Clause Clause;
+        public TextualLawThing Paragraph;
+        public TextualLawThing Clause;
 
         Embed embedAct()
         {
@@ -195,7 +195,7 @@ namespace DiscordBot.Modules.Legislation
                 var count = Section.Children.RemoveAll(x => x.Number.ToUpper() == number);
                 await ReplyAsync($"Removed {count} previous paragraph(s) that had the same number, they will be replaced by this new one.");
             }
-            Paragraph = new Paragraph(text)
+            Paragraph = new TextualLawThing(text)
             {
                 Number = number ?? $"{Section.Children.Count + 1}",
             };
@@ -221,7 +221,7 @@ namespace DiscordBot.Modules.Legislation
                 var count = Paragraph.Children.RemoveAll(x => x.Number == number);
                 await ReplyAsync($"Removed {count} previous clause(s)");
             }
-            Clause = new Clause(text)
+            Clause = new TextualLawThing(text)
             {
                 Number = number ?? $"{Convert.ToChar(Paragraph.Children.Count + 1 + 97)}",
             };

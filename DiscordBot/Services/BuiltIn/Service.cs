@@ -1,5 +1,6 @@
 ﻿using Discord;
 using Discord.WebSocket;
+using DiscordBot.Classes;
 using DiscordBot.Utils;
 using RestSharp.Deserializers;
 using System;
@@ -23,6 +24,7 @@ namespace DiscordBot.Services
         public virtual bool IsCritical => false;
         public virtual bool IsEnabled => true;
         public bool HasFailed { get; private set; }
+        
         public virtual int Priority => 0;
 
         public virtual int DefaultTimeout => 10_000;
@@ -37,7 +39,7 @@ namespace DiscordBot.Services
         public virtual void OnClose() { }
 
         public int CompareTo([AllowNull] Service other)
-            => this.Name.CompareTo(other.Name);
+            => new serviceComparer().Compare(this, other);
 
         protected static List<Service> zza_services;
 
@@ -117,7 +119,7 @@ namespace DiscordBot.Services
 
         public static void SendReady(List<Service> _servs)
         {
-            zza_services = _servs.OrderBy(x => x.Priority).ToList();
+            zza_services = _servs.OrderBy(x => x, new serviceComparer()).ThenBy(x => x.Priority).ToList();
             sendFunction("OnReady");
         }
     
@@ -164,6 +166,30 @@ namespace DiscordBot.Services
                 } while (!token.IsCancellationRequested);
             } catch(OperationCanceledException)
             {
+            }
+        }
+
+
+        class serviceComparer : IComparer<Service>
+        {
+            public int Compare([AllowNull] Service x, [AllowNull] Service y)
+            {
+                if (x == null && y == null)
+                    return 0;
+                if (x == null)
+                    return -1;
+                if (y == null)
+                    return 1;
+                var xType = x.GetType();
+                var yType = y.GetType();
+                var aAttribute = xType.GetCustomAttribute<RequireServiceAttribute>() ?? new RequireServiceAttribute();
+                var bAttribute = yType.GetCustomAttribute<RequireServiceAttribute>() ?? new RequireServiceAttribute();
+
+                if (aAttribute.Types.Contains(yType))
+                    return 1;
+                if (bAttribute.Types.Contains(xType))
+                    return -1;
+                return 0;
             }
         }
     }

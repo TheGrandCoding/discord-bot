@@ -2,7 +2,7 @@
 using Discord.WebSocket;
 using DiscordBot.Classes;
 using DiscordBot.Classes.Chess;
-using DiscordBot.Classes.Chess.CoA;
+using DiscordBot.Classes.Chess.COA;
 using DiscordBot.Classes.Chess.Online;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
@@ -23,7 +23,6 @@ namespace DiscordBot.Services
         public override bool IsCritical => true;
         public static int PlayerIdMax = 0;
         public static List<ChessPlayer> Players = new List<ChessPlayer>();
-        public static List<CoAHearing> Hearings = new List<CoAHearing>();
         public static List<ChessPendingGame> PendingGames = new List<ChessPendingGame>();
         public static OnlineGame CurrentGame = null;
         public static Dictionary<ulong, IInvite> Invites = new Dictionary<ulong, IInvite>();
@@ -32,6 +31,11 @@ namespace DiscordBot.Services
         public const int ElectableModerators = 2;
         public const int OnlineMaxTotal = 5;
         public const int OnlineMaxPlayer = 3;
+
+        /// <summary>
+        /// Number of Justices required for a petition to be allowed.
+        /// </summary>
+        public const int JusticesRequired = 2;
 
         public static Semaphore OnlineLock = new Semaphore(1, 1);
         public static string LatestChessVersion;
@@ -105,8 +109,6 @@ namespace DiscordBot.Services
                 return false;
             if (player.Permission.HasFlag(ChessPerm.Justice))
                 return false;
-            if (player.Permission.HasFlag(ChessPerm.Elected) == false && player.Permission.HasFlag(ChessPerm.Moderator))
-                return false; // they are an appointed/permenant mod
             if (player.ConnectedAccount == 0)
                 return false; // no connected Discord account
             if (player.Bans.Count > 0)
@@ -314,7 +316,7 @@ namespace DiscordBot.Services
             var chiefJustice = ulong.Parse(Program.Configuration["chess:chief:id"]);
             var chiefName = Program.Configuration["chess:chief:name"];
             var uu = Players.FirstOrDefault(x => x.Name == chiefName || x.ConnectedAccount == chiefJustice);
-            uu.Permission = ChessPerm.CourtOfAppeals;
+            uu.Permission = ChessPerm.ChiefJustice;
 
             BuiltInClassUser = Program.GetUserOrDefault(ChessClass);
             if (BuiltInClassUser == null)
@@ -359,7 +361,7 @@ namespace DiscordBot.Services
                 court.ConnectedAccount = BuiltInCoAUser.Id;
                 Players.Add(court);
             }
-            court.Permission = ChessPerm.CourtOfAppeals;
+            court.Permission = ChessPerm.ChiefJustice;
 
             var aiuser = Program.GetUserOrDefault(ChessAI);
             if (aiuser == null)
@@ -392,8 +394,6 @@ namespace DiscordBot.Services
         void threadSetPerms()
         {
             SetConnectedRoles();
-            foreach (var h in Hearings)
-                h.SetChannelPermissions();
         }
 
         public void SetPermissionsAThread()
@@ -430,7 +430,7 @@ namespace DiscordBot.Services
                         {
                             chsServer?.RemoveRoleAsync(ChsJustice);
                         }
-                        if (player.Permission == ChessPerm.CourtOfAppeals)
+                        if (player.Permission == ChessPerm.ChiefJustice)
                         {
                             chsServer?.AddRoleAsync(ChsChiefJustice);
                         }
@@ -493,12 +493,6 @@ namespace DiscordBot.Services
 
         void SetIds()
         {
-            foreach (var x in Hearings)
-                x.SetIds();
-            foreach (var x in Hearings)
-            {
-                x.SetAppealHearing();
-            }
             foreach (var x in PendingGames)
                 x.SetIds();
         }
@@ -676,7 +670,7 @@ namespace DiscordBot.Services
         public void setElectedModerators()
         {
             var winners = GetModElectionResults().Where(x => x.Value > 0).OrderByDescending(x => x.Value).Take(ElectableModerators);
-            var existing = Players.Where(x => x.Permission == ChessPerm.ElectedMod);
+            var existing = Players.Where(x => x.Permission == ChessPerm.Arbiter);
             string elected = "";
             string removed = "";
             foreach (var person in winners)
@@ -686,7 +680,7 @@ namespace DiscordBot.Services
                 }
                 else
                 { // not a mod, but they should be.
-                    person.Key.Permission = ChessPerm.ElectedMod;
+                    person.Key.Permission = ChessPerm.Arbiter;
                     elected += person.Key.Name + "\r\n";
                 }
             }
@@ -774,7 +768,6 @@ namespace DiscordBot.Services
                 if (content.StartsWith("["))
                 {
                     Players = JsonConvert.DeserializeObject<List<ChessPlayer>>(content);
-                    Hearings = new List<CoAHearing>();
                     PendingGames = new List<ChessPendingGame>();
                     Invites = new Dictionary<ulong, IInvite>();
                 }
@@ -782,7 +775,6 @@ namespace DiscordBot.Services
                 {
                     var save = JsonConvert.DeserializeObject<chessSave>(content);
                     Players = save.players ?? new List<ChessPlayer>();
-                    Hearings = save.hearings ?? new List<CoAHearing>();
                     PendingGames = save.pending ?? new List<ChessPendingGame>();
                     Invites = new Dictionary<ulong, IInvite>();
                     save.invites = save.invites ?? new Dictionary<ulong, string>();
@@ -836,15 +828,6 @@ namespace DiscordBot.Services
             {
                 Program.LogMsg("ChessService", ex);
             }
-            try
-            {
-                foreach (var h in Hearings)
-                    h.SetChannelPermissions();
-            }
-            catch (Exception ex)
-            {
-                Program.LogMsg("ChessService2", ex);
-            }
             OnSave();
         }
 
@@ -856,7 +839,6 @@ namespace DiscordBot.Services
             var save = new chessSave()
             {
                 players = Players,
-                hearings = Hearings,
                 pending = PendingGames,
                 invites = dict
             };
@@ -888,8 +870,6 @@ namespace DiscordBot.Services
                 else
                 {
                     SetConnectedRoles();
-                    foreach (var h in Hearings)
-                        h.SetChannelPermissions();
                     await arg.ModifyAsync(x => x.Nickname = chessUser.Name);
                 }
             }

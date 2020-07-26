@@ -1,4 +1,4 @@
-﻿using DiscordBot.Classes.Chess.CoA;
+﻿using DiscordBot.Classes.Chess.COA;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,33 +16,29 @@ namespace DiscordBot.MLAPI
         {
         }
 
-        public Replacements(CoAHearing hearing)
+        public Replacements(CoAHearing h)
         {
-            if (hearing.Justices.Length == 1)
-                Add("type", "Solo");
-            else if (hearing.Justices.Length == 3)
-                Add("type", "Panel");
-            else
-                Add("type", "Enbanc");
-
-
-            string justices = string.Join(", ", hearing.Justices.Select(x => x.Name));
-            if (hearing.IsRequested)
-                justices = $"<label color='red'>Case awaiting certification/approval from {MLAPI.Modules.CoA.JudgesToCertify} justices</label>";
-            Add("justices", justices);
-
-            Add("outcome1", "");
-            Add("outcome2", "");
-            if(hearing.HasFinished)
+            // People can technically join petitions, or multiple people be named
+            // There's one primary respondent, but others can be manually added to the title.
+            // Thus, the title is the most up-to-date.
+            Add("hearing", h);
+            Add("claimant", string.Join("; ", h.Claimants.Select(x => x.Name)));
+            Add("respondent", string.Join("; ", h.Respondents.Select(x => x.Name)));
+            Add("casen", new DiscordBot.Classes.HTMLHelpers.Objects.Anchor($"/chess/coa/cases/{h.CaseNumber}", h.CaseNumber.ToString("0000")));
+            Add("filed", h.Filed.ToString("dd/MM/yyyy"));
+            var writ = h.Motions.FirstOrDefault(x => x.MotionType == Motions.WritOfCertiorari);
+            if (writ != null && writ.Denied)
             {
-                Add("outcome1", "Outcome");
-                Add("outcome2", $"<strong>{hearing.Verdict}</strong>");
+                Add("commenced", "Never: Court refused to hear petition");
+                Add("closed", writ.HoldingDate.Value.ToString("dd/MM/yyyy"));
+            } else
+            {
+                Add("commenced", h.Commenced.HasValue ? h.Commenced.Value.ToString("dd/MM/yyyy") : "Not yet commenced");
+                Add("closed", h.Concluded.HasValue ? h.Concluded.Value.ToString("dd/MM/yyyy") : "Not yet concluded");
             }
-            Add("hearing", hearing);
-            Add("plaintiff", hearing.Plaintiff.Name);
-            Add("defendant", hearing.Defendant.Name);
-            Add("opened", hearing.Opened.ToString("ddd, dd MMMM yyyy"));
+            Add("holding", h.Holding);
         }
+
 
         public Dictionary<string, object> objs = new Dictionary<string, object>();
         public Replacements Add(string name, object obj)

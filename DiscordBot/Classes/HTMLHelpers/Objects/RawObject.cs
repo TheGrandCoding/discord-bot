@@ -4,7 +4,7 @@ using System.Text;
 
 namespace DiscordBot.Classes.HTMLHelpers.Objects
 {
-    public class RawObject : HTMLBase
+    public class RawObject : DOMBase
     {
         public RawObject(string text) : base(null, null, null)
         {

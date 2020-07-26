@@ -38,6 +38,7 @@
     <PackageReference Include="CheAle14.Reddit" Version="1.4.2" />
     <PackageReference Include="Discord.Addons.Interactive" Version="1.0.1" />
     <PackageReference Include="Discord.Net" Version="2.2.0" />
+    <PackageReference Include="HttpMultipartParser" Version="4.3.1" />
     <PackageReference Include="IdentityModel" Version="4.2.0" />
     <PackageReference Include="Markdig" Version="0.20.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="3.1.3" />

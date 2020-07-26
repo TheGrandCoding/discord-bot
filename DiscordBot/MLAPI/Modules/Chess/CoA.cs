@@ -1,951 +1,626 @@
-﻿using Discord;
-using DiscordBot.Classes.Chess;
-using DiscordBot.Classes.Chess.CoA;
-using DiscordBot.MLAPI;
+﻿using DiscordBot.Classes.Chess;
+using DiscordBot.Classes.Chess.COA;
+using DiscordBot.Classes.HTMLHelpers;
+using DiscordBot.Classes.HTMLHelpers.Objects;
 using DiscordBot.Services;
+using HttpMultipartParser;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
-using static DiscordBot.Services.ChessService;
 
 namespace DiscordBot.MLAPI.Modules
 {
     [RequireVerifiedAccount]
+    [RequireChess(Classes.Chess.ChessPerm.Player)]
     public class CoA : ChessBase
     {
-        const string Invite = "https://discord.gg/pRN4Fa7";
-        public CoA(APIContext c) : base(c, "chess/coa")
+        public CoA(APIContext c) : base(c, "chess/coa") 
         {
+            ChesssInstance = Program.Services.GetRequiredService<ChessService>();
+            CoAInstance = Program.Services.GetRequiredService<CoAService>();
+            Sidebar = SidebarType.Local;
         }
-        public override void BeforeExecute()
-        {
-            if (SelfPlayer == null)
-                throw new HaltExecutionException("You must be both logged in, and have a connected Chess profile to do that");
-            if (SelfPlayer.IsBuiltInAccount)
-                throw new HaltExecutionException("This account cannot do that");
-        }
+        public ChessService ChesssInstance { get; set; }
+        public CoAService CoAInstance { get; set; }
+
         public override void AfterExecute()
         {
-            if(mustSave)
+            if(Context.Method != "GET" && (StatusSent > 100 && StatusSent < 400))
             {
-                ChessService.SendSave();
+                CoAInstance.OnSave();
             }
         }
-        public static IRole Member => Program.ChessGuild.Roles.FirstOrDefault(x => x.Name == "Member");
-        public static IRole Moderator => Program.ChessGuild.Roles.FirstOrDefault(x => x.Name == "Moderator");
-        public static IRole Justice => Program.ChessGuild.Roles.FirstOrDefault(x => x.Name == "Justice");
-        public static IRole ChiefJustice => Program.ChessGuild.Roles.FirstOrDefault(x => x.Name == "Chief Justice");
-        public const int JudgesToCertify = 2;
 
-        bool mustSave = false;
+        #region Browser Endpoints
 
-        bool HasPerms(ChessPerm perm)
+        [Method("GET"), Path("/chess/coa")]
+        public void ListCases()
         {
-            if (SelfPlayer == null)
-                return perm == ChessPerm.Player;
-            return SelfPlayer.Permission.HasFlag(perm);
-        }
-
-        [Path("/chess/coa"), Method("GET")]
-        public void Base()
-        {
-            var TABLE = "";
-            var chief = HasPerms(ChessPerm.CourtOfAppeals);
-            foreach(var hear in Hearings)
+            var awaitingWrit = new Table()
             {
-                if (hear.IsRequested)
-                    continue;
-                string ROW = $"<tr>";
-                ROW += $"<td>";
-                if (hear.HasFinished)
-                    ROW += "<del>";
-                ROW += $"{aLink($"/chess/coa/hearing?num={hear.CaseNumber}", hear.CaseStr)}";
-                if (hear.HasFinished)
-                    ROW += $"</del><br/><strong>{hear.Verdict}</strong>";
-                ROW += $"</td>";
-                ROW += $"<td>{hear.Title}</td>";
-                if(hear.Justices.Length == 0)
+                Children =
                 {
-                    if(chief)
-                    {
-                        ROW += $"<td>{aLink("/chess/coa/justices?num=" + hear.CaseNumber.ToString(), "None; select panel")}</td>";
-                    } else
-                    {
-                        ROW += "<td>TBD</td>";
-                    }
+                    new TableRow()
+                        .WithHeader("Title")
+                        .WithHeader("Filed")
+                        .WithHeader("Brief")
+                }
+            };
+            var receivedWrit = new Table()
+            {
+                Children =
+                {
+                    new TableRow()
+                    .WithHeader("Title")
+                    .WithHeader("Filed")
+                    .WithHeader("Commenced")
+                }
+            };
+            var receivedOutcome = new Table()
+            {
+                Children =
+                {
+                    new TableRow()
+                    .WithHeader("Title")
+                    .WithHeader("Decided")
+                    .WithHeader("Holding")
+                }
+            };
+            Func<CoAHearing, Anchor> getAnchor = x => new Anchor($"/chess/coa/cases/{x.CaseNumber}", x.Title);
+            foreach(var hearing in CoAService.Hearings)
+            {
+                if(hearing.Holding != null)
+                {
+                    receivedOutcome.Children.Add(new TableRow()
+                        .WithCell(getAnchor(hearing))
+                        .WithCell(hearing.Concluded.Value.ToString("dd/MM/yyyy"))
+                        .WithCell(hearing.Holding));
+                } else if (hearing.Commenced.HasValue)
+                {
+                    receivedWrit.Children.Add(new TableRow()
+                        .WithCell(getAnchor(hearing))
+                        .WithCell(hearing.Filed.ToString("dd/MM/yyyy"))
+                        .WithCell(hearing.Commenced.Value.ToShortDateString()));
                 } else
                 {
-                    ROW += "<td><ul>";
-                    foreach(var justice in hear.Justices)
-                    {
-                        ROW += "<li>";
-                        if(justice.Permission == ChessPerm.CourtOfAppeals)
-                        {
-                            ROW += "Chief ";
-                        }
-                        ROW += "Justice " + justice.Name;
-                        ROW += "</li>";
-                    }
-                    ROW += "</ul></td>";
+                    awaitingWrit.Children.Add(new TableRow()
+                        .WithCell(getAnchor(hearing))
+                        .WithCell(hearing.Filed.ToString("dd/MM/yyyy"))
+                        .WithCell(new Anchor($"/chess/coa/cases/{hearing.CaseNumber}/motions/00", hearing.Motions.FirstOrDefault()?.MotionType ?? "none")));
                 }
-                TABLE += ROW + "</tr>";
             }
-
-            var REQUESTS = "";
-            if(HasPerms(ChessPerm.Justice))
-            {
-                foreach(var hear in Hearings)
-                {
-                    if (!hear.IsRequested)
-                        continue;
-                    string ROW = "<tr>";
-                    ROW += $"<td>{hear.Plaintiff.Name}</td>";
-                    ROW += $"<td>{hear.Defendant.Name}</td>";
-                    ROW += $"<td>{hear.Description}</td>";
-                    ROW += $"<td>";
-                    if(hear.Justices.Length == 0)
-                    {
-                        ROW += aLink("/chess/coa/grant?num=" + hear.CaseNumber.ToString(), "None; click to vote to go ahead");
-                    } else
-                    {
-                        if(hear.Justices.Select(x => x.Id).Contains(SelfPlayer.Id))
-                        {
-                            ROW += string.Join("<br/>", hear.Justices.Select(x => x.Name));
-                        } else
-                        {
-                            ROW += aLink("/chess/coa/grant?num=" + hear.CaseNumber.ToString(), $"Approve, with:<br/>{string.Join("<br/>", hear.Justices.Select(x => x.Name))}");
-                        }
-                        ROW += "</td>";
-                    }
-                    REQUESTS += ROW + "</tr>";
-                }
-            } else
-            {
-                REQUESTS = $"<tr><td colspan='3'>You do not have permission to see pending cases</td></tr>";
-            }
-            ReplyFile("base.html", 200, new Replacements().Add("table", TABLE).Add("pending", REQUESTS));
+            Sidebar = SidebarType.None;
+            ReplyFile("base.html", 200, new Replacements()
+                .Add(nameof(awaitingWrit), awaitingWrit)
+                .Add(nameof(receivedWrit), receivedWrit)
+                .Add(nameof(receivedOutcome), receivedOutcome));
         }
 
-        [Method("GET"), Path("/chess/coa/newappeal")]
-        public void NewAppeal()
-        {
-            string players = "";
-            foreach(var p in Players.OrderBy(x => x.Name))
-            {
-                if (p.IsBuiltInAccount)
-                    continue;
-                if (p.Id == SelfPlayer.Id)
-                    continue;
-                if (p.ConnectedAccount == 0)
-                    continue;
-                players += $"<option value=\"{p.Id}\">{p.Name}</option>";
-            }
-            string TABLE = "";
-            foreach(var hear in Hearings)
-            {
-                if (!hear.HasFinished)
-                    continue;
-                if(hear.Plaintiff.Id == SelfPlayer.Id || hear.Defendant.Id == SelfPlayer.Id)
-                {
-                    string ROW = "<tr>";
-                    ROW += $"<td>{hear.CaseStr}</td>";
-                    ROW += $"<td>{hear.Title}</td>";
-                    ROW += $"<td>{hear.Description}</td>";
-                    ROW += $"<td>{hear.Verdict}</td>";
-                    ROW += $"<th><input type='button' value='Appeal' onclick='appealCase(\"{hear.CaseNumber}\");'/></td>";
-                    TABLE += ROW + "</tr>";
-                }
-            }
-            ReplyFile("newappeal.html", 200, new Replacements()
-                .Add("players", players)
-                .Add("plaintiff", SelfPlayer.Name)
-                .Add("table", TABLE)
-                .Add("chief", Players.FirstOrDefault(x => x.Name == "Alex C").Id));
-        }
 
-        [Method("GET"), Path("/chess/coa/justices")]
-        public void ViewJudges(int num)
+        #region View Hearing
+        [Method("GET"), PathRegex(@"\/chess\/coa\/cases\/(?<n>\d{1,4})(?!\/)")]
+        public void ViewHearingInfo(int n)
         {
-            if(!HasPerms(ChessPerm.CourtOfAppeals))
+            var hearing = CoAService.Hearings.FirstOrDefault(x => x.CaseNumber == n);
+            if(hearing == null)
             {
-                HTTPError(System.Net.HttpStatusCode.Forbidden, "Not Chief Justice", "Only the Chief Justice may appoint justices to cases");
+                HTTPError(System.Net.HttpStatusCode.NotFound, "Case Number", "Could not find a petition by that assigned case number");
                 return;
             }
-            var hearing = Hearings.FirstOrDefault(x => x.CaseNumber == num); 
-            if(hearing.IsRequested)
-            {
-                HTTPError(System.Net.HttpStatusCode.BadRequest, "Not started", "Case has not yet been started");
-                return;
-            }
-            var existing = hearing.Justices.Select(x => x.Id);
-            string justices = "";
-            int count = 0;
-            int TOTAL_JUSTICE = Players.Where(x => !x.ShouldContinueInLoop && x.Permission.HasFlag(ChessPerm.Justice)
-                && x.Id != hearing.Plaintiff.Id && x.Id != hearing.Defendant.Id).Count();
-            foreach(var p in Players.OrderBy(x => x.Name))
-            {
-                if (p.IsBuiltInAccount)
-                    continue;
-                if(p.Permission.HasFlag(ChessPerm.Justice))
-                {
-                    string warn = "";
-                    if (hearing.Plaintiff.Id == p.Id || hearing.Defendant.Id == p.Id)
-                    {
-                        if (TOTAL_JUSTICE >= 3)
-                            continue;
-                        warn = "class='warn' ";
-                    }
-                    justices += $"<option {warn}{(existing.Contains(p.Id) ? $"sel{count++}" : "")} value=\"{p.Id}\">{p.Name}</option>";
-                }
-            }
-            string list1 = justices.Replace("sel0", "selected").Replace("sel1", "").Replace("sel2", "");
-            string list2 = justices.Replace("sel1", "selected").Replace("sel2", "").Replace("sel0", "");
-            string list3 = justices.Replace("sel2", "selected").Replace("sel0", "").Replace("sel1", "");
-            ReplyFile("justices.html", 200, new Replacements().Add("list1", list1).Add("list2", list2).Add("list3", list3).Add("hearing", hearing));
-        }
 
-        [Method("GET"), Path("/chess/coa/grant")]
-        public void JusticeGrantAppeal(int num)
-        {
-            if(HasPerms(ChessPerm.Justice))
+            var motions = new Table()
             {
-                var hearing = Hearings.FirstOrDefault(x => x.CaseNumber == num);
-                if(hearing == null)
+                Children =
                 {
-                    HTTPError(System.Net.HttpStatusCode.NotFound, "Unknown case", "Could not find a hearing with that Case Number");
-                    return;
+                    new TableRow()
+                        .WithHeader("Filed On")
+                        .WithHeader("Filed By")
+                        .WithHeader("Type")
+                        .WithHeader("Result")
                 }
-                if (!hearing.IsRequested)
-                { // already started
-                    HTTPError(System.Net.HttpStatusCode.BadRequest, "Already Started", "That case has already been started");
-                    return;
-                }
-                if(!hearing.Justices.Select(x => x.Id).Contains(SelfPlayer.Id))
+            };
+
+            int index = 0;
+            foreach(var motion in hearing.Motions)
+            {
+                motions.Children.Add(new TableRow()
+                    .WithCell(new Anchor($"/chess/coa/cases/{hearing.CaseNumber}/motions/{index++}", motion.Filed.ToString("dd/MM/yyyy, hh:mm:ss")))
+                    .WithCell(motion.Movant.Name)
+                    .WithCell(motion.MotionType)
+                    .WithCell(motion.Holding ?? "No ruling on motion yet") 
+                    );
+            }
+
+            var witnesses = new Table()
+            {
+                Children =
                 {
-                    var ls = hearing.Justices.ToList();
-                    ls.Add(SelfPlayer);
-                    hearing.Justices = ls.ToArray();
-                    mustSave = true;
-                    if(hearing.Justices.Length >= JudgesToCertify || SelfPlayer.Permission == ChessPerm.CourtOfAppeals)
-                    { // granted, by two justices or the chief justice
-                        hearing.Justices = new ChessPlayer[0]; // reset, to be enpanelled
-                        hearing.Category = Program.ChessGuild.CreateCategoryChannelAsync(hearing.Title).Result;
-                        hearing.GeneralChnl = Program.ChessGuild.CreateTextChannelAsync("general", x =>
+                    new TableRow()
+                    .WithHeader("Name")
+                    .WithHeader("")
+                }
+            };
+            foreach(var witness in hearing.Witnesses)
+            {
+                witnesses.Children.Add(new TableRow()
+                    .WithCell(new Anchor($"/chess/coa/cases/{hearing.CaseNumber}/witness/{witness.Witness.Id}", witness.Witness.Name))
+                    .WithCell(witness.ConcludedOn.HasValue ? witness.ConcludedOn.Value.ToString("dd/MM/yyyy") : "Remains ongoing"));
+            }
+
+            if(hearing.Holding == null)
+            {
+                motions.Children.Add(new TableRow()
+                {
+                    Children =
+                    {
+                        new TableHeader(new Anchor($"/chess/coa/cases/{hearing.CaseNumber}/newmotion", "File a new motion"))
                         {
-                            x.CategoryId = hearing.Category.Id;
-                            x.Topic = "Where main arguments and witlessness evidence may be presented";
-                            x.SlowModeInterval = 60;
-                        }).Result;
-                        hearing.JusticesChnl = Program.ChessGuild.CreateTextChannelAsync("justices", x =>
+                            ColSpan = "4"
+                        }
+                    }
+                });
+                if(hearing.Commenced.HasValue && hearing.CanCallWitness(SelfPlayer))
+                {
+                    witnesses.Children.Add(new TableRow()
+                    {
+                        Children =
                         {
-                            x.CategoryId = hearing.Category.Id;
-                            x.Topic = "Channel for justices empanelled for this Hearing";
-                        }).Result;
-                        hearing.JusticesChnl.AddPermissionOverwriteAsync(ChiefJustice, Program.WritePerms); // temporary
-                        hearing.Opened = DateTime.Now;
-                        hearing.SetChannelPermissions();
-                        foreach(var usr in new ChessPlayer[] { hearing.Plaintiff, hearing.Defendant})
-                        {
-                            var inChess = Program.ChessGuild.GetUser(usr.ConnectedAccount);
-                            if(inChess == null)
+                            new TableHeader(new Anchor($"/chess/coa/cases/{hearing.CaseNumber}/newwitness", "Call a new witness"))
                             {
-                                var anyUser = Program.Client.GetUser(usr.ConnectedAccount);
-                                if(anyUser == null)
-                                {
-                                    hearing.GeneralChnl.SendMessageAsync($"{usr.Name} does not have a recognised Discord account, so there will be some difficulty here..");
-                                } else
-                                {
-                                    anyUser.SendMessageAsync("A Chess Court of Appeals hearing involving you has been approved.\n" +
-                                        $"{hearing.Title} -- {hearing.Description}\n" +
-                                        $"Invite to server to argue your case: {Invite}\n" +
-                                        $"Website to call witnesses etc: {Handler.LocalAPIUrl}/chess/coa/hearing?num={hearing.CaseNumber}");
-                                }
-                            } else
-                            {
-                                inChess.SendMessageAsync($"An appeal involving you has been granted its certification\n" +
-                                    $"{hearing.Title} -- {hearing.Description}\n" +
-                                    $"You may call witnesses via the online website: {Handler.LocalAPIUrl}/chess/coa/hearing?num={hearing.CaseNumber}\n" +
-                                    $"Channel: {hearing.GeneralChnl.Mention}");
+                                ColSpan = "2"
                             }
                         }
-                    }
+                    });
                 }
             }
-            RespondRaw(LoadRedirectFile("/chess/coa", null), System.Net.HttpStatusCode.TemporaryRedirect);
-        }
 
-        (string k, object o)[] sideBarObjects(CoAHearing hearing, params (string key, object o)[] args)
-        {
-            List<(string key, object o)> objects = args.ToList();
-            string type = "";
-            if (hearing.Justices.Length == 1)
-            {
-                type = "Solo";
-            }
-            else if (hearing.Justices.Length == 3)
-            {
-                type = "Panel";
-            }
-            else
-            {
-                type = "En banc";
-            }
-            string justices = string.Join(", ", hearing.Justices.Select(x => x.Name));
-            if (hearing.IsRequested)
-                justices = $"<label color='red'>Case awaiting certification/approval from {JudgesToCertify} justices</label>";
-            string out1 = "";
-            string out2 = "";
-            if(hearing.HasFinished)
-            {
-                out1 = "Outcome";
-                out2 = "<strong>" + hearing.Verdict + "</strong>";
-            }
-            objects.Add(("outcome1", out1));
-            objects.Add(("outcome2", out2));
-            objects.Add(("type", type));
-            objects.Add(("justices", justices));
-            objects.Add(("hearing", hearing));
-            objects.Add(("plaintiff", hearing.Plaintiff.Name));
-            objects.Add(("defendant", hearing.Defendant.Name));
-            objects.Add(("opened", hearing.Opened.ToString("ddd, dd MMMM yyyy")));
-            return objects.ToArray();
-        }
-
-        [Method("GET"), Path("/chess/coa/hearing")]
-        public void ViewHearing(int num)
-        {
-            var hearing = Hearings.FirstOrDefault(x => x.CaseNumber == num);
-            if (hearing == null)
-            {
-                HTTPError(System.Net.HttpStatusCode.NotFound, "Hearing unknown", "Could not find a Court of Appeals hearing with that case number");
-                return;
-            }
-            string witnesses = "";
-            if(hearing.Witnesses.Count == 0)
-            {
-                witnesses = "<tr><td colspan='2'>No witnesses called</td></tr>";
-            }
-            foreach (var wit in hearing.Witnesses)
-            {
-                witnesses += $"<tr>" +
-                    $"<td>{aLink($"/chess/coa/testimony?num={hearing.CaseNumber}&witness={wit.Witness.Id}", wit.Witness.Name)}</td>" +
-                    $"<td>{Enum.GetName(typeof(CalledBy), wit.CalledByWho)}</td></tr>";
-            }
-            if(hearing.CanCallWitnesses(SelfPlayer))
-            {
-                witnesses += $"<tr><td colspan='2'>{aLink("/chess/coa/witness?num=" + num.ToString(), "Call new witness")}</td></tr>";
-            }
-            string judgeRulings = "";
-            if(hearing.Justices.Select(x => x.Id).Contains(SelfPlayer.Id))
-            {
-                judgeRulings = $"<input type='button' onclick='window.location.href=\"/chess/coa/ruling?num={hearing.CaseNumber}\"' value='Reach Verdict'/>";
-            }
-            string appeal = "";
-            if(hearing.AppealHearing != null)
-            {
-                appeal = $"<p><a href='/chess/coa/hearing?num={hearing.AppealHearing.CaseNumber}'>Appealed to #{hearing.AppealHearing.CaseStr}</a></p>";
-            } else
-            {
-                if(hearing.IsAppealRequested)
-                {
-                    if (SelfPlayer.Permission == ChessPerm.CourtOfAppeals)
-                        appeal = $"<input type='button' onclick='grantAppeal({hearing.CaseNumber});' value='As Chief Justice: Grant En Banc Appeal'/>";
-                    else
-                        appeal = "<p>Appeal Requested</p>";
-                } else
-                {
-                    if (SelfPlayer.Id == hearing.Plaintiff.Id || SelfPlayer.Id == hearing.Defendant.Id)
-                        appeal = "<p><a href='/chess/coa/newappeal'>Select in table to appeal this case</a></p>";
-                }
-            }
-            Sidebar = SidebarType.Local;
             ReplyFile("hearing.html", 200, new Replacements(hearing)
+                .Add("motions", motions)
                 .Add("witnesses", witnesses)
-                .Add("judge", judgeRulings)
-                .Add("appeal", appeal));
+            );
         }
+        #endregion
 
-        [Method("GET"), Path("/chess/coa/testimony")]
-        public void Testimony(int num, int witness)
+        [Method("GET"), PathRegex(@"\/chess\/coa\/cases\/(?<n>\d{1,4})\/motions\/(?<mn>\d{1,2})(?!\/)")]
+        public void ViewMotionInfo(int n, int mn)
         {
-            var hearing = Hearings.FirstOrDefault(x => x.CaseNumber == num);
-            if(hearing == null)
-            {
-                HTTPError(System.Net.HttpStatusCode.NotFound, "Hearing", "Case Number not found");
-                return;
-            }
-            var witnessObj = hearing.Witnesses.FirstOrDefault(x => x.Witness.Id == witness);
-            if(witnessObj == null)
-            {
-                HTTPError(System.Net.HttpStatusCode.NotFound, "Witness", "Witness number unknown");
-                return;
-            }
-            string moveNext = "";
-            if(witnessObj.CanMoveNextStage(SelfPlayer, out bool powers))
-            {
-                moveNext = $"<input type='button' onclick='moveNext();' value='Rest Questioning {(powers ? "[Using judge powers]" : "")}'/>";
-            }
-            string testimony = "";
-            if(hearing.CanCallWitnesses(SelfPlayer))
-            { // only those in case can view
-                var messages = witnessObj.Channel.GetMessagesAsync().FlattenAsync().Result;
-                foreach(var msg in messages.OrderBy(x => x.CreatedAt))
-                {
-                    string name = msg.Author.Username;
-                    string cls = "";
-                    if(msg.Author.IsBot || msg.Author.IsWebhook)
-                    {
-                        if(msg.Author.Id == Program.Client.CurrentUser.Id)
-                        {
-                            name = "Court Clerk";
-                            cls = "bot";
-                        } else
-                        {
-                            continue;
-                        }
-                    }
-                    string MSG = $"<div class='{cls}' id='{msg.Id}'>";
-                    MSG += $"<span title='{msg.CreatedAt}'>{name}</span>";
-                    MSG += $"<label>{msg.Content.Replace("\n", "<br/>")}</label>";
-                    if(msg.Attachments.Count > 0)
-                    {
-                        MSG += "<hr><em>Attachments:</em><ul>";
-                        foreach(var attch in msg.Attachments)
-                        {
-                            MSG += $"<li>{aLink(attch.Url, attch.Filename)}</li>";
-                        }
-                        MSG += "</ul>";
-                    }
-                    testimony += MSG + "</div>";
-                }
-                if (string.IsNullOrWhiteSpace(testimony))
-                    testimony = "<p class='error'>There are no messages currently</p>";
-            } else
-            {
-                testimony = "<p class='error'>You do not have permission to view the testimony of this person at this time</p>";
-            }
-            Sidebar = SidebarType.Local;
-            ReplyFile("testimony.html", 200, new Replacements(hearing)
-                .Add("testimony", testimony)
-                .Add("advStage", moveNext)
-                .Add("witness", witnessObj.Witness));
-        }
-
-        [Method("GET"), Path("/chess/coa/witness")]
-        public void WitnessView(int num)
-        {
-            var hearing = Hearings.FirstOrDefault(x => x.CaseNumber == num);
-            if(hearing == null)
-            {
-                HTTPError(System.Net.HttpStatusCode.NotFound, "Hearing", "Could not find hearing");
-                return;
-            }
-            string callFor = "";
-            if(SelfPlayer.Id == hearing.Plaintiff.Id)
-            {
-                callFor = "Plaintiff";
-            } else if (SelfPlayer.Id == hearing.Defendant.Id)
-            {
-                callFor = "Defendant";
-            } else if (hearing.Justices.Select(x => x.Id).Contains(SelfPlayer.Id))
-            {
-                callFor = "Judges";
-            } else
-            {
-                HTTPError(System.Net.HttpStatusCode.Forbidden, "Cannot call", "You have no standing to call witnesses in this hearing<br/>" +
-                    "Only the plaintiff, defendant or the Justices in the case may call witnesses");
-                return;
-            }
-            string players = "";
-            foreach(var p in Players.OrderBy(x => x.Name))
-            {
-                if (p.IsBuiltInAccount)
-                    continue;
-                string text = p.Name;
-                if (p.Id == SelfPlayer.Id)
-                    continue;
-                if (p.Id == hearing.Plaintiff.Id)
-                    text = "[Plaintiff] " + text;
-                if (p.Id == hearing.Defendant.Id)
-                    text = "[Defendant] " + text;
-                if (hearing.Justices.Select(x => x.Id).Contains(p.Id))
-                    text = "[Judge] " + text;
-                var existing = hearing.Witnesses.FirstOrDefault(x => x.Witness.Id == p.Id);
-                if (existing != null)
-                    continue;
-                string cls = "";
-                if (p.ConnectedAccount == 0)
-                    cls = "red";
-                else
-                    cls = "green";
-                players += $"<option class='{cls}' value=\"{p.Id}\">{text}</option>";
-            }
-            ReplyFile("witness.html", 200, new Replacements()
-                .Add("hearing", hearing)
-                .Add("witness", players)
-                .Add("for", callFor));
-        }
-
-        class RulingRow
-        {
-            public ChessPlayer Dismiss;
-            public ChessPlayer Uphold;
-            public ChessPlayer Remand;
-            public ChessPlayer Overturn;
-            public ChessPlayer Other;
-            public ChessPlayer Undecided;
-            public override string ToString()
-            {
-                string ROW = "<tr>";
-                foreach(var player in new ChessPlayer[] { Dismiss, Uphold, Remand, Overturn, Other, Undecided})
-                {
-                    ROW += "<td>" + (player?.Name ?? "") + "</td>";
-                }
-                return ROW + "</tr>";
-            }
-        }
-
-        class RulingTable
-        {
-            public List<RulingRow> Rows = new List<RulingRow>();
-            public RulingRow SetValue(string type, ChessPlayer player)
-            {
-                var fields = typeof(RulingRow).GetFields();
-                var ofType = fields.FirstOrDefault(x => x.Name == type);
-                foreach (var row in Rows)
-                {
-                    if (ofType.GetValue(row) == null)
-                    {
-                        ofType.SetValue(row, player);
-                        return row;
-                    }
-                }
-                var next = new RulingRow();
-                ofType.SetValue(next, player);
-                Rows.Add(next);
-                return next;
-            }
-            public void AddDismiss(ChessPlayer player) => SetValue("Dismiss", player);
-            public void AddUphold(ChessPlayer player) => SetValue("Uphold", player);
-            public void AddRemand(ChessPlayer player) => SetValue("Remand", player);
-            public void AddOverturn(ChessPlayer player) => SetValue("Overturn", player);
-            public void AddOther(ChessPlayer player) => SetValue("Other", player);
-            public override string ToString()
-            {
-                string TABLE = "";
-                foreach (var row in Rows)
-                    TABLE += row.ToString();
-                return TABLE;
-            }
-        }
-
-        [Method("GET"), Path("/chess/coa/ruling")]
-        public void JusticeSeeRuling(int num)
-        {
-            var hearing = Hearings.FirstOrDefault(x => x.CaseNumber == num);
-            if(hearing == null)
-            {
-                HTTPError(System.Net.HttpStatusCode.NotFound, "Hearing", "Unknown hearing");
-                return;
-            }
-            if(SelfPlayer == null || !hearing.Justices.Select(x => x.Id).Contains(SelfPlayer.Id))
-            {
-                HTTPError(System.Net.HttpStatusCode.Forbidden, "Not justice", "Not justice (in general, or in this case)");
-                return;
-            }
-            var TABLE = new RulingTable();
-            foreach(var judge in hearing.Justices)
-            {
-                TABLE.SetValue(hearing.GetJusticeVote(judge), judge);
-            }
-            Sidebar = SidebarType.Local;
-            ReplyFile("ruling.html", 200, new Replacements(hearing)
-                .Add("judges", TABLE.ToString()));
-        }
-
-        CalledBy findCalledBy(CoAHearing hearing)
-        {
-            if (SelfPlayer.Id == hearing.Plaintiff.Id)
-                return CalledBy.Plaintiff;
-            if (SelfPlayer.Id == hearing.Defendant.Id)
-                return CalledBy.Defendant;
-            if (hearing.Justices.Select(x => x.Id).Contains(SelfPlayer.Id))
-                return CalledBy.Justices;
-            return CalledBy.NONE;
-        }
-
-        [Method("PUT"), Path("/chess/coa/call")]
-        public void CallSpecificWitness(int num, int witness)
-        {
-            var hearing = Hearings.FirstOrDefault(x => x.CaseNumber == num);
-            if(hearing == null)
-            {
-                RespondRaw("Hearing not found", 404);
-                return;
-            }
-            var player = Players.FirstOrDefault(x => x.Id == witness);
-            if(player == null)
-            {
-                RespondRaw("Unknown player", 404);
-                return;
-            }
-            if(hearing.Justices.Length == 0)
-            {
-                RespondRaw("Justices have not been selected for this case yet", 400);
-                return;
-            }
-            if (hearing.HasFinished)
-            {
-                RespondRaw("This case has already finished", 400);
-                return;
-            }
-            var existing = hearing.Witnesses.FirstOrDefault(x => x.Witness.Id == witness);
-            if(existing != null)
-            {
-                RespondRaw("Witness has already been called", 309);
-                return;
-            }
-            if(hearing.CanCallWitnesses(SelfPlayer) == false)
-            {
-                RespondRaw("You cannot call witnesses", 403);
-                return;
-            }
-            var chnl = Program.ChessGuild.CreateTextChannelAsync(player.Name, x =>
-            {
-                x.CategoryId = hearing.Category.Id;
-                x.Topic = "Witness testimony of " + player.Name + "; called by " + SelfPlayer.Name;
-            }).Result;
-            existing = new CoAWitness(player, findCalledBy(hearing), chnl);
-            existing.Hearing = hearing;
-            hearing.Witnesses.Add(existing);
-            existing.SetPermissions();
-            existing.Stage = 0;
-            existing.SendEmbed();
-            mustSave = true;
-            RespondRaw("Called");
-            var witUsr = Program.Client.GetUser(existing.Witness.ConnectedAccount);
-            witUsr?.SendMessageAsync(embed: new EmbedBuilder()
-                .WithTitle("Chess Court of Appeals")
-                .WithDescription($"You have been called as a witness\n" +
-                    $"For: **{hearing.Title}** -- {hearing.Description}\n" +
-                    $"Called by: {SelfPlayer.Name}\n" +
-                    $"Channel: {existing.Channel.Mention}\n[Invite to CoA server]({Invite})")
-                .AddField("Penalty", "Failure to appear may constitute an offence, which could result in discretionary sanctions").Build());
-        }
-
-        [Method("PUT"), Path("/chess/coa/request")]
-        public void RequestAppeal(int def, string reason)
-        {
-            var player = Players.FirstOrDefault(x => x.Id == def);
-            if(player == null)
-            {
-                RespondRaw("Unknown player", 404);
-                return;
-            }
-            if(reason.Length > 256)
-            {
-                RespondRaw("Reason too long", 400);
-                return;
-            }
-            var hearing = new CoAHearing(SelfPlayer, player, reason);
-            Hearings.Add(hearing);
-            mustSave = true;
-            RespondRaw("Opened");
-            var usr = Program.Client.GetUser(player.ConnectedAccount);
-            usr?.SendMessageAsync(embed: new EmbedBuilder()
-                .WithTitle("Chess Court of Appeals")
-                .WithDescription($"{SelfPlayer.Name} has filed with the CoA with an appeal **against** you.\n" +
-                $"The appeal will require certification from {JudgesToCertify} or more justices\n" +
-                $"If the appeal goes forth, you will be able to call witnesses through the online portal")
-                .WithUrl($"{Handler.LocalAPIUrl}/chess/coa/hearing?num=" + hearing.CaseNumber).Build());
-            var chs = Program.Services.GetRequiredService<ChessService>();
-            chs.DiscussionChannel.SendMessageAsync(embed: new EmbedBuilder()
-                .WithTitle("Chess Court of Appeals")
-                .WithDescription($"Appeal currently pending approval: {hearing.Title}")
-                .WithUrl($"{Handler.LocalAPIUrl}/chess/coa/hearing?num=" + hearing.CaseNumber).Build());
-        }
-
-        [Method("PUT"), Path("/chess/coa/select")]
-        public void SelectJudges(int num, int first, int second, int third)
-        {
-            if(!HasPerms(ChessPerm.CourtOfAppeals))
-            {
-                RespondRaw("No perms", 403);
-                return;
-            }
-            var hearing = Hearings.FirstOrDefault(x => x.CaseNumber == num);
-            if(hearing == null)
-            {
-                RespondRaw("Unknown case number", 404);
-                return;
-            }
-            if(hearing.HasFinished)
-            {
-                RespondRaw("Hearing has already finished", 400);
-                return;
-            }
-            var j1 = Players.FirstOrDefault(x => x.Id == first);
-            var j2 = Players.FirstOrDefault(x => x.Id == second);
-            var j3 = Players.FirstOrDefault(x => x.Id == third);
-            var selected = new ChessPlayer[] { j1, j2, j3 }.Distinct(new ChessPlayerComparer()).ToArray();
-            if(selected.Length != 3)
-            {
-                RespondRaw("Duplicate justices present, must select 3 distinct", System.Net.HttpStatusCode.BadRequest);
-                return;
-            }
-            foreach(var judge in selected)
-            {
-                if (judge == null)
-                {
-                    RespondRaw($"Judge not found", 404);
-                    return;
-                } else if (judge.Permission.HasFlag(ChessPerm.Justice) == false) 
-                {
-                    RespondRaw("Person not a judge: " + judge.Name, 400);
-                    return;
-                }
-            }
-            hearing.Justices = selected;
-            hearing.SetChannelPermissions();
-            int withUsers = 0;
-            foreach(var jst in hearing.Justices)
-            {
-                var chs = Program.ChessGuild.GetUser(jst.ConnectedAccount);
-                if(chs == null)
-                {
-                    var anyuser = Program.Client.GetUser(jst.ConnectedAccount);
-                    anyuser?.SendMessageAsync(embed: new EmbedBuilder()
-                        .WithTitle("Chess Court of Appeals")
-                        .WithDescription($"**{hearing.Title}**:\n" +
-                        $"> {hearing.Description} \n\n" +
-                        $"You have been selected to act as a Judge to hear the above case\n" +
-                        $"[Invite to Court of Appeals]({Invite})").Build());
-                } else
-                {
-                    chs.SendMessageAsync($"You have been selected, as a Justice, to hear {hearing.Title}\nChannel: {hearing.GeneralChnl.Mention}");
-                    withUsers += 1;
-                }
-            }
-            hearing.JusticesChnl.SendMessageAsync($"{Program.ChessGuild.EveryoneRole.Mention}, justices have been selected to hear this case.\n" +
-                $"The case may now begin");
-            RespondRaw("Changed");
-            mustSave = true;
-            if(withUsers == hearing.Justices.Length)
-            { // all judges in, so Chief can go
-                hearing.JusticesChnl.RemovePermissionOverwriteAsync(ChiefJustice);
-            }
-        }
-
-        [Method("PUT"), Path("/chess/coa/stage")]
-        public void AdvanceNextStage(int num, int wit)
-        {
-            var hearing = Hearings.FirstOrDefault(x => x.CaseNumber == num);
+            var hearing = CoAService.Hearings.FirstOrDefault(x => x.CaseNumber == n);
             if(hearing == null)
             {
                 RespondRaw("Unknown hearing", 404);
                 return;
             }
-            if(hearing.HasFinished)
+            var motion = hearing.Motions.ElementAtOrDefault(mn);
+            if(motion == null)
             {
-                RespondRaw("Hearing has finished", 400);
+                RespondRaw("Unknown motion", 404);
                 return;
             }
-            var witObj = hearing.Witnesses.FirstOrDefault(x => x.Witness.Id == wit);
-            if (witObj == null)
+
+            var attachments = new Div();
+            int attachmentIndex = 0;
+            foreach(var attch in motion.Attachments)
+            {
+                var div = new Div(id: attch.FileName, cls: "file")
+                {
+                    Children =
+                    {
+                        new Paragraph($"Filed by {attch.UploadedBy.Name}"),
+                        new RawObject($"<iframe src='/chess/coa/cases/{n}/motions/{mn}/{attachmentIndex++}'></iframe>")
+                    }
+                };
+                attachments.Children.Add(div);
+            }
+            var holding = new RawObject("");
+            if(motion.Holding != null)
+            {
+                string cls;
+                if (motion.Denied)
+                    cls = "denied";
+                else if (motion.Granted)
+                    cls = "granted";
+                else
+                    cls = "";
+                holding = new RawObject($"<p class='{cls}'><strong>{motion.Holding}</strong> on {motion.HoldingDate:dd/MM/yyyy}</p>");
+            }
+
+            string cj = doesHavePerm(ChessPerm.ChiefJustice)
+                ? "<input type='button' class='cjdo' onclick='doThing()' value='Submit holding'>"
+                : "";
+            ReplyFile("motion.html", 200, new Replacements(hearing)
+                .Add("files", attachments)
+                .Add("motion", motion)
+                .Add("mholding", holding)
+                .Add("chief", cj)
+                .IfElse("canadd", motion.Granted || motion.Denied, "display: none;", "display: block")
+                .Add("cjDoUrl", $"/chess/coa/api/cases/{n}/motions/{mn}/holding")
+                .Add("newpath", $"cases/{n}/motions/{mn}/files"));
+        }
+
+        [Method("GET"), PathRegex(@"\/chess\/coa\/cases\/(?<n>\d{1,4})\/witnesses\/(?<id>\d{1,3})(?!\/)")]
+        public void ViewWitnessInfo(int n, int id)
+        {
+            var hearing = CoAService.Hearings.FirstOrDefault(x => x.CaseNumber == n);
+            if(hearing == null)
+            {
+                RespondRaw("Unknown hearing", 404);
+                return;
+            }
+            if(hearing.Sealed)
+            {
+                RespondRaw("Hearing has been Ordered sealed by the Court of Appeals.", System.Net.HttpStatusCode.UnavailableForLegalReasons);
+                return;
+            }
+            var witness = hearing.Witnesses.FirstOrDefault(x => x.Witness.Id == id);
+            if(witness == null)
             {
                 RespondRaw("Unknown witness", 404);
                 return;
             }
-            if(witObj.CanMoveNextStage(SelfPlayer, out var withPowers))
-            {
-                if(hearing.Justices.Select(x => x.Id).Contains(SelfPlayer.Id) && !(SelfPlayer.Id == hearing.Plaintiff.Id || SelfPlayer.Id == hearing.Defendant.Id))
-                { // judges need to vote to move on, since there are multiple
-                    if (witObj.JusticesVotedAdvance.Contains(SelfPlayer.Id))
-                    {
-                        RespondRaw("You have already voted to move testimony forward", System.Net.HttpStatusCode.Conflict);
-                        return;
-                    } else
-                    { // note on move/rule: if overriding plaintiff/defendant, we use rule
-                        mustSave = true;
-                        witObj.JusticesVotedAdvance.Add(SelfPlayer.Id);
-                        if (witObj.JusticesVotedAdvance.Count >= hearing.JudgeRulingMinimum)
-                        { 
-                            witObj.AdvanceNextStage();
-                            if(witObj.IsFinishedTestimony)
-                            {
-                                witObj.Channel.SendMessageAsync("Testimony has been conclued.\nWitness is dismissed");
-                            } else
-                            {
-                                witObj.Channel.SendMessageAsync($"Justices have {(withPowers ? "ruled to move" : "voted to move")} testimony forwards\n" +
-                                    $"{witObj.CurrentlyQuestioning} now questioning the witnesses");
-                                System.Threading.Thread.Sleep(500);
-                                witObj.SendEmbed();
-                            }
-                            hearing.JusticesChnl.SendMessageAsync($"Justice **{SelfPlayer.Name}** joins majority {(withPowers ? "ruling" : "vote")} to move testimony of {witObj.Witness.Name} forward");
-                        } else
-                        {
-                            hearing.JusticesChnl.SendMessageAsync($"Justice **{SelfPlayer.Name}** votes to{(withPowers ? " forcefully" : "")} move testimony of {witObj.Witness.Name} foward ({witObj.JusticesVotedAdvance.Count}/{hearing.JudgeRulingMinimum})");
-                        }
-                        RespondRaw("");
-                    }
-                } else
-                { // non-justices can simply move it of their own accord
-                    mustSave = true;
-                    witObj.AdvanceNextStage();
-                    if(witObj.IsFinishedTestimony)
-                    {
-                        witObj.Channel.SendMessageAsync($"Testimony of witness {witObj.Witness.Name} has been concluded\n" +
-                            $"The witness is dismissed");
-                    } else
-                    {
-                        witObj.Channel.SendMessageAsync($"{SelfPlayer.Name} has {(witObj.Stage <= 1 ? "paused" : "concluded")} their testimony\n" +
-                            $"{witObj.CurrentlyQuestioning} now questioning the witness");
-                    }
-                    RespondRaw("");
-                }
-            } else
-            {
-                RespondRaw("No permission to do that", 403);
-            }
+            ReplyFile("witness.html", 200, new Replacements(hearing)
+                .Add("witness", witness)
+                .Add("concluded", witness.ConcludedOn.HasValue 
+                    ? $"Witness testimony was closed/concluded on {witness.ConcludedOn.Value.ToString("dd/MM/yyyy")}"
+                    : "Testimony remains on going")
+            );
         }
-    
-        [Method("PUT"), Path("/chess/coa/rule")]
-        public void JusticeDoRule(int num, string type)
+
+        [Method("GET"), Path("/chess/coa/new")]
+        public void ViewCreateHearing()
         {
-            var hearing = Hearings.FirstOrDefault(x => x.CaseNumber == num);
-            if(hearing == null)
+            Sidebar = SidebarType.None;
+            var multiSelect = new Div(cls: "playerList");
+            foreach(var p in ChessService.Players.Where(x => !x.IsBuiltInAccount).OrderByDescending(x => x.Rating))
             {
-                RespondRaw("Unknown hearing", 404);
-                return;
-            }
-            if(hearing.HasFinished)
-            {
-                RespondRaw("Hearing has already finished", 400);
-                return;
-            }
-            hearing.RemoveJusticeVotes(SelfPlayer);
-            if(hearing.AddVote(SelfPlayer, type))
-            {
-                mustSave = true;
-                RespondRaw("Ok");
-                if(hearing.HasReachedMajority(out string verdict, out var majority))
+                multiSelect.Children.Add(new Div(cls: "playerListElement")
                 {
-                    hearing.Verdict = verdict;
-                    hearing.JusticesChnl.SendMessageAsync($"Justice **{SelfPlayer.Name}** causes majority for {verdict}");
-                    hearing.GeneralChnl.SendMessageAsync($"Case Concluded", embed: new EmbedBuilder()
-                        .WithTitle("Court of Appeals")
-                        .WithDescription($"The Court has reached a majority verdict: **{verdict}**")
-                        .AddField("Majority", "- " + string.Join("\n- ", majority.Select(x => x.Name)))
-                        .AddField("Minority", "- " + string.Join("\n- ", hearing.GetVoteCount(x => x != verdict).Select(x => x.Name)))
-                        .WithCurrentTimestamp()
-                        .Build());
-                    foreach(var witObj in hearing.Witnesses)
+                    Children =
                     {
-                        if(witObj.Stage < 5)
+                        new Input("checkbox", id: $"cb-{p.Id}")
                         {
-                            witObj.Stage = 5; // set it beyond
-                            witObj.Channel.SendMessageAsync("Witness testimony concluded since the overall appeal was " + verdict);
-                        }
+                            OnClick = "toggle(this);"
+                        },
+                        new Label(p.Name, $"lbl-{p.Id}")
                     }
-                    hearing.SetChannelPermissions();
-                } else
-                {
-                    hearing.JusticesChnl.SendMessageAsync($"Justice **{SelfPlayer.Name}** votes that this Court reaches a verdict of {type}");
-                }
-            } else
-            {
-                RespondRaw("Error occured, maybe you are not a justice?", 400);
-                return;
+                });
             }
+            ReplyFile("newappeal.html", 200, new Replacements()
+                .Add("players", multiSelect));
         }
-    
-        [Method("PUT"), Path("/chess/coa/allow_enbanc")]
-        public void PermitEnBancAppeal(int num)
+
+        [Method("GET"), PathRegex(@"\/chess\/coa\/cases\/(?<n>\d{1,4})\/newmotion")]
+        public void ViewCreateMotion(int n)
         {
-            var hearing = Hearings.FirstOrDefault(x => x.CaseNumber == num);
+            var hearing = CoAService.Hearings.FirstOrDefault(x => x.CaseNumber == n);
             if (hearing == null)
             {
                 RespondRaw("Unknown hearing", 404);
                 return;
             }
-            if(!hearing.IsAppealRequested)
+            if(hearing.Holding != null)
             {
-                RespondRaw("No appeal requested", 404);
+                RespondRaw("Petition has been concluded, no motions may be added.", 400);
                 return;
             }
-            if(SelfPlayer.Permission != ChessPerm.CourtOfAppeals)
+            var list = new Select(name: "types");
+            var motionType = typeof(Motions);
+            var fields = motionType.GetFields();
+            foreach(var type in fields)
             {
-                RespondRaw("Only the Chief Justice may do that", 403);
-                return;
-            }
-            var newHear = new CoAHearing(hearing.Plaintiff, hearing.Defendant, $"Appeal {hearing.Verdict} ruling from #{hearing.CaseStr}");
-            newHear.Justices = Players.Where(x => !x.IsBuiltInAccount && x.Permission.HasFlag(ChessPerm.Justice)).ToArray();
-            newHear.GeneralChnl = hearing.GeneralChnl;
-            newHear.JusticesChnl = hearing.JusticesChnl;
-            newHear.Category = hearing.Category;
-            newHear.Witnesses = hearing.Witnesses;
-            newHear.AnAppealOf = hearing;
-            hearing.AppealHearing = newHear;
-            Hearings.Add(newHear);
-            mustSave = true;
-            newHear.ClearChannelPermissions(); // just clean it up
-            newHear.SetChannelPermissions();
-            newHear.GeneralChnl.SendMessageAsync("This case has been appealed to be heard by the whole Court.\nThese channels will now be used by the appeal case");
-            newHear.JusticesChnl.SendMessageAsync($"An appeal should **not** be a brand new trial.\n" +
-                $"Instead, this Court should evaluate descisions made by the previous Justices and determine whether any errors in logic were made\n" +
-                $"This Court should not be calling any new witnesses as all the applicable facts of the case should be established");
-            foreach(var player in new ChessPlayer[] { hearing.Plaintiff, hearing.Defendant})
-            {
-                if (player.Id == SelfPlayer.Id)
+                if (type.Name == nameof(Motions.WritOfCertiorari))
                     continue;
-                if(player.ConnectedAccount > 0)
-                {
-                    var usr = Program.GetUserOrDefault(player.ConnectedAccount);
-                    if (usr == null)
-                        continue;
-                    var builder = new EmbedBuilder();
-                    builder.WithTitle("Court of Appeals");
-                    builder.WithDescription($"A case you were involved in has been appealed to be heard *en banc*");
-                    builder.AddField("What this means", "The Court should review the ruling and any descisions made by the previous Justices\n" +
-                        "Then they should come to a ruling on whether to uphold or overturn the verdict");
-                    if (Program.ChessGuild.GetUser(player.ConnectedAccount) == null)
-                        builder.AddField("Invite", $"To server: {Invite}");
-                    usr.SendMessageAsync(embed: builder.Build());
-                }
+                list.Add((string)type.GetValue(null), type.Name);
             }
+            ReplyFile("newmotion.html", 200, new Replacements(hearing)
+                .Add("types", list));
         }
 
-        [Method("PUT"), Path("/chess/coa/enbanc")]
-        public void AppealPriorCase(int num)
+        [Method("GET"), PathRegex(@"\/chess\/coa\/cases\/(?<n>\d{1,4})\/newwitness")]
+        public void ViewCreateWitness(int n)
         {
-            var hearing = Hearings.FirstOrDefault(x => x.CaseNumber == num);
+            var hearing = CoAService.Hearings.FirstOrDefault(x => x.CaseNumber == n);
+            if (hearing == null)
+            {
+                RespondRaw("Unknown hearing", 404);
+                return;
+            }
+            if (hearing.Holding != null)
+            {
+                RespondRaw("Petition has been concluded, no further witnesses may be called.", 400);
+                return;
+            }
+            var existingWitnesses = new OptionGroup("Already called");
+            var notCalled = new OptionGroup("Available");
+            var players = new Select(id: "players")
+            {
+                Name = "id",
+                Children =
+                {
+                    notCalled,
+                    existingWitnesses
+                }
+            };
+            foreach(var player in ChessService.Players.Where(x => !x.IsBuiltInAccount).OrderByDescending(x => x.Rating))
+            {
+                if(hearing.Witnesses.Any(x => x.Witness.Id == player.Id))
+                {
+                    existingWitnesses.Children.Add(new Option(player.Name, "")
+                    {
+                        ReadOnly = true,
+                    });
+                } else
+                {
+                    notCalled.Add(player.Name, player.Id.ToString());
+                }
+            }
+
+            ReplyFile("newwitness.html", 200, new Replacements(hearing)
+                .Add("users", players));
+        }
+
+
+        #endregion
+
+        #region API Endpoints
+
+        #region New Hearing
+        [Method("POST"), Path("/chess/coa/api/cases")]
+        public void CreateHearing(int[] respondents)
+        {
+            List<ChessPlayer> _Respondents = new List<ChessPlayer>();
+            foreach(var id in respondents)
+            {
+                var x = ChesssInstance.GetPlayer(id);
+                if(x == null)
+                {
+                    RespondRaw($"Could not find user with id '{id}'", 404);
+                    return;
+                }
+                if(x.IsBuiltInAccount)
+                {
+                    RespondRaw($"'{x.Name} ({id})' is a built in account for internal usage.", 400);
+                    return;
+                }
+                _Respondents.Add(x);
+
+            }
+            var file = Context.Files.FirstOrDefault();
+            if(file == null)
+            {
+                RespondRaw("You did not upload an initial attachment; please return to previous page and retry.", 400);
+                return;
+            }
+            var extension = file.FileName.Split('.')[^1];
+            if(!isPermittedExtension(extension))
+            {
+                RespondRaw($"File uploaded must be .txt, .pdf, or .md", 400);
+                return;
+            }
+            var hearing = new CoAHearing(new List<ChessPlayer>() { SelfPlayer }, _Respondents);
+            hearing.CaseNumber = CoAService.Hearings.Count + 1;
+            hearing.Filed = DateTime.Now;
+
+            string fName = "00_writ_cert." + extension;
+            var attachment = new CoAttachment(fName, SelfPlayer);
+            var motion = new CoAMotion()
+            {
+                Attachments = { attachment },
+                Filed = DateTime.Now,
+                Hearing = hearing,
+                MotionType = Motions.WritOfCertiorari,
+                Movant = SelfPlayer,
+            };
+            hearing.Motions.Add(motion);
+            hearing.SetIds();
+            if (!Directory.Exists(motion.DataPath))
+                Directory.CreateDirectory(motion.DataPath);
+            using var fs = new FileStream(attachment.DataPath, FileMode.Create, FileAccess.Write);
+            file.Data.CopyTo(fs);
+
+            CoAService.Hearings.Add(hearing);
+            RespondRaw(LoadRedirectFile($"/chess/coa/cases/{hearing.CaseNumber}"), System.Net.HttpStatusCode.Redirect);
+        }
+        #endregion
+
+        [Method("POST"), PathRegex(@"\/chess\/coa\/api\/cases\/(?<n>\d{1,4})\/motions\/(?<mn>\d{1,2})\/files")]
+        public void AttachFileToMotion(int n, int mn, string notneeded = "") // string is to force body to be parsed, since it isn't until an argument is needed that isn't in query or regex.
+        {
+            var hearing = CoAService.Hearings.FirstOrDefault(x => x.CaseNumber == n);
             if(hearing == null)
             {
                 RespondRaw("Unknown hearing", 404);
                 return;
             }
-            if(hearing.AppealHearing != null || hearing.IsAppealRequested)
+            var motion = hearing.Motions.ElementAtOrDefault(mn);
+            if(motion == null)
             {
-                RespondRaw($"Case has already been appealed, or requested to be appealed", 409);
+                RespondRaw("Unknown motion", 404);
                 return;
             }
-            if(hearing.Defendant.Id != SelfPlayer.Id && hearing.Plaintiff.Id != SelfPlayer.Id)
-            {
-                RespondRaw("Only the plaintiff or defendant may appeal", 403);
+            if(motion.Denied || motion.Granted)
+            { // some outcome
+                RespondRaw("Motion has already been ruled on", 400);
                 return;
             }
-            hearing.IsAppealRequested = true;
-            mustSave = true;
-            ulong chiefId = ulong.Parse(Program.Configuration["chess:chief:id"]);
-            var usr = Program.Client.GetUser(chiefId);
-            usr.SendMessageAsync(embed: new EmbedBuilder()
-                .WithTitle("Court of Appeals")
-                .WithDescription($"[Case #{hearing.CaseStr}]({Handler.LocalAPIUrl}/chess/coa/hearing?num={hearing.CaseNumber})'s " +
-                    $"verdict of {hearing.Verdict} has requsted to be appealed by {SelfPlayer.Name}")
-                .Build());
+            var file = Context.Files.FirstOrDefault();
+            if(file == null)
+            {
+                RespondRaw("No file", 400);
+                return;
+            }
+            var ext = file.FileName.Split('.')[^1];
+            if(!isPermittedExtension(ext))
+            {
+                RespondRaw("Extension must be .txt, .pdf or .md", 400);
+                return;
+            }
+            string fName = $"{(motion.Attachments.Count + 1):00}_{file.FileName}";
+            var attachment = new CoAttachment(fName, SelfPlayer);
+            motion.Attachments.Add(attachment);
+            motion.SetIds(hearing);
+
+            if (!Directory.Exists(motion.DataPath))
+                Directory.CreateDirectory(motion.DataPath);
+            using var fs = new FileStream(attachment.DataPath, FileMode.Create, FileAccess.Write);
+            file.Data.CopyTo(fs);
+            RespondRaw(LoadRedirectFile($"/chess/coa/cases/{hearing.CaseNumber}/motions/{hearing.Motions.IndexOf(motion)}"), System.Net.HttpStatusCode.Redirect);
+        }
+
+        [Method("PATCH"), PathRegex(@"\/chess\/coa\/api\/cases\/(?<n>\d{1,4})\/motions\/(?<mn>\d{1,2})\/holding")]
+        public void SetMotionOutcome(int n, int mn)
+        {
+            var hearing = CoAService.Hearings.FirstOrDefault(x => x.CaseNumber == n);
+            if (hearing == null)
+            {
+                RespondRaw("Unknown hearing", 404);
+                return;
+            }
+            var motion = hearing.Motions.ElementAtOrDefault(mn);
+            if (motion == null)
+            {
+                RespondRaw("Unknown motion", 404);
+                return;
+            }
+            motion.Holding = Uri.UnescapeDataString(Context.Body);
+            motion.HoldingDate = DateTime.Now;
+            if(motion.MotionType == Motions.WritOfCertiorari)
+            {
+                if(motion.Granted)
+                {
+                    hearing.Commenced = motion.HoldingDate;
+                    hearing.Holding = null;
+                    hearing.Concluded = null;
+                } else if(motion.Denied)
+                {
+                    hearing.Holding = "Cert. denied, Court declined to hear petition; dismissed";
+                    hearing.Concluded = motion.HoldingDate;
+                }
+            }
+            ChesssInstance.OnSave();
             RespondRaw("");
         }
+
+        [Method("POST"), PathRegex(@"\/chess\/coa\/api\/cases\/(?<n>\d{1,4})\/motions(?!\/)")]
+        public void CreateNewMotion(int n, string types)
+        {
+            var hearing = CoAService.Hearings.FirstOrDefault(x => x.CaseNumber == n);
+            if(hearing == null)
+            {
+                RespondRaw("Unknown hearing", 404);
+                return;
+            }
+            if(hearing.Holding != null)
+            {
+                RespondRaw("Petition has concluded, motions cannot be added", 400);
+                return;
+            }
+
+            var motionType = typeof(Motions).GetFields().FirstOrDefault(x => x.Name == types);
+            if(motionType == null)
+            {
+                RespondRaw("Unknown motion type", 400);
+                return;
+            }
+            string name = (string)motionType.GetValue(null);
+            if(name == Motions.WritOfCertiorari)
+            {
+                RespondRaw("Motion for writ of cert. can only be made once - automatically when petition is filed.");
+                return;
+            }
+            var motion = new CoAMotion()
+            {
+                MotionType = name,
+                Filed = DateTime.Now,
+                Movant = SelfPlayer
+            };
+            motion.SetIds(hearing);
+            hearing.Motions.Add(motion);
+            ChesssInstance.OnSave();
+            RespondRaw(LoadRedirectFile($"/chess/coa/cases/{n}/motions/{hearing.Motions.Count - 1}"), System.Net.HttpStatusCode.Redirect);
+        }
+
+        [Method("POST"), PathRegex(@"\/chess\/coa\/api\/cases\/(?<n>\d{1,4})\/witnesses(?!\/)")]
+        public void CreateNewWitness(int n, int id)
+        {
+            var hearing = CoAService.Hearings.FirstOrDefault(x => x.CaseNumber == n);
+            if (hearing == null)
+            {
+                RespondRaw("Unknown hearing", 404);
+                return;
+            }
+            if (hearing.Holding != null)
+            {
+                RespondRaw("Petition has concluded, motions cannot be added", 400);
+                return;
+            }
+            if(!hearing.CanCallWitness(SelfPlayer))
+            {
+                RespondRaw("You cannot call witnesses for this petition.", System.Net.HttpStatusCode.Forbidden);
+                return;
+            }
+            var player = ChessService.Players.FirstOrDefault(x => x.Id == id);
+            if(player == null)
+            {
+                RespondRaw("Unknown player", 404);
+                return;
+            }
+            var existing = hearing.Witnesses.FirstOrDefault(x => x.Witness.Id == id);
+            if(existing != null)
+            {
+                RespondRaw(LoadRedirectFile($"/chess/coa/cases/{hearing.CaseNumber}/witnesses/{id}"), System.Net.HttpStatusCode.Conflict);
+                return;
+            }
+            var witness = new CoAWitness(player);
+            hearing.Witnesses.Add(witness);
+            witness.SetIds(hearing);
+            RespondRaw(LoadRedirectFile($"/chess/coa/cases/{hearing.CaseNumber}/witnesses/{id}"), System.Net.HttpStatusCode.Redirect);
+        }
+
+        string mimeFromExtension(string ext)
+        {
+            return ext switch
+            {
+                "txt" => "text/plain",
+                "md" => "text/plain",
+                "pdf" => "application/pdf",
+                "docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                _ => ext,
+            };
+        }
+        bool isPermittedExtension(string ext) => mimeFromExtension(ext) != ext;
+
+        [Method("GET"), PathRegex(@"\/chess\/coa\/cases\/(?<cn>\d{1,4})\/motions\/(?<mi>\d{1,2})\/(?<ai>\d{1,2})")]
+        public void GetFileRaw(int cn, int mi, int ai)
+        {
+            var hearing = CoAService.Hearings.FirstOrDefault(x => x.CaseNumber == cn);
+            if (hearing == null || hearing.Sealed)
+            {
+                HTTPError(System.Net.HttpStatusCode.NotFound, "", "Could not find a hearing at this URL");
+                return;
+            }
+            var motion = hearing.Motions.ElementAtOrDefault(mi);
+            if (motion == null)
+            {
+                HTTPError(System.Net.HttpStatusCode.NotFound, "", "Could not find a motion at this URL");
+                return;
+            }
+            var attachment = motion.Attachments.ElementAtOrDefault(ai);
+            if (attachment == null)
+            {
+                HTTPError(System.Net.HttpStatusCode.NotFound, "", "Could not find an attachment at this URL");
+                return;
+            }
+            var ext = attachment.FileName.Split(".")[^1];
+            Context.HTTP.Response.StatusCode = 200;
+            Context.HTTP.Response.ContentType = mimeFromExtension(ext);
+            using var fs = new FileStream(attachment.DataPath, FileMode.Open, FileAccess.Read);
+            fs.CopyTo(Context.HTTP.Response.OutputStream);
+            Context.HTTP.Response.Close();
+        }
+
+        #endregion
     }
 }

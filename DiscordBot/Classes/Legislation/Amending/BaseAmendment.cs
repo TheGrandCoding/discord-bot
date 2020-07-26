@@ -21,7 +21,7 @@ namespace DiscordBot.Classes.Legislation.Amending
 
     public enum AmendType
     {
-        Replace,
+        Substitute,
         Repeal,
         Insert
     }

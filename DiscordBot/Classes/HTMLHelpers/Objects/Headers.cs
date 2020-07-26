@@ -4,7 +4,7 @@ using System.Text;
 
 namespace DiscordBot.Classes.HTMLHelpers.Objects
 {
-    public class Header : HTMLBase
+    public class Header : DOMBase
     {
         public Header(int n, string id = null, string cls = null) : base($"h{n}", id, cls) { }
     }

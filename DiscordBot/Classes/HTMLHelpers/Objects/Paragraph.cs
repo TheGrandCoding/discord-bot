@@ -4,7 +4,7 @@ using System.Text;
 
 namespace DiscordBot.Classes.HTMLHelpers.Objects
 {
-    public class Paragraph : HTMLBase
+    public class Paragraph : DOMBase
     {
         public Paragraph(string content, string id = null, string cls = null) : base("p", id, cls)
         {

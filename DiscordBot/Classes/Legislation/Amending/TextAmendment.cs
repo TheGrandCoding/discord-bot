@@ -18,7 +18,7 @@ namespace DiscordBot.Classes.Legislation.Amending
                 return $"Words inserted {s}";
             if(Type == AmendType.Repeal)
                 return $"Words removed {s}";
-            if(Type == AmendType.Replace)
+            if(Type == AmendType.Substitute)
                 return $"Words substitued {s}";
             return "Unknown action";
         }

@@ -114,5 +114,31 @@ namespace DiscordBot.Classes.Legislation
             }
             return div;
         }
+
+        public override void WriteTo(HTMLBase parent, int depth, AmendmentBuilder builder)
+        { // not used.
+            throw new NotImplementedException();
+        }
+
+        public override void SetInitialNumber(int depth, int count)
+        {
+            count = 1;
+            Children = Children.OrderBy(x => x.Number, new NumberComparer()).ToList();
+            foreach (var child in Children)
+            {
+                child.SetInitialNumber(0, count);
+                if (!child.Group)
+                    count++;
+            }
+        }
+        public override LawThing Find(params string[] things)
+        {
+            if (things.Length == 0)
+                return null;
+            Section child = Children.FirstOrDefault(x => !x.Group && x.Number == things[0]);
+            if (things.Length == 1)
+                return child;
+            return child?.Find(things[1..]);
+        }
     }
 }

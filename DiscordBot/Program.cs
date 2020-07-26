@@ -142,8 +142,8 @@ Gather information on class and subjects via Teams.
 
         public static async Task MainAsync()
         {
-            Directory.SetCurrentDirectory(BASE_PATH);
             Program.LogMsg($"Starting bot with v{VER_STR}");
+            Directory.SetCurrentDirectory(BASE_PATH);
             try
             {
                 buildConfig();
@@ -239,11 +239,6 @@ Gather information on class and subjects via Teams.
             coll.AddSingleton(typeof(HttpClient), http);
             foreach(var service in ReflectiveEnumerator.GetEnumerableOfType<Service>(null))
                 coll.AddSingleton(service.GetType());
-            string password = Program.Configuration["tokens:atlas:password"];
-            string dbName = "awards";
-            var client = new MongoDB.Driver.MongoClient(
-                $"mongodb+srv://rpi4:{password}@cluster0-mz2ro.mongodb.net/{dbName}?retryWrites=true&w=majority");
-            coll.AddSingleton(client);
             return coll.BuildServiceProvider();
         }
 

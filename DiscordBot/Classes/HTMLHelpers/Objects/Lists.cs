@@ -4,14 +4,14 @@ using System.Text;
 
 namespace DiscordBot.Classes.HTMLHelpers.Objects
 {
-    public class ListItem : HTMLBase
+    public class ListItem : DOMBase
     {
         public ListItem(string content, string id = null, string cls = null) : base("li", id, cls)
         {
             RawText = content;
         }
     }
-    public class UnorderedList : HTMLBase
+    public class UnorderedList : DOMBase
     {
         public UnorderedList(string id = null, string cls = null) : base("ul", id, cls)
         {
@@ -22,7 +22,7 @@ namespace DiscordBot.Classes.HTMLHelpers.Objects
             return this;
         }
     }
-    public class OrderedList : HTMLBase
+    public class OrderedList : DOMBase
     {
         public OrderedList(string id = null, string cls = null) : base("ol", id, cls)
         {
