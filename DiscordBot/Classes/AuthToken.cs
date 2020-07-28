@@ -27,8 +27,16 @@ namespace DiscordBot.Classes
             Value = value;
         }
 
-        public AuthToken(string name, int length = 10) : this(name, Generate(length))
+        const int defaultLength = 12;
+        public AuthToken(string name, int length = defaultLength) : this(name, Generate(length))
         {
+        }
+
+        public void Regenerate(int length = -1)
+        {
+            if (length < 0)
+                length = Value?.Length ?? defaultLength;
+            Value = Generate(length);
         }
 
         public static string Generate(int length)

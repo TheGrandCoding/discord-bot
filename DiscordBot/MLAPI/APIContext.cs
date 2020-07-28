@@ -19,6 +19,8 @@ namespace DiscordBot.MLAPI
         public string Query => Request.Url.Query;
         public string Method => Request.HttpMethod;
 
+        public bool HasPerm(string node) => Perms.Parse(node).HasPerm(this);
+
         static string[] browser_uas = new string[]
         {
             "Chrome",
@@ -29,6 +31,10 @@ namespace DiscordBot.MLAPI
         public bool WantsHTML { get
             {
                 return Request.AcceptTypes.Contains("text/html");
+            } }
+        public bool WantsJson {  get
+            {
+                return Request.AcceptTypes.Contains("application/json");
             } }
 
         public string Host {  get

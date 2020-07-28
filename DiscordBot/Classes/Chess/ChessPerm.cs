@@ -16,5 +16,6 @@ namespace DiscordBot.Classes.Chess
         Arbiter =       0b00010000 | Moderator,
         Justice=        0b00100000,
         ChiefJustice=   0b0100000 | Justice | AddMatch | CreateUser | RemoveUser,
+        CourtOfAppeals= 0b11111111,
     }
 }

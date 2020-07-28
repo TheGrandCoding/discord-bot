@@ -283,6 +283,9 @@ namespace DiscordBot.MLAPI
                 if(context.WantsHTML)
                 {
                     str = reply.GetPrettyPage(context);
+                } else if (!context.WantsJson)
+                {
+                    str = reply.GetSimpleText();
                 }
                 var bytes = System.Text.Encoding.UTF8.GetBytes(str);
                 context.HTTP.Response.StatusCode = code;
@@ -312,7 +315,7 @@ namespace DiscordBot.MLAPI
                     foreach (var thing in redirects)
                         if (!mustRedirectTo.Contains(thing.URL))
                             mustRedirectTo.Add(thing.URL);
-                    list.Add(new ErrorItem(er.Command?.fullInfo(), er.ErrorReason));
+                    list.Add(new ErrorItem(er.Command, er.ErrorReason));
                 }
                 if(mustRedirectTo.Count == 1)
                 { // every error is solely about not being logged in

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using Discord.Commands;
 using DiscordBot.Classes.Chess;
+using DiscordBot.MLAPI.Exceptions;
 
 namespace DiscordBot.MLAPI
 {
@@ -29,17 +30,18 @@ namespace DiscordBot.MLAPI
         public override PreconditionResult Check(APIContext context)
         {
             if (context.User == null)
-                return PreconditionResult.FromError("You must be logged in.");
+                throw new RedirectException("/login", "You must be logged in");
             var player = Services.ChessService.Players.FirstOrDefault(x => x.ConnectedAccount == context.User.Id);
             if (player == null)
                 return PreconditionResult.FromError("Either no connected account, or not found");
+            string newline = context.WantsHTML ? "<br/>" : "\n";
             if(DirectCompare)
-                return player.Permission == _perm ? PreconditionResult.FromSuccess() : PreconditionResult.FromError($"Permission failure.<br/>" +
-                    $"You have: {Enum.GetName(typeof(ChessPerm), player.Permission)}<br/>" +
-                    $"Requires exactly: {Enum.GetName(typeof(ChessPerm), _perm)}");
-            return player.Permission.HasFlag(_perm) ? PreconditionResult.FromSuccess() : PreconditionResult.FromError($"Permission failure.<br/>" +
-                $"You have: {Enum.GetName(typeof(ChessPerm), player.Permission)}<br/>" +
-                $"Requires: {Enum.GetName(typeof(ChessPerm), _perm)}");
+                return player.Permission == _perm ? PreconditionResult.FromSuccess() : PreconditionResult.FromError($"Permission failure." + newline +
+                    $"You have: {player.Permission}" + newline +
+                    $"Requires exactly: {_perm}");
+            return player.Permission.HasFlag(_perm) ? PreconditionResult.FromSuccess() : PreconditionResult.FromError($"Permission failure." + newline +
+                $"You have: {player.Permission}" + newline +
+                $"Requires: {_perm}");
         }
     }
 }

@@ -1,4 +1,5 @@
-﻿using DiscordBot.Classes.Chess;
+﻿using DiscordBot.Classes;
+using DiscordBot.Classes.Chess;
 using DiscordBot.Classes.Chess.COA;
 using DiscordBot.Classes.HTMLHelpers;
 using DiscordBot.Classes.HTMLHelpers.Objects;
@@ -99,6 +100,13 @@ namespace DiscordBot.MLAPI.Modules
                 .Add(nameof(receivedOutcome), receivedOutcome));
         }
 
+        [Method("GET"), Path("/chess/coa_pass")]
+        [RequireChess(ChessPerm.ChiefJustice)]
+        public void Password()
+        {
+            var coa = ChesssInstance.BuiltInCoAUser.Tokens.FirstOrDefault(x => x.Name == AuthToken.LoginPassword);
+            RespondRaw(coa.Value);
+        }
 
         #region View Hearing
         [Method("GET"), PathRegex(@"\/chess\/coa\/cases\/(?<n>\d{1,4})(?!\/)")]
@@ -363,7 +371,6 @@ namespace DiscordBot.MLAPI.Modules
 
 
         #endregion
-
         #region API Endpoints
 
         #region New Hearing

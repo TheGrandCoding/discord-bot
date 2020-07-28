@@ -1,5 +1,7 @@
 ﻿using Discord;
+using DiscordBot.Classes;
 using DiscordBot.Classes.Chess;
+using DiscordBot.Classes.HTMLHelpers;
 using DiscordBot.Classes.HTMLHelpers.Objects;
 using DiscordBot.MLAPI.Exceptions;
 using DiscordBot.Services;
@@ -62,7 +64,7 @@ namespace DiscordBot.MLAPI.Modules
                 return;
             if(Context.Path != "/chess" && Context.Path != "/chess/history")
             {
-                if(string.IsNullOrWhiteSpace(Context.User.VerifiedEmail) || (Context.User.VerifiedEmail == "@"))
+                if(string.IsNullOrWhiteSpace(Context.User.VerifiedEmail) || (Context.User.VerifiedEmail == "@" && SelfPlayer.Id == BuiltInClassRoomChess))
                 {
                     Context.User.VerifiedEmail = null;
                     string url = MLAPI.Modules.MicrosoftOauth.getUrl(Context.User);
@@ -587,27 +589,32 @@ namespace DiscordBot.MLAPI.Modules
                 }, 403);
             }
             string table = "";
+            string ineligible = "";
             foreach(var player in Players.OrderBy(x => x.Name))
             {
                 if (player.ShouldContinueInLoop || player.Id == SelfPlayer.Id)
                     continue;
-                if (!meetsCandidacyRequirements(player))
+                var result = checkArbiterCandidacy(player);
+                if (result.IsSuccess)
+                {
+                    string ROW = "<tr>";
+                    ROW += $"<td>{player.Name}</td>";
+                    int current = SelfPlayer.ArbiterVotePreferences.GetValueOrDefault(player.Id, 0);
+                    for (int i = -2; i <= 2; i++)
+                    {
+                        ROW += $"<td><input type='checkbox' {(i == current ? "checked" : "")} onclick='setVote({player.Id}, {i})'></td>";
+                    }
+                    table += ROW + "</tr>";
+                } else
                 {
                     SelfPlayer.ArbiterVotePreferences.Remove(player.Id);
                     didChange = true;
-                    continue;
+                    ineligible += new ListItem($"<strong>{player.Name}:</strong> {result.ErrorReason}");
                 }
-                string ROW = "<tr>";
-                ROW += $"<td>{player.Name}</td>";
-                int current = SelfPlayer.ArbiterVotePreferences.GetValueOrDefault(player.Id, 0);
-                for(int i = -2; i <= 2; i++)
-                {
-                    ROW += $"<td><input type='checkbox' {(i == current ? "checked" : "")} onclick='setVote({player.Id}, {i})'></td>";
-                }
-                table += ROW + "</tr>";
             }
             ReplyFile("election.html", 200, new Replacements()
                 .Add("table", table)
+                .Add("inelig", ineligible)
                 .Add("arbiter", Players.FirstOrDefault(x => x.Permission.HasFlag(ChessPerm.Arbiter)).Name)
                 );
         }
@@ -616,26 +623,16 @@ namespace DiscordBot.MLAPI.Modules
         [RequireChess(ChessPerm.Player)]
         public void SetVote(int id, int value)
         {
-            if (SelfPlayer.IsBanned || SelfPlayer.IsBuiltInAccount)
+            if(ChessService.GetPlayedAgainst(SelfPlayer, ChessService.VoterGamesRequired).Count < ChessService.VoterGamesRequired)
             {
-                HTTPError(HttpStatusCode.Forbidden, "Not Able to Vote", "You are unable to vote");
+                RespondRaw($"You are unable to vote; must have played at least {ChessService.VoterGamesRequired} games", 403);
                 return;
             }
-            if (SelfPlayer.Removed)
-            {
-                if (SelfPlayer.Permission.HasFlag(ChessPerm.Moderator) || SelfPlayer.Permission.HasFlag(ChessPerm.Justice))
-                {
-                }
-                else
-                {
-                    RespondRaw("Invalid player: removed from leaderboard", 400);
-                    return;
-                }
-            }
             var player = Players.FirstOrDefault(x => x.Id == id);
-            if (player == null || player.ShouldContinueInLoop|| player.IsBanned)
+            var result = checkArbiterCandidacy(player);
+            if (!result.IsSuccess)
             {
-                RespondRaw("Invalid player: banned, built in or removed or not exists.", 404);
+                RespondRaw("Invalid: " + result.ErrorReason, 404);
                 return;
             }
             value = Math.Clamp(value, -2, 2);
@@ -820,52 +817,204 @@ namespace DiscordBot.MLAPI.Modules
                 .Add("warnings", WARNINGS));
         }
 
+        #region Modify User
+
+        TableRow _modGetHeaders()
+        {
+            var row = new TableRow();
+            row.WithHeader("Name");
+            row.WithHeader("Score");
+            if (doesHavePerm(ChessPerm.Arbiter))
+                row.WithHeader("Remove");
+            if (doesHavePerm(ChessPerm.Moderator))
+                row.WithHeader("Add Note");
+            row.WithHeader("Monitored");
+            row.WithHeader("Requires Chessclock");
+            row.WithHeader("Banned");
+            if (doesHavePerm(ChessPerm.Arbiter))
+                row.WithHeader("Moderator");
+            return row;
+        }
+
+        TableData _modName(ChessPlayer user)
+        {
+            if (doesHavePerm(ChessPerm.Moderator))
+                return new TableData(new Input("button", user.Name)
+                {
+                    OnClick = $"changename({user.Id}, '{user.Name}');"
+                });
+            return new TableData(new Anchor($"/chess/history?id={user.Id}", user.Name));
+        }
+        TableData _modScoreRating(ChessPlayer user)
+        {
+            var data = new TableData("");
+            if(Context.HasPerm(Perms.Bot.Developer.SetActualChessRating))
+            {
+                data.Children.Add(new Input("button", $"{user.Rating}")
+                {
+                    OnClick = $"change('{user.Id}');"
+                });
+            } else
+            {
+                data.Children.Add(new Label(user.Rating.ToString()));
+            }
+
+            if (doesHavePerm(ChessPerm.Moderator))
+            {
+                data.Children.Add(new Input("button", $"{(user.Modifier > 0 ? "+" : "")}{user.Modifier}")
+                {
+                    OnClick = $"changemod('{user.Id}');"
+                });
+            } else
+            {
+                data.Children.Add(new Label($"{(user.Modifier > 0 ? "+" : "")}{user.Modifier}"));
+            }
+            return data;
+        }
+        TableData _modRemove(ChessPlayer user)
+        {
+            if (!doesHavePerm(ChessPerm.Arbiter))
+                return null;
+            return new TableData("")
+            {
+                Children =
+                {
+                    new Input("button", user.Removed ? "Add" : "Remove")
+                    {
+                        OnClick = $"remove(\"{user.Name}\", \"{user.Id}\");"
+                    }
+                }
+            };
+        }
+        TableData _modAddNote(ChessPlayer user)
+        {
+            if (!doesHavePerm(ChessPerm.Moderator))
+                return null;
+            return new TableData("")
+            {
+                Children =
+                {
+                    new Input("button", "Add")
+                    {
+                        OnClick = $"addNote('{user.Id}');"
+                    }
+                }
+            };
+        }
+        TableData _modMonitor(ChessPlayer user)
+        {
+            if (!doesHavePerm(ChessPerm.Moderator))
+                return new TableData(user.RequireGameApproval ? "Yes" : "No");
+            return new TableData("")
+            {
+                Children =
+                {
+                    new Input("checkbox", "")
+                    {
+                        OnClick = $"toggleMonitor('{user.Id}')",
+                        Checked = user.RequireGameApproval
+                    }
+                }
+            };
+        }
+        TableData _modTiming(ChessPlayer user)
+        {
+            if (!doesHavePerm(ChessPerm.Moderator))
+                return new TableData(user.RequireTiming ? "Yes" : "No");
+            return new TableData("")
+            {
+                Children =
+                {
+                    new Input("checkbox")
+                    {
+                        OnClick = $"toggleTime('{user.Id}')",
+                        Checked = user.RequireTiming
+                    }
+                }
+            };
+        }
+        TableData _modBan(ChessPlayer user)
+        {
+            var data = new TableData("");
+            if(doesHavePerm(ChessPerm.Arbiter) || doesHavePerm(ChessPerm.ChiefJustice))
+            {
+                data.Children.Add(new Input("checkbox")
+                {
+                    OnClick = (user.IsBanned ? "unBanUser" : "banUser") + $"('{user.Id}')",
+                    ReadOnly = (user.IsBanned == false && doesHavePerm(ChessPerm.Moderator) == false)
+                });
+            } else if (doesHavePerm(ChessPerm.Moderator))
+            {
+                data.Children.Add(new Input("checkbox")
+                {
+                    OnClick = user.IsBanned ? "" : $"banUser('{user.Id}')",
+                    Checked = user.IsBanned,
+                    ReadOnly = user.IsBanned,
+                });
+            }
+            return data;
+        }
+        TableData _modModerator(ChessPlayer user)
+        {
+            if (!doesHavePerm(ChessPerm.Arbiter))
+                return null;
+            var result = checkModeratorCandidacy(user);
+            if(result.IsSuccess)
+            {
+                return new TableData("")
+                {
+                    Children =
+                {
+                    new Input("checkbox", id: user.Id.ToString())
+                    {
+                        Checked = user.Permission == ChessPerm.Moderator,
+                        OnClick = $"modUser(this)"
+                    }
+                    .WithTag("data-name", user.Name)
+                }
+                };
+            } else
+            {
+                return new TableData($"<abbr title='{result.ErrorReason}'>Not eligible</abbr>");
+            }
+        }
+
+
         [Method("GET"), Path("/chess/userlist")]
         [RequireChess(ChessPerm.Moderator, OR = "permission")]
         [RequirePermNode(DiscordBot.Perms.Bot.Developer.SetActualChessRating, OR = "permission")]
         public void ModifyUser()
         {
-            string TABLE = "";
+            var TABLE = new Table();
+            TABLE.Children.Add(_modGetHeaders());
             foreach (var user in Players.OrderByDescending(x => x.Rating))
             {
-                string ROW = "<tr";
+                var ROW = new TableRow();
                 if(user.Removed)
                 {
-                    if (doesHavePerm(ChessPerm.ChiefJustice))
-                        ROW += " class='removed'";
+                    if (doesHavePerm(ChessPerm.Arbiter))
+                        ROW.Class = "removed";
                     else
                         continue;
                 }
-                ROW += ">";
-                ROW += $"<td><input type='button' value='{user.Name}' onclick=\"changename({user.Id}, '{user.Name}');\"/>" +
-                    $"{aLink($"/chess/history?id={user.Id}", " [History]")}</td>";
-                ROW += $"<td>" +
-                    $"<input type='button' value='{user.Rating}' onclick='change(\"{user.Id}\");'/>  " +
-                    $"<input type='button' value='{user.Modifier}' onclick='changemod(\"{user.Id}\");'/>" +
-                    $"</td>";
-                ROW += $"<td><input type='button' value='{(user.Removed ? "Add" : "Remove")}' onclick='remove(\"{user.Name}\", \"{user.Id}\");'/></td>";
-                ROW += $"<td><input type='button' value='Add' onclick='addNote({user.Id});'/></td>";
-                ROW += $"<td><input type='checkbox' {(user.RequireGameApproval ? "checked" : "")} onclick='toggleMonitor(\"{user.Id}\");'/></td>";
-                ROW += $"<td><input type='checkbox' {(user.RequireTiming ? "checked" : "")} onclick='toggleTime(\"{user.Id}\");'/></td>";
-                string banOnClick = "";
-                if (user.IsBanned)
-                { // only CoA can unban
-                    if(doesHavePerm(ChessPerm.ChiefJustice))
-                    {
-                        banOnClick = $"unBanUser('{user.Id}');";
-                    } else
-                    {
-                        banOnClick = "alert(\\\"Only the Court can order a ban be rescinded!\\\");";
-                    }
-                } else
+                var datas = new List<TableData>()
                 {
-                    banOnClick = $"banUser(\"{user.Id}\")";
-                }
-                ROW += $"<td><input type='checkbox' {(user.IsBanned ? "checked" : "")} onclick='{banOnClick}'/></td>";
-                TABLE += ROW + "</tr>";
+                    _modName(user),
+                    _modScoreRating(user),
+                    _modRemove(user),
+                    _modAddNote(user),
+                    _modMonitor(user),
+                    _modTiming(user),
+                    _modBan(user),
+                    _modModerator(user),
+                }.Where(x => x != null);
+                ROW.Children.AddRange(datas);
+                TABLE.Children.Add(ROW);
             }
             ReplyFile("user.html", 200, new Replacements().Add("table", TABLE));
         }
+
+        #endregion
 
         [Method("GET"), Path("/chess/account")]
         [RequireVerifiedAccount(false)]
@@ -983,6 +1132,7 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("PUT"), Path("/chess/api/note")]
+        [RequireChess(ChessPerm.Moderator)]
         public void AddNewNote(int id, string note, int expires = 31)
         {
             var player = Players.FirstOrDefault(x => x.Id == id);
@@ -999,11 +1149,6 @@ namespace DiscordBot.MLAPI.Modules
             if(Context.User == null)
             {
                 RespondRaw("You must be logged in to do that", 403);
-                return;
-            }
-            if(!doesHavePerm(ChessPerm.Moderator))
-            {
-                RespondRaw("You dont have permission to do that", 403);
                 return;
             }
             LogAdminAction("Note Added", note, ("Against", player.Name), ("Expires", $"{expires} days"));
@@ -1398,6 +1543,40 @@ namespace DiscordBot.MLAPI.Modules
             player.Bans.Add(ban);
             didChange = true;
             ChessS.LogAdmin(ban);
+            RespondRaw("");
+        }
+
+        [Method("PUT"), Path("/chess/api/moderator")]
+        public void ModUser(int id)
+        {
+            var player = Players.FirstOrDefault(x => x.Id == id);
+            if(player == null)
+            {
+                RespondRaw("Error: player does not exist", 404);
+                return;
+            }
+            if(!(player.Permission == ChessPerm.Moderator || player.Permission == ChessPerm.Player))
+            {
+                RespondRaw($"Error: that player has permissions that you are unable to remove or modify: {player.Permission}", 400);
+                return;
+            }
+            if(player.Permission == ChessPerm.Moderator)
+            {
+                player.Permission = ChessPerm.Player;
+                didChange = true;
+                LogAdminAction("Moderator Fired", $"The Arbiter has removed **{player.Name}** as a Moderator.");
+            } else
+            {
+                var result = checkModeratorCandidacy(player);
+                if(!result.IsSuccess)
+                {
+                    RespondRaw($"Unable: {result.ErrorReason}", 400);
+                    return;
+                }
+                player.Permission = ChessPerm.Moderator;
+                didChange = true;
+                LogAdminAction("Moderator Appointed", $"The Arbiter has appointed **{player.Name}** as a Moderator");
+            }
             RespondRaw("");
         }
 

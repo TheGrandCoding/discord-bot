@@ -31,10 +31,10 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.7.22"; 
+        public const string VERSION = "0.7.23"; 
         public const string CHANGELOG = VERSION + @"
-== Get team information
-Gather information on class and subjects via Teams.
+== Reaction Roles
+Add reaction roles.
 ";
         public static DiscordSocketClient Client { get; set; }
         public static IConfigurationRoot Configuration { get; set; }

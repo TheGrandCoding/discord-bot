@@ -6,6 +6,7 @@ using DiscordBot.Classes.Chess.COA;
 using DiscordBot.Classes.Chess.Online;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
+using Reddit.Controllers.Structures;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -41,6 +42,15 @@ namespace DiscordBot.Services
         /// </summary>
         public const int JusticesRequired = 2;
 
+        /// <summary>
+        /// Number of games a Member must play to be eligible for appointment as Moderator
+        /// </summary>
+        public const int ModeratorGamesRequired = 4;
+        /// <summary>
+        /// Number of unique opponents a Member must have played against to be eligible for appointment as Moderator
+        /// </summary>
+        public const int ModeratorOpponentsRequired = 2;
+
         public static Semaphore OnlineLock = new Semaphore(1, 1);
         public static string LatestChessVersion;
 
@@ -54,7 +64,7 @@ namespace DiscordBot.Services
                     var other = Players.FirstOrDefault(x => x.Id == vote.Key);
                     if (other == null)
                         continue;
-                    if (!meetsCandidacyRequirements(other))
+                    if (!checkArbiterCandidacy(other).IsSuccess)
                         continue;
                     results[other] = results.GetValueOrDefault(other, 0) + vote.Value;
                 }
@@ -106,21 +116,44 @@ namespace DiscordBot.Services
         IRole ChsJustice;
         IRole ChsChiefJustice;
 
-        public static bool meetsCandidacyRequirements(ChessPlayer player)
+        public static MiscResult checkArbiterCandidacy(ChessPlayer player)
         {
+            if (player == null)
+                return MiscResult.FromError("Player does not exist");
             if (player.DismissalReason != null)
-                return false;
+                return MiscResult.FromError("Dismissed by CoA: " + player.DismissalReason);
             if (player.Permission.HasFlag(ChessPerm.Justice))
-                return false;
+                return MiscResult.FromError("Current serving Justice");
             if (player.Permission == ChessPerm.Moderator)
-                return false;
+                return MiscResult.FromError("Current serving Moderator");
             var playersPlayedAgainst = GetPlayedAgainst(player);
             if (playersPlayedAgainst.Count < 10)
-                return false;
+                return MiscResult.FromError("Less than ten games played");
             if (playersPlayedAgainst.Distinct().Count() < 4)
-                return false;
-            return true;
+                return MiscResult.FromError("Less than four unique opponents played");
+            return MiscResult.FromSuccess();
         }
+        public static MiscResult checkModeratorCandidacy(ChessPlayer player)
+        {
+            if (player == null)
+                return MiscResult.FromError("Player does not exist");
+            if (player.Permission.HasFlag(ChessPerm.Justice))
+                return MiscResult.FromError($"They are a Justice of the Court of Appeals");
+            if (player.Permission == ChessPerm.Arbiter)
+                return MiscResult.FromError($"You are already a Moderator by virtue of being the Arbiter.");
+            if (player.DismissalReason != null)
+                return MiscResult.FromError("Dismissed by CoA: " + player.DismissalReason);
+            if (player.IsBanned)
+                return MiscResult.FromError($"They are currently banned");
+            var games = ChessService.GetPlayedAgainst(player);
+            if (games.Count < ChessService.ModeratorGamesRequired)
+                return MiscResult.FromError($"They have played less than {ModeratorGamesRequired} games");
+            if (games.Distinct().Count() < ModeratorOpponentsRequired)
+                return MiscResult.FromError($"They have played against less than {ModeratorOpponentsRequired} other players");
+            return MiscResult.FromSuccess();
+        }
+        
+        
         public void PopulateDiscordObjects()
         {
             Program.ChessGuild.CurrentUser.ModifyAsync(x => x.Nickname = "Court Clerk");
@@ -315,6 +348,7 @@ namespace DiscordBot.Services
         public BotUser BuiltInCoAUser;
         public BotUser BuiltInClassUser;
         public static ChessPlayer AIPlayer;
+        
         void SetBuiltInRoles()
         {
             var chiefJustice = ulong.Parse(Program.Configuration["chess:chief:id"]);
@@ -354,7 +388,20 @@ namespace DiscordBot.Services
                 BuiltInCoAUser.OverrideName = "Court of Appeals";
                 Program.Users.Add(BuiltInCoAUser);
             }
+            BuiltInCoAUser.VerifiedEmail = "@";
+            BuiltInCoAUser.OverrideDiscriminator = 1;
+            BuiltInCoAUser.OverrideName = "Court of Appeals";
             BuiltInCoAUser.ServiceUser = true;
+            var coaToken = BuiltInCoAUser.Tokens.FirstOrDefault(x => x.Name == AuthToken.LoginPassword);
+            if(coaToken == null)
+            {
+                coaToken = new AuthToken(AuthToken.LoginPassword, 24);
+                BuiltInCoAUser.Tokens.Add(coaToken);
+            } else
+            {
+                coaToken.Regenerate(24);
+            }
+
             var court = Players.FirstOrDefault(x => x.Name == "Court of Appeals" && x.ConnectedAccount == BuiltInCoAUser.Id);
             if (court == null)
             {
@@ -365,8 +412,8 @@ namespace DiscordBot.Services
                 court.ConnectedAccount = BuiltInCoAUser.Id;
                 Players.Add(court);
             }
-            court.Permission = ChessPerm.ChiefJustice;
-
+            court.Permission = ChessPerm.CourtOfAppeals;
+            
             var aiuser = Program.GetUserOrDefault(ChessAI);
             if (aiuser == null)
             {
@@ -384,15 +431,6 @@ namespace DiscordBot.Services
                 AIPlayer.ConnectedAccount = aiuser.Id;
                 Players.Add(AIPlayer);
             }
-
-            foreach (var p in Players)
-            {
-                if ((int)p.Permission == 18)
-                {
-                    p.Permission = ChessPerm.Justice;
-                }
-            }
-
         }
 
         void threadSetPerms()

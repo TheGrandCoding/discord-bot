@@ -14,12 +14,39 @@ namespace DiscordBot.Classes.HTMLHelpers.Objects
     }
     public class Input : FormBase
     {
+        public string Type { get => get("type"); set => set("type", value); }
         public Input(string type, string value = null, string id = null, string cls = null)
             : base("input", id, cls)
         {
-            tagValues["type"] = type;
+            Type = type;
             if (value != null)
                 tagValues["value"] = value;
+        }
+
+        public override bool ReadOnly
+        {
+            get
+            {
+                return get("readonly") == "";
+            }
+            set
+            {
+                set("readonly", value);
+                if (value && Type == "checkbox")
+                    OnClick = "return false;";
+            }
+        }
+
+        public bool Checked
+        {
+            get
+            {
+                return get("checked") == "";
+            }
+            set
+            {
+                set("checked", value);
+            }
         }
     }
 

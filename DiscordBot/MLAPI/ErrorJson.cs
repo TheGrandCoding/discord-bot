@@ -1,8 +1,10 @@
-﻿using DiscordBot.Classes.HTMLHelpers;
+﻿using DiscordBot.Classes.Converters;
+using DiscordBot.Classes.HTMLHelpers;
 using DiscordBot.Classes.HTMLHelpers.Objects;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace DiscordBot.MLAPI
@@ -24,20 +26,29 @@ namespace DiscordBot.MLAPI
         {
             var div = new Div();
             div.Children.Add(new Paragraph("One or more errors have occured that have prevented this page from being loaded"));
-            var ul = new UnorderedList();
-            foreach(var errorItem in errors)
+            var table = new Table()
             {
-                var li = new ListItem(null)
+                Children =
                 {
-                    Children =
-                    {
-                        new StrongText(errorItem.path),
-                        new EmphasisText(" " + errorItem.reason)
-                    }
-                };
-                ul.Children.Add(li);
+                    new TableRow()
+                    .WithHeader("Endpoint")
+                    .WithHeader("Reason(s)")
+                }
+            };
+            foreach(var error in errors)
+            {
+                var row = new TableRow();
+                if(error.endpoint == null)
+                {
+                    row.WithCell($"*");
+                } else
+                {
+                    row.WithCell(error.endpoint.GetDocs());
+                }
+                row.WithCell(error.reason);
+                table.Children.Add(row);
             }
-            div.Children.Add(ul);
+            div.Children.Add(table);
             return div;
         }
 
@@ -48,6 +59,7 @@ namespace DiscordBot.MLAPI
                 Children =
                 {
                     new PageHeader()
+                        .WithStyle("docs.css")
                 }
             };
             var body = new PageBody();
@@ -55,14 +67,19 @@ namespace DiscordBot.MLAPI
             page.Children.Add(body);
             return page;
         }
+
+        public string GetSimpleText() => string.Join("; ", errors.Select(x => x.reason));
     }
+
+    [JsonConverter(typeof(ErrorJsonConverter))]
     public class ErrorItem
     {
-        public string path { get; set; }
+        public APIEndpoint endpoint { get; set; }
         public string reason { get; set; }
-        public ErrorItem(string p, string r)
+        public ErrorItem(APIEndpoint e, string r)
         {
-            path = p; reason = r;
+            endpoint = e;
+            reason = r;
         }
     }
 }

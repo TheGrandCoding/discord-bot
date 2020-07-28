@@ -80,7 +80,7 @@ namespace DiscordBot.Classes
         public string Discriminator => DiscriminatorValue.ToString();
         public ushort DiscriminatorValue => OverrideDiscriminator.HasValue 
             ? OverrideDiscriminator.Value
-            : ((IUser)FirstValidUser).DiscriminatorValue;
+            : (((IUser)FirstValidUser)?.DiscriminatorValue ?? 0);
         public bool IsBot => ((IUser)FirstValidUser).IsBot;
         public bool IsWebhook => ((IUser)FirstValidUser).IsWebhook;
         public string Username => ((IUser)FirstValidUser).Username;

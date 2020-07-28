@@ -31,14 +31,23 @@ namespace DiscordBot.Classes.HTMLHelpers
             {
                 var key = keypair.Key;
                 var val = keypair.Value;
-                if (!string.IsNullOrWhiteSpace(val))
+                if (val == "")
+                    sb.Append(" " + key);
+                else if (!string.IsNullOrWhiteSpace(val))
                     sb.Append($" {key}=\"{val}\"");
             }
             sb.Append(">");
         }
         protected string get(string thing) => tagValues.GetValueOrDefault(thing.ToLower());
         protected void set(string thing, string val) => tagValues[thing.ToLower()] = val;
-
+        protected void set(string thing, bool val)
+        {
+            thing = thing.ToLower();
+            if (val)
+                set(thing, "");
+            else
+                tagValues.Remove(thing);
+        }
         protected virtual void WriteCloseTag(StringBuilder sb)
         {
             sb.Append($"</{Tag}>");
@@ -82,12 +91,12 @@ namespace DiscordBot.Classes.HTMLHelpers
         {
         }
 
-        public bool ReadOnly {  get
+        public virtual bool ReadOnly {  get
             {
-                return bool.Parse(get("readonly"));
+                return get("readonly") == "";
             } set
             {
-                set("readonly", value.ToString());
+                set("readonly", value);
             }
         }
 

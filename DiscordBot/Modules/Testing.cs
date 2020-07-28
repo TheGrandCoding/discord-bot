@@ -13,23 +13,22 @@ namespace DiscordBot.Modules
     [Summary("Testing Commands")]
     public class Testing : BotModule
     {
-        [Command("ping")]
-        public async Task Ping()
+        public ReactionService React { get; set; }
+
+        [Command("react")]
+        public async Task Thing()
         {
-            await ReplyAsync("Pong!");
+            var msg = await ReplyAsync("Testing 123.");
+            await msg.AddReactionAsync(Emotes.THUMBS_UP);
+            React.Register(msg, EventAction.Added, response, Context.User.Id.ToString());
         }
 
-        [Command("error")]
-        [DocBox("warn", "Some warning!")]
-        public async Task Error()
+        public static void response(object sender, ReactionEventArgs e)
         {
-            throw new InvalidOperationException("Failed to do stuff!");
-        }
-
-        [Command("thing")]
-        public async Task Arguments(int c)
-        {
-            await ReplyAsync($"**{c}**");
+            e.Message.ModifyAsync(x =>
+            {
+                x.Content = $"Reacted! Sent in response to {e.State}";
+            });
         }
     }
 }
