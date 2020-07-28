@@ -1,4 +1,5 @@
-﻿using Discord.Commands;
+﻿using Discord;
+using Discord.Commands;
 using DiscordBot.Classes;
 using DiscordBot.Commands;
 using DiscordBot.Commands.Attributes;
@@ -21,6 +22,12 @@ namespace DiscordBot.Modules
             var msg = await ReplyAsync("Testing 123.");
             await msg.AddReactionAsync(Emotes.THUMBS_UP);
             React.Register(msg, EventAction.Added, response, Context.User.Id.ToString());
+        }
+
+        [Command("emote")]
+        public async Task Emote(IEmote e)
+        {
+            await ReplyAsync(e.ToString());
         }
 
         public static void response(object sender, ReactionEventArgs e)

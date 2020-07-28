@@ -19,7 +19,7 @@ namespace DiscordBot.TypeReaders
                 return TypeReaderResult.FromError(CommandError.ParseFailed, $"Unable to interpret input as a non-Unicode emote.");
             } else
             {
-                if (Regex.IsMatch(input, @"[\uD800-\uDBFF][\uDC00-\uDFFF]"))
+                if (Regex.IsMatch(input, @"(\u00a9|\u00ae|[\u2000-\u3300]|\ud83c[\ud000-\udfff]|\ud83d[\ud000-\udfff]|\ud83e[\ud000-\udfff])"))
                 {
                     return TypeReaderResult.FromSuccess(new Emoji(input));
                 }
