@@ -70,9 +70,10 @@ namespace DiscordBot.Classes.Legislation
                     new H1(cls: "LegNo") {RawText = PathName},
                     new HTMLHelpers.Objects.Paragraph(Title, cls: "LegLongTitle"),
                     new HTMLHelpers.Objects.Paragraph(
-                        EnactedDate.HasValue
-                        ? $"[{string.Format("{0:dddd dd}{1} {0:MMMM yyyy}", EnactedDate, Program.GetDaySuffix(EnactedDate.Value.Day))}]"
-                        : $"[DRAFT]",
+                        //EnactedDate.HasValue
+                        //? $"[{string.Format("{0:dddd dd}{1} {0:MMMM yyyy}", EnactedDate, Program.GetDaySuffix(EnactedDate.Value.Day))}]"
+                        //: $"[DRAFT]",
+                        "[REMAINS DRAFT, SUBJECT TO CHANGE]",
                         cls: "LegDateOfEnactment"
                         )
                 }

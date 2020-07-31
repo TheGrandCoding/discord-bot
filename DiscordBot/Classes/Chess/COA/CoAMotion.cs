@@ -64,6 +64,7 @@ namespace DiscordBot.Classes.Chess.COA
         public const string Dismiss = "Motion to dismiss";
         public const string SummaryJudgement = "Motion for summary judgement";
         public const string Join = "Motion to join";
+        public const string Seal = "Motion to seal";
     }
 
 }

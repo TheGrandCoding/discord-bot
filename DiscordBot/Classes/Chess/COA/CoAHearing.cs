@@ -44,6 +44,17 @@ namespace DiscordBot.Classes.Chess.COA
 
         public List<ChessPlayer> Justices { get; set; }
 
+        public string getRelationToCase(ChessPlayer player)
+        {
+            if (Claimants.Contains(player))
+                return "Claimant";
+            if (Respondents.Contains(player))
+                return "Respondent";
+            if ((Justices != null && Justices.Contains(player)) || (Justices == null && player.Permission.HasFlag(ChessPerm.Justice)))
+                return "Justice";
+            return "Outsider";
+        }
+
         [JsonIgnore]
         public string Title => string.Join("; ", Claimants.Select(x => x.Name)) + " v. " + string.Join("; ", Respondents.Select(x => x.Name));
         [JsonProperty("cn")]

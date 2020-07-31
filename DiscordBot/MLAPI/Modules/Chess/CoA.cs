@@ -212,11 +212,12 @@ namespace DiscordBot.MLAPI.Modules
             int attachmentIndex = 0;
             foreach(var attch in motion.Attachments)
             {
-                var div = new Div(id: attch.FileName, cls: "file")
+                string relation = hearing.getRelationToCase(attch.UploadedBy);
+                var div = new Div(id: attch.FileName, cls: "file file-" + relation.ToLower())
                 {
                     Children =
                     {
-                        new Paragraph($"Filed by {attch.UploadedBy.Name}"),
+                        new Paragraph($"Filed by {relation} {attch.UploadedBy.Name}"),
                         new RawObject($"<iframe src='/chess/coa/cases/{n}/motions/{mn}/{attachmentIndex++}'></iframe>")
                     }
                 };
@@ -368,7 +369,6 @@ namespace DiscordBot.MLAPI.Modules
             ReplyFile("newwitness.html", 200, new Replacements(hearing)
                 .Add("users", players));
         }
-
 
         #endregion
         #region API Endpoints

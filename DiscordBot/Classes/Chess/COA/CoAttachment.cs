@@ -17,6 +17,7 @@ namespace DiscordBot.Classes.Chess.COA
         {
             FileName = filename;
             UploadedBy = upload;
+            Filed = DateTime.Now;
         }
 
         [JsonProperty("f")]
@@ -24,6 +25,8 @@ namespace DiscordBot.Classes.Chess.COA
         [JsonProperty("u")]
         [JsonConverter(typeof(ChessPlayerConverter))]
         public ChessPlayer UploadedBy { get; set; }
+
+        public DateTime Filed { get; set; }
 
         [JsonIgnore]
         public string DataPath { get; private set; }
