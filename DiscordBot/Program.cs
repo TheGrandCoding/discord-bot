@@ -31,7 +31,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.7.25"; 
+        public const string VERSION = "0.7.26"; 
         public const string CHANGELOG = VERSION + @"
 == Reaction Roles
 Add reaction roles.

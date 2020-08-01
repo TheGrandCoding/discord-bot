@@ -113,6 +113,7 @@ namespace DiscordBot.Services
         ITextChannel SystemChannel;
         IRole ChsPlayer;
         IRole ChsMod;
+        IRole ChsArbiter;
         IRole ChsJustice;
         IRole ChsChiefJustice;
 
@@ -153,10 +154,8 @@ namespace DiscordBot.Services
             return MiscResult.FromSuccess();
         }
         
-        
         public void PopulateDiscordObjects()
         {
-            Program.ChessGuild.CurrentUser.ModifyAsync(x => x.Nickname = "Court Clerk");
             GameChannel = Program.ChessGuild.GetTextChannel(671379228045869076);
             AdminChannel = Program.ChessGuild.GetTextChannel(671379272832647228);
             DiscussionChannel = Program.ChessGuild.GetTextChannel(659708597298528260);
@@ -164,6 +163,7 @@ namespace DiscordBot.Services
             //
             ChsPlayer = Program.ChessGuild.Roles.FirstOrDefault(x => x.Name == "Member");
             ChsMod = Program.ChessGuild.Roles.FirstOrDefault(x => x.Name == "Moderator");
+            ChsArbiter = Program.ChessGuild.Roles.FirstOrDefault(x => x.Name == "Arbiter");
             ChsJustice = Program.ChessGuild.Roles.FirstOrDefault(x => x.Name == "Justice");
             ChsChiefJustice = Program.ChessGuild.Roles.FirstOrDefault(x => x.Name == "Chief Justice");
         }
@@ -463,6 +463,13 @@ namespace DiscordBot.Services
                         else
                         {
                             chsServer?.RemoveRoleAsync(ChsMod);
+                        }
+                        if(player.Permission == ChessPerm.Arbiter)
+                        {
+                            chsServer?.AddRoleAsync(ChsArbiter);
+                        } else
+                        {
+                            chsServer?.RemoveRoleAsync(ChsArbiter);
                         }
                         if (player.Permission.HasFlag(ChessPerm.Justice))
                         {

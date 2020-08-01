@@ -818,7 +818,6 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         #region Modify User
-
         TableRow _modGetHeaders()
         {
             var row = new TableRow();
