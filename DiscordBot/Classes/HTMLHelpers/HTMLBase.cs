@@ -100,6 +100,8 @@ namespace DiscordBot.Classes.HTMLHelpers
             }
         }
 
+        public string Style { get => get(nameof(Style)); set => set(nameof(Style), value); }
+
         public string OnClick { get => get(nameof(OnClick)); set => set(nameof(OnClick), value); }
     }
 }

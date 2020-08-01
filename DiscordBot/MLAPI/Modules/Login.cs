@@ -1,5 +1,7 @@
-﻿using DiscordBot.Classes;
+﻿using Discord;
+using DiscordBot.Classes;
 using DiscordBot.Services;
+using DiscordBot.Utils;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json.Linq;
 using System;
@@ -14,7 +16,40 @@ namespace DiscordBot.MLAPI.Modules
 {
     public class Login : APIBase
     {
-        public Login(APIContext c) : base(c, "login") { }
+        public OauthCallbackService Callback { get; set; }
+        public Login(APIContext c) : base(c, "login") 
+        {
+            Callback = Program.Services.GetRequiredService<OauthCallbackService>();
+        }
+
+        void handleLogin(object sender, object[] stateArgs)
+        {
+            Program.LogMsg("Entered OauthLogin");
+            // Funky C#8, disposed at end of this function
+            var oauth = new DiscordOauth("identify", Context.GetQuery("code"));
+            var userInfo = oauth.GetUserInformation().Result;
+            Program.LogMsg($"Found user info: {userInfo.Username}");
+            try
+            {
+                var usr = handleUserInfo(userInfo);
+                Program.LogMsg($"Handled user: {usr.Username}, {usr.Id}");
+                setSessionTokens(usr);
+                Program.LogMsg("Set session tokens, now logged in.");
+                var pwd = usr.Tokens.FirstOrDefault(x => x.Name == AuthToken.LoginPassword);
+                string redirectTo = Context.Request.Cookies["redirect"]?.Value;
+                if (string.IsNullOrWhiteSpace(redirectTo))
+                    redirectTo = "/";
+                if (pwd == null)
+                    redirectTo = "/login/setpassword";
+                RespondRaw(LoadRedirectFile(redirectTo), HttpStatusCode.TemporaryRedirect);
+                Program.LogMsg("Users redirected.");
+            }
+            catch (Exception ex)
+            {
+                Program.LogMsg(ex, "LoginOauth");
+                HTTPError(HttpStatusCode.InternalServerError, "", ex.Message);
+            }
+        }
 
         [Method("GET"), Path("/login")]
         [RequireAuthentication(false)]
@@ -29,10 +64,14 @@ namespace DiscordBot.MLAPI.Modules
                 RespondRaw($"Logged you out; redirecting to base path", HttpStatusCode.TemporaryRedirect);
                 return;
             }
-            string uri = Uri.EscapeDataString(Handler.LocalAPIUrl + "/login/oauth2");
+            var state = Callback.Register(handleLogin, Context.User);
+            var uri = UrlBuilder.Discord()
+                .Add("redirect_uri", Handler.LocalAPIUrl + "/oauth2/discord")
+                .Add("response_type", "code")
+                .Add("scope", "identify")
+                .Add("state", state);
             ReplyFile("login.html", 200, new Replacements()
-                .Add("link",
-$"https://discordapp.com/api/oauth2/authorize?client_id=432861863437402113&redirect_uri={uri}&response_type=code&scope=identify%20guilds.join"));
+                .Add("link", uri));
         }
 
         [Method("POST"), Path("/login")]
@@ -116,13 +155,13 @@ $"https://discordapp.com/api/oauth2/authorize?client_id=432861863437402113&redir
             return client.SendAsync(request).Result;
         }
 
-        BotUser handleUserInfo(JObject info, HttpClient client, string token)
+        BotUser handleUserInfo(IUser user)
         {
             var webUser = new WebUser()
             {
-                Id = info["id"].ToObject<ulong>(),
-                Discriminator = ushort.Parse(info["discriminator"].ToObject<string>()),
-                Username = info["username"].ToObject<string>()
+                Id = user.Id,
+                Discriminator = user.DiscriminatorValue,
+                Username = user.Username
             };
             var bUser = Program.GetUserOrDefault(webUser.Id);
             if(bUser == null)
@@ -131,75 +170,16 @@ $"https://discordapp.com/api/oauth2/authorize?client_id=432861863437402113&redir
                 Program.Users.Add(bUser);
                 Program.Save();
             }
-            var linked = ChessService.Players.FirstOrDefault(x => x.ConnectedAccount == bUser.Id);
-            if(linked != null)
-            {
-                var chsUser = Program.ChessGuild.GetUser(bUser.Id);
-                if(chsUser == null)
-                {
-                    var result = addUserToGuild(bUser.Id, Program.ChessGuild.Id, client, token);
-                }
-            }
             return bUser;
         }
 
-        [Method("GET"), Path("/login/oauth2")]
+        [Method("GET"), Path("/oauth2/discord")]
         [RequireAuthentication(false)]
-        public void OauthLogin(string code, string state = null)
+        public void OauthLogin(string code, string state)
         {
-            Program.LogMsg("Entered OauthLogin");
-            // Funky C#8, disposed at end of this function
-            using var client = new HttpClient();
-            client.BaseAddress = new Uri("https://discordapp.com/api/");
-            client.DefaultRequestHeaders.Add("User-Agent", "tgc-bot-manual");
-
-            var getToken = new JObject();
-            getToken["client_id"] = 432861863437402113;
-            getToken["client_secret"] = Program.Configuration["tokens:appSecret"];
-            getToken["grant_type"] = "authorization_code";
-            getToken["code"] = code;
-            getToken["redirect_uri"] = $"{Handler.LocalAPIUrl}/login/oauth2";
-            getToken["scope"] = "identify guilds.join";
-            var tokenResponse = postJson(getToken, client, "oauth2/token").Result;
-            Program.LogMsg($"Token recieved: {tokenResponse.StatusCode}");
-            var tokenContent = tokenResponse.Content.ReadAsStringAsync().Result;
-            if (!tokenResponse.IsSuccessStatusCode)
+            if(!Callback.Invoke(Context, state))
             {
-                HTTPError(HttpStatusCode.BadRequest, $"Failed", $"Upstream error: {tokenResponse.StatusCode} <code>{tokenContent}</code>");
-                return;
-            }
-            var tokenInfo = JObject.Parse(tokenContent);
-            var token = tokenInfo["access_token"].ToObject<string>();
-            var idenRequest = new HttpRequestMessage(HttpMethod.Get, "users/@me");
-            idenRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-            var identityResponse = client.SendAsync(idenRequest).Result;
-            Program.LogMsg($"Identity recieved: {identityResponse.StatusCode}");
-            if (!identityResponse.IsSuccessStatusCode)
-            {
-                HTTPError(HttpStatusCode.BadRequest, $"Failed", $"Upstream error: {tokenResponse.StatusCode} <code>{tokenContent}</code>");
-                return;
-            }
-            var userInfo = JObject.Parse(identityResponse.Content.ReadAsStringAsync().Result);
-            Program.LogMsg($"Found user info: {userInfo["username"]}");
-            try
-            {
-                var usr = handleUserInfo(userInfo, client, token);
-                Program.LogMsg($"Handled user: {usr.Username}, {usr.Id}");
-                setSessionTokens(usr);
-                Program.LogMsg("Set session tokens, now logged in.");
-                var pwd = usr.Tokens.FirstOrDefault(x => x.Name == AuthToken.LoginPassword);
-                string redirectTo = Context.Request.Cookies["redirect"]?.Value;
-                if (string.IsNullOrWhiteSpace(redirectTo))
-                    redirectTo = "/";
-                if(pwd == null)
-                    redirectTo = "/login/setpassword";
-                RespondRaw(LoadRedirectFile(redirectTo), HttpStatusCode.TemporaryRedirect);
-                Program.LogMsg("Users redirected.");
-            }
-            catch (Exception ex)
-            {
-                Program.LogMsg(ex, "LoginOauth");
-                HTTPError(HttpStatusCode.InternalServerError, "", ex.Message);
+                RespondRaw("Unknown callback - state mismatch. Perhaps the bot was restarted since you were redirected?", 400);
             }
         }
 

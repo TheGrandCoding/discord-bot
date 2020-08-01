@@ -455,7 +455,14 @@ namespace DiscordBot.Services
                     var chsServer = Program.ChessGuild.GetUser(player.ConnectedAccount);
                     if (chsServer != null)
                     {
-                        chsServer?.AddRoleAsync(ChsPlayer);
+                        if(!player.Removed)
+                        {
+                            chsServer?.AddRoleAsync(ChsPlayer);
+                        }
+                        else
+                        {
+                            chsServer?.RemoveRoleAsync(ChsPlayer);
+                        }
                         if (player.Permission.HasFlag(ChessPerm.Moderator))
                         {
                             chsServer?.AddRoleAsync(ChsMod);

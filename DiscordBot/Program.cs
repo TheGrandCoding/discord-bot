@@ -1,6 +1,7 @@
 ﻿using Discord;
 using Discord.Addons.Interactive;
 using Discord.Commands;
+using Discord.Rest;
 using Discord.WebSocket;
 using DiscordBot.Classes;
 using DiscordBot.Classes.Calculator;
@@ -31,7 +32,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.7.26"; 
+        public const string VERSION = "0.7.27"; 
         public const string CHANGELOG = VERSION + @"
 == Reaction Roles
 Add reaction roles.
@@ -41,6 +42,8 @@ Add reaction roles.
         public static ServiceProvider Services { get; set; }
         public static CommandService Commands { get; set; }
         public static char Prefix { get; set; }
+
+        public static RestApplication AppInfo { get; set; }
 
         public static Handler APIHandler { get; set; }
 
@@ -347,6 +350,7 @@ Add reaction roles.
 
         private static async Task ClientReady()
         {
+            AppInfo = await Client.GetApplicationInfoAsync();
             var th = new Thread(runStartups);
             th.Name = "clientReady";
             th.Start();

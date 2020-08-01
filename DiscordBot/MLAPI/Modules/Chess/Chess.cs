@@ -4,7 +4,9 @@ using DiscordBot.Classes.Chess;
 using DiscordBot.Classes.HTMLHelpers;
 using DiscordBot.Classes.HTMLHelpers.Objects;
 using DiscordBot.MLAPI.Exceptions;
+using DiscordBot.RESTAPI.Functions.HTML;
 using DiscordBot.Services;
+using DiscordBot.Utils;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json.Linq;
 using System;
@@ -13,6 +15,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Reflection.Metadata;
 using System.Text;
 using System.Threading.Tasks;
 using static DiscordBot.Services.ChessService;
@@ -23,9 +26,11 @@ namespace DiscordBot.MLAPI.Modules
     public partial class Chess : ChessBase
     {
         public static ChessService ChessS;
+        public OauthCallbackService Callbacks { get; set; }
         public Chess(APIContext context) : base(context, "chess")
         {
             ChessS ??= Program.Services.GetRequiredService<ChessService>();
+            Callbacks = Program.Services.GetRequiredService<OauthCallbackService>();
         }
 
         void LogAdminAction(string title, string desc, params (string key, string value)[] fields)
@@ -151,16 +156,36 @@ namespace DiscordBot.MLAPI.Modules
                 return "";
             if (SelfPlayer == null)
                 return "";
-            var invite = ChessS.GetInvite(SelfPlayer, Context.User);
-            if (invite == null)
+            var inChs = Program.ChessGuild.GetUser(SelfPlayer.ConnectedAccount);
+            if (inChs != null)
                 return "";
-            didChange = true;
-            return  $@"<div id='popupinvite' class='full_popup'>
-            <p><strong><a href='{invite.Url}'>Chess / CoA Discord Server</a></strong><br/>
-                You are eligible to join the Chess server. This allows you to see games that are played, and may be required for Court appeals
-                <br><a href='#' onclick='setHideCookie(this);'>Click here to close</a>
-            </p>
-            </div>";
+            var div = new Div("popupInvite", "popup")
+            {
+                Style = "background-color: red; color: white; border-color: blue;",
+                Children =
+                {
+                    new Paragraph("")
+                    {
+                        Children =
+                        {
+                            new StrongText(new Anchor("/chess/invite", "Chess Discord Server")),
+                            new RawObject("<br/>"),
+                            new RawObject("You can click " + new Anchor("/chess/invite", "this link here") + " to join the Chess Discord server"),
+                            new RawObject(", where:")
+                        }
+                    },
+                    new UnorderedList()
+                        .AddItem("played games are stored;")
+                        .AddItem("any updates to the rules are sent;")
+                        .AddItem("any penalties or sanctions are disclosed;")
+                        .AddItem("any Court of Appeals hearings are announced, or may take place;"),
+                    new Paragraph(new Anchor("#", "Click here to close")
+                            {
+                                OnClick = "setHideCookie(this);"
+                            })
+                }
+            };
+            return div;
         }
 
         string addIconsToRow(ChessPlayer player, int fridays)
@@ -315,6 +340,37 @@ namespace DiscordBot.MLAPI.Modules
                 .Add("loginBtn", loginButton())
                 .Add("discord_link", link));
         }
+
+
+        #region Joining Chess Server
+
+        void handleJoinCallback(object sender, object[] args)
+        {
+            var oauth = new DiscordOauth("guilds.join", Context.GetQuery("code"));
+            var response = oauth.JoinToServer(Program.ChessGuild, Context.User).Result;
+            if(!response.IsSuccessStatusCode)
+            {
+                RespondRaw("Error: " + response.Content.ReadAsStringAsync().Result, response.StatusCode);
+            } else
+            {
+                ChessS.SetPermissionsAThread();
+                RespondRaw(LoadRedirectFile("/chess"), HttpStatusCode.Redirect);
+            }
+        }
+
+        [Method("GET"), Path("/chess/invite")]
+        [RequireChess(ChessPerm.Player)]
+        public void JoinChessServer()
+        {
+            var state = Callbacks.Register(handleJoinCallback);
+            var uri = UrlBuilder.Discord()
+                .Add("response_type", "code")
+                .Add("redirect_uri", Handler.LocalAPIUrl + "/oauth2/discord")
+                .Add("state", state)
+                .Add("scope", "guilds.join");
+            RespondRaw(LoadRedirectFile(uri), HttpStatusCode.Redirect);
+        }
+        #endregion
 
         [Method("GET"), Path("/chess/register")]
         public void MultiplePresent()
@@ -660,7 +716,6 @@ namespace DiscordBot.MLAPI.Modules
             ReplyFile("match.html", 200, new Replacements()
                 .Add("playerlist", players));
         }
-
 
         List<DateTime> getDatesForHistory()
         {
@@ -1778,6 +1833,8 @@ namespace DiscordBot.MLAPI.Modules
             didChange = true;
             RespondRaw("Updated", httpCode);
         }
+
+
 #endregion
     }
 }
