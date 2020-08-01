@@ -4,7 +4,6 @@ using DiscordBot.Classes.HTMLHelpers.Objects;
 using DiscordBot.Classes.Legislation;
 using DiscordBot.Classes.Legislation.Amending;
 using Newtonsoft.Json;
-using RestSharp.Extensions;
 using System;
 using System.Collections.Generic;
 using System.IO;

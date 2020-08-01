@@ -8,7 +8,6 @@ using DiscordBot.MLAPI;
 using DiscordBot.Services;
 using Microsoft.Win32.SafeHandles;
 using Newtonsoft.Json;
-using RestSharp.Authenticators;
 using System;
 using System.Collections.Generic;
 using System.Linq;

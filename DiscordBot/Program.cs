@@ -14,7 +14,6 @@ using IdentityModel.Client;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
-using Reddit.Things;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;

@@ -1,6 +1,5 @@
 ﻿using DiscordBot.Classes.HTMLHelpers.Objects;
 using DiscordBot.MLAPI;
-using RestSharp;
 using System;
 using System.Collections.Generic;
 using System.IO;

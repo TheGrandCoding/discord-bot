@@ -6,7 +6,6 @@ using DiscordBot.Classes.Chess.COA;
 using DiscordBot.Classes.Chess.Online;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
-using Reddit.Controllers.Structures;
 using System;
 using System.Collections.Generic;
 using System.Linq;

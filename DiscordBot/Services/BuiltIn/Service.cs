@@ -2,7 +2,6 @@
 using Discord.WebSocket;
 using DiscordBot.Classes;
 using DiscordBot.Utils;
-using RestSharp.Deserializers;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
