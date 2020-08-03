@@ -30,6 +30,12 @@ namespace DiscordBot.Modules
             await ReplyAsync(e.ToString());
         }
 
+        [Command("delete")]
+        public async Task Delete()
+        {
+            await Context.Message.DeleteAsync();
+        }
+
         public static void response(object sender, ReactionEventArgs e)
         {
             e.Message.ModifyAsync(x =>

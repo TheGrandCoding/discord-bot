@@ -36,6 +36,11 @@ namespace DiscordBot.RESTAPI.Functions.HTML
             }
         }
 
+        static string getLastModified(string filename)
+        {
+            return new FileInfo(filename).LastWriteTimeUtc.ToString("yyyyMMdd-HH:mm:ss");
+        }
+
         [Method("GET"), PathRegex(@"(\/|\\)_(\/|\\)((js|css|img)(\/|\\)[a-zA-Z0-9\/.-]*.\.(js|css|png|jpeg))")]
         [RequireAuthentication(false)]
         [RequireServerName(null)]
@@ -57,6 +62,15 @@ namespace DiscordBot.RESTAPI.Functions.HTML
             var fileExtension = match.Groups[6].Value;
             var mimeType = getMimeType(fileExtension);
             var fullPath = Path.Combine(Program.BASE_PATH, "HTTP", "_", filePath);
+            var lastMod = getLastModified(fullPath);
+            var priorMod = Context.Request.Headers["If-None-Match"];
+            if(lastMod == priorMod)
+            {
+                RespondRaw("", HttpStatusCode.NotModified);
+                return;
+            }
+            Context.HTTP.Response.Headers["ETag"] = lastMod;
+            Context.HTTP.Response.Headers["Cache-Control"] = "max-age:3600";
             Context.HTTP.Response.ContentType = mimeType;
             Context.HTTP.Response.StatusCode = 200;
             StatusSent = 200;
