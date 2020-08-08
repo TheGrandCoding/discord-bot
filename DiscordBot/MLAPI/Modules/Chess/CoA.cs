@@ -23,6 +23,7 @@ namespace DiscordBot.MLAPI.Modules
             ChesssInstance = Program.Services.GetRequiredService<ChessService>();
             CoAInstance = Program.Services.GetRequiredService<CoAService>();
             Sidebar = SidebarType.Local;
+            InjectObjects.Add(new PageLink("stylesheet", "text/css", "/_/css/chessCOA.css"));
         }
         public ChessService ChesssInstance { get; set; }
         public CoAService CoAInstance { get; set; }
@@ -37,7 +38,7 @@ namespace DiscordBot.MLAPI.Modules
 
         #region Browser Endpoints
 
-        [Method("GET"), Path("/chess/coa")]
+        [Method("GET"), Path("/chess/cases")]
         public void ListCases()
         {
             var awaitingWrit = new Table()
@@ -70,7 +71,8 @@ namespace DiscordBot.MLAPI.Modules
                     .WithHeader("Holding")
                 }
             };
-            Func<CoAHearing, Anchor> getAnchor = x => new Anchor($"/chess/coa/cases/{x.CaseNumber}", x.Title);
+            Func<AppealHearing, string> getAnchor = x => new Anchor($"/chess/cases/{x.CaseNumber}", x.Title) + "<br/>" +
+                (x.IsArbiterCase ? "Arbiter" : "Court of Appeals");
             foreach(var hearing in CoAService.Hearings)
             {
                 if(hearing.Holding != null)
@@ -90,7 +92,7 @@ namespace DiscordBot.MLAPI.Modules
                     awaitingWrit.Children.Add(new TableRow()
                         .WithCell(getAnchor(hearing))
                         .WithCell(hearing.Filed.ToString("dd/MM/yyyy"))
-                        .WithCell(new Anchor($"/chess/coa/cases/{hearing.CaseNumber}/motions/00", hearing.Motions.FirstOrDefault()?.MotionType ?? "none")));
+                        .WithCell(new Anchor($"/chess/cases/{hearing.CaseNumber}/motions/00", hearing.Motions.FirstOrDefault()?.MotionType ?? "none")));
                 }
             }
             Sidebar = SidebarType.None;
@@ -109,7 +111,21 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         #region View Hearing
-        [Method("GET"), PathRegex(@"\/chess\/coa\/cases\/(?<n>\d{1,4})(?!\/)")]
+
+        string getHearingActions(AppealHearing h)
+        {
+            string action = "";
+            if(h.Ruling != null)
+            {
+                action = $"<p>The Court's ruling on this case:</p><iframe class='coaDoc' src='/chess/cases/{h.CaseNumber}/ruling'></iframe>";
+            } else if(h.isClerkOnCase(SelfPlayer))
+            {
+                action = new Paragraph(new Anchor($"/chess/cases/{h.CaseNumber}/newruling", "Submit new ruling"));
+            }
+            return action;
+        }
+
+        [Method("GET"), PathRegex(@"\/chess\/cases\/(?<n>\d{1,4})(?!\d*\/)")]
         public void ViewHearingInfo(int n)
         {
             var hearing = CoAService.Hearings.FirstOrDefault(x => x.CaseNumber == n);
@@ -135,7 +151,7 @@ namespace DiscordBot.MLAPI.Modules
             foreach(var motion in hearing.Motions)
             {
                 motions.Children.Add(new TableRow()
-                    .WithCell(new Anchor($"/chess/coa/cases/{hearing.CaseNumber}/motions/{index++}", motion.Filed.ToString("dd/MM/yyyy, hh:mm:ss")))
+                    .WithCell(new Anchor($"/chess/cases/{hearing.CaseNumber}/motions/{index++}", motion.Filed.ToString("dd/MM/yyyy, hh:mm:ss")))
                     .WithCell(motion.Movant.Name)
                     .WithCell(motion.MotionType)
                     .WithCell(motion.Holding ?? "No ruling on motion yet") 
@@ -154,7 +170,7 @@ namespace DiscordBot.MLAPI.Modules
             foreach(var witness in hearing.Witnesses)
             {
                 witnesses.Children.Add(new TableRow()
-                    .WithCell(new Anchor($"/chess/coa/cases/{hearing.CaseNumber}/witness/{witness.Witness.Id}", witness.Witness.Name))
+                    .WithCell(new Anchor($"/chess/cases/{hearing.CaseNumber}/witness/{witness.Witness.Id}", witness.Witness.Name))
                     .WithCell(witness.ConcludedOn.HasValue ? witness.ConcludedOn.Value.ToString("dd/MM/yyyy") : "Remains ongoing"));
             }
 
@@ -164,7 +180,7 @@ namespace DiscordBot.MLAPI.Modules
                 {
                     Children =
                     {
-                        new TableHeader(new Anchor($"/chess/coa/cases/{hearing.CaseNumber}/newmotion", "File a new motion"))
+                        new TableHeader(new Anchor($"/chess/cases/{hearing.CaseNumber}/newmotion", "File a new motion"))
                         {
                             ColSpan = "4"
                         }
@@ -176,7 +192,7 @@ namespace DiscordBot.MLAPI.Modules
                     {
                         Children =
                         {
-                            new TableHeader(new Anchor($"/chess/coa/cases/{hearing.CaseNumber}/newwitness", "Call a new witness"))
+                            new TableHeader(new Anchor($"/chess/cases/{hearing.CaseNumber}/newwitness", "Call a new witness"))
                             {
                                 ColSpan = "2"
                             }
@@ -186,13 +202,14 @@ namespace DiscordBot.MLAPI.Modules
             }
 
             ReplyFile("hearing.html", 200, new Replacements(hearing)
+                .Add("action", getHearingActions(hearing))
                 .Add("motions", motions)
                 .Add("witnesses", witnesses)
             );
         }
         #endregion
 
-        [Method("GET"), PathRegex(@"\/chess\/coa\/cases\/(?<n>\d{1,4})\/motions\/(?<mn>\d{1,2})(?!\/)")]
+        [Method("GET"), PathRegex(@"\/chess\/cases\/(?<n>\d{1,4})\/motions\/(?<mn>\d{1,2})(?!\/)")]
         public void ViewMotionInfo(int n, int mn)
         {
             var hearing = CoAService.Hearings.FirstOrDefault(x => x.CaseNumber == n);
@@ -218,7 +235,7 @@ namespace DiscordBot.MLAPI.Modules
                     Children =
                     {
                         new Paragraph($"Filed by {relation} {attch.UploadedBy.Name}"),
-                        new RawObject($"<iframe src='/chess/coa/cases/{n}/motions/{mn}/{attachmentIndex++}'></iframe>")
+                        new RawObject($"<iframe src='/chess/cases/{n}/motions/{mn}/{attachmentIndex++}'></iframe>")
                     }
                 };
                 attachments.Children.Add(div);
@@ -245,11 +262,11 @@ namespace DiscordBot.MLAPI.Modules
                 .Add("mholding", holding)
                 .Add("chief", cj)
                 .IfElse("canadd", motion.Granted || motion.Denied, "display: none;", "display: block")
-                .Add("cjDoUrl", $"/chess/coa/api/cases/{n}/motions/{mn}/holding")
+                .Add("cjDoUrl", $"/chess/api/cases/{n}/motions/{mn}/holding")
                 .Add("newpath", $"cases/{n}/motions/{mn}/files"));
         }
 
-        [Method("GET"), PathRegex(@"\/chess\/coa\/cases\/(?<n>\d{1,4})\/witnesses\/(?<id>\d{1,3})(?!\/)")]
+        [Method("GET"), PathRegex(@"\/chess\/cases\/(?<n>\d{1,4})\/witnesses\/(?<id>\d{1,3})(?!\/)")]
         public void ViewWitnessInfo(int n, int id)
         {
             var hearing = CoAService.Hearings.FirstOrDefault(x => x.CaseNumber == n);
@@ -277,9 +294,11 @@ namespace DiscordBot.MLAPI.Modules
             );
         }
 
-        [Method("GET"), Path("/chess/coa/new")]
-        public void ViewCreateHearing()
+        [Method("GET"), Path("/chess/new")]
+        public void ViewCreateHearing(string type)
         {
+            if (!(type == "coa" || type == "arbiter"))
+                return;
             Sidebar = SidebarType.None;
             var multiSelect = new Div(cls: "playerList");
             foreach(var p in ChessService.Players.Where(x => !x.IsBuiltInAccount).OrderByDescending(x => x.Rating))
@@ -296,11 +315,11 @@ namespace DiscordBot.MLAPI.Modules
                     }
                 });
             }
-            ReplyFile("newappeal.html", 200, new Replacements()
+            ReplyFile($"new_{type}.html", 200, new Replacements()
                 .Add("players", multiSelect));
         }
 
-        [Method("GET"), PathRegex(@"\/chess\/coa\/cases\/(?<n>\d{1,4})\/newmotion")]
+        [Method("GET"), PathRegex(@"\/chess\/cases\/(?<n>\d{1,4})\/newmotion")]
         public void ViewCreateMotion(int n)
         {
             var hearing = CoAService.Hearings.FirstOrDefault(x => x.CaseNumber == n);
@@ -327,7 +346,7 @@ namespace DiscordBot.MLAPI.Modules
                 .Add("types", list));
         }
 
-        [Method("GET"), PathRegex(@"\/chess\/coa\/cases\/(?<n>\d{1,4})\/newwitness")]
+        [Method("GET"), PathRegex(@"\/chess\/cases\/(?<n>\d{1,4})\/newwitness")]
         public void ViewCreateWitness(int n)
         {
             var hearing = CoAService.Hearings.FirstOrDefault(x => x.CaseNumber == n);
@@ -370,12 +389,24 @@ namespace DiscordBot.MLAPI.Modules
                 .Add("users", players));
         }
 
+        [Method("GET"), PathRegex(@"\/chess\/cases\/(?<n>\d{1,4})\/newruling")]
+        public void ViewCreateRuling(int n)
+        {
+            var hearing = CoAService.Hearings.FirstOrDefault(x => x.CaseNumber == n);
+            if(hearing == null || hearing.Sealed || !hearing.isJudgeOnCase(SelfPlayer))
+            {
+                HTTPError(System.Net.HttpStatusCode.NotFound, "Case Number", "Could not find a hearing by that case number");
+                return;
+            }
+            ReplyFile("newruling.html", 200, new Replacements(hearing));
+        }
+
         #endregion
         #region API Endpoints
 
         #region New Hearing
-        [Method("POST"), Path("/chess/coa/api/cases")]
-        public void CreateHearing(int[] respondents)
+        [Method("POST"), Path("/chess/api/cases")]
+        public void CreateHearing(string type, int[] respondents)
         {
             List<ChessPlayer> _Respondents = new List<ChessPlayer>();
             foreach(var id in respondents)
@@ -406,9 +437,10 @@ namespace DiscordBot.MLAPI.Modules
                 RespondRaw($"File uploaded must be .txt, .pdf, or .md", 400);
                 return;
             }
-            var hearing = new CoAHearing(new List<ChessPlayer>() { SelfPlayer }, _Respondents);
+            var hearing = new AppealHearing(new List<ChessPlayer>() { SelfPlayer }, _Respondents);
             hearing.CaseNumber = CoAService.Hearings.Count + 1;
             hearing.Filed = DateTime.Now;
+            hearing.IsArbiterCase = type == "arbiter";
 
             string fName = "00_writ_cert." + extension;
             var attachment = new CoAttachment(fName, SelfPlayer);
@@ -420,19 +452,62 @@ namespace DiscordBot.MLAPI.Modules
                 MotionType = Motions.WritOfCertiorari,
                 Movant = SelfPlayer,
             };
+            if(hearing.IsArbiterCase)
+            {
+                motion.Holding = "Granted automatically";
+                motion.HoldingDate = motion.Filed;
+            }
             hearing.Motions.Add(motion);
             hearing.SetIds();
             if (!Directory.Exists(motion.DataPath))
                 Directory.CreateDirectory(motion.DataPath);
             using var fs = new FileStream(attachment.DataPath, FileMode.Create, FileAccess.Write);
             file.Data.CopyTo(fs);
-
             CoAService.Hearings.Add(hearing);
-            RespondRaw(LoadRedirectFile($"/chess/coa/cases/{hearing.CaseNumber}"), System.Net.HttpStatusCode.Redirect);
+            RespondRaw(LoadRedirectFile($"/chess/cases/{hearing.CaseNumber}"), System.Net.HttpStatusCode.Redirect);
         }
         #endregion
 
-        [Method("POST"), PathRegex(@"\/chess\/coa\/api\/cases\/(?<n>\d{1,4})\/motions\/(?<mn>\d{1,2})\/files")]
+        [Method("POST"), PathRegex(@"\/chess\/api\/cases\/(?<n>\d{1,4})\/rulings")]
+        public void CreateNewRuling(int n, string desc)
+        {
+            var hearing = CoAService.Hearings.FirstOrDefault(x => x.CaseNumber == n);
+            if (hearing == null)
+            {
+                RespondRaw("Unknown hearing", 404);
+                return;
+            }
+            var file = Context.Files.FirstOrDefault();
+            if (file == null)
+            {
+                RespondRaw("No file", 400);
+                return;
+            }
+            var ext = file.FileName.Split('.')[^1];
+            if (!isPermittedExtension(ext))
+            {
+                RespondRaw("Extension must be .txt, .pdf or .md", 400);
+                return;
+            }
+            var attachment = new CoAttachment(file.FileName, SelfPlayer);
+            var ruling = new CoARuling()
+            {
+                Short = desc,
+                Submitter = SelfPlayer,
+                Attachment = attachment
+            };
+            hearing.Holding = desc;
+            hearing.Ruling = ruling;
+            ruling.SetIds(hearing);
+
+            if (!Directory.Exists(ruling.DataPath))
+                Directory.CreateDirectory(ruling.DataPath);
+            using var fs = new FileStream(attachment.DataPath, FileMode.Create, FileAccess.Write);
+            file.Data.CopyTo(fs);
+            RespondRaw(LoadRedirectFile($"/chess/cases/{hearing.CaseNumber}"), System.Net.HttpStatusCode.Redirect);
+        }
+
+        [Method("POST"), PathRegex(@"\/chess\/api\/cases\/(?<n>\d{1,4})\/motions\/(?<mn>\d{1,2})\/files")]
         public void AttachFileToMotion(int n, int mn, string notneeded = "") // string is to force body to be parsed, since it isn't until an argument is needed that isn't in query or regex.
         {
             var hearing = CoAService.Hearings.FirstOrDefault(x => x.CaseNumber == n);
@@ -473,10 +548,10 @@ namespace DiscordBot.MLAPI.Modules
                 Directory.CreateDirectory(motion.DataPath);
             using var fs = new FileStream(attachment.DataPath, FileMode.Create, FileAccess.Write);
             file.Data.CopyTo(fs);
-            RespondRaw(LoadRedirectFile($"/chess/coa/cases/{hearing.CaseNumber}/motions/{hearing.Motions.IndexOf(motion)}"), System.Net.HttpStatusCode.Redirect);
+            RespondRaw(LoadRedirectFile($"/chess/cases/{hearing.CaseNumber}/motions/{hearing.Motions.IndexOf(motion)}"), System.Net.HttpStatusCode.Redirect);
         }
 
-        [Method("PATCH"), PathRegex(@"\/chess\/coa\/api\/cases\/(?<n>\d{1,4})\/motions\/(?<mn>\d{1,2})\/holding")]
+        [Method("PATCH"), PathRegex(@"\/chess\/api\/cases\/(?<n>\d{1,4})\/motions\/(?<mn>\d{1,2})\/holding")]
         public void SetMotionOutcome(int n, int mn)
         {
             var hearing = CoAService.Hearings.FirstOrDefault(x => x.CaseNumber == n);
@@ -506,11 +581,10 @@ namespace DiscordBot.MLAPI.Modules
                     hearing.Concluded = motion.HoldingDate;
                 }
             }
-            ChesssInstance.OnSave();
             RespondRaw("");
         }
 
-        [Method("POST"), PathRegex(@"\/chess\/coa\/api\/cases\/(?<n>\d{1,4})\/motions(?!\/)")]
+        [Method("POST"), PathRegex(@"\/chess\/api\/cases\/(?<n>\d{1,4})\/motions(?!\/)")]
         public void CreateNewMotion(int n, string types)
         {
             var hearing = CoAService.Hearings.FirstOrDefault(x => x.CaseNumber == n);
@@ -546,10 +620,10 @@ namespace DiscordBot.MLAPI.Modules
             motion.SetIds(hearing);
             hearing.Motions.Add(motion);
             ChesssInstance.OnSave();
-            RespondRaw(LoadRedirectFile($"/chess/coa/cases/{n}/motions/{hearing.Motions.Count - 1}"), System.Net.HttpStatusCode.Redirect);
+            RespondRaw(LoadRedirectFile($"/chess/cases/{n}/motions/{hearing.Motions.Count - 1}"), System.Net.HttpStatusCode.Redirect);
         }
 
-        [Method("POST"), PathRegex(@"\/chess\/coa\/api\/cases\/(?<n>\d{1,4})\/witnesses(?!\/)")]
+        [Method("POST"), PathRegex(@"\/chess\/api\/cases\/(?<n>\d{1,4})\/witnesses(?!\/)")]
         public void CreateNewWitness(int n, int id)
         {
             var hearing = CoAService.Hearings.FirstOrDefault(x => x.CaseNumber == n);
@@ -577,13 +651,13 @@ namespace DiscordBot.MLAPI.Modules
             var existing = hearing.Witnesses.FirstOrDefault(x => x.Witness.Id == id);
             if(existing != null)
             {
-                RespondRaw(LoadRedirectFile($"/chess/coa/cases/{hearing.CaseNumber}/witnesses/{id}"), System.Net.HttpStatusCode.Conflict);
+                RespondRaw(LoadRedirectFile($"/chess/cases/{hearing.CaseNumber}/witnesses/{id}"), System.Net.HttpStatusCode.Conflict);
                 return;
             }
             var witness = new CoAWitness(player);
             hearing.Witnesses.Add(witness);
             witness.SetIds(hearing);
-            RespondRaw(LoadRedirectFile($"/chess/coa/cases/{hearing.CaseNumber}/witnesses/{id}"), System.Net.HttpStatusCode.Redirect);
+            RespondRaw(LoadRedirectFile($"/chess/cases/{hearing.CaseNumber}/witnesses/{id}"), System.Net.HttpStatusCode.Redirect);
         }
 
         string mimeFromExtension(string ext)
@@ -599,7 +673,7 @@ namespace DiscordBot.MLAPI.Modules
         }
         bool isPermittedExtension(string ext) => mimeFromExtension(ext) != ext;
 
-        [Method("GET"), PathRegex(@"\/chess\/coa\/cases\/(?<cn>\d{1,4})\/motions\/(?<mi>\d{1,2})\/(?<ai>\d{1,2})")]
+        [Method("GET"), PathRegex(@"\/chess\/cases\/(?<cn>\d{1,4})\/motions\/(?<mi>\d{1,2})\/(?<ai>\d{1,2})")]
         public void GetFileRaw(int cn, int mi, int ai)
         {
             var hearing = CoAService.Hearings.FirstOrDefault(x => x.CaseNumber == cn);
@@ -624,6 +698,33 @@ namespace DiscordBot.MLAPI.Modules
             Context.HTTP.Response.StatusCode = 200;
             Context.HTTP.Response.ContentType = mimeFromExtension(ext);
             using var fs = new FileStream(attachment.DataPath, FileMode.Open, FileAccess.Read);
+            fs.CopyTo(Context.HTTP.Response.OutputStream);
+            Context.HTTP.Response.Close();
+        }
+
+        [Method("GET"), PathRegex(@"\/chess\/cases\/(?<cn>\d{1,4})\/ruling")]
+        public void GetRulingRaw(int cn)
+        {
+            var hearing = CoAService.Hearings.FirstOrDefault(x => x.CaseNumber == cn);
+            if (hearing == null || hearing.Sealed || !hearing.isJudgeOnCase(SelfPlayer))
+            {
+                HTTPError(System.Net.HttpStatusCode.NotFound, "", "Could not find a hearing at this URL");
+                return;
+            }
+            if (hearing.Ruling == null)
+            {
+                HTTPError(System.Net.HttpStatusCode.NotFound, "", "Could not find a ruling at this URL");
+                return;
+            }
+            if (hearing.Ruling.Attachment == null)
+            {
+                HTTPError(System.Net.HttpStatusCode.NotFound, "", "Could not find an attachment at this URL");
+                return;
+            }
+            var ext = hearing.Ruling.Attachment.FileName.Split(".")[^1];
+            Context.HTTP.Response.StatusCode = 200;
+            Context.HTTP.Response.ContentType = mimeFromExtension(ext);
+            using var fs = new FileStream(hearing.Ruling.Attachment.DataPath, FileMode.Open, FileAccess.Read);
             fs.CopyTo(Context.HTTP.Response.OutputStream);
             Context.HTTP.Response.Close();
         }

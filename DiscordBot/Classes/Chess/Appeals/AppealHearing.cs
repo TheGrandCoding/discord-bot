@@ -10,10 +10,10 @@ using System.Text;
 
 namespace DiscordBot.Classes.Chess.COA
 {
-    public class CoAHearing
+    public class AppealHearing
     {
         [JsonConstructor]
-        private CoAHearing(int? claimant = null, int? respondent = null, string Verdict = null, DateTime? Opened = null,
+        private AppealHearing(int? claimant = null, int? respondent = null, string Verdict = null, DateTime? Opened = null,
             int? casenumber = null)
         {
             Claimants = new List<ChessPlayer>();
@@ -32,7 +32,7 @@ namespace DiscordBot.Classes.Chess.COA
             }
 
         }
-        public CoAHearing(IEnumerable<ChessPlayer> claimants, IEnumerable<ChessPlayer> respondents)
+        public AppealHearing(IEnumerable<ChessPlayer> claimants, IEnumerable<ChessPlayer> respondents)
         {
             Claimants = claimants.ToList();
             Respondents = respondents.ToList();
@@ -44,14 +44,38 @@ namespace DiscordBot.Classes.Chess.COA
 
         public List<ChessPlayer> Justices { get; set; }
 
+        public bool isJudgeOnCase(ChessPlayer player)
+        {
+            if(IsArbiterCase)
+            {
+                return player.Permission == ChessPerm.Arbiter;
+            } else
+            {
+                return (Justices != null && Justices.Contains(player)) || (Justices == null && player.Permission.HasFlag(ChessPerm.Justice));
+            }
+        }
+        public bool isClerkOnCase(ChessPlayer player)
+        {
+            if (IsArbiterCase)
+                return player.Permission == ChessPerm.Arbiter;
+            return player.Permission == ChessPerm.ChiefJustice;
+        }
+
         public string getRelationToCase(ChessPlayer player)
         {
             if (Claimants.Contains(player))
                 return "Claimant";
             if (Respondents.Contains(player))
                 return "Respondent";
-            if ((Justices != null && Justices.Contains(player)) || (Justices == null && player.Permission.HasFlag(ChessPerm.Justice)))
-                return "Justice";
+            if(IsArbiterCase)
+            {
+                if (player.Permission == ChessPerm.Arbiter)
+                    return "Arbiter";
+            } else
+            {
+                if (isJudgeOnCase(player))
+                    return "Justice";
+            }
             return "Outsider";
         }
 
@@ -62,13 +86,19 @@ namespace DiscordBot.Classes.Chess.COA
         [JsonProperty("sl")]
         public bool Sealed { get; set; }
 
+        [JsonProperty("arb")]
+        public bool IsArbiterCase { get; set; }
+
+        [JsonProperty("apcn", NullValueHandling = NullValueHandling.Ignore)]
+        public int? AppealOf { get; set; }
+
         public DateTime Filed { get; set; }
         public DateTime? Commenced { get; set; }
         public DateTime? Concluded { get; set; }
 
         public List<CoAMotion> Motions { get; set; } = new List<CoAMotion>();
         public List<CoAWitness> Witnesses { get; set; } = new List<CoAWitness>();
-        public List<CoARuling> Rulings { get; set; } = new List<CoARuling>();
+        public CoARuling Ruling { get; set; }
 
         public string Holding { get; set; }
 
@@ -81,15 +111,14 @@ namespace DiscordBot.Classes.Chess.COA
                 m.SetIds(this);
             foreach (var w in Witnesses)
                 w.SetIds(this);
-            foreach (var r in Rulings)
-                r.SetIds(this);
+            Ruling?.SetIds(this);
         }
 
         public bool CanCallWitness(ChessPlayer player)
         {
             return Claimants.Any(x => x.Id == player.Id)
                 || Respondents.Any(x => x.Id == player.Id)
-                || Justices.Any(x => x.Id == player.Id);
+                || isJudgeOnCase(player);
         }
 
     }

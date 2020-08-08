@@ -19,6 +19,7 @@ namespace DiscordBot.MLAPI.Modules
         public ChessBase(APIContext c) : this(c, "chess") { }
         public ChessPlayer SelfPlayer { get; protected set; }
 
+
         public string GetPlayerList()
         {
             string players = "";

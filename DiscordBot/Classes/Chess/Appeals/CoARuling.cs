@@ -3,6 +3,7 @@ using DiscordBot.Services;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 
 namespace DiscordBot.Classes.Chess.COA
@@ -18,10 +19,13 @@ namespace DiscordBot.Classes.Chess.COA
         [JsonConverter(typeof(ChessPlayerConverter))]
         public ChessPlayer Submitter { get; set; }
 
-        public void SetIds(CoAHearing h)
+        [JsonIgnore]
+        public string DataPath { get; set; }
+
+        public void SetIds(AppealHearing h)
         {
-            var index = h.Rulings.IndexOf(this);
-            Attachment?.SetIds(System.IO.Path.Combine(h.DataPath, "rulings"), index);
+            DataPath = Path.Combine(h.DataPath, "rulings");
+            Attachment?.SetIds(DataPath, 0);
         }
     }
 }

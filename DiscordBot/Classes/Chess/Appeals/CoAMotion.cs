@@ -40,7 +40,7 @@ namespace DiscordBot.Classes.Chess.COA
         }
 
         [JsonIgnore]
-        public CoAHearing Hearing { get; set; }
+        public AppealHearing Hearing { get; set; }
 
         [JsonIgnore]
         public string DataPath { get
@@ -49,7 +49,7 @@ namespace DiscordBot.Classes.Chess.COA
                 return System.IO.Path.Combine(Hearing.DataPath, index.ToString("00"));
             } }
 
-        public void SetIds(CoAHearing hearing)
+        public void SetIds(AppealHearing hearing)
         {
             Hearing = hearing;
             int i = 0;

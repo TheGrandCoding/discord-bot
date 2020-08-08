@@ -21,9 +21,9 @@ namespace DiscordBot.Classes.Chess.COA
         public DateTime? ConcludedOn { get; set; }
 
         [JsonIgnore]
-        public CoAHearing Hearing { get; set; }
+        public AppealHearing Hearing { get; set; }
 
-        public void SetIds(CoAHearing hearing)
+        public void SetIds(AppealHearing hearing)
         {
             Hearing = hearing;
         }

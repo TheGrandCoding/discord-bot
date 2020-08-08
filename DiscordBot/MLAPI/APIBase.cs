@@ -44,6 +44,11 @@ namespace DiscordBot.MLAPI
         }
 
         protected SidebarType Sidebar { get; set; } = SidebarType.None;
+        protected List<Classes.HTMLHelpers.HTMLBase> InjectObjects { get; set; } = new List<Classes.HTMLHelpers.HTMLBase>()
+        {
+            new Classes.HTMLHelpers.Objects.PageLink("stylesheet", "text/css", "/_/css/common.css"),
+            new Classes.HTMLHelpers.Objects.RawObject("<script src='/_/js/common.js' type='text/javascript'></script>")
+        };
 
         public int StatusSent { get; set; } = 0;
         protected bool HasResponded => StatusSent != 0;
@@ -103,9 +108,11 @@ namespace DiscordBot.MLAPI
         protected void ReplyFile(string path, int code, Replacements replace = null)
         {
             var f = LoadFile(path);
-            f = f.Replace("<body>", $"<link rel='stylesheet' type='text/css' href='/_/css/common.css'>" +
-                $"<script src='/_/js/common.js' type='text/javascript'></script>" +
-                $"<body><REPLACE id='sidebar'/>");
+            string injectedText = "";
+            foreach (var x in InjectObjects)
+                injectedText += x.ToString();
+            injectedText += "<body><REPLACE id='sidebar'/>";
+            f = f.Replace("<body>", injectedText);
             replace ??= new Replacements();
             string sN = Sidebar == SidebarType.None ? "" : Sidebar == SidebarType.Global ? "_sidebar.html" : "sidebar.html";
             string sC = "";
@@ -121,6 +128,7 @@ namespace DiscordBot.MLAPI
 
         protected void HTTPError(HttpStatusCode code, string title, string message)
         {
+            Sidebar = SidebarType.None;
             ReplyFile("_error.html", code, new Replacements()
                 .Add("error_code", code)
                 .Add("error_message", title)

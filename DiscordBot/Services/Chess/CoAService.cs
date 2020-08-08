@@ -12,7 +12,7 @@ namespace DiscordBot.Services
     [RequireService(typeof(ChessService))]
     public class CoAService : SavedService
     {
-        public static List<CoAHearing> Hearings = new List<CoAHearing>();
+        public static List<AppealHearing> Hearings = new List<AppealHearing>();
 
         public override string GenerateSave()
         {
@@ -20,7 +20,7 @@ namespace DiscordBot.Services
         }
         public override void OnLoaded()
         {
-            Hearings = Program.Deserialise<List<CoAHearing>>(ReadSave("[]"), new ChessPlayerConverter());
+            Hearings = Program.Deserialise<List<AppealHearing>>(ReadSave("[]"), new ChessPlayerConverter());
             foreach (var x in Hearings)
                 x.SetIds();
             this.OnSave();
