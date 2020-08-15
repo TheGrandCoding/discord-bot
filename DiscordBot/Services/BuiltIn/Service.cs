@@ -173,6 +173,9 @@ namespace DiscordBot.Services
         {
             public int Compare([AllowNull] Service x, [AllowNull] Service y)
             {
+                // -1 -> x precedes y
+                // 0 -> same
+                // 1 -> x follows y
                 if (x == null && y == null)
                     return 0;
                 if (x == null)
@@ -185,9 +188,13 @@ namespace DiscordBot.Services
                 var bAttribute = yType.GetCustomAttribute<RequireServiceAttribute>() ?? new RequireServiceAttribute();
 
                 if (aAttribute.Types.Contains(yType))
-                    return 1;
+                {
+                    return "y".CompareTo("x"); 
+                }
                 if (bAttribute.Types.Contains(xType))
-                    return -1;
+                {
+                    return "x".CompareTo("y");
+                }
                 return 0;
             }
         }

@@ -57,6 +57,7 @@ namespace DiscordBot.Services
                 var method = msg.Method.GetMethod();
                 method.Invoke(null, new object[] { this, eventArgs });
             }
+            await Task.CompletedTask;
         }
 
         private async Task Client_ReactionRemoved(Cacheable<IUserMessage, ulong> arg1, Discord.WebSocket.ISocketMessageChannel arg2, Discord.WebSocket.SocketReaction arg3)
@@ -79,6 +80,7 @@ namespace DiscordBot.Services
                 Events = subscribed
             };
             messages[message.Id] = msg;
+            Console.WriteLine($"Registered: {messages.Count}, {message.Id}");
         }
         public void Unregister(IUserMessage message)
         {

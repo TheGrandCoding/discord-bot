@@ -112,17 +112,34 @@ namespace DiscordBot.MLAPI.Modules
 
         #region View Hearing
 
-        string getHearingActions(AppealHearing h)
+        string getHearingOutcome(AppealHearing h)
         {
-            string action = "";
+            string outcom = "";
             if(h.Ruling != null)
             {
-                action = $"<p>The Court's ruling on this case:</p><iframe class='coaDoc' src='/chess/cases/{h.CaseNumber}/ruling'></iframe>";
+                string who = h.IsArbiterCase ? "Arbiter" : "Court";
+                outcom = $"<p>The {who}'s ruling on this case:</p><iframe class='coaDoc' src='/chess/cases/{h.CaseNumber}/ruling'></iframe>";
             } else if(h.isClerkOnCase(SelfPlayer))
             {
-                action = new Paragraph(new Anchor($"/chess/cases/{h.CaseNumber}/newruling", "Submit new ruling"));
+                outcom = new Paragraph(new Anchor($"/chess/cases/{h.CaseNumber}/newruling", "Submit new ruling"));
             }
-            return action;
+            return outcom;
+        }
+        string getHearingActions(AppealHearing h)
+        {
+            if (h.Holding == null || !h.IsArbiterCase)
+                return "";
+            var appeals = CoAService.Hearings.Any(x => x.AppealOf == h.CaseNumber);
+            if (appeals)
+                return "";
+            var rel = h.getRelationToCase(SelfPlayer);
+            if (rel == "Claimant" || rel == "Respondent")
+                return new Paragraph(new Input("button", "Appeal this Hearing")
+                {
+                    OnClick = $"appealHearing({h.CaseNumber});"
+                });
+            return "";
+
         }
 
         [Method("GET"), PathRegex(@"\/chess\/cases\/(?<n>\d{1,4})(?!\d*\/)")]
@@ -202,8 +219,10 @@ namespace DiscordBot.MLAPI.Modules
             }
 
             ReplyFile("hearing.html", 200, new Replacements(hearing)
-                .Add("action", getHearingActions(hearing))
+                .Add("actions", getHearingActions(hearing))
+                .Add("outcomes", getHearingOutcome(hearing))
                 .Add("motions", motions)
+                .Add("notice", (hearing.AppealOf.HasValue && hearing.Motions.First().Attachments.Count == 0) ? "<p class='warn'>You must upload a document to the Motion below which explains why the Court should agree to hear your appeal</p>" : "")
                 .Add("witnesses", witnesses)
             );
         }
@@ -253,7 +272,7 @@ namespace DiscordBot.MLAPI.Modules
                 holding = new RawObject($"<p class='{cls}'><strong>{motion.Holding}</strong> on {motion.HoldingDate:dd/MM/yyyy}</p>");
             }
 
-            string cj = doesHavePerm(ChessPerm.ChiefJustice)
+            string cj = hearing.isClerkOnCase(SelfPlayer)
                 ? "<input type='button' class='cjdo' onclick='doThing()' value='Submit holding'>"
                 : "";
             ReplyFile("motion.html", 200, new Replacements(hearing)
@@ -303,6 +322,11 @@ namespace DiscordBot.MLAPI.Modules
             var multiSelect = new Div(cls: "playerList");
             foreach(var p in ChessService.Players.Where(x => !x.IsBuiltInAccount).OrderByDescending(x => x.Rating))
             {
+                if(type == "arbiter")
+                {
+                    if (p.Permission != ChessPerm.Moderator)
+                        continue;
+                }
                 multiSelect.Children.Add(new Div(cls: "playerListElement")
                 {
                     Children =
@@ -456,6 +480,7 @@ namespace DiscordBot.MLAPI.Modules
             {
                 motion.Holding = "Granted automatically";
                 motion.HoldingDate = motion.Filed;
+                hearing.Commenced = DateTime.Now;
             }
             hearing.Motions.Add(motion);
             hearing.SetIds();
@@ -498,6 +523,7 @@ namespace DiscordBot.MLAPI.Modules
             };
             hearing.Holding = desc;
             hearing.Ruling = ruling;
+            hearing.Concluded = DateTime.Now;
             ruling.SetIds(hearing);
 
             if (!Directory.Exists(ruling.DataPath))
@@ -660,6 +686,66 @@ namespace DiscordBot.MLAPI.Modules
             RespondRaw(LoadRedirectFile($"/chess/cases/{hearing.CaseNumber}/witnesses/{id}"), System.Net.HttpStatusCode.Redirect);
         }
 
+        [Method("PUT"), PathRegex(@"\/chess\/api\/appeal\/(?<n>\d{1,4})")]
+        public void SubmitAppeal(int n)
+        {
+            var hearing = CoAService.Hearings.FirstOrDefault(x => x.CaseNumber == n);
+            if(hearing == null)
+            {
+                RespondRaw("Error: No hearing by that case number.", 404);
+                return;
+            }
+            if(hearing.AppealOf.HasValue)
+            {
+                RespondRaw("Error: Cases that are appeals cannot be appealed; judgement is final.");
+                return;
+            }
+            if(!hearing.IsArbiterCase)
+            {
+                RespondRaw("Error: Cases before the Court of Appeals cannot be appealed; judgement is final.");
+                return;
+            }
+            if(hearing.Holding == null)
+            {
+                RespondRaw("Error: A judgement must be delivered in the first instance before appeal. If Arbiter refuses to issue, file petition against Arbiter themselves.");
+                return;
+            }
+            var relation = hearing.getRelationToCase(SelfPlayer);
+            if(relation != "Claimant" && relation != "Respondent")
+            {
+                RespondRaw("Error: only claimants or respondents may appeal.");
+                return;
+            }
+            List<ChessPlayer> apellees;
+            List<ChessPlayer> apellants;
+            if(relation == "Claimant")
+            {
+                apellees = new List<ChessPlayer>() { SelfPlayer };
+                apellees.AddRange(hearing.Claimants.Where(x => x != SelfPlayer));
+                apellants = hearing.Respondents;
+            } else
+            {
+                apellees = new List<ChessPlayer>() { SelfPlayer };
+                apellees.AddRange(hearing.Respondents.Where(x => x != SelfPlayer));
+                apellants = hearing.Claimants;
+            }
+            var appeal = new AppealHearing(apellees, apellants);
+            appeal.AppealOf = hearing.CaseNumber;
+            appeal.Filed = DateTime.Now;
+            var mtn = new CoAMotion()
+            {
+                Filed = DateTime.Now,
+                MotionType = Motions.WritOfCertiorari,
+                Movant = SelfPlayer,
+                Attachments = new List<CoAttachment>()
+            };
+            appeal.Motions.Add(mtn);
+            appeal.CaseNumber = CoAService.Hearings.Count + 1;
+            CoAService.Hearings.Add(appeal);
+            appeal.SetIds();
+            RespondRaw(LoadRedirectFile($"/chess/cases/{appeal.CaseNumber}"), System.Net.HttpStatusCode.Redirect);
+        }
+
         string mimeFromExtension(string ext)
         {
             return ext switch
@@ -695,6 +781,7 @@ namespace DiscordBot.MLAPI.Modules
                 return;
             }
             var ext = attachment.FileName.Split(".")[^1];
+            StatusSent = 200;
             Context.HTTP.Response.StatusCode = 200;
             Context.HTTP.Response.ContentType = mimeFromExtension(ext);
             using var fs = new FileStream(attachment.DataPath, FileMode.Open, FileAccess.Read);
@@ -706,7 +793,7 @@ namespace DiscordBot.MLAPI.Modules
         public void GetRulingRaw(int cn)
         {
             var hearing = CoAService.Hearings.FirstOrDefault(x => x.CaseNumber == cn);
-            if (hearing == null || hearing.Sealed || !hearing.isJudgeOnCase(SelfPlayer))
+            if (hearing == null || hearing.Sealed)
             {
                 HTTPError(System.Net.HttpStatusCode.NotFound, "", "Could not find a hearing at this URL");
                 return;
@@ -722,6 +809,7 @@ namespace DiscordBot.MLAPI.Modules
                 return;
             }
             var ext = hearing.Ruling.Attachment.FileName.Split(".")[^1];
+            StatusSent = 200;
             Context.HTTP.Response.StatusCode = 200;
             Context.HTTP.Response.ContentType = mimeFromExtension(ext);
             using var fs = new FileStream(hearing.Ruling.Attachment.DataPath, FileMode.Open, FileAccess.Read);

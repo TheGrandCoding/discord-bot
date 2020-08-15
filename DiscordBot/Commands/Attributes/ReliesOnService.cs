@@ -6,6 +6,9 @@ using System.Text;
 
 namespace DiscordBot.Commands.Attributes
 {
+    /// <summary>
+    /// For commands.
+    /// </summary>
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
     public class ReliesOnServiceAttribute : Attribute
     {

@@ -8,9 +8,9 @@ namespace DiscordBot.Services
     public abstract class SavedService : Service
     {
         public static string SaveFolder => Path.Combine(Program.BASE_PATH, "Saves");
-        public string SaveFile => Name + ".json";
+        public virtual string SaveFile => Name + ".json";
 
-        public string ReadSave(string defaultContent = "{}")
+        public virtual string ReadSave(string defaultContent = "{}")
         {
             string s = null;
             try

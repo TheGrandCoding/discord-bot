@@ -113,5 +113,8 @@ namespace DiscordBot.Classes
 
         [JsonProperty("mail", NullValueHandling = NullValueHandling.Ignore)]
         public string VerifiedEmail { get; set; }
+
+        [JsonProperty("edu", NullValueHandling = NullValueHandling.Ignore)]
+        public int? EdulinkId { get; set; }
     }
 }

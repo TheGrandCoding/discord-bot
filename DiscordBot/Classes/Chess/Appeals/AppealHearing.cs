@@ -48,7 +48,7 @@ namespace DiscordBot.Classes.Chess.COA
         {
             if(IsArbiterCase)
             {
-                return player.Permission == ChessPerm.Arbiter;
+                return player.Permission.HasFlag(ChessPerm.Arbiter);
             } else
             {
                 return (Justices != null && Justices.Contains(player)) || (Justices == null && player.Permission.HasFlag(ChessPerm.Justice));
@@ -57,8 +57,8 @@ namespace DiscordBot.Classes.Chess.COA
         public bool isClerkOnCase(ChessPlayer player)
         {
             if (IsArbiterCase)
-                return player.Permission == ChessPerm.Arbiter;
-            return player.Permission == ChessPerm.ChiefJustice;
+                return player.Permission.HasFlag(ChessPerm.Arbiter);
+            return player.Permission.HasFlag(ChessPerm.ChiefJustice);
         }
 
         public string getRelationToCase(ChessPlayer player)

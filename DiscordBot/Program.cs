@@ -10,6 +10,7 @@ using DiscordBot.Classes.Legislation.Amending;
 using DiscordBot.MLAPI;
 using DiscordBot.Services;
 using DiscordBot.TypeReaders;
+using EduLinkDLL.Exceptions;
 using IdentityModel.Client;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;

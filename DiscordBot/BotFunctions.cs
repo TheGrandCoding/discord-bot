@@ -172,5 +172,14 @@ namespace DiscordBot
             return Encoding.UTF8.GetString(bytes);
         }
     
+        public static string Limit(string text, int maxLength, string ender = "...")
+        {
+            maxLength = maxLength - ender.Length;
+            if(text.Length > maxLength)
+            {
+                text = text.Substring(0, maxLength) + ender;
+            }
+            return text;
+        }
     }
 }

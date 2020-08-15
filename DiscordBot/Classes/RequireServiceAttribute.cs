@@ -4,6 +4,9 @@ using System.Text;
 
 namespace DiscordBot.Classes
 {
+    /// <summary>
+    /// For services.
+    /// </summary>
     public class RequireServiceAttribute : Attribute
     {
         public Type[] Types { get; }
