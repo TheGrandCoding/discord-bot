@@ -4,14 +4,9 @@ using Discord.Commands;
 using Discord.Rest;
 using Discord.WebSocket;
 using DiscordBot.Classes;
-using DiscordBot.Classes.Calculator;
-using DiscordBot.Classes.HTMLHelpers.Objects;
-using DiscordBot.Classes.Legislation.Amending;
 using DiscordBot.MLAPI;
 using DiscordBot.Services;
 using DiscordBot.TypeReaders;
-using EduLinkDLL.Exceptions;
-using IdentityModel.Client;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
@@ -32,10 +27,12 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.7.27"; 
+        public const string VERSION = "0.8.0"; 
         public const string CHANGELOG = VERSION + @"
-== Reaction Roles
-Add reaction roles.
+== EduLink
+EduLink should now be possible.
+== CoA & Arbiter
+Combine appeals process for CoA and Abiter.
 ";
         public static DiscordSocketClient Client { get; set; }
         public static IConfigurationRoot Configuration { get; set; }
