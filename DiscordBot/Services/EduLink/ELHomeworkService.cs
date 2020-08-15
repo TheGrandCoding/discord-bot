@@ -76,8 +76,7 @@ namespace DiscordBot.Services.EduLink
             Info = Program.Deserialise<Dictionary<ulong, HomeworkPreferences>>(ReadSave());
         }
 
-
-        public override void OnLoaded()
+        public override void OnDailyTick()
         {
             printHomeworks().Wait();
         }
@@ -113,7 +112,7 @@ namespace DiscordBot.Services.EduLink
             var ls = new List<DiscordHomework>();
             foreach(var x in await getAllHomeworksDue())
             {
-                if(x.Homework.DueText == "tomorrow")
+                if(x.Homework.DueText == "tomorrow" || x.Homework.DueText == "today")
                 {
                     ls.Add(x);
                     await x.Homework.GetDetails(); // gets description
