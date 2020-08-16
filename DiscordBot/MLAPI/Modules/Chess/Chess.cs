@@ -341,7 +341,6 @@ namespace DiscordBot.MLAPI.Modules
                 .Add("discord_link", link));
         }
 
-
         #region Joining Chess Server
 
         void handleJoinCallback(object sender, object[] args)

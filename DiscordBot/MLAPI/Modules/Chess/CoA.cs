@@ -1,16 +1,12 @@
-﻿using DiscordBot.Classes;
-using DiscordBot.Classes.Chess;
+﻿using DiscordBot.Classes.Chess;
 using DiscordBot.Classes.Chess.COA;
-using DiscordBot.Classes.HTMLHelpers;
 using DiscordBot.Classes.HTMLHelpers.Objects;
 using DiscordBot.Services;
-using HttpMultipartParser;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 
 namespace DiscordBot.MLAPI.Modules
 {
@@ -106,8 +102,15 @@ namespace DiscordBot.MLAPI.Modules
         [RequireChess(ChessPerm.ChiefJustice)]
         public void Password()
         {
-            var coa = ChesssInstance.BuiltInCoAUser.Tokens.FirstOrDefault(x => x.Name == AuthToken.LoginPassword);
-            RespondRaw(coa.Value);
+            var service = Program.Services.GetRequiredService<OauthCallbackService>();
+            var thing = service.Register(coaLogin, Context.User.Id);
+            RespondRaw($"<a href='/oauth2/misc?state={thing}'>Open in incognite.</a>");
+        }
+
+        void coaLogin(object sender, object[] args)
+        {
+            Login.SetLoginSession(Context, this.ChesssInstance.BuiltInCoAUser);
+            RespondRaw(LoadRedirectFile("/chess"), System.Net.HttpStatusCode.Redirect);
         }
 
         #region View Hearing

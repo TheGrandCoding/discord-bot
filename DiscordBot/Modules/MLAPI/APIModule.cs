@@ -17,10 +17,14 @@ namespace DiscordBot.Modules.MLAPI
         [Command("password")]
         [Alias("pwd", "pass")]
         [Summary("Sets your MLAPI password.")]
-        public async Task SetPassword([Sensitive][Remainder]string password)
+        public async Task<RuntimeResult> SetPassword([Sensitive][Remainder]string password)
         {
             if(password.Length < 8 || password.Length > 32)
-                throw new ArgumentException($"Password must be 8-32 charactors long");
+                return new BotResult($"Password must be 8-32 charactors long");
+            var leaked = await Program.IsPasswordLeaked(password);
+            if (leaked)
+                return new BotResult($"Password is known to be compromised; it cannot be used.");
+
             var t = Context.BotUser.Tokens.FirstOrDefault(x => x.Name == AuthToken.LoginPassword);
             if(t == null)
             {
@@ -30,6 +34,7 @@ namespace DiscordBot.Modules.MLAPI
             t.SetHashValue(password);
             Program.Save(); 
             await ReplyAsync("Password has been set!");
+            return new BotResult();
         }
     }
 }

@@ -98,25 +98,25 @@ namespace DiscordBot.MLAPI.Modules
             }
             if(user == null)
             {
-                RespondRaw("Error: Unknown user by your identifiers.", 404);
+                RespondRaw("Unknown user by your identifiers.", 404);
                 return;
             }
             var token = user.Tokens.FirstOrDefault(x => x.Name == AuthToken.LoginPassword);
             if(token == null)
             { // since confirming whether the user does or does not have a pwd is maybe a bad idea?
-                RespondRaw("Error: username or password incorrect", 404);
+                RespondRaw("Username or password incorrect", 404);
                 return;
             }
             if(!token.SamePassword(password))
             {
-                RespondRaw("Error: username or password incorrect", 400);
+                RespondRaw("Username or password incorrect", 400);
                 return;
             }
             setSessionTokens(user); // essentially logs them in
             RespondRaw("Ok", 200);
         }
 
-        void setSessionTokens(BotUser user)
+        public static void SetLoginSession(APIContext context, BotUser user)
         {
             // password valid, we need to log them in.
             var session = user.Tokens.FirstOrDefault(x => x.Name == AuthToken.SessionToken);
@@ -126,13 +126,15 @@ namespace DiscordBot.MLAPI.Modules
                 user.Tokens.Add(session);
             }
             // New session, so we'll invalidate any other login
-            session.Value = AuthToken.Generate(32);
+            session.Regenerate(32);
             Program.Save(); // ensure we save the session so it persists for multiple days
-            Context.HTTP.Response.Cookies.Add(new Cookie(AuthToken.SessionToken, session.Value, "/")
+            context.HTTP.Response.Cookies.Add(new Cookie(AuthToken.SessionToken, session.Value, "/")
             {
                 Expires = DateTime.Now.AddDays(3)
             });
         }
+
+        void setSessionTokens(BotUser user) => SetLoginSession(Context, user);
 
         async Task<HttpResponseMessage> postJson(JObject json, HttpClient client, string url)
         {
@@ -183,6 +185,16 @@ namespace DiscordBot.MLAPI.Modules
             }
         }
 
+        [Method("GET"), Path("/oauth2/misc")]
+        [RequireAuthentication(false)]
+        public void OauthMisc(string state)
+        {
+            if (!Callback.Invoke(Context, state))
+            {
+                RespondRaw("Unknown callback - state mismatch. Perhaps the bot was restarted since you were redirected?", 400);
+            }
+        }
+
         [Method("GET"), Path("/login/setpassword")]
         public void SeePswdPage()
         {
@@ -198,6 +210,11 @@ namespace DiscordBot.MLAPI.Modules
             if (pwd.Length < 8 || pwd.Length > 32)
             {
                 RespondRaw($"Password must be between 8 and 32 charactors in length", 400);
+                return;
+            }
+            if(Program.IsPasswordLeaked(pwd).Result)
+            {
+                RespondRaw($"Password is known to be compromised; it cannot be used.", 400);
                 return;
             }
             var token = Context.User.Tokens.FirstOrDefault(x => x.Name == AuthToken.LoginPassword);

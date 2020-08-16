@@ -2,12 +2,15 @@
 using Discord.Commands;
 using Discord.WebSocket;
 using DiscordBot.Classes;
+using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
 using System.Reflection;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace DiscordBot
 {
@@ -40,6 +43,26 @@ namespace DiscordBot
         static SocketGuild m_chess;
         public static SocketGuild ChessGuild => m_chess ??= Client.GetGuild(ulong.Parse(Configuration["guilds:chess"]));
 
+        public static async Task<bool> IsPasswordLeaked(string password)
+        {
+            var client = Program.Services.GetRequiredService<HttpClient>();
+            var hash = Hash.GetSHA1(password);
+            var prefix = hash.Substring(0, 5);
+            var suffix = hash.Substring(5);
+            var response = await client.GetAsync($"https://api.pwnedpasswords.com/range/{prefix}");
+            var content = await response.Content.ReadAsStringAsync();
+            var lines = content.Split('\n');
+            foreach(var line in lines)
+            {
+                var split = line.Split(':');
+                if(int.Parse(split[1]) > 0)
+                {
+                    if (split[0] == suffix)
+                        return true;
+                }
+            }
+            return false;
+        }
 
         public static OverwritePermissions ReadPerms
         {
