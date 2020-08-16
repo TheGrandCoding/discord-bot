@@ -1,8 +1,8 @@
 ﻿using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
+using DiscordBot.Classes.Attributes;
 using DiscordBot.Commands;
-using DiscordBot.Commands.Attributes;
 using DiscordBot.Services;
 using System;
 using System.Collections.Generic;
@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace DiscordBot.Modules.Actions
 {
-    [ReliesOnService(typeof(VCLockService))]
+    [RequireService(typeof(VCLockService))]
     [Name("VC Locking")]
     public class VoiceLocks : BotModule
     {

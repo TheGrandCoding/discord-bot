@@ -1,4 +1,5 @@
 ﻿using DiscordBot.Classes;
+using DiscordBot.Classes.Attributes;
 using DiscordBot.Classes.Chess.COA;
 using DiscordBot.Classes.Converters;
 using Microsoft.Extensions.DependencyInjection;

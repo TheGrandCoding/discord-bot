@@ -107,7 +107,7 @@ namespace DiscordBot.MLAPI.Modules
                 RespondRaw("Error: username or password incorrect", 404);
                 return;
             }
-            if(token.Value != password)
+            if(!token.SamePassword(password))
             {
                 RespondRaw("Error: username or password incorrect", 400);
                 return;
@@ -206,7 +206,7 @@ namespace DiscordBot.MLAPI.Modules
                 token = new AuthToken(AuthToken.LoginPassword, pwd);
                 Context.User.Tokens.Add(token);
             }
-            token.Value = pwd;
+            token.SetHashValue(pwd);
             Program.Save();
             Context.HTTP.Response.Headers["Location"] = "/";
             RespondRaw("Set", HttpStatusCode.Redirect);

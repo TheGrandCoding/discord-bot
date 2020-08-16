@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace DiscordBot.Classes
+namespace DiscordBot.Classes.Attributes
 {
     /// <summary>
     /// For services.

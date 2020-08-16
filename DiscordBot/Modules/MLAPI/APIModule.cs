@@ -1,6 +1,7 @@
 ﻿using Discord.Commands;
 using DiscordBot.Classes;
 using DiscordBot.Commands;
+using DiscordBot.Commands.Attributes;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,7 +17,7 @@ namespace DiscordBot.Modules.MLAPI
         [Command("password")]
         [Alias("pwd", "pass")]
         [Summary("Sets your MLAPI password.")]
-        public async Task SetPassword([Remainder]string password)
+        public async Task SetPassword([Sensitive][Remainder]string password)
         {
             if(password.Length < 8 || password.Length > 32)
                 throw new ArgumentException($"Password must be 8-32 charactors long");
@@ -26,7 +27,7 @@ namespace DiscordBot.Modules.MLAPI
                 t = new AuthToken(AuthToken.LoginPassword, 32);
                 Context.BotUser.Tokens.Add(t);
             }
-            t.Value = password;
+            t.SetHashValue(password);
             Program.Save(); 
             await ReplyAsync("Password has been set!");
         }

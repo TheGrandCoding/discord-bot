@@ -27,12 +27,12 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.8.0"; 
+        public const string VERSION = "0.8.1"; 
         public const string CHANGELOG = VERSION + @"
-== EduLink
-EduLink should now be possible.
-== CoA & Arbiter
-Combine appeals process for CoA and Abiter.
+== Password Hashing
+We now properly hash passwords used, using Pbkdf2.
+== Sensitive arg hiding
+Parameters can be flagged as 'Sensitive', meaning the value of them aren't logged.
 ";
         public static DiscordSocketClient Client { get; set; }
         public static IConfigurationRoot Configuration { get; set; }

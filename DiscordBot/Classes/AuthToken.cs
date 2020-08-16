@@ -18,13 +18,27 @@ namespace DiscordBot.Classes
         public const string SessionToken = "session";
 
         public string Name { get; set; }
-        public string Value { get; set; }
+
+        [JsonProperty("Value")]
+        string _value;
+
+        [JsonIgnore]
+        public string Value {  get
+            {
+                return _value;
+            }  [Obsolete]set
+            {
+                _value = value;
+            }
+        }
 
         [JsonConstructor]
         public AuthToken(string name, string value)
         {
             Name = name;
-            Value = value;
+            _value = value;
+            if (name == LoginPassword)
+                SetHashValue(value);
         }
 
         const int defaultLength = 12;
@@ -32,11 +46,17 @@ namespace DiscordBot.Classes
         {
         }
 
+        public void SetHashValue(string plainValue)
+        {
+            _value = PasswordHash.HashPassword(plainValue);
+        }
+        public bool SamePassword(string plainTest) => PasswordHash.ValidatePassword(plainTest, _value);
+
         public void Regenerate(int length = -1)
         {
             if (length < 0)
                 length = Value?.Length ?? defaultLength;
-            Value = Generate(length);
+            _value = Generate(length);
         }
 
         public static string Generate(int length)

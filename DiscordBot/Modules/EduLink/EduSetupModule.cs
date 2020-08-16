@@ -1,5 +1,6 @@
 ﻿using Discord.Commands;
 using DiscordBot.Commands;
+using DiscordBot.Commands.Attributes;
 using DiscordBot.Services;
 using EduLinkDLL;
 using EduLinkDLL.Exceptions;
@@ -17,7 +18,7 @@ namespace DiscordBot.Modules.EduLink
         public EduLinkService Service { get; set; }
         [Command("setup")]
         [Summary("Sets up your EduLink account information.")]
-        public async Task<RuntimeResult> Setup(string username, [Remainder]string password)
+        public async Task<RuntimeResult> Setup(string username, [Sensitive][Remainder]string password)
         {
             var hadPrior = Service.Clients.Remove(Context.User.Id);
 

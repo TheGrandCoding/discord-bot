@@ -46,7 +46,7 @@ namespace DiscordBot.Classes
                     return chnl.GetMessageAsync(msgId).Result;
                 } else
                 {
-                    return guild.GetTextChannel(id).GetMessageAsync(msgId).Result;
+                    return guild.GetTextChannel(id)?.GetMessageAsync(msgId)?.Result;
                 }
             }
             return null;

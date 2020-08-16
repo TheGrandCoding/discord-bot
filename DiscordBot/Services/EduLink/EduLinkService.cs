@@ -1,4 +1,6 @@
-﻿using EduLinkDLL;
+﻿using Discord;
+using EduLinkDLL;
+using EduLinkDLL.Exceptions;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -47,10 +49,20 @@ namespace DiscordBot.Services
             {
                 var client = new EduLinkClient();
                 client.Log = logHandler;
-                var ok = client.LoginAsync(x.Value.username, x.Value.password, x.Value.establishment).Result;
-                if(ok)
+                try
                 {
+                    client.LoginAsync(x.Value.username, x.Value.password, x.Value.establishment).Wait();
                     Clients[x.Key] = client;
+                }
+                catch (EduLinkException ex)
+                {
+                    try
+                    {
+                        var usr = Program.Client.GetUser(x.Key);
+                        usr.SendMessageAsync($"Your EduLink login information has failed; you may use `{Program.Prefix}edulink setup {x.Value.username} [password]` to update it:\r\n" +
+                            $">>> {ex.Message}");
+                    }
+                    catch { }
                 }
             }
         }

@@ -1,15 +1,13 @@
 ﻿using Discord;
 using Discord.WebSocket;
-using DiscordBot.Classes;
+using DiscordBot.Classes.Attributes;
 using EduLinkDLL;
 using EduLinkDLL.Classes;
 using EduLinkDLL.Exceptions;
 using Html2Markdown;
 using Microsoft.Extensions.DependencyInjection;
-using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace DiscordBot.Services.EduLink

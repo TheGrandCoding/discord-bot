@@ -1,5 +1,5 @@
 ﻿using Discord;
-using DiscordBot.Classes;
+using DiscordBot.Classes.Attributes;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;

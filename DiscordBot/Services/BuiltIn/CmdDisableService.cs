@@ -1,4 +1,5 @@
 ﻿using Discord.Commands;
+using DiscordBot.Classes.Attributes;
 using DiscordBot.Commands.Attributes;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
@@ -18,10 +19,10 @@ namespace DiscordBot.Services.BuiltIn
         {
             if (disabled.TryGetValue(getKey(module), out var str))
                 return str;
-            var a = module.Attributes.FirstOrDefault(x => x is ReliesOnServiceAttribute);
-            if(a is ReliesOnServiceAttribute relies)
+            var a = module.Attributes.FirstOrDefault(x => x is RequireServiceAttribute);
+            if(a is RequireServiceAttribute relies)
             {
-                foreach(var x in relies.Services)
+                foreach(var x in relies.Types)
                 {
                     var service = (Service)Program.Services.GetRequiredService(x);
                     if(service.HasFailed)

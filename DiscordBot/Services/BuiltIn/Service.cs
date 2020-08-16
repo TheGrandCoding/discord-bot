@@ -1,6 +1,6 @@
 ﻿using Discord;
 using Discord.WebSocket;
-using DiscordBot.Classes;
+using DiscordBot.Classes.Attributes;
 using DiscordBot.Utils;
 using System;
 using System.Collections.Generic;
