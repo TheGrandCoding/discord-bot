@@ -6,7 +6,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Reflection;
 using System.Text;
@@ -203,6 +205,39 @@ namespace DiscordBot
                 text = text.Substring(0, maxLength) + ender;
             }
             return text;
+        }
+
+        public static void downloadFile(Uri uri, string path, WebClient wc = null)
+        {
+            if(wc == null)
+            {
+                wc = new WebClient();
+                wc.DownloadProgressChanged += Wc_DownloadProgressChanged;
+                wc.DownloadFileCompleted += Wc_DownloadFileCompleted;
+            }
+            var fInfo = new FileInfo(path);
+            if (!fInfo.Directory.Exists)
+                fInfo.Directory.Create();
+            wc.DownloadFileAsync(uri, path, uri.PathAndQuery);
+        }
+
+        private static void Wc_DownloadFileCompleted(object sender, System.ComponentModel.AsyncCompletedEventArgs e)
+        {
+            if(e.Error != null)
+            {
+                LogMsg($"No download {e.UserState}: {e.Error}", LogSeverity.Error, "downloadFile");
+            }
+            else if (e.Cancelled)
+            {
+                LogMsg($"Cancelled download {e.UserState}", LogSeverity.Warning, "downloadFile");
+            } else
+            {
+                LogMsg($"Finished downloading {e.UserState}", LogSeverity.Info, "downloadFile");
+            }
+        }
+        private static void Wc_DownloadProgressChanged(object sender, DownloadProgressChangedEventArgs e)
+        {
+            Console.WriteLine($"{e.UserState}: {e.ProgressPercentage}%");
         }
     }
 }

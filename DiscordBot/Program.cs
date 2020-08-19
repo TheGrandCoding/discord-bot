@@ -27,12 +27,10 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.8.1"; 
+        public const string VERSION = "0.8.2"; 
         public const string CHANGELOG = VERSION + @"
-== Password Hashing
-We now properly hash passwords used, using Pbkdf2.
-== Sensitive arg hiding
-Parameters can be flagged as 'Sensitive', meaning the value of them aren't logged.
+== Some funky audio
+Maybe it works
 ";
         public static DiscordSocketClient Client { get; set; }
         public static IConfigurationRoot Configuration { get; set; }
