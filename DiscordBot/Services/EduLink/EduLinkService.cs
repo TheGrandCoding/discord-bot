@@ -34,9 +34,10 @@ namespace DiscordBot.Services
         }
         public Dictionary<ulong, EduLinkClient> Clients { get; set; }
 
-        void logHandler(EduLinkClient sender, string message)
+        public static void logHandler(EduLinkClient cl, EduLinkDLL.LogMessage m)
         {
-            Program.LogMsg(message, Discord.LogSeverity.Info, $"EL:{sender.UserName}");
+            var conv = new Discord.LogMessage((Discord.LogSeverity)m.Severity, $"EL:{(cl.UserName ?? "")}:" + (m.Source ?? ""), m.Message, m.Exception);
+            Program.LogMsg(conv);
         }
 
 

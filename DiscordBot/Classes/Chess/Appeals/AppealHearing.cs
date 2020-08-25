@@ -64,9 +64,9 @@ namespace DiscordBot.Classes.Chess.COA
         public string getRelationToCase(ChessPlayer player)
         {
             if (Claimants.Contains(player))
-                return "Claimant";
+                return AppealOf.HasValue ? "Appellant" : "Claimant";
             if (Respondents.Contains(player))
-                return "Respondent";
+                return AppealOf.HasValue ? "Appellee"  : "Respondent";
             if(IsArbiterCase)
             {
                 if (player.Permission == ChessPerm.Arbiter)
@@ -79,8 +79,21 @@ namespace DiscordBot.Classes.Chess.COA
             return "Outsider";
         }
 
+        [JsonProperty("npa")]
+        public int NumberOfPriorAppeals { get; set; }
+
         [JsonIgnore]
-        public string Title => string.Join("; ", Claimants.Select(x => x.Name)) + " v. " + string.Join("; ", Respondents.Select(x => x.Name));
+        public string Title
+        {
+            get
+            {
+                var t = string.Join("; ", Claimants.Select(x => x.Name)) + " v. " + string.Join("; ", Respondents.Select(x => x.Name));
+                if (NumberOfPriorAppeals > 0)
+                    t += " " + Program.RomanNumerals.To(NumberOfPriorAppeals);
+                return t;
+            }
+        }
+
         [JsonProperty("cn")]
         public int CaseNumber { get; set; }
         [JsonProperty("sl")]

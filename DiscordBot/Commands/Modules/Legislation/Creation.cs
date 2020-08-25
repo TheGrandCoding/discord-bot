@@ -10,7 +10,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DiscordBot.Modules.Legislation
+namespace DiscordBot.Commands.Modules.Legislation
 {
     [Group("draft")]
     [Name("Drafting Legislation Commands")]
@@ -34,7 +34,7 @@ namespace DiscordBot.Modules.Legislation
             return new EmbedBuilder()
                 .WithTitle(Act.Title)
                 .WithUrl($"{Handler.LocalAPIUrl}/laws/{Act.PathName}")
-                .WithDescription($"{Act.ShortRef}, {Act.Children.Count} sections:\r\n" +
+                .WithDescription($"{Act.ShortTitle}, {Act.Children.Count} sections:\r\n" +
                     string.Join(", ", Act.Children.Select(x => x.Number)))
                 .Build();
         }
@@ -134,7 +134,7 @@ namespace DiscordBot.Modules.Legislation
             Act = new Act(longTitle)
             {
                 Title = longTitle,
-                ShortRef = shortTitle,
+                ShortTitle = shortTitle,
                 Draft = true,
                 PathName = path,
             };

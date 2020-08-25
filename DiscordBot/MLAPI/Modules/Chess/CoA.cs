@@ -256,10 +256,17 @@ namespace DiscordBot.MLAPI.Modules
                 {
                     Children =
                     {
-                        new Paragraph($"Filed by {relation} {attch.UploadedBy.Name}"),
-                        new RawObject($"<iframe src='/chess/cases/{n}/motions/{mn}/{attachmentIndex++}'></iframe>")
+                        new Paragraph($"Filed by {relation} {attch.UploadedBy.Name}")
                     }
                 };
+                if(hearing.isClerkOnCase(SelfPlayer))
+                {
+                    div.Children.Add(new Input("button", attch.Sealed ? "Unseal" : "Seal")
+                    {
+                        OnClick = $"toggleSeal({attachmentIndex});"
+                    });
+                }
+                div.Children.Add(new RawObject($"<iframe src='/chess/cases/{n}/motions/{mn}/{attachmentIndex++}'></iframe>"));
                 attachments.Children.Add(div);
             }
             var holding = new RawObject("");

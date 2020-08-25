@@ -92,7 +92,7 @@ namespace DiscordBot.Services
         {
             if (!command.IsSpecified)
             {
-                var builder = await Modules.Help.getBuilder(context, context.Message.Content.Substring(1)); 
+                var builder = await Commands.Modules.Help.getBuilder(context, context.Message.Content.Substring(1)); 
                 await context.Channel.SendMessageAsync($":question: Unknown command", embed: builder.Build());
                 return;
             }

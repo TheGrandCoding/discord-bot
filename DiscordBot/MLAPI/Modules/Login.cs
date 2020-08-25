@@ -35,11 +35,10 @@ namespace DiscordBot.MLAPI.Modules
                 Program.LogMsg($"Handled user: {usr.Username}, {usr.Id}");
                 setSessionTokens(usr);
                 Program.LogMsg("Set session tokens, now logged in.");
-                var pwd = usr.Tokens.FirstOrDefault(x => x.Name == AuthToken.LoginPassword);
                 string redirectTo = Context.Request.Cookies["redirect"]?.Value;
                 if (string.IsNullOrWhiteSpace(redirectTo))
                     redirectTo = "/";
-                if (pwd == null)
+                if (usr.MLAPIPassword == null)
                     redirectTo = "/login/setpassword";
                 RespondRaw(LoadRedirectFile(redirectTo), HttpStatusCode.TemporaryRedirect);
                 Program.LogMsg("Users redirected.");
@@ -64,14 +63,21 @@ namespace DiscordBot.MLAPI.Modules
                 RespondRaw($"Logged you out; redirecting to base path", HttpStatusCode.TemporaryRedirect);
                 return;
             }
+            ReplyFile("login.html", 200, new Replacements()
+                .Add("link", "/login/discord"));
+        }
+
+        [Method("GET"), Path("/login/discord")]
+        [RequireAuthentication(false)]
+        public void RedirectToDiscord(string redirect = "/")
+        {
             var state = Callback.Register(handleLogin, Context.User);
             var uri = UrlBuilder.Discord()
                 .Add("redirect_uri", Handler.LocalAPIUrl + "/oauth2/discord")
                 .Add("response_type", "code")
                 .Add("scope", "identify")
                 .Add("state", state);
-            ReplyFile("login.html", 200, new Replacements()
-                .Add("link", uri));
+            RespondRaw(LoadRedirectFile(uri, redirect), HttpStatusCode.Redirect);
         }
 
         [Method("POST"), Path("/login")]
@@ -101,15 +107,11 @@ namespace DiscordBot.MLAPI.Modules
                 RespondRaw("Unknown user by your identifiers.", 404);
                 return;
             }
-            var token = user.Tokens.FirstOrDefault(x => x.Name == AuthToken.LoginPassword);
-            if(token == null)
-            { // since confirming whether the user does or does not have a pwd is maybe a bad idea?
-                RespondRaw("Username or password incorrect", 404);
-                return;
-            }
-            if(!token.SamePassword(password))
+            var token = user.MLAPIPassword;
+            if(token == null || !PasswordHash.ValidatePassword(password, token))
             {
-                RespondRaw("Username or password incorrect", 400);
+                // since confirming whether the user does or does not have a pwd is maybe a bad idea?
+                RespondRaw("Username or password incorrect", 404);
                 return;
             }
             setSessionTokens(user); // essentially logs them in
@@ -217,13 +219,7 @@ namespace DiscordBot.MLAPI.Modules
                 RespondRaw($"Password is known to be compromised; it cannot be used.", 400);
                 return;
             }
-            var token = Context.User.Tokens.FirstOrDefault(x => x.Name == AuthToken.LoginPassword);
-            if(token == null)
-            {
-                token = new AuthToken(AuthToken.LoginPassword, pwd);
-                Context.User.Tokens.Add(token);
-            }
-            token.SetHashValue(pwd);
+            Context.User.MLAPIPassword = pwd;
             Program.Save();
             Context.HTTP.Response.Headers["Location"] = "/";
             RespondRaw("Set", HttpStatusCode.Redirect);

@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.ComponentModel;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -42,6 +43,32 @@ namespace DiscordBot.Classes
         [JsonProperty("perms")]
         public List<Perm> Permissions { get; set; } = new List<Perm>();
 
+        [JsonIgnore]
+        public string MLAPIPassword {  get
+            {
+                return Tokens.FirstOrDefault(x => x.Name == AuthToken.LoginPassword)?.Value;
+            } set
+            {
+                if(value == null)
+                {
+                    Tokens.RemoveAll(x => x.Name == AuthToken.LoginPassword);
+                } else
+                {
+                    var tkn = Tokens.FirstOrDefault(x => x.Name == AuthToken.LoginPassword);
+                    if(tkn == null)
+                    {
+                        tkn = new AuthToken(AuthToken.LoginPassword);
+                        Tokens.Add(tkn);
+                    }
+                    tkn.SetHashValue(value);
+                }
+                Tokens.FirstOrDefault(x => x.Name == AuthToken.SessionToken)?.Regenerate();
+            }
+        }
+
+        /// <summary>
+        /// Code: Name of subject
+        /// </summary>
         [JsonProperty("subjs")]
         public Dictionary<string, string> Classes { get; set; } = new Dictionary<string, string>();
         

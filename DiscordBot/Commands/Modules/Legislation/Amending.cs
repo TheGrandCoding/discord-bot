@@ -15,7 +15,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-namespace DiscordBot.Modules.Legislation
+namespace DiscordBot.Commands.Modules.Legislation
 {
     [Group("amend")]
     [Name("Legislation Amending")]
@@ -53,7 +53,7 @@ namespace DiscordBot.Modules.Legislation
                 Service.SaveAct(Act);
                 Context.Channel.SendMessageAsync(embed:
                     new EmbedBuilder()
-                    .WithTitle($"{Act.ShortRef} #{Group.Id}")
+                    .WithTitle($"{Act.ShortTitle} #{Group.Id}")
                     .WithDescription($"Your amendment should be visible on the MLAPI website, linked above.")
                     .WithUrl(Act.URL)
                     .WithFooter(Act.PathName)
@@ -156,7 +156,7 @@ namespace DiscordBot.Modules.Legislation
                 return new BotResult("You did not author this amendment");
             Act = act;
             Group = group;
-            await ReplyAsync($"Continued amendment {group.Id} for {Act.ShortRef}");
+            await ReplyAsync($"Continued amendment {group.Id} for {Act.ShortTitle}");
             return new BotResult();
         }
 

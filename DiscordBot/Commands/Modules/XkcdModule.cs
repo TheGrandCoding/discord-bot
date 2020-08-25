@@ -6,7 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace DiscordBot.Modules
+namespace DiscordBot.Commands.Modules
 {
     [Name("Xkcd")]
     public class XkcdModule : BotModule

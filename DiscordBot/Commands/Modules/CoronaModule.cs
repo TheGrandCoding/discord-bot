@@ -13,7 +13,7 @@ using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DiscordBot.Modules
+namespace DiscordBot.Commands.Modules
 {
     [Name("COVID-19 Statistics")]
     [Group("covid")]

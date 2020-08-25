@@ -9,7 +9,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DiscordBot.Modules.Actions
+namespace DiscordBot.Commands.Modules.Actions
 {
     [Group("vc")]
     public class VCAnnounce : BotModule

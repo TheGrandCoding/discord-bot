@@ -41,12 +41,18 @@ namespace DiscordBot.Classes.Legislation
 
         public override Act Law => this;
 
+        /// <summary>
+        /// The long title for this Act
+        /// </summary>
         [JsonProperty("t")]
         public string Title { get; set; }
         [JsonProperty("pn")]
         public string PathName { get; set; }
+        /// <summary>
+        /// The main and short title of this Act
+        /// </summary>
         [JsonProperty("sr")]
-        public string ShortRef { get; set; }
+        public string ShortTitle { get; set; }
 
         [JsonIgnore]
         public string URL => $"{MLAPI.Handler.LocalAPIUrl}/laws/{PathName}";
@@ -66,7 +72,7 @@ namespace DiscordBot.Classes.Legislation
             {
                 Children =
                 {
-                    new H1(cls: "LegTitle") {RawText = ShortRef},
+                    new H1(cls: "LegTitle") {RawText = ShortTitle},
                     new H1(cls: "LegNo") {RawText = PathName},
                     new HTMLHelpers.Objects.Paragraph(Title, cls: "LegLongTitle"),
                     new HTMLHelpers.Objects.Paragraph(

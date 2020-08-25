@@ -54,7 +54,7 @@ namespace DiscordBot.Services
                         .WithStyle("https://www.legislation.gov.uk/styles/legislation.css")
                         .WithStyle("https://www.legislation.gov.uk/styles/primarylegislation.css")
                         .WithMeta(Meta.Charset("UTF-8"))
-                        .WithOpenGraph(title: $"{act.ShortRef} Section {section.Number}", 
+                        .WithOpenGraph(title: $"{act.ShortTitle} Section {section.Number}", 
                                        description: section.Header),
                     new PageBody()
                     {
@@ -76,8 +76,9 @@ namespace DiscordBot.Services
                         .WithStyle("https://www.legislation.gov.uk/styles/legislation.css")
                         .WithStyle("https://www.legislation.gov.uk/styles/primarylegislation.css")
                         .WithMeta(Meta.Charset("UTF-8"))
-                        .WithOpenGraph(title: $"{act.ShortRef}",
-                                       description: act.Title),
+                        .WithOpenGraph(title: $"{act.ShortTitle}",
+                                       description: act.Title)
+                        .WithTitle(act.ShortTitle),
                     new PageBody()
                     {
                         Children = { div }

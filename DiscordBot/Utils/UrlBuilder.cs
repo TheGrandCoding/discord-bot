@@ -22,6 +22,16 @@ namespace DiscordBot.Utils
             args[Uri.EscapeDataString(name)] = Uri.EscapeDataString(value);
             return this;
         }
+        public string this[string key]
+        {
+            get
+            {
+                return Uri.UnescapeDataString(args[Uri.EscapeDataString(key)]);
+            } set
+            {
+                Add(key, value);
+            }
+        }
         public override string ToString()
         {
             string b = Base;

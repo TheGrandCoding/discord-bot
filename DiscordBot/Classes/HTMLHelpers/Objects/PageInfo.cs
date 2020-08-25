@@ -55,6 +55,11 @@ namespace DiscordBot.Classes.HTMLHelpers.Objects
             }
             return this;
         }
+        public PageHeader WithTitle(string title)
+        {
+            Children.Add(new PageTitle(title));
+            return this;
+        }
     }
     public class PageBody : HTMLBase
     {
@@ -115,4 +120,12 @@ namespace DiscordBot.Classes.HTMLHelpers.Objects
         }
 
     }
-  }
+
+    public class PageTitle : HTMLBase
+    {
+        public PageTitle(string title) : base("title", null, null)
+        {
+            RawText = title;
+        }
+    }
+}

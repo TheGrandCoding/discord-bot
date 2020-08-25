@@ -2,6 +2,7 @@
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Text;
 
 namespace DiscordBot.Classes.Chess.COA
@@ -27,6 +28,10 @@ namespace DiscordBot.Classes.Chess.COA
         public ChessPlayer UploadedBy { get; set; }
 
         public DateTime Filed { get; set; }
+
+        [JsonProperty("s", DefaultValueHandling = DefaultValueHandling.IgnoreAndPopulate)]
+        [DefaultValue(false)]
+        public bool Sealed { get; set; }
 
         [JsonIgnore]
         public string DataPath { get; private set; }

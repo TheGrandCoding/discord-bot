@@ -9,7 +9,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DiscordBot.Modules.Actions
+namespace DiscordBot.Commands.Modules.Actions
 {
     [RequireService(typeof(VCLockService))]
     [Name("VC Locking")]

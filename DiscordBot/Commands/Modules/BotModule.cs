@@ -8,7 +8,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DiscordBot.Modules
+namespace DiscordBot.Commands.Modules
 {
     [Group("bot")]
     [Name("Bot Commands")]

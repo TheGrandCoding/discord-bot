@@ -9,7 +9,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DiscordBot.Modules
+namespace DiscordBot.Commands.Modules
 {
     [Name("Calculator")]
     public class Calculations : BotModule

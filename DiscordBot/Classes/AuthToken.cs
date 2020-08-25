@@ -37,8 +37,6 @@ namespace DiscordBot.Classes
         {
             Name = name;
             _value = value;
-            if (name == LoginPassword)
-                SetHashValue(value);
         }
 
         const int defaultLength = 12;

@@ -1,6 +1,7 @@
 ﻿using Discord;
 using Discord.WebSocket;
 using DiscordBot.Classes.Attributes;
+using DiscordBot.Services.BuiltIn;
 using DiscordBot.Utils;
 using System;
 using System.Collections.Generic;
@@ -118,7 +119,14 @@ namespace DiscordBot.Services
 
         public static void SendReady(List<Service> _servs)
         {
-            zza_services = _servs.OrderBy(x => x, new serviceComparer()).ThenBy(x => x.Priority).ToList();
+            var backup = _servs.FirstOrDefault(x => x is BackupService);
+            _servs.Remove(backup);
+            _servs.Sort(new serviceComparer());
+            zza_services = new List<Service>();
+            zza_services.Add(backup);
+            zza_services.AddRange(_servs);
+            foreach (var x in zza_services)
+                Console.WriteLine("  - " + x.Name);
             sendFunction("OnReady");
         }
     
@@ -189,10 +197,12 @@ namespace DiscordBot.Services
 
                 if (aAttribute.Types.Contains(yType))
                 {
-                    return "y".CompareTo("x"); 
+                    Console.WriteLine($"{x.Name} after {y.Name}");
+                    return "y".CompareTo("x");
                 }
                 if (bAttribute.Types.Contains(xType))
                 {
+                    Console.WriteLine($"{x.Name} before {y.Name}");
                     return "x".CompareTo("y");
                 }
                 return 0;

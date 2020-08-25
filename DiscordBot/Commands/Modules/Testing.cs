@@ -9,7 +9,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DiscordBot.Modules
+namespace DiscordBot.Commands.Modules
 {
     [Summary("Testing Commands")]
     public class Testing : BotModule

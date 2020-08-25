@@ -27,7 +27,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.8.2"; 
+        public const string VERSION = "0.8.4"; 
         public const string CHANGELOG = VERSION + @"
 == Some funky audio
 Maybe it works
@@ -39,6 +39,7 @@ Maybe it works
         public static char Prefix { get; set; }
 
         public static RestApplication AppInfo { get; set; }
+        public static LogSeverity LogLevel { get; set; } = LogSeverity.Verbose; // set through config: "settings:log"
 
         public static Handler APIHandler { get; set; }
 
@@ -79,7 +80,7 @@ Maybe it works
             builder.SetBasePath(BASE_PATH);
             builder.AddJsonFile("_configuration.json");
             Configuration = builder.Build();
-
+            LogLevel = Enum.Parse<LogSeverity>(Configuration["settings:log"], true);
             Prefix = Configuration["prefix"][0];
         }
 
@@ -197,12 +198,43 @@ Maybe it works
             };
         }
 
+        private static object _lockObj = new object();
+        static string logFileLocation {  get
+            {
+                var directory = Path.Combine(BASE_PATH, "data", "logs");
+                if (!Directory.Exists(directory))
+                    Directory.CreateDirectory(directory);
+                return Path.Combine(directory, DateTime.Now.ToString("yyyy-MM-dd") + ".txt");
+            } }
+        static void fileLog(LogMessage msg)
+        {
+            lock(_lockObj)
+            {
+                string s = formatMsg(msg);
+                File.AppendAllText(logFileLocation, s + "\r\n");
+            }
+        }
+
+        static string formatMsg(LogMessage msg)
+        {
+            var sb = new StringBuilder();
+            sb.Append(DateTime.Now.ToString("[hh:mm:ss.fff] "));
+            sb.Append($"<{msg.Severity.ToString().PadRight(8)}|{(msg.Source ?? "n/s").PadRight(18)}> ");
+            int padLength = sb.Length + 1;
+            var s = msg.Exception?.ToString() ?? msg.Message ?? "n/m";
+            sb.Append(s.Replace("\n", "\n" + new string(' ', padLength)));
+            return sb.ToString();
+        }
+
         public static void LogMsg(LogMessage msg)
         {
             var c = Console.ForegroundColor;
             Console.ForegroundColor = getColor(msg.Severity);
-            Console.WriteLine(msg.ToString());
+            Console.WriteLine(formatMsg(msg));
             Console.ForegroundColor = c;
+            if (msg.Severity < LogLevel)
+                return;
+            fileLog(msg);
         }
 
         public static void LogMsg(Exception ex, string source) => LogMsg(new LogMessage(LogSeverity.Error, source, null, ex));

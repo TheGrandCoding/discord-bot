@@ -9,7 +9,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DiscordBot.Modules.EduLink
+namespace DiscordBot.Commands.Modules.EduLink
 {
     [Group("edulink")]
     [Name("EduLink One")]
@@ -23,10 +23,7 @@ namespace DiscordBot.Modules.EduLink
             var hadPrior = Service.Clients.Remove(Context.User.Id);
 
             var client = new EduLinkClient();
-            client.Log = (cl, m) =>
-            {
-                Program.LogMsg(m, Discord.LogSeverity.Info, $"EL:{(cl.UserName ?? Context.User.Username)}");
-            };
+            client.Log = EduLinkService.logHandler;
             try
             {
                 var successLogin = await client.LoginAsync(username, password, 60);

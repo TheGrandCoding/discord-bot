@@ -1,5 +1,6 @@
 ﻿using Discord;
 using Discord.WebSocket;
+using DiscordBot.Classes;
 using DiscordBot.Classes.Attributes;
 using EduLinkDLL;
 using EduLinkDLL.Classes;
@@ -12,7 +13,7 @@ using System.Threading.Tasks;
 
 namespace DiscordBot.Services.EduLink
 {
-    [RequireService(typeof(EduLinkService), typeof(ReactionService))]
+    [RequireService(typeof(ReactionService), typeof(ELTimetableService))]
     public class ELHomeworkService : SavedService
     {
         private static ELHomeworkService instance;
@@ -72,6 +73,9 @@ namespace DiscordBot.Services.EduLink
             Guild = Program.Client.GetGuild(ulong.Parse(Program.Configuration["guilds:edulink"]));
             Category = Guild.CategoryChannels.FirstOrDefault(x => x.Name == "homework");
             Info = Program.Deserialise<Dictionary<ulong, HomeworkPreferences>>(ReadSave());
+#if DEBUG
+            OnDailyTick();
+#endif
         }
 
         public override void OnDailyTick()
@@ -82,8 +86,9 @@ namespace DiscordBot.Services.EduLink
         async Task<List<DiscordHomework>> getAllHomeworksDue()
         {
             Dictionary<int, DiscordHomework> homeworks = new Dictionary<int, DiscordHomework>();
-            foreach(var client in EduLink.Clients.Values)
+            foreach(var keypair in EduLink.Clients)
             {
+                var client = keypair.Value;
                 var grouped = await client.HomeworkAsync();
                 foreach(var hwk in grouped.Current)
                 {
@@ -126,7 +131,7 @@ namespace DiscordBot.Services.EduLink
                 _hwkCache[hwk.Homework.Id] = hwk;
                 var subject = reduceSubjectAliases(hwk.Homework.Subject);
                 var chnl = getSubjectChannel(subject);
-                var embed = hwk.ToEmbed();
+                var embed = hwk.ToEmbed(EduLink);
                 hwk.LatestMessage = await chnl.SendMessageAsync(embed: embed.Build());
                 await hwk.LatestMessage.AddReactionAsync(Emotes.WHITE_CHECK_MARK);
                 Reaction.Register(hwk.LatestMessage, EventAction.Added | EventAction.Removed, handleReaction, hwk.Homework.Id.ToString());
@@ -152,7 +157,7 @@ namespace DiscordBot.Services.EduLink
                 await args.User.SendMessageAsync($"Homework has been marked {(completed ? "completed" : "not yet completed")}");
                 await homework.LatestMessage.ModifyAsync(x =>
                 {
-                    x.Embed = homework.ToEmbed().Build();
+                    x.Embed = homework.ToEmbed(EduLink).Build();
                 });
             }
             catch (EduLinkException ex)
@@ -171,24 +176,52 @@ namespace DiscordBot.Services.EduLink
     {
         public Dictionary<EduLinkClient, Homework> Homeworks { get; set; } = new Dictionary<EduLinkClient, Homework>();
 
+        public List<BotUser> GetStudents(EduLinkService service)
+        {
+            var classes = new List<string>();
+            foreach(var usr in Homeworks.Keys)
+            {
+                var id = service.Clients.FirstOrDefault(x => x.Value.UserName == usr.UserName).Key;
+                var bUser = Program.GetUserOrDefault(id);
+                var keypair = bUser.Classes.FirstOrDefault(x => x.Value == Homework.Subject);
+                if (!classes.Contains(keypair.Key))
+                    classes.Add(keypair.Key);
+            }
+            var students = new List<BotUser>();
+            foreach(var user in Program.Users)
+            {
+                foreach(var sub in classes)
+                {
+                    if (user.Classes.ContainsKey(sub))
+                    {
+                        students.Add(user);
+                        break;
+                    }
+                }
+            }
+            return students;
+        }
+
         public Homework Homework => Homeworks.Values.FirstOrDefault();
 
         public IUserMessage LatestMessage { get; set; }
 
-        public EmbedBuilder ToEmbed()
+        public EmbedBuilder ToEmbed(EduLinkService s)
         {
             var builder = new EmbedBuilder();
-            builder.Title = $"#{Homework.Id} {Program.Limit(Homework.Activity, 256)}";
+            builder.Title = Program.Limit(Homework.Activity, 256);
             var md = new Converter().Convert(Homework.Description);
             builder.Description = Program.Limit(md, 2048);
             builder.WithTimestamp(Homework.DueDate);
             builder.Author = new EmbedAuthorBuilder()
                 .WithName(Homework.SetBy);
             string dueFor = "";
-            foreach(var client in Homeworks.Keys)
+            var students = GetStudents(s);
+            foreach(var student in students)
             {
-                string done = Homeworks[client].Status == "Submitted" ? "✅" : "";
-                dueFor += $"- {client.CurrentUser.Forename} {done}\n";
+                var client = s.Clients.GetValueOrDefault(student.Id);
+                string done = client == null ? "" : Homeworks[client].Status == "Submitted" ? "✅" : "";
+                dueFor += $"- {student.Name} {done}\n";
             }
             if (!string.IsNullOrWhiteSpace(dueFor))
                 builder.AddField("Students", dueFor, true);
