@@ -99,6 +99,17 @@ namespace DiscordBot.Classes.HTMLHelpers
                 set("readonly", value);
             }
         }
+        public virtual bool Disabled
+        {
+            get
+            {
+                return get("disabled") == "";
+            }
+            set
+            {
+                set("disabled", value);
+            }
+        }
 
         public string Style { get => get(nameof(Style)); set => set(nameof(Style), value); }
 

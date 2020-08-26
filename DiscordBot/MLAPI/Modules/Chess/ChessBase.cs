@@ -1,4 +1,5 @@
 ﻿using DiscordBot.Classes.Chess;
+using DiscordBot.Classes.HTMLHelpers.Objects;
 using DiscordBot.Services;
 using System;
 using System.Collections.Generic;
@@ -19,6 +20,26 @@ namespace DiscordBot.MLAPI.Modules
         public ChessBase(APIContext c) : this(c, "chess") { }
         public ChessPlayer SelfPlayer { get; protected set; }
 
+
+        public Select GetPlayerList(string id, Func<ChessPlayer, bool> filter = null)
+        {
+            var sel = new Select(id: id);
+            foreach (var player in ChessService.Players.Where(x => !x.IsBuiltInAccount).OrderByDescending(x => x.Rating))
+            {
+                if (player.ShouldContinueInLoop)
+                    continue;
+                if (filter != null && !filter(player))
+                    continue;
+                var opt = new Option(player.Name, player.Id.ToString());
+                if (player.IsBanned)
+                {
+                    opt.Class = "banned";
+                    opt.Disabled = true;
+                }
+                sel.Children.Add(opt);
+            }
+            return sel;
+        }
 
         public string GetPlayerList()
         {

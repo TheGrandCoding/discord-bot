@@ -196,7 +196,25 @@ namespace DiscordBot
             var bytes = Convert.FromBase64String(b64);
             return Encoding.UTF8.GetString(bytes);
         }
-    
+        
+        static void appendN(StringBuilder b, int n, string sing, string plural = null)
+        {
+            plural = plural ?? sing + "s";
+            if (n > 0)
+                b.Append($"{n} {(n > 1 ? plural : sing)} ");
+        }
+        public static string FormatTimeSpan(TimeSpan ts, bool shortForm = false, bool includeMs = false)
+        {
+            var builder = new StringBuilder();
+            appendN(builder, ts.Days, "day");
+            appendN(builder, ts.Hours, shortForm ? "hr" : "hour");
+            appendN(builder, ts.Minutes, shortForm ? "min" : "minute");
+            appendN(builder, ts.Seconds, shortForm ? "sec" : "second");
+            if(includeMs)
+                appendN(builder, ts.Milliseconds, shortForm ? "ms" : "milisecond", shortForm ? "ms" : null);
+            return builder.ToString();
+        }
+
         public static string Limit(string text, int maxLength, string ender = "...")
         {
             maxLength = maxLength - ender.Length;

@@ -46,12 +46,12 @@ namespace DiscordBot.Classes
             {
                 Sequence = 0;
             }
-            Response = jObj["res"].Value<uint?>();
-            Id = jObj["id"].Value<T>();
+            Response = jObj["res"]?.Value<uint?>();
+            Id = (T)Enum.Parse(typeof(T), jObj["id"].Value<string>());
             Content = jObj["content"];
         }
 
-        public override string ToString()
+        public virtual JObject ToJson()
         {
             var jobj = new JObject();
             jobj["seq"] = Sequence;
@@ -59,7 +59,12 @@ namespace DiscordBot.Classes
                 jobj["res"] = Response;
             jobj["id"] = Id.ToString();
             jobj["content"] = Content;
-            return jobj.ToString();
+            return jobj;
+        }
+
+        public override string ToString()
+        {
+            return ToJson().ToString();
         }
     }
 }

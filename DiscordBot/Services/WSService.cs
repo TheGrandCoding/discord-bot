@@ -24,10 +24,15 @@ namespace DiscordBot.Services
             {
                 x.Service = Program.Services.GetRequiredService<MLService>();
             });
+            Server.AddWebSocketService<ChessNotifyWS>("/chess-monitor", x =>
+            {
+                x.Service = Program.Services.GetRequiredService<ChessService>();
+            });
+            Server.AddWebSocketService<ChessTimeWS>("/chess-timer");
             //Server.Log.Level = LogLevel.Trace;
             Server.Log.Output = (x, y) =>
             {
-                Program.LogMsg($"{x.Level} {x.Message}\r\n=> {y}", LogSeverity.Info, "WS-" + x.Caller.ToString());
+                Program.LogMsg($"{x.Message}\r\n=> {y}", (LogSeverity)x.Level, "WS-" + x.Caller.ToString());
             };
             Server.Start();
             if (Server.IsListening)

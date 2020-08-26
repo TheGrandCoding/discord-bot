@@ -27,10 +27,11 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.8.4"; 
+        public const string VERSION = "0.8.5"; 
         public const string CHANGELOG = VERSION + @"
-== Some funky audio
-Maybe it works
+== Chess WS work
+Now order main page to reload if changes occur outside.  
+Further, display any timed games in progress on main page.
 ";
         public static DiscordSocketClient Client { get; set; }
         public static IConfigurationRoot Configuration { get; set; }

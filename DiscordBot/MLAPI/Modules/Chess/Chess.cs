@@ -480,39 +480,66 @@ namespace DiscordBot.MLAPI.Modules
                 .Add("colm", debug ? "<th>debug</th>" : ""));
         }
 
-#region Chess Clock
+        #region Chess Clock
+
+#if DEBUG
+        const int chessClockMinimum = 10;
+#else
+        const int chessClockMinimum = 60 * 3;
+#endif
+
         [Method("GET"), Path("/chess/clock")]
-        [RequireVerifiedAccount(false)]
-        [RequireAuthentication(false)]
-        public void Clock(int seconds = 300, int black = 300)
+        public void Clock(int wsec, int bsec, int wp, int bp)
         {
-            if(seconds > (60 * 59) || black > (60 * 59))
+            if(wsec > (60 * 59) || bsec > (60 * 59))
             {
                 HTTPError(System.Net.HttpStatusCode.BadRequest, "Out of Range", "Time cannot be greater than an hour");
                 return;
             }
-            if(seconds < (60 * 3) || black < (60 * 3))
+
+            if(wsec < chessClockMinimum || bsec < chessClockMinimum)
             {
-                HTTPError(System.Net.HttpStatusCode.BadRequest, "Out of Range", "Time cannot be less than 3 minutes");
+                HTTPError(System.Net.HttpStatusCode.BadRequest, "Out of Range", $"Time cannot be less than {Program.FormatTimeSpan(TimeSpan.FromSeconds(chessClockMinimum))}");
                 return;
             }
-            int w_minutes = 0;
-            while(seconds >= 60)
+            var game = new ChessTimedGame();
+            game.White = Players.FirstOrDefault(x => x.Id == wp);
+            game.Black = Players.FirstOrDefault(x => x.Id == bp);
+            if(game.White == null || game.Black == null 
+                || game.White.ShouldContinueInLoop || game.White.IsBanned
+                || game.Black.ShouldContinueInLoop || game.Black.IsBanned)
             {
-                w_minutes += 1;
-                seconds -= 60;
+                HTTPError(HttpStatusCode.BadRequest, "Player", "One of the players selected is unknown");
+                return;
             }
-            int b_minutes = 0;
-            while(black >= 60)
+            game.WhiteTime = TimeSpan.FromSeconds(wsec);
+            game.BlackTime = TimeSpan.FromSeconds(bsec);
+            var id = ChessS.AddTimedGame(game);
+
+            RespondRaw(LoadRedirectFile($"/chess/clock?id={id}"), HttpStatusCode.Redirect);
+        }
+
+        [Method("GET"), Path("/chess/clock")]
+        public void Clock(Guid id)
+        {
+            if(!ChessService.TimedGames.TryGetValue(id, out var game))
             {
-                b_minutes += 1;
-                black -= 60;
+                RespondRaw("No game by that ID", 404);
+                return;
             }
             ReplyFile("chessclock.html", 200, new Replacements()
-                .Add("w_minutes", w_minutes)
-                .Add("w_seconds", seconds)
-                .Add("b_minutes", b_minutes)
-                .Add("b_seconds", black));
+                .Add("wsId", id));
+        }
+
+        [Method("GET"), Path("/chess/clock")]
+        public void SetupClock()
+        {
+            var firstList = GetPlayerList("player1", x => !x.IsBanned);
+            var secondList = GetPlayerList("player2", x => !x.IsBanned);
+            ReplyFile("setupChessClock.html", 200, new Replacements()
+                .Add("player", SelfPlayer)
+                .Add("selectp1", firstList)
+                .Add("selectp2", secondList));
         }
 #endregion
 
@@ -871,7 +898,7 @@ namespace DiscordBot.MLAPI.Modules
                 .Add("warnings", WARNINGS));
         }
 
-        #region Modify User
+#region Modify User
         TableRow _modGetHeaders()
         {
             var row = new TableRow();
@@ -1067,7 +1094,7 @@ namespace DiscordBot.MLAPI.Modules
             ReplyFile("user.html", 200, new Replacements().Add("table", TABLE));
         }
 
-        #endregion
+#endregion
 
         [Method("GET"), Path("/chess/account")]
         [RequireVerifiedAccount(false)]

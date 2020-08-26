@@ -24,12 +24,30 @@ namespace DiscordBot.Services
         public static int PlayerIdMax = 0;
         public static List<ChessPlayer> Players = new List<ChessPlayer>();
         public static List<ChessPendingGame> PendingGames = new List<ChessPendingGame>();
+        public static Dictionary<Guid, ChessTimedGame> TimedGames = new Dictionary<Guid, ChessTimedGame>();
         public static OnlineGame CurrentGame = null;
         public static Dictionary<ulong, IInvite> Invites = new Dictionary<ulong, IInvite>();
         public static string LoadException;
 
         public const int OnlineMaxTotal = 5;
         public const int OnlineMaxPlayer = 3;
+
+        public event EventHandler<string> ChangedOccured;
+        public event EventHandler<string> MessageNotifiers;
+
+        public Guid AddTimedGame(ChessTimedGame game)
+        {
+            var id = Guid.NewGuid();
+            game.Id = id;
+            TimedGames.Add(id, game);
+            MessageNotifiers?.Invoke("newGame", id.ToString());
+            return id;
+        } 
+        public void EndTimedGame(ChessTimedGame game)
+        {
+            MessageNotifiers?.Invoke("endGame", game.Id.ToString());
+        }
+
 
         /// <summary>
         /// Number of games a Member must play to be eligible to vote; see section 14A(6)(a)
@@ -187,6 +205,13 @@ namespace DiscordBot.Services
             catch (Exception ex)
             {
                 Program.LogMsg("ChessActualLog", ex);
+            }
+            try
+            {
+                ChangedOccured?.Invoke(this, embed.Title);
+            } catch (Exception ex)
+            {
+                Program.LogMsg("ChessRaiseChange", ex);
             }
         }
 
