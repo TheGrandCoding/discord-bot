@@ -9,19 +9,9 @@ namespace DiscordBot.Classes.Chess.TimedOnline
     {
         public TimedPacket(JObject jObj) : base(jObj)
         {
-            Time = DateTime.Parse(jObj["time"].ToObject<string>());
         }
         public TimedPacket(TimedId id, JToken token) : base(id, token)
         {
-            Time = DateTime.Now;
-        }
-        public DateTime Time { get; set; }
-
-        public override JObject ToJson()
-        {
-            var b = base.ToJson();
-            b["time"] = Time;
-            return b;
         }
     }
 
