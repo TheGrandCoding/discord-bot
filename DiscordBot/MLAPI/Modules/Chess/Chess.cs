@@ -512,8 +512,8 @@ namespace DiscordBot.MLAPI.Modules
                 HTTPError(HttpStatusCode.BadRequest, "Player", "One of the players selected is unknown");
                 return;
             }
-            game.WhiteTime = TimeSpan.FromSeconds(wsec);
-            game.BlackTime = TimeSpan.FromSeconds(bsec);
+            game.WhiteTime = wsec * 1000;
+            game.BlackTime = bsec * 1000;
             var id = ChessS.AddTimedGame(game);
 
             RespondRaw(LoadRedirectFile($"/chess/clock?id={id}"), HttpStatusCode.Redirect);

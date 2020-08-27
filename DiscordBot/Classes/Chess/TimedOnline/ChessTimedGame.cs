@@ -37,8 +37,8 @@ namespace DiscordBot.Classes.Chess
 
         public List<ChessTimeWS> ListeningWS { get; set; } = new List<ChessTimeWS>();
 
-        public TimeSpan WhiteTime { get; set; }
-        public TimeSpan BlackTime { get; set; }
+        public long WhiteTime { get; set; }
+        public long BlackTime { get; set; }
 
         public Guid Id { get; set; }
 
@@ -46,22 +46,28 @@ namespace DiscordBot.Classes.Chess
         public bool Paused { get; set; } = true;
         public bool Ended {  get
             {
-                var e = WhiteTime.TotalSeconds <= 0 || BlackTime.TotalSeconds <= 0;
+                var e = WhiteTime <= 0 || BlackTime <= 0;
                 if (e)
                     Paused = true;
                 return e;
             } }
         public int HalfMoves { get; set; } = 0;
 
-        TimeSpan deduct(TimeSpan ts)
+        long deduct(long ts, long ms)
+        {
+            if (ts <= ms)
+                return 0;
+            return ts - ms;
+        }
+        long deduct(long ts)
         {
             var elapsed = DateTime.Now - last;
-            if (ts.TotalMilliseconds <= elapsed.TotalMilliseconds)
-                return new TimeSpan();
-            return TimeSpan.FromMilliseconds(ts.TotalMilliseconds - elapsed.TotalMilliseconds);
+            return deduct(ts, (long)elapsed.TotalMilliseconds);
         }
 
         const int msInterval = 100;
+        const int broadcastInterval = (10 * 1000) / msInterval;
+        int intervalCounter = 0;
         DateTime last = DateTime.Now;
         void timeThread()
         {
@@ -84,11 +90,17 @@ namespace DiscordBot.Classes.Chess
                 {
                     releaseLock();
                 }
+                intervalCounter++;
+                if (intervalCounter >= broadcastInterval)
+                {
+                    intervalCounter = 0;
+                    BroadcastStatus(((DateTimeOffset)DateTime.UtcNow).ToUnixTimeMilliseconds());
+                }
             }
             getLock();
             try
             {
-                Program.LogMsg($"Game {Id} ended; loser: {TickingFor}");
+                Program.LogMsg($"Game {Id} ended; loser: {TickingFor}", Discord.LogSeverity.Verbose);
                 var p = Program.Services.GetRequiredService<ChessService>();
                 p.EndTimedGame(this);
             }
@@ -96,51 +108,91 @@ namespace DiscordBot.Classes.Chess
             {
                 releaseLock();
             }
-            BroadcastStatus();
+            BroadcastStatus(((DateTimeOffset)DateTime.UtcNow).ToUnixTimeMilliseconds());
         }
         Thread thread;
 
-        public void Start()
+        long getMsElapsed(long time, out long current)
+        {
+            var now = ((DateTimeOffset)DateTime.UtcNow);
+            current = now.ToUnixTimeMilliseconds();
+            return current - time;
+        }
+
+        public void Start(long time)
         {
             if (Ended)
                 return;
+            var elapsed = getMsElapsed(time, out var current);
+            // Whichever side has been ticking for 'elapsed' ms, so we should deduct it.
+            if (TickingFor == PlayerSide.White)
+                WhiteTime = deduct(WhiteTime, elapsed);
+            else
+                BlackTime = deduct(BlackTime, elapsed);
             last = DateTime.Now;
             Paused = false;
-            if(thread == null)
+            if (thread == null)
             {
                 thread = new Thread(timeThread);
                 thread.Start();
             }
-            BroadcastStatus();
+            BroadcastStatus(time);
         }
-        public void Stop()
+        public void Stop(long time)
         {
             if (Ended)
                 return;
             Paused = true;
-            BroadcastStatus();
+            var elapsed = getMsElapsed(time, out var current);
+            // Whichever ticking side has not ticked for 'elapsed' ms, so we should add
+            if (TickingFor == PlayerSide.White)
+                WhiteTime = WhiteTime + elapsed;
+            else
+                BlackTime = BlackTime + elapsed;
+            BroadcastStatus(time);
         }
-        public void Switch()
+        public void Switch(long time)
         {
             if (Paused || Ended)
                 return;
-            TickingFor ^= (PlayerSide.White | PlayerSide.Black); // xor, flips.
-            HalfMoves++;
-            BroadcastStatus();
-        }
-        public void BroadcastStatus()
-        {
-            Program.LogMsg($"Entering Lock to Broadcast");
             getLock();
             try
             {
-                Program.LogMsg($"{Paused} {Ended} {TickingFor} {WhiteTime} {BlackTime}");
+                TickingFor ^= (PlayerSide.White | PlayerSide.Black); // xor, flips.
+                HalfMoves++;
+
+                var elapsed = getMsElapsed(time, out var current);
+                // tickingfor is now the player switched TO.
+                if (TickingFor == PlayerSide.White)
+                {
+                    // White has been ticking for elapsed, and Black has stopped for that time.
+                    WhiteTime = WhiteTime - elapsed;
+                    BlackTime = BlackTime + elapsed;
+                } else
+                {
+                    // Black has been ticking for elapsed, and White has stopped for that time.
+                    BlackTime = BlackTime - elapsed;
+                    WhiteTime = WhiteTime + elapsed;
+                }
+            } finally
+            {
+                releaseLock();
+            }
+
+            BroadcastStatus(time);
+        }
+        public void BroadcastStatus(long time)
+        {
+            getLock();
+            try
+            {
+                Program.LogMsg($"{Paused} {Ended} {TickingFor} {WhiteTime} {BlackTime}", Discord.LogSeverity.Debug);
                 var rm = new List<ChessTimeWS>();
                 foreach (var x in ListeningWS)
                 {
                     try
                     {
-                        x.SendStatus();
+                        x.SendStatus(time);
                     } catch
                     {
                         rm.Add(x);
@@ -157,8 +209,8 @@ namespace DiscordBot.Classes.Chess
         public JObject ToJson()
         {
             var jobj = new JObject();
-            jobj["wt"] = WhiteTime.TotalSeconds;
-            jobj["bt"] = BlackTime.TotalSeconds;
+            jobj["wt"] = WhiteTime;
+            jobj["bt"] = BlackTime;
             jobj["side"] = TickingFor == PlayerSide.White ? "white" : "black";
             jobj["paused"] = Paused;
             jobj["hmvs"] = HalfMoves;

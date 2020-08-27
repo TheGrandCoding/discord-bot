@@ -47,15 +47,16 @@ namespace DiscordBot.Websockets
                 Changeable = PlayerSide.White;
             else if (Game.Black.Id == Player.Id)
                 Changeable = PlayerSide.Black;
-            SendStatus(true);
+            SendStatus(((DateTimeOffset)DateTime.UtcNow).ToUnixTimeSeconds(), true);
         }
 
-        public void SendStatus(bool includeChange = false)
+        public void SendStatus(long time, bool includeChange = false)
         {
             var jobj = Game.ToJson();
             if(includeChange)
                 jobj["change"] = Changeable != PlayerSide.None;
             var pck = new TimedPacket(TimedId.Status, jobj);
+            pck.Time = time;
             Send(pck.ToString());
         }
 
@@ -63,21 +64,21 @@ namespace DiscordBot.Websockets
         {
             var jobj = JObject.Parse(e.Data);
             var packet = new TimedPacket(jobj);
-            Program.LogMsg($"{packet}", Discord.LogSeverity.Verbose, ID);
+            Program.LogMsg($"{packet}", Discord.LogSeverity.Debug, ID);
             if(packet.Id == TimedId.Status)
             {
-                SendStatus(true);
+                SendStatus(((DateTimeOffset)DateTime.UtcNow).ToUnixTimeMilliseconds(), true);
             } else if(Changeable != PlayerSide.None)
             {
                 if(packet.Id == TimedId.Pause)
                 {
-                    Game.Stop();
+                    Game.Stop(packet.Time.Value);
                 } else if (packet.Id == TimedId.Switch)
                 {
-                    Game.Switch();
+                    Game.Switch(packet.Time.Value);
                 } else if (packet.Id == TimedId.Start)
                 {
-                    Game.Start();
+                    Game.Start(packet.Time.Value);
                 }
             }
         }
