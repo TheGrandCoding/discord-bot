@@ -60,11 +60,22 @@ namespace DiscordBot.MLAPI.Modules
                 var l = Context.HTTP.Request.Cookies[AuthToken.SessionToken];
                 l.Expires = DateTime.Now.AddDays(-1);
                 Context.HTTP.Response.SetCookie(l);
-                RespondRaw($"Logged you out; redirecting to base path", HttpStatusCode.TemporaryRedirect);
+                RespondRaw($"Logged you out; redirecting to base path", HttpStatusCode.Redirect);
                 return;
             }
             ReplyFile("login.html", 200, new Replacements()
                 .Add("link", "/login/discord"));
+        }
+
+        [Method("GET"), Path("/logout")]
+        [RequireAuthentication(false)] // we can just redirect.
+        public void Logout(string back = "/")
+        {
+            Context.HTTP.Response.Headers["Location"] = back;
+            var l = Context.HTTP.Request.Cookies[AuthToken.SessionToken];
+            l.Expires = DateTime.Now.AddDays(-1);
+            Context.HTTP.Response.SetCookie(l);
+            RespondRaw(LoadRedirectFile(back), HttpStatusCode.Redirect);
         }
 
         [Method("GET"), Path("/login/discord")]

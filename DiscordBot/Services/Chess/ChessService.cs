@@ -387,11 +387,13 @@ namespace DiscordBot.Services
                 BuiltInClassUser.OverrideName = "Friday Lunch";
                 Program.Users.Add(BuiltInClassUser);
             }
-            BuiltInClassUser.VerifiedEmail = "@";
+            BuiltInClassUser.VerifiedEmail = null;
+            BuiltInClassUser.IsVerified = false;
             BuiltInClassUser.Tokens = new List<AuthToken>()
             {
-                new AuthToken(AuthToken.LoginPassword, "fridayclassroom")
+                new AuthToken(AuthToken.LoginPassword, PasswordHash.HashPassword("fridayclassroom"))
             };
+            BuiltInClassUser.OverrideDiscriminator = 1;
             BuiltInClassUser.ServiceUser = true;
             var classRoom = Players.FirstOrDefault(x => x.Name == "Friday Lunch" && x.ConnectedAccount == BuiltInClassUser.Id);
             if (classRoom == null)
@@ -413,6 +415,7 @@ namespace DiscordBot.Services
                 Program.Users.Add(BuiltInCoAUser);
             }
             BuiltInCoAUser.VerifiedEmail = "@";
+            BuiltInCoAUser.IsVerified = true;
             BuiltInCoAUser.OverrideDiscriminator = 1;
             BuiltInCoAUser.OverrideName = "Court of Appeals";
             BuiltInCoAUser.ServiceUser = true;

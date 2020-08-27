@@ -23,7 +23,7 @@ namespace DiscordBot.MLAPI.Modules.Voting
         public User Account { get; set; }
         public string EmailName {  get
             {
-                return Context.User.VerifiedEmail.Substring(0, Context.User.VerifiedEmail.IndexOf('@')).ToLower();
+                return Context.User.VerifiedEmail?.Substring(0, Context.User.VerifiedEmail.IndexOf('@')).ToLower();
             }
         }
         public VoteService Service { get; set; }
@@ -53,7 +53,7 @@ namespace DiscordBot.MLAPI.Modules.Voting
                 RespondRaw(LoadRedirectFile(url, Context.Request.Url.PathAndQuery), System.Net.HttpStatusCode.OK);
                 throw new ReqHandledException();
             }
-            if (string.IsNullOrWhiteSpace(Context.User.VerifiedEmail) || Context.User.VerifiedEmail.Length < 3)
+            if (!Context.User.IsVerified)
             {
                 var url = DiscordBot.MLAPI.Modules.MicrosoftOauth.getUrl(Context.User);
                 throw new RedirectException(url, "Must verify");

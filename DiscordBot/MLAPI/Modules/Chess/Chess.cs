@@ -16,13 +16,14 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Reflection.Metadata;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using static DiscordBot.Services.ChessService;
 
 namespace DiscordBot.MLAPI.Modules
 {
-    [RequireVerifiedAccount]
+    //[RequireVerifiedAccount]
     public partial class Chess : ChessBase
     {
         public static ChessService ChessS;
@@ -69,7 +70,7 @@ namespace DiscordBot.MLAPI.Modules
                 return;
             if(Context.Path != "/chess" && Context.Path != "/chess/history")
             {
-                if(string.IsNullOrWhiteSpace(Context.User.VerifiedEmail) || (Context.User.VerifiedEmail == "@" && SelfPlayer.Id == BuiltInClassRoomChess))
+                if(!Context.User.IsVerified)
                 {
                     Context.User.VerifiedEmail = null;
                     string url = MLAPI.Modules.MicrosoftOauth.getUrl(Context.User);
@@ -144,9 +145,9 @@ namespace DiscordBot.MLAPI.Modules
         string loginButton()
         {
             if (Context.User == null)
-            {
-                return $"<input type='button' value='Login' onclick=\"window.location.replace('/login');\"/>";
-            }
+                return $"<input type='button' value='Login' onclick=\"window.location.href = '/login';\"/>";
+            if (Context.User.Id == ChessS.BuiltInClassUser.Id && Context.User.VerifiedEmail != null)
+                return $"<input type='button' value='Logout as {Context.User.VerifiedEmail?.Substring(0, Context.User.VerifiedEmail.IndexOf('@')).ToLower()}' onclick=\"window.location.href = '/chess/logout';\"/>";
             return "";
         }
 
@@ -402,6 +403,20 @@ namespace DiscordBot.MLAPI.Modules
                 return true;
             var val = ChessS.BuildEntries(player, DateTime.Now, true);
             return val.Count > 0;
+        }
+
+        [Method("GET"), Path("/chess/logout")]
+        public void ClearLoginInfo()
+        {
+            if(ChessS.BuiltInClassUser.Id == Context.User?.Id)
+            { // Special logout case, we just clear the verified email.
+                Context.User.IsVerified = false;
+                Context.User.VerifiedEmail = null;
+                RespondRaw(LoadRedirectFile("/chess"), HttpStatusCode.Redirect);
+            } else
+            {
+                RespondRaw(LoadRedirectFile("/logout"), HttpStatusCode.Redirect);
+            }
         }
 
         [Method("GET"), Path("/chess/recommend")]

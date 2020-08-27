@@ -138,7 +138,10 @@ namespace DiscordBot.Classes
 
         public string Name => OverrideName ?? FirstValidUser?.Nickname ?? FirstValidUser?.Username ?? Id.ToString();
 
-        [JsonProperty("mail", NullValueHandling = NullValueHandling.Ignore)]
+        [JsonProperty("v")]
+        public bool IsVerified { get; set; }
+
+        [JsonIgnore]
         public string VerifiedEmail { get; set; }
 
         [JsonProperty("edu", NullValueHandling = NullValueHandling.Ignore)]

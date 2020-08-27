@@ -24,7 +24,7 @@ namespace DiscordBot.MLAPI
                 return PreconditionResult.FromSuccess();
             if (context.User == null)
                 throw new RedirectException("/login", "Must authenticate");
-            if(string.IsNullOrWhiteSpace(context.User.VerifiedEmail))
+            if(!context.User.IsVerified)
                 throw new RedirectException(MLAPI.Modules.MicrosoftOauth.getUrl(context.User,
                     x =>
                     {

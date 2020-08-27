@@ -62,6 +62,7 @@ namespace DiscordBot.MLAPI.Modules
             var content = identityResponse.Content.ReadAsStringAsync().Result;
             var jobj = JObject.Parse(content);
             Context.User.VerifiedEmail = jobj["mail"].ToObject<string>();
+            Context.User.IsVerified = true;
             if (string.IsNullOrWhiteSpace(Context.User.Name) || Context.User.Name == Context.User.Id.ToString())
             {
                 Context.User.OverrideName = jobj["displayName"].ToObject<string>();
@@ -123,7 +124,7 @@ namespace DiscordBot.MLAPI.Modules
         [RequireAuthentication(requireAuth:true, requireValid:false)]
         public void LoginCallback(string id_token, string code, string session_state = null, string state = null, string nonce = null)
         {
-            if(!string.IsNullOrWhiteSpace(Context.User.VerifiedEmail))
+            if(Context.User.IsVerified)
             {
                 RespondRaw($"This account is already verified", 400);
                 return;
