@@ -22,6 +22,15 @@ namespace DiscordBot.Commands.Modules
             Program.Close(code);
         }
 
+        [Command("dtick")]
+        [Summary("Calls OnDailyTick for all services")]
+        [RequireOwner]
+        public async Task DoDailyTick()
+        {
+            Service.SendDailyTick();
+            await ReplyAsync("Sent.");
+        }
+
         [Command("dyndns")]
         [Summary("Sets dynamic DNS link for bot to GET to.")]
         [RequireOwner]

@@ -3,6 +3,7 @@ using EduLinkDLL;
 using EduLinkDLL.Exceptions;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 
 namespace DiscordBot.Services
@@ -36,6 +37,23 @@ namespace DiscordBot.Services
 
         public static void logHandler(EduLinkClient cl, EduLinkDLL.LogMessage m)
         {
+            if(m.Severity == EduLinkDLL.LogSeverity.Debug && (m.Source == "Response" || m.Source == "Request"))
+            {
+                var path = Path.Combine(Program.BASE_PATH, "data", "logs", "edulink", cl.CurrentUser?.Username ?? cl.UserName ?? "nouser");
+                if(!Directory.Exists(path))
+                    Directory.CreateDirectory(path);
+                path = Path.Combine(path, $"{DateTime.Now:yyyy-MM-dd}.txt");
+                var id = Guid.NewGuid();
+                var chr = m.Source == "Request" ? '>' : '<';
+                var pad = new string(chr, 3);
+                string header = pad + id.ToString() + pad;
+                string full = header + "\r\n" + m.Message + "\r\n" + new string(chr, header.Length) + "\r\n";
+                if (m.Source == "Response")
+                    full += "\r\n";
+                File.AppendAllText(path, full);
+                Program.LogMsg($"Logged as {id}", Discord.LogSeverity.Verbose, "EL:" + m.Source);
+                return;
+            }
             var conv = new Discord.LogMessage((Discord.LogSeverity)m.Severity, $"EL:{(cl.UserName ?? "")}:" + (m.Source ?? ""), m.Message, m.Exception);
             Program.LogMsg(conv);
         }

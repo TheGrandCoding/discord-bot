@@ -152,6 +152,12 @@ namespace DiscordBot.Services
             sendFunction("OnClose");
         }
 
+        public static void SendDailyTick()
+        {
+            doneFunctions.Remove("OnDailyTick");
+            sendFunction("OnDailyTick");
+        }
+
         static void thread()
         {
             var token = cancel.Token;
@@ -168,8 +174,7 @@ namespace DiscordBot.Services
                     if (miliseconds < 2500)
                         miliseconds = 2500;
                     Task.Delay(miliseconds, token).Wait(token);
-                    doneFunctions.Remove("OnDailyTick");
-                    sendFunction("OnDailyTick");
+                    SendDailyTick();
                 } while (!token.IsCancellationRequested);
             } catch(OperationCanceledException)
             {
