@@ -14,6 +14,7 @@ using System.Threading.Tasks;
 
 namespace DiscordBot.MLAPI.Modules
 {
+    [RequireApproval(false)]
     public class Login : APIBase
     {
         public OauthCallbackService Callback { get; set; }
@@ -28,20 +29,37 @@ namespace DiscordBot.MLAPI.Modules
             // Funky C#8, disposed at end of this function
             var oauth = new DiscordOauth("identify", Context.GetQuery("code"));
             var userInfo = oauth.GetUserInformation().Result;
-            Program.LogMsg($"Found user info: {userInfo.Username}");
+            Program.LogMsg($"Found user info: {userInfo.Username}#{userInfo.Discriminator} ({userInfo.Id})");
             try
             {
                 var usr = handleUserInfo(userInfo);
-                Program.LogMsg($"Handled user: {usr.Username}, {usr.Id}");
+                Program.LogMsg($"Handled user: {usr.Name}, {usr.Id}");
                 setSessionTokens(usr);
-                Program.LogMsg("Set session tokens, now logged in.");
                 string redirectTo = Context.Request.Cookies["redirect"]?.Value;
                 if (string.IsNullOrWhiteSpace(redirectTo))
                     redirectTo = "/";
-                if (usr.MLAPIPassword == null)
+                if (usr.IsApproved.HasValue == false)
+                {
+                    redirectTo = "/login/approval";
+                    var admin_id = ulong.Parse(Program.Configuration["settings:admin"]);
+                    string avatar = userInfo.GetAvatarUrl() ?? userInfo.GetDefaultAvatarUrl();
+                    Program.GetUserOrDefault(admin_id).SendMessageAsync(embed: new EmbedBuilder()
+                        .WithTitle("MLAPI User")
+                        .WithDescription($"{userInfo.Username}#{userInfo.Discriminator} ({userInfo.Id}) is awaiting approval")
+                        .WithUrl(Handler.LocalAPIUrl + "/bot/approve")
+                        .WithThumbnailUrl(avatar)
+                        .AddField("User-Agent", Context.Request.Headers["User-Agent"] ?? "none", true)
+                        .AddField("IP", Context.Request.Headers["X-Forwarded-For"] ?? "localhost", true)
+                        .AddField("Origin", Context.Request.Headers["Origin"] ?? "none", true)
+                        .Build());
+                } else if (usr.IsApproved.Value == false)
+                {
+                    redirectTo = "/login/approval";
+                } else if (usr.MLAPIPassword == null)
+                {
                     redirectTo = "/login/setpassword";
-                RespondRaw(LoadRedirectFile(redirectTo), HttpStatusCode.TemporaryRedirect);
-                Program.LogMsg("Users redirected.");
+                }
+                RespondRaw(LoadRedirectFile(redirectTo), HttpStatusCode.Redirect);
             }
             catch (Exception ex)
             {
@@ -72,7 +90,7 @@ namespace DiscordBot.MLAPI.Modules
         public void Logout(string back = "/")
         {
             Context.HTTP.Response.Headers["Location"] = back;
-            var l = Context.HTTP.Request.Cookies[AuthToken.SessionToken];
+            var l = Context.HTTP.Request.Cookies[AuthToken.SessionToken] ?? new Cookie(AuthToken.SessionToken, "null");
             l.Expires = DateTime.Now.AddDays(-1);
             Context.HTTP.Response.SetCookie(l);
             RespondRaw(LoadRedirectFile(back), HttpStatusCode.Redirect);
@@ -127,6 +145,22 @@ namespace DiscordBot.MLAPI.Modules
             }
             setSessionTokens(user); // essentially logs them in
             RespondRaw("Ok", 200);
+        }
+
+        [Method("GET"), Path("/login/approval")]
+        public void ApprovalPage()
+        {
+            if(!Context.User.IsApproved.HasValue)
+            {
+                RespondRaw("Your account is pending approval; please wait.", 200);
+            } else if (Context.User.IsApproved.Value)
+            {
+                RespondRaw("Your account is approved; please visit the main page.", 200);
+            }
+            else
+            {
+                RespondRaw("Your account has not been approved and is unable to access this website.", 200);
+            }
         }
 
         public static void SetLoginSession(APIContext context, BotUser user)

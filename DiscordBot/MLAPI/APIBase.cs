@@ -10,6 +10,7 @@ using System.Text.RegularExpressions;
 namespace DiscordBot.MLAPI
 {
     [RequireAuthentication]
+    [RequireApproval]
 #if LINUX
     [RequireServerName("ml-api." + Handler.LocalAPIDomain)]
 #else

@@ -68,6 +68,11 @@ namespace DiscordBot.MLAPI.Modules
             }
             if (Context.User == null)
                 return;
+            if(Context.User.IsVerified == false && Context.User.Id != ChessS.BuiltInClassUser.Id)
+            {
+                string url = MLAPI.Modules.MicrosoftOauth.getUrl(Context.User);
+                throw new RedirectException(url, "Must verify email.");
+            }
             if(Context.Path != "/chess" && Context.Path != "/chess/history")
             {
                 if(!Context.User.IsVerified)

@@ -141,6 +141,9 @@ namespace DiscordBot.Classes
         [JsonProperty("v")]
         public bool IsVerified { get; set; }
 
+        [JsonProperty("isa", NullValueHandling = NullValueHandling.Ignore)]
+        public bool? IsApproved { get; set; }
+
         [JsonIgnore]
         public string VerifiedEmail { get; set; }
 

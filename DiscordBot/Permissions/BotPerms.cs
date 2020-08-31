@@ -29,6 +29,9 @@ namespace DiscordBot
                 [Description("View nicknames of users via MLAPI, even if not present in said server")]
                 public const string ViewNicknamesAllServers = "bot.developer.nicknames";
             }
+
+            [Description("Approve a new user to use API")]
+            public const string ApproveUser = "bot.approve";
         }
     }
 }

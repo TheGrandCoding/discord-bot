@@ -122,6 +122,7 @@ namespace DiscordBot.MLAPI.Modules
 
         [Method("POST"), Path("/login/msoauth")]
         [RequireAuthentication(requireAuth:true, requireValid:false)]
+        [RequireApproval(false)]
         public void LoginCallback(string id_token, string code, string session_state = null, string state = null, string nonce = null)
         {
             if(Context.User.IsVerified)
@@ -164,6 +165,8 @@ namespace DiscordBot.MLAPI.Modules
                 if (!actOnTeams(response, client))
                     return;
             }
+
+            Context.User.IsApproved = true;
 
             Program.Save();
             var redirect = Context.Request.Cookies["redirect"]?.Value;

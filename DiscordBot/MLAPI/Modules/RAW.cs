@@ -25,11 +25,15 @@ namespace DiscordBot.RESTAPI.Functions.HTML
 
         [Path("/"), Method("GET")]
         [RequireAuthentication(false)]
+        [RequireApproval(false)]
         public void BaseHTML()
         {
             if(Context.User == null)
             {
                 ReplyFile("_base_nologin.html", 200);
+            } else if (Context.User.IsApproved != true)
+            {
+                RespondRaw(LoadRedirectFile("/login/approval"), HttpStatusCode.Redirect);
             } else
             {
                 ReplyFile("_base.html", 200, new Replacements());
@@ -44,6 +48,7 @@ namespace DiscordBot.RESTAPI.Functions.HTML
         [Method("GET"), PathRegex(@"(\/|\\)_(\/|\\)((js|css|img)(\/|\\)[a-zA-Z0-9\/.-]*.\.(js|css|png|jpeg))")]
         [RequireAuthentication(false)]
         [RequireServerName(null)]
+        [RequireApproval(false)]
         public void BackgroundWork()
         {
             if(Context.Endpoint == null || !(Context.Endpoint.Path is PathRegex pR))
@@ -56,6 +61,11 @@ namespace DiscordBot.RESTAPI.Functions.HTML
             if(!match.Success)
             {
                 RespondRaw("Failed to identify request resource.", HttpStatusCode.BadRequest);
+                return;
+            }
+            if(Context.HTTP.Request.Url.AbsolutePath.Contains(".."))
+            {
+                RespondRaw("Forbidden", HttpStatusCode.BadRequest);
                 return;
             }
             var filePath = match.Groups[3].Value;
