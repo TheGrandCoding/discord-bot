@@ -10,6 +10,7 @@ using DiscordBot.TypeReaders;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -27,7 +28,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.8.9"; 
+        public const string VERSION = "0.8.10"; 
         public const string CHANGELOG = VERSION + @"
 == Chess WS work
 Now order main page to reload if changes occur outside.  

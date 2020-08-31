@@ -19,7 +19,7 @@ namespace DiscordBot.Services
             {
                 dict.Add(keypair.Key, new userInfo()
                 {
-                    username = keypair.Value.CurrentUser.Username,
+                    username = keypair.Value.CurrentUser.UserName,
                     password = keypair.Value.CurrentUser.Password,
                     establishment = keypair.Value.Establishment.Id
                 });
@@ -54,7 +54,7 @@ namespace DiscordBot.Services
                 Program.LogMsg($"Logged as {id}", Discord.LogSeverity.Verbose, "EL:" + m.Source);*/
                 return;
             }
-            var conv = new Discord.LogMessage((Discord.LogSeverity)m.Severity, $"EL:{(cl.UserName ?? "")}:" + (m.Source ?? ""), m.Message, m.Exception);
+            var conv = new Discord.LogMessage((Discord.LogSeverity)m.Severity, $"EL:{(cl?.CurrentUser?.UserName ?? "")}:" + (m.Source ?? ""), m.Message, m.Exception);
             Program.LogMsg(conv);
         }
 

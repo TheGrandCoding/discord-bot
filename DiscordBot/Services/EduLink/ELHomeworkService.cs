@@ -181,7 +181,7 @@ namespace DiscordBot.Services.EduLink
             var classes = new List<string>();
             foreach(var usr in Homeworks.Keys)
             {
-                var id = service.Clients.FirstOrDefault(x => x.Value.UserName == usr.UserName).Key;
+                var id = service.Clients.FirstOrDefault(x => x.Value.CurrentUser.UserName == usr.CurrentUser.UserName).Key;
                 var bUser = Program.GetUserOrDefault(id);
                 var keypair = bUser.Classes.FirstOrDefault(x => x.Value == Homework.Subject);
                 if (!classes.Contains(keypair.Key))

@@ -49,7 +49,7 @@ namespace DiscordBot.Commands.Modules.EduLink
                 await ReplyAsync($"No account is linked, use `{Program.Prefix}edulink setup [username] [password]` to do so");
                 return;
             }
-            await ReplyAsync($"Account is linked to {client.CurrentUser.Username}, {client.CurrentUser.Forename}");
+            await ReplyAsync($"Account is linked to {client.CurrentUser.UserName}, {client.CurrentUser.Forename}");
         }
     }
 }
