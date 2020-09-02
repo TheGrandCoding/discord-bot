@@ -23,7 +23,7 @@ namespace DiscordBot.Services
         /// </summary>
         public virtual bool IsCritical => false;
         public virtual bool IsEnabled => true;
-        public bool HasFailed { get; private set; }
+        public bool HasFailed { get; protected set; }
         
         public virtual int Priority => 0;
 

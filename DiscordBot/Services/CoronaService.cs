@@ -1,6 +1,7 @@
 ﻿using Discord;
 using Discord.WebSocket;
 using DiscordBot.Classes.CoronAPI;
+using DiscordBot.Services.BuiltIn;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json.Linq;
 using System;
@@ -114,6 +115,18 @@ namespace DiscordBot.Services
         }
 
         void threadWork()
+        {
+            try
+            {
+                withinTryWork();
+            } catch (Exception ex)
+            {
+                Program.LogMsg("CoronaService", ex);
+                HasFailed = true;
+            }
+        }
+
+        void withinTryWork()
         {
             var client = Program.Services.GetRequiredService<HttpClient>();
             while(this.IsEnabled)
