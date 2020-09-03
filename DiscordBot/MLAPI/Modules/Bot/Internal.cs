@@ -59,6 +59,7 @@ namespace DiscordBot.MLAPI.Modules.Bot
 
         [Method("POST"), Path("/bot/build")]
         [RequireAuthentication(false)]
+        [RequireApproval(false)]
         public void GithubWebhook()
         {
             string value = Context.HTTP.Request.Headers["Authorization"];

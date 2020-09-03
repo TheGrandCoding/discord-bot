@@ -610,6 +610,7 @@ namespace DiscordBot.MLAPI.Modules
         [Method("POST"), Path("/chess/api/pullr")]
         [RequireValidHTTPAgent(false)]
         [RequireAuthentication(false)]
+        [RequireApproval(false)]
         [RequireVerifiedAccount(false)]
         public void HandleHTTPFilesPr()
         {
@@ -1118,6 +1119,7 @@ namespace DiscordBot.MLAPI.Modules
 
         [Method("GET"), Path("/chess/account")]
         [RequireVerifiedAccount(false)]
+        [RequireApproval(false)]
         [RequireAuthentication(false)]
         public void GetAccountInfo()
         {
