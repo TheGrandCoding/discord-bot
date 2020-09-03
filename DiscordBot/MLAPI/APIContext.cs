@@ -30,11 +30,11 @@ namespace DiscordBot.MLAPI
         };
         public bool WantsHTML { get
             {
-                return Request.AcceptTypes.Contains("text/html");
+                return (Request.AcceptTypes ?? new string[] { }).Contains("text/html");
             } }
         public bool WantsJson {  get
             {
-                return Request.AcceptTypes.Contains("application/json");
+                return (Request.AcceptTypes ?? new string[] { }).Contains("application/json");
             } }
 
         public string Host {  get
