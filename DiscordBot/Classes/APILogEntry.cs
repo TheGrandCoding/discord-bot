@@ -55,8 +55,7 @@ namespace DiscordBot.Classes
             Method = new HttpMethod(context.Method);
             Date = DateTime.Now;
             Path = context.Request.Url.PathAndQuery;
-            IP = context.Request.Headers["X-Forwarded-For"];
-            IP ??= context.Request.RemoteEndPoint.Address.ToString();
+            IP = context.IP;
             if (context.User != null)
                 User = $"{context.User.Id}/{context.User.Name}";
             var headers = new List<string>();

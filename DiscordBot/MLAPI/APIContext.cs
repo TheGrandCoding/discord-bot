@@ -19,6 +19,10 @@ namespace DiscordBot.MLAPI
         public string Query => Request.Url.Query;
         public string Method => Request.HttpMethod;
 
+        public string IP => Request.Headers["X-Forwarded-For"] ?? Request.RemoteEndPoint.Address.ToString();
+
+        public bool isInNetwork => IP.StartsWith("192.168.1.");
+
         public bool HasPerm(string node) => Perms.Parse(node).HasPerm(this);
 
         static string[] browser_uas = new string[]

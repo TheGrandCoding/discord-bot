@@ -149,7 +149,7 @@ namespace DiscordBot.MLAPI.Modules.ServerList
 
         #region Server API
         [Method("POST"), Path("/servers")]
-        public void CreateServer(string name, string type, int port, string internalIP, bool skipPort = false)
+        public void CreateServer(string name, string type, int port, string internalIP, string externalIP = null, bool? skipPort = null)
         {
             if(!IPAddress.TryParse(internalIP, out var intIP))
             {
@@ -162,9 +162,9 @@ namespace DiscordBot.MLAPI.Modules.ServerList
                 RespondRaw($"Existing server already exists with that name and type", HttpStatusCode.Conflict);
                 return;
             }
-            var externalIP = Context.Request.RemoteEndPoint.Address;
-            var portForwarded = skipPort || testPortForward(externalIP, port);
-            var srv = new Server(name, type, intIP, externalIP, port);
+            var extIP = IPAddress.Parse((Context.isInNetwork ? externalIP : null) ?? Context.IP);
+            var portForwarded = skipPort.HasValue ? skipPort.Value : testPortForward(extIP, port);
+            var srv = new Server(name, type, intIP, extIP, port);
             srv.Id = Guid.NewGuid();
             Service.Servers[srv.Id] = srv;
             Service.OnSave();
@@ -193,8 +193,8 @@ namespace DiscordBot.MLAPI.Modules.ServerList
             server.Port = port ?? server.Port;
             server.InternalIP = intIP ?? server.InternalIP;
             server.LastDateOnline = DateTime.Now;
-            var extIP = Context.Request.RemoteEndPoint.Address;
-            if(extIP != server.ExternalIP)
+            var extIP = IPAddress.Parse(Context.IP);
+            if(extIP.Equals(server.ExternalIP) == false)
             {
                 server.ExternalIP = extIP;
                 server.PortForwarded = testPortForward(extIP, server.Port);
