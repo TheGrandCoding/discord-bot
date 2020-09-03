@@ -250,7 +250,7 @@ namespace DiscordBot.MLAPI.Modules.ServerList
                     continue;
                 if(!server.PortForwarded)
                 {
-                    if (!Context.Request.RemoteEndPoint.Address.Equals(server.ExternalIP))
+                    if(Context.isInNetwork == false && Context.Request.RemoteEndPoint.Address.Equals(server.ExternalIP) == false)
                         continue;
                 }
                 if (server.IsPrivate)
