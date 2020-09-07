@@ -104,8 +104,8 @@ namespace DiscordBot.Services
                 arg3 = arg3
             });
         }
-        Semaphore lck = new Semaphore(1, 1);
-        int waiting = 0;
+        public Semaphore lck = new Semaphore(1, 1);
+        public int waiting = 0;
 
         async Task doStuff(SocketUser arg1, SocketVoiceState arg2, SocketVoiceState arg3)
         {

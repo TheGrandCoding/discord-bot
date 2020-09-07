@@ -34,5 +34,13 @@ namespace DiscordBot.Commands.Modules.Actions
             }
             return new BotResult();
         }
+
+        [Command("release")]
+        public async Task ClearLock()
+        {
+            Service.lck.Release(Service.waiting);
+            Service.waiting = 0;
+            await ReplyAsync("OK.");
+        }
     }
 }
