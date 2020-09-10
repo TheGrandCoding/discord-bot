@@ -4,6 +4,7 @@ using DiscordBot.Services;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Security.Claims;
 using System.Text;
@@ -111,6 +112,9 @@ namespace DiscordBot.Classes.Chess.COA
 
         public List<CoAMotion> Motions { get; set; } = new List<CoAMotion>();
         public List<CoAWitness> Witnesses { get; set; } = new List<CoAWitness>();
+
+        public List<CoAttachment> Exhibits { get; set; } = new List<CoAttachment>();
+
         public CoARuling Ruling { get; set; }
 
         public string Holding { get; set; }
@@ -124,7 +128,11 @@ namespace DiscordBot.Classes.Chess.COA
                 m.SetIds(this);
             foreach (var w in Witnesses)
                 w.SetIds(this);
+            int ei = 0;
+            foreach (var e in Exhibits)
+                e.SetIds(Path.Combine(DataPath, "exhibits"), ei++);
             Ruling?.SetIds(this);
+
         }
 
         public bool CanCallWitness(ChessPlayer player)

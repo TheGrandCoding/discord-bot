@@ -7,6 +7,7 @@ using EduLinkDLL.Classes;
 using EduLinkDLL.Exceptions;
 using Html2Markdown;
 using Microsoft.Extensions.DependencyInjection;
+using Newtonsoft.Json.Linq;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -24,6 +25,7 @@ namespace DiscordBot.Services.EduLink
         private EduLinkService EduLink { get; set; }
         private ReactionService Reaction { get; set; }
 
+        public List<int> SeenHomeworks { get; set; }
         public Dictionary<ulong, HomeworkPreferences> Info { get; set; }
 
         public SocketGuild Guild { get; private set; }
@@ -32,9 +34,21 @@ namespace DiscordBot.Services.EduLink
         Dictionary<string, ITextChannel> _chnlCache = new Dictionary<string, ITextChannel>();
         Dictionary<int, DiscordHomework> _hwkCache = new Dictionary<int, DiscordHomework>();
 
+        class save
+        {
+
+            public List<int> seen { get; set; }
+            public Dictionary<ulong, HomeworkPreferences> info { get; set; }
+        }
+
         public override string GenerateSave()
         {
-            return Program.Serialise(Info);
+            var s = new save()
+            {
+                seen = SeenHomeworks.Take(50).ToList(),
+                info = Info
+            };
+            return Program.Serialise(s);
         }
 
         string reduceSubjectAliases(string s)
@@ -72,7 +86,9 @@ namespace DiscordBot.Services.EduLink
             Reaction = Program.Services.GetRequiredService<ReactionService>();
             Guild = Program.Client.GetGuild(ulong.Parse(Program.Configuration["guilds:edulink"]));
             Category = Guild.CategoryChannels.FirstOrDefault(x => x.Name == "homework");
-            Info = Program.Deserialise<Dictionary<ulong, HomeworkPreferences>>(ReadSave());
+            var s = Program.Deserialise<save>(ReadSave());
+            SeenHomeworks = s.seen ?? new List<int>();
+            Info = s.info ?? new Dictionary<ulong, HomeworkPreferences>();
 #if DEBUG
             OnDailyTick();
 #endif
@@ -110,12 +126,21 @@ namespace DiscordBot.Services.EduLink
             }
             return homeworks.Values.ToList();
         }
+
+        bool isNew(DiscordHomework x)
+        {
+            if (SeenHomeworks.Contains(x.Homework.Id))
+                return false;
+            SeenHomeworks.Add(x.Homework.Id);
+            return true;
+        }
+
         async Task<List<DiscordHomework>> getHwksToPrint()
         {
             var ls = new List<DiscordHomework>();
             foreach(var x in await getAllHomeworksDue())
             {
-                if(x.Homework.DueText == "tomorrow" || x.Homework.DueText == "today")
+                if(x.Homework.DueText == "tomorrow" || x.Homework.DueText == "today" || isNew(x))
                 {
                     ls.Add(x);
                     await x.Homework.GetDetails(); // gets description

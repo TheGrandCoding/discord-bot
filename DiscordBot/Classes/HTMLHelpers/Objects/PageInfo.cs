@@ -89,12 +89,7 @@ namespace DiscordBot.Classes.HTMLHelpers.Objects
     {
         private Meta() : base("meta", null, null) { }
 
-        public static Meta Charset(string charset)
-        {
-            var m = new Meta();
-            m.tagValues["charset"] = charset;
-            return m;
-        }
+        public static Meta Charset(string charset) => KeyPair("charset", charset);
 
         public static Meta Property(string propertyName, string content)
         {

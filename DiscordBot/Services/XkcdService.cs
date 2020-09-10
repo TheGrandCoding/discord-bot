@@ -27,7 +27,10 @@ namespace DiscordBot.Services
             Channels = save.channels;
             LatestComic = save.latestComic;
         }
-        public override void OnDailyTick() => OnLoaded();
+
+#if !DEBUG
+        public override void OnLoaded() => OnDailyTick();
+#endif
 
         public class XkcdInfo
         {
@@ -59,7 +62,7 @@ namespace DiscordBot.Services
             return JsonConvert.DeserializeObject<XkcdInfo>(content);
         }
 
-        public override void OnLoaded()
+        public override void OnDailyTick()
         {
             var nextComic = getkNextComic().Result;
             if (nextComic == null)

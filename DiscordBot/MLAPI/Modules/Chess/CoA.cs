@@ -178,6 +178,27 @@ namespace DiscordBot.MLAPI.Modules
                     );
             }
 
+            var exhibits = new Table()
+            {
+                Children =
+                {
+                    new TableRow()
+                        .WithHeader("Number")
+                        .WithHeader("Filed By")
+                        .WithHeader("Filed On")
+                }
+            };
+
+            index = 0;
+            foreach(var exhibit in hearing.Exhibits)
+            {
+                exhibits.Children.Add(new TableRow()
+                    .WithCell(new Anchor($"/chess/cases/{hearing.CaseNumber}/exhibit/{index++}", $"#{index - 1}"))
+                    .WithCell(hearing.getRelationToCase(exhibit.UploadedBy) + " " + exhibit.UploadedBy.Name)
+                    .WithCell(hearing.Filed.ToString("yyyy/MM/dd hh:mm:ss"))
+                );
+            }
+
             var witnesses = new Table()
             {
                 Children =
@@ -191,7 +212,8 @@ namespace DiscordBot.MLAPI.Modules
             {
                 witnesses.Children.Add(new TableRow()
                     .WithCell(new Anchor($"/chess/cases/{hearing.CaseNumber}/witness/{witness.Witness.Id}", witness.Witness.Name))
-                    .WithCell(witness.ConcludedOn.HasValue ? witness.ConcludedOn.Value.ToString("dd/MM/yyyy") : "Remains ongoing"));
+                    .WithCell(witness.ConcludedOn.HasValue ? witness.ConcludedOn.Value.ToString("dd/MM/yyyy") : "Remains ongoing")
+                );
             }
 
             if(hearing.Holding == null)
@@ -206,18 +228,34 @@ namespace DiscordBot.MLAPI.Modules
                         }
                     }
                 });
-                if(hearing.Commenced.HasValue && hearing.CanCallWitness(SelfPlayer))
+                if(hearing.Concluded.HasValue == false)
                 {
-                    witnesses.Children.Add(new TableRow()
+                    if(hearing.getRelationToCase(SelfPlayer) != "Outsider")
                     {
-                        Children =
+                        exhibits.Children.Add(new TableRow()
                         {
-                            new TableHeader(new Anchor($"/chess/cases/{hearing.CaseNumber}/newwitness", "Call a new witness"))
+                            Children =
                             {
-                                ColSpan = "2"
+                                new TableHeader(new Anchor($"/chess/cases/{hearing.CaseNumber}/newexhibit", "Submit a new exhibit"))
+                                {
+                                    ColSpan = "3"
+                                }
                             }
-                        }
-                    });
+                        });
+                    }
+                    if(hearing.Commenced.HasValue && hearing.CanCallWitness(SelfPlayer))
+                    {
+                        witnesses.Children.Add(new TableRow()
+                        {
+                            Children =
+                            {
+                                new TableHeader(new Anchor($"/chess/cases/{hearing.CaseNumber}/newwitness", "Call a new witness"))
+                                {
+                                    ColSpan = "2"
+                                }
+                            }
+                        });
+                    }
                 }
             }
 
@@ -225,6 +263,7 @@ namespace DiscordBot.MLAPI.Modules
                 .Add("actions", getHearingActions(hearing))
                 .Add("outcomes", getHearingOutcome(hearing))
                 .Add("motions", motions)
+                .Add("exhibits", exhibits)
                 .Add("notice", (hearing.AppealOf.HasValue && hearing.Motions.First().Attachments.Count == 0) ? "<p class='warn'>You must upload a document to the Motion below which explains why the Court should agree to hear your appeal</p>" : "")
                 .Add("witnesses", witnesses)
             );
@@ -295,6 +334,27 @@ namespace DiscordBot.MLAPI.Modules
                 .Add("newpath", $"cases/{n}/motions/{mn}/files"));
         }
 
+        [Method("GET"), PathRegex(@"\/chess\/cases\/(?<n>\d{1,4})\/exhibits\/(?<ex>\d{1,2})(?!\/)")]
+        public void ViewExhibitInfo(int n, int ex)
+        {
+            var hearing = CoAService.Hearings.FirstOrDefault(x => x.CaseNumber == n);
+            if (hearing == null)
+            {
+                RespondRaw("Unknown hearing", 404);
+                return;
+            }
+            var exhibit = hearing.Exhibits.ElementAtOrDefault(ex);
+            if(exhibit == null)
+            {
+                RespondRaw("Unknown exhibit", 404);
+                return;
+            }
+            ReplyFile("exhibit.html", 200, new Replacements(hearing)
+                .Add("exhibit", exhibit)
+                .Add("index", ex)
+                .Add("iframe", $"<iframe src='/chess/cases/{n}/exhibit/{ex}'></iframe>"));
+        }
+
         [Method("GET"), PathRegex(@"\/chess\/cases\/(?<n>\d{1,4})\/witnesses\/(?<id>\d{1,3})(?!\/)")]
         public void ViewWitnessInfo(int n, int id)
         {
@@ -330,6 +390,7 @@ namespace DiscordBot.MLAPI.Modules
                 return;
             Sidebar = SidebarType.None;
             var multiSelect = new Div(cls: "playerList");
+            int i = 0;
             foreach(var p in ChessService.Players.Where(x => !x.IsBuiltInAccount).OrderByDescending(x => x.Rating))
             {
                 if(type == "arbiter")
@@ -337,7 +398,7 @@ namespace DiscordBot.MLAPI.Modules
                     if (p.Permission != ChessPerm.Moderator)
                         continue;
                 }
-                multiSelect.Children.Add(new Div(cls: "playerListElement")
+                multiSelect.Children.Add(new Div(cls: "playerListElement " + ((i % 2 == 0) ? "even" : "odd"))
                 {
                     Children =
                     {
@@ -348,6 +409,7 @@ namespace DiscordBot.MLAPI.Modules
                         new Label(p.Name, $"lbl-{p.Id}")
                     }
                 });
+                i++;
             }
             ReplyFile($"new_{type}.html", 200, new Replacements()
                 .Add("players", multiSelect));
@@ -378,6 +440,28 @@ namespace DiscordBot.MLAPI.Modules
             }
             ReplyFile("newmotion.html", 200, new Replacements(hearing)
                 .Add("types", list));
+        }
+
+        [Method("GET"), PathRegex(@"\/chess\/cases\/(?<n>\d{1,4})\/newexhibit")]
+        public void ViewCreateExhibit(int n)
+        {
+            var hearing = CoAService.Hearings.FirstOrDefault(x => x.CaseNumber == n);
+            if (hearing == null)
+            {
+                RespondRaw("Unknown hearing", 404);
+                return;
+            }
+            if (hearing.Holding != null)
+            {
+                RespondRaw("Petition has been concluded, no exhibits may be added.", 400);
+                return;
+            }
+            if(hearing.getRelationToCase(SelfPlayer) == "Outside")
+            {
+                RespondRaw("You are unrelated to this case.", 403);
+                return;
+            }
+            ReplyFile("newexhibit.html", 200, new Replacements(hearing));
         }
 
         [Method("GET"), PathRegex(@"\/chess\/cases\/(?<n>\d{1,4})\/newwitness")]
@@ -541,6 +625,43 @@ namespace DiscordBot.MLAPI.Modules
             using var fs = new FileStream(attachment.DataPath, FileMode.Create, FileAccess.Write);
             file.Data.CopyTo(fs);
             RespondRaw(LoadRedirectFile($"/chess/cases/{hearing.CaseNumber}"), System.Net.HttpStatusCode.Redirect);
+        }
+
+        [Method("POST"), PathRegex(@"\/chess\/api\/cases\/(?<n>\d{1,4})\/exhibits")]
+        public void CreateNewExhibit(int n, string _ = null)
+        {
+            var hearing = CoAService.Hearings.FirstOrDefault(x => x.CaseNumber == n);
+            if (hearing == null)
+            {
+                RespondRaw("Unknown hearing", 404);
+                return;
+            }
+            if(hearing.getRelationToCase(SelfPlayer) == "Outside")
+            {
+                RespondRaw("You are not related to this case.", 403);
+                return;
+            }
+            var file = Context.Files.FirstOrDefault();
+            if (file == null)
+            {
+                RespondRaw("No file", 400);
+                return;
+            }
+            var ext = file.FileName.Split('.')[^1];
+            if (!isPermittedExtension(ext))
+            {
+                RespondRaw("Extension is not permitted", 400);
+                return;
+            }
+            var attachment = new CoAttachment(file.FileName, SelfPlayer);
+            string folder = Path.Combine(hearing.DataPath, "exhibits");
+            attachment.SetIds(folder, hearing.Exhibits.Count);
+            if (!Directory.Exists(folder))
+                Directory.CreateDirectory(folder);
+            using var fs = new FileStream(attachment.DataPath, FileMode.Create, FileAccess.Write);
+            file.Data.CopyTo(fs);
+            hearing.Exhibits.Add(attachment);
+            RespondRaw(LoadRedirectFile($"/chess/cases/{hearing.CaseNumber}/exhibits/{hearing.Exhibits.Count - 1}"));
         }
 
         [Method("POST"), PathRegex(@"\/chess\/api\/cases\/(?<n>\d{1,4})\/motions\/(?<mn>\d{1,2})\/files")]
@@ -763,7 +884,6 @@ namespace DiscordBot.MLAPI.Modules
                 "txt" => "text/plain",
                 "md" => "text/plain",
                 "pdf" => "application/pdf",
-                "docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                 _ => ext,
             };
         }
@@ -823,6 +943,30 @@ namespace DiscordBot.MLAPI.Modules
             Context.HTTP.Response.StatusCode = 200;
             Context.HTTP.Response.ContentType = mimeFromExtension(ext);
             using var fs = new FileStream(hearing.Ruling.Attachment.DataPath, FileMode.Open, FileAccess.Read);
+            fs.CopyTo(Context.HTTP.Response.OutputStream);
+            Context.HTTP.Response.Close();
+        }
+
+        [Method("GET"), PathRegex(@"\/chess\/cases\/(?<cn>\d{1,4})\/exhibit\/(?<ex>\d{1,2})")]
+        public void GetExhibitRaw(int cn, int ex)
+        {
+            var hearing = CoAService.Hearings.FirstOrDefault(x => x.CaseNumber == cn);
+            if (hearing == null || hearing.Sealed)
+            {
+                HTTPError(System.Net.HttpStatusCode.NotFound, "", "Could not find a hearing at this URL");
+                return;
+            }
+            var exhibit = hearing.Exhibits.ElementAtOrDefault(ex);
+            if(exhibit == null || exhibit.Sealed)
+            {
+                HTTPError(System.Net.HttpStatusCode.NotFound, "", "Exhibit is either non-existent or sealed.");
+                return;
+            }
+            var ext = exhibit.FileName.Split(".")[^1];
+            StatusSent = 200;
+            Context.HTTP.Response.StatusCode = 200;
+            Context.HTTP.Response.ContentType = mimeFromExtension(ext);
+            using var fs = new FileStream(exhibit.DataPath, FileMode.Open, FileAccess.Read);
             fs.CopyTo(Context.HTTP.Response.OutputStream);
             Context.HTTP.Response.Close();
         }
