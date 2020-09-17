@@ -7,7 +7,7 @@ using EduLinkDLL.Classes;
 using EduLinkDLL.Exceptions;
 using Html2Markdown;
 using Microsoft.Extensions.DependencyInjection;
-using Newtonsoft.Json.Linq;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -150,16 +150,23 @@ namespace DiscordBot.Services.EduLink
         }
         async Task printHomeworks()
         {
-            var printing = await getHwksToPrint();
-            foreach(var hwk in printing)
+            try
             {
-                _hwkCache[hwk.Homework.Id] = hwk;
-                var subject = reduceSubjectAliases(hwk.Homework.Subject);
-                var chnl = getSubjectChannel(subject);
-                var embed = hwk.ToEmbed(EduLink);
-                hwk.LatestMessage = await chnl.SendMessageAsync(embed: embed.Build());
-                await hwk.LatestMessage.AddReactionAsync(Emotes.WHITE_CHECK_MARK);
-                Reaction.Register(hwk.LatestMessage, EventAction.Added | EventAction.Removed, handleReaction, hwk.Homework.Id.ToString());
+                var printing = await getHwksToPrint();
+                foreach(var hwk in printing)
+                {
+                    _hwkCache[hwk.Homework.Id] = hwk;
+                    var subject = reduceSubjectAliases(hwk.Homework.Subject);
+                    var chnl = getSubjectChannel(subject);
+                    var embed = hwk.ToEmbed(EduLink);
+                    hwk.LatestMessage = await chnl.SendMessageAsync(embed: embed.Build());
+                    await hwk.LatestMessage.AddReactionAsync(Emotes.WHITE_CHECK_MARK);
+                    Reaction.Register(hwk.LatestMessage, EventAction.Added | EventAction.Removed, handleReaction, hwk.Homework.Id.ToString());
+                }
+            }
+            catch (Exception ex)
+            {
+                Program.LogMsg("EduHwk", ex);
             }
         }
 

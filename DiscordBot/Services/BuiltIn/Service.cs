@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -164,6 +165,8 @@ namespace DiscordBot.Services
         static void thread()
         {
             var token = cancel.Token;
+            var nfi = (NumberFormatInfo)CultureInfo.InvariantCulture.NumberFormat.Clone();
+            nfi.NumberGroupSeparator = " ";
             try
             {
                 do
@@ -176,6 +179,7 @@ namespace DiscordBot.Services
                     var miliseconds = (int)Math.Floor(diff.TotalMilliseconds);
                     if (miliseconds < 2500)
                         miliseconds = 2500;
+                    Program.LogMsg($"Waiting for {miliseconds.ToString("#,0.00", nfi)}ms", LogSeverity.Info, "DailyTick");
                     Task.Delay(miliseconds, token).Wait(token);
                     SendDailyTick();
                 } while (!token.IsCancellationRequested);
