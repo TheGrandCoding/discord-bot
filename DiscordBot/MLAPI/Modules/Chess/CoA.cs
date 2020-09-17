@@ -118,7 +118,7 @@ namespace DiscordBot.MLAPI.Modules
         string getHearingOutcome(AppealHearing h)
         {
             string outcom = "";
-            if(h.Ruling != null)
+            if(h.Opinion != null)
             {
                 string who = h.IsArbiterCase ? "Arbiter" : "Court";
                 outcom = $"<p>The {who}'s ruling on this case:</p><iframe class='coaDoc' src='/chess/cases/{h.CaseNumber}/ruling'></iframe>";
@@ -609,14 +609,14 @@ namespace DiscordBot.MLAPI.Modules
                 return;
             }
             var attachment = new CoAttachment(file.FileName, SelfPlayer);
-            var ruling = new CoARuling()
+            var ruling = new CoAOpinion()
             {
                 Short = desc,
                 Submitter = SelfPlayer,
                 Attachment = attachment
             };
             hearing.Holding = desc;
-            hearing.Ruling = ruling;
+            hearing.Opinion = ruling;
             hearing.Concluded = DateTime.Now;
             ruling.SetIds(hearing);
 
@@ -928,21 +928,21 @@ namespace DiscordBot.MLAPI.Modules
                 HTTPError(System.Net.HttpStatusCode.NotFound, "", "Could not find a hearing at this URL");
                 return;
             }
-            if (hearing.Ruling == null)
+            if (hearing.Opinion == null)
             {
                 HTTPError(System.Net.HttpStatusCode.NotFound, "", "Could not find a ruling at this URL");
                 return;
             }
-            if (hearing.Ruling.Attachment == null)
+            if (hearing.Opinion.Attachment == null)
             {
                 HTTPError(System.Net.HttpStatusCode.NotFound, "", "Could not find an attachment at this URL");
                 return;
             }
-            var ext = hearing.Ruling.Attachment.FileName.Split(".")[^1];
+            var ext = hearing.Opinion.Attachment.FileName.Split(".")[^1];
             StatusSent = 200;
             Context.HTTP.Response.StatusCode = 200;
             Context.HTTP.Response.ContentType = mimeFromExtension(ext);
-            using var fs = new FileStream(hearing.Ruling.Attachment.DataPath, FileMode.Open, FileAccess.Read);
+            using var fs = new FileStream(hearing.Opinion.Attachment.DataPath, FileMode.Open, FileAccess.Read);
             fs.CopyTo(Context.HTTP.Response.OutputStream);
             Context.HTTP.Response.Close();
         }

@@ -25,10 +25,38 @@ namespace DiscordBot.Commands.Modules
         [Command("dtick")]
         [Summary("Calls OnDailyTick for all services")]
         [RequireOwner]
-        public async Task DoDailyTick()
+        public async Task DoDailyTick(bool doIt = false)
         {
-            Service.SendDailyTick();
-            await ReplyAsync("Sent.");
+            if(doIt)
+            {
+                await ReplyAsync("Sending...");
+                Service.SendDailyTick();
+                await ReplyAsync("Sent.");
+            } else
+            {
+                await ReplyAsync("Not performed.");
+            }
+        }
+
+        [Command("dtick")]
+        [Summary("Views the last time a daily tick occured")]
+        [RequireOwner]
+        public async Task SeeDailyTick()
+        {
+            if(Service.lastDailyTick.HasValue)
+            {
+                await ReplyAsync($"Last daily tick: {Service.lastDailyTick.Value.ToString("yyyy/MM/dd hh:mm:ss.fff")}");
+            } else
+            {
+                var rs = Program.Services.GetRequiredService<ReactionService>();
+                var msg = await ReplyAsync($"No daily tick recorded. Use `{Program.Prefix}bot dtick true` or react to perform one.");
+                await msg.AddReactionAsync(Emotes.HAMMER);
+                rs.Register(msg, EventAction.Added, async (object sender, ReactionEventArgs e) =>
+                {
+                    rs.Unregister(msg);
+                    await DoDailyTick(true);
+                });
+            }
         }
 
         [Command("dyndns")]

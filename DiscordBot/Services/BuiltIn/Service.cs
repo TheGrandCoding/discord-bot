@@ -30,6 +30,8 @@ namespace DiscordBot.Services
         public virtual int DefaultTimeout => 10_000;
         public virtual int CloseTimeout => DefaultTimeout / 2;
 
+        public static DateTime? lastDailyTick = null;
+
         protected CancellationToken CancelToken { get; private set; }
 
         public virtual void OnReady() { }
@@ -155,6 +157,7 @@ namespace DiscordBot.Services
         public static void SendDailyTick()
         {
             doneFunctions.Remove("OnDailyTick");
+            lastDailyTick = DateTime.Now;
             sendFunction("OnDailyTick");
         }
 
@@ -178,6 +181,7 @@ namespace DiscordBot.Services
                 } while (!token.IsCancellationRequested);
             } catch(OperationCanceledException)
             {
+                Program.LogMsg("DailyTick thread cancalled, exiting.", LogSeverity.Warning, "DailyTick");
             }
         }
 

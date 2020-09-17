@@ -8,9 +8,9 @@ using System.Text;
 
 namespace DiscordBot.Classes.Chess.COA
 {
-    public class CoARuling
+    public class CoAOpinion
     {
-        public CoARuling()
+        public CoAOpinion()
         {
         }
         public string Short { get; set; }

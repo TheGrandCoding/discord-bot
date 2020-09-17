@@ -115,7 +115,7 @@ namespace DiscordBot.Classes.Chess.COA
 
         public List<CoAttachment> Exhibits { get; set; } = new List<CoAttachment>();
 
-        public CoARuling Ruling { get; set; }
+        public CoAOpinion Opinion { get; set; }
 
         public string Holding { get; set; }
 
@@ -131,7 +131,7 @@ namespace DiscordBot.Classes.Chess.COA
             int ei = 0;
             foreach (var e in Exhibits)
                 e.SetIds(Path.Combine(DataPath, "exhibits"), ei++);
-            Ruling?.SetIds(this);
+            Opinion?.SetIds(this);
 
         }
 
