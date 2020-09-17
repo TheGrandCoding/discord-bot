@@ -34,7 +34,7 @@ namespace DiscordBot.Commands.Modules
                 await ReplyAsync("Sent.");
             } else
             {
-                await ReplyAsync("Not performed.");
+                await SeeDailyTick();
             }
         }
 
