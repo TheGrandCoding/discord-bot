@@ -247,17 +247,17 @@ namespace DiscordBot.MLAPI.Modules.ServerList
             var player = server.Players.FirstOrDefault(x => x.HWID == pId);
             if(player != null)
             {
-                player.Name ??= name;
-                player.Score ??= score;
-                player.Latency ??= latency;
+                player.Name = name ?? player.Name;
+                player.Score = score ?? player.Score;
+                player.Latency = latency ?? player.Latency;
             } else
             {
                 player = new Player()
                 {
                     HWID = pId,
                     Name = name,
-                    Score = score,
-                    Latency = latency
+                    Score = score ?? 0,
+                    Latency = latency ?? -1
                 };
                 server.Players.Add(player);
             }
