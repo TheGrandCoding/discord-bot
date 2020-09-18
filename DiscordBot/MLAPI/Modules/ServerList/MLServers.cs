@@ -235,6 +235,46 @@ namespace DiscordBot.MLAPI.Modules.ServerList
             Service.Servers.Remove(id);
             RespondRaw($"Removed", HttpStatusCode.NoContent);
         }
+        
+        [Method("PUT"), PathRegex(@"\/servers\/(?<id>[a-zA-Z0-9-]+)\/players\/(?!.*\/.)(?<pId>[a-zA-Z0-9]+)")]
+        public void AddPlayer(Guid id, string auth, string pId, string name = null, int? score = null, int? latency = null)
+        {
+            if (!Service.Servers.TryGetValue(id, out Server server) || server.Authentication != auth)
+            {
+                RespondRaw("Unknown server", 404);
+                return;
+            }
+            var player = server.Players.FirstOrDefault(x => x.HWID == pId);
+            if(player != null)
+            {
+                player.Name ??= name;
+                player.Score ??= score;
+                player.Latency ??= latency;
+            } else
+            {
+                player = new Player()
+                {
+                    HWID = pId,
+                    Name = name,
+                    Score = score,
+                    Latency = latency
+                };
+                server.Players.Add(player);
+            }
+        }
+        
+        [Method("DELETE"), PathRegex(@"\/servers\/(?<id>[a-zA-Z0-9-]+)\/players\/(?!.*\/.)(?<pId>[a-zA-Z0-9]+)")]
+        public void DeletePlayer(Guid id, string auth, string pId)
+        {
+            if (!Service.Servers.TryGetValue(id, out Server server) || server.Authentication != auth)
+            {
+                RespondRaw("Unknown server", 404);
+                return;
+            }
+            var n = server.Players.RemoveAll(x => x.HWID == pId);
+            RespondRaw(n.ToString(), n == 0 ? 304 : 200);
+        }
+
         #endregion
 
         #region Client API
