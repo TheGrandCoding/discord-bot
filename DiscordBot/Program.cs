@@ -28,7 +28,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.8.21"; 
+        public const string VERSION = "0.8.22"; 
         public const string CHANGELOG = VERSION + @"
 == Chess WS work
 Now order main page to reload if changes occur outside.  

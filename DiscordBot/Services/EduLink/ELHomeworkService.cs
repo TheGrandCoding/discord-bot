@@ -213,11 +213,17 @@ namespace DiscordBot.Services.EduLink
             var classes = new List<string>();
             foreach(var usr in Homeworks.Keys)
             {
-                var id = service.Clients.FirstOrDefault(x => x.Value.CurrentUser.UserName == usr.CurrentUser.UserName).Key;
-                var bUser = Program.GetUserOrDefault(id);
-                var keypair = bUser.Classes.FirstOrDefault(x => x.Value == Homework.Subject);
-                if (!classes.Contains(keypair.Key))
-                    classes.Add(keypair.Key);
+                try
+                {
+                    var id = service.Clients.FirstOrDefault(x => x.Value.CurrentUser.UserName == usr.CurrentUser.UserName).Key;
+                    var bUser = Program.GetUserOrDefault(id);
+                    var keypair = bUser.Classes.FirstOrDefault(x => x.Value == Homework.Subject);
+                    if (!classes.Contains(keypair.Key))
+                        classes.Add(keypair.Key);
+                } catch (Exception ex)
+                {
+                    Program.LogMsg($"{usr.CurrentUser.UserName}-ELH", ex);
+                }
             }
             var students = new List<BotUser>();
             foreach(var user in Program.Users)

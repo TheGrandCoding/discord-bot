@@ -116,32 +116,6 @@ namespace DiscordBot.Services
                 }
             }
 
-            var terms = Laws["terms"];
-            terms.AmendmentReferences.Add(3, new AmendmentGroup()
-            {
-                Author = Program.GetUserOrDefault(144462654201790464),
-                Date = DateTime.Now,
-                Id = 3,
-            });
-
-            var conflict = (Section)terms.Find("20");
-            conflict.SubstituedById = 3;
-            conflict.Substituted = new ThingSubstitution(new Section("Recusals")
-            {
-                Children =
-                {
-                    new TextualLawThing("Aside from the Chief Justice, Justices shall recuse themselves and not hear cases they are party to."),
-                    new TextualLawThing("Justices may also voluntarily recuse if--")
-                    {
-                        Children =
-                        {
-                            new TextualLawThing("they feel they would be unable to reach a fair and impartial judgement"),
-                            new TextualLawThing("they do not have enough time to hear the case, leading to gaps in knowledge on it and a potentially unfair judgement"),
-                        }
-                    }
-                }
-            }, 3);
-
         }
     }
 }

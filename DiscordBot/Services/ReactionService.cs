@@ -16,7 +16,13 @@ namespace DiscordBot.Services
 
         public override string GenerateSave()
         {
-            return Program.Serialise(messages);
+            var srv = new Dictionary<ulong, ReactionMessage>();
+            foreach(var keypair in messages)
+            {
+                if (keypair.Value.Save)
+                    srv.Add(keypair.Key, keypair.Value);
+            }
+            return Program.Serialise(srv);
         }
 
         public override void OnReady()
@@ -54,8 +60,7 @@ namespace DiscordBot.Services
                     State = msg.State,
                     Action = act
                 };
-                var method = msg.Method.GetMethod();
-                method.Invoke(null, new object[] { this, eventArgs });
+                msg.Method.Invoke(eventArgs);
             }
             await Task.CompletedTask;
         }
@@ -69,16 +74,23 @@ namespace DiscordBot.Services
             await handleItTho(arg1, EventAction.Added, arg3);
         }
 
-        public void Register(IUserMessage message, EventAction subscribed, EventHandler<ReactionEventArgs> callback, string state = null)
+        public void Register(IUserMessage message, EventAction subscribed, EventHandler<ReactionEventArgs> callback, string state = null, bool doSave = true)
         {
             var msg = new ReactionMessage()
             {
                 Message = message,
-                Method = new ReactionMethod(callback.Method),
                 State = state,
                 Added = DateTime.UtcNow,
-                Events = subscribed
+                Events = subscribed,
+                Save = doSave
             };
+            if(doSave)
+            {
+                msg.Method = new ReactionMethod(callback.Method);
+            } else
+            {
+                msg.Method = new ReactionMethod(callback);
+            }
             messages[message.Id] = msg;
             Console.WriteLine($"Registered: {messages.Count}, {message.Id}");
         }
@@ -95,16 +107,31 @@ namespace DiscordBot.Services
             public string State { get; set; }
             public DateTime Added { get; set; }
             public EventAction Events { get; set; }
+            public bool Save { get; set; }
         }
         class ReactionMethod
         {
             public string Class { get; set; }
             public string MethodName { get; set; }
 
-            public MethodInfo GetMethod()
+            EventHandler<ReactionEventArgs> _eh;
+
+            MethodInfo GetMethod()
             {
                 var type = Type.GetType(Class);
                 return type.GetMethod(MethodName);
+            }
+
+            public void Invoke(ReactionEventArgs args)
+            {
+                if(_eh != null)
+                {
+                    _eh.Invoke(this, args);
+                } else
+                {
+                    GetMethod().Invoke(null, new [] { args });
+                }
+
             }
 
             public ReactionMethod(MethodInfo info)
@@ -116,6 +143,14 @@ namespace DiscordBot.Services
                 Class = info.DeclaringType.AssemblyQualifiedName;
                 MethodName = info.Name;
             }
+
+            public ReactionMethod(EventHandler<ReactionEventArgs> handler)
+            {
+                _eh = handler;
+                Class = handler.Method.DeclaringType.AssemblyQualifiedName;
+                MethodName = handler.Method.Name;
+            }
+
             [JsonConstructor]
             private ReactionMethod() { }
         }

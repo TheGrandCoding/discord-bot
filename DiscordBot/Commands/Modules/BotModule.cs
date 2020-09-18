@@ -55,7 +55,7 @@ namespace DiscordBot.Commands.Modules
                 {
                     rs.Unregister(msg);
                     await DoDailyTick(true);
-                });
+                }, doSave: false);
             }
         }
 
