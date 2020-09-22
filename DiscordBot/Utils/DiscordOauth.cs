@@ -116,16 +116,16 @@ namespace DiscordBot.Utils
             return UserInfo;
         }
 
-        public async Task<HttpResponseMessage> JoinToServer(IGuild guild, IUser user = null)
+        public async Task<HttpResponseMessage> JoinToServer(IGuild guild, Classes.BotUser user = null)
         {
             if (!Scope.Contains("guilds.join"))
                 throw new InvalidOperationException("Joining guilds was not among the scopes requested.");
             if (AccessToken == null)
                 throw new Exception("Access token has not yet been negotiated");
-            user = user ?? UserInfo;
-            if (user == null)
+            if (user == null && UserInfo != null)
                 throw new InvalidOperationException("You must provide a user instance, or call GetUserInformation before.");
-            var request = new HttpRequestMessage(HttpMethod.Put, baseUrl + $"/guilds/{guild.Id}/members/{user.Id}");
+            ulong id = user?.Id ?? UserInfo.Id;
+            var request = new HttpRequestMessage(HttpMethod.Put, baseUrl + $"/guilds/{guild.Id}/members/{id}");
             request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bot", Program.Configuration["tokens:discord"]);
             var jobj = new JObject();
             jobj["access_token"] = AccessToken;

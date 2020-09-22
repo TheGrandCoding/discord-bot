@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 namespace DiscordBot.Classes
 {
     [JsonObject(ItemNullValueHandling = NullValueHandling.Ignore, MemberSerialization = MemberSerialization.OptIn)]
-    public class BotUser : IUser
+    public class BotUser //: IUser
     {
         [JsonConstructor]
         private BotUser()
@@ -110,7 +110,7 @@ namespace DiscordBot.Classes
             : (((IUser)FirstValidUser)?.DiscriminatorValue ?? 0);
         public bool IsBot => ((IUser)FirstValidUser).IsBot;
         public bool IsWebhook => ((IUser)FirstValidUser).IsWebhook;
-        public string Username => ((IUser)FirstValidUser).Username;
+        public string Username => ((IUser)FirstValidUser)?.Username ?? null;
         public DateTimeOffset CreatedAt => ((IUser)FirstValidUser).CreatedAt;
         public string Mention => ((IUser)FirstValidUser).Mention;
         public IActivity Activity => ((IUser)FirstValidUser).Activity;

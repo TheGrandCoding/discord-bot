@@ -30,6 +30,22 @@ namespace DiscordBot
                 public const string ViewNicknamesAllServers = "bot.developer.nicknames";
             }
 
+            [AssignedBy(Bot.All)]
+            public static class User
+            {
+                [Description("All user permissions")]
+                public const string All = "bot.user.*";
+
+                [Description("Change own override name")]
+                public const string ChangeSelfName = "bot.user.changename_self";
+
+                [Description("View other user's override name")]
+                public const string ViewOtherName = "bot.user.viewname_other";
+
+                [Description("Change other user's override name")]
+                public const string ChangeOtherName = "bot.user.changename_other";
+            }
+
             [Description("Approve a new user to use API")]
             public const string ApproveUser = "bot.approve";
         }

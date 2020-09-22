@@ -1,5 +1,6 @@
 ﻿using Discord.Commands;
 using DiscordBot.Classes;
+using DiscordBot.Permissions;
 using HttpMultipartParser;
 using System;
 using System.Collections.Generic;
@@ -23,7 +24,16 @@ namespace DiscordBot.MLAPI
 
         public bool isInNetwork => IP.StartsWith("192.168.1.");
 
-        public bool HasPerm(string node) => Perms.Parse(node).HasPerm(this);
+        public bool HasPerm(string perm)
+        {
+            var node = Perms.Parse(perm);
+            if (node == null)
+            {
+                Program.LogMsg($"Attempted checking invalid perm: {Path}, '{perm}'");
+                return false;
+            }
+            return PermChecker.HasPerm(this, node);
+        }
 
         static string[] browser_uas = new string[]
         {

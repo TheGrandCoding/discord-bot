@@ -18,6 +18,7 @@ namespace DiscordBot.Services
     public class CoronaService : SavedService
     {
         public const string URL = @"https://corona-api.com/countries/";
+
         public List<SendingEntry> Entries = new List<SendingEntry>();
 
         public override string GenerateSave()

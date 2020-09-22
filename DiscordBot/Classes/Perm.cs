@@ -2,6 +2,7 @@
 using DiscordBot.Classes;
 using DiscordBot.Commands;
 using DiscordBot.MLAPI;
+using DiscordBot.Permissions;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
@@ -13,57 +14,59 @@ using static DiscordBot.Perms;
 namespace DiscordBot.Classes
 {
     [JsonConverter(typeof(JsonPermConverter))]
-    public class Perm
+    public class Perm : NodeInfo
     {
-        [JsonProperty("p")]
-        public string RawNode { get; set; }
-        public string Node => RawNode;
-        public FieldInfo Field { get; set; }
+        public string RawNode {  get
+            {
+                string n = "";
+                if (Type == PermType.Allow)
+                    n = "+";
+                else if (Type == PermType.Deny)
+                    n = "-";
+                return n + Node;
+            } }
 
-        public string Description => GetAttribute<Description>().Value;
+        public PermType Type { get; set; }
 
-        T getAttrInParent<T>(Type parent) where T : PermissionAttribute
+        public Perm(FieldInfo info) : base(info)
         {
-            if (parent == null)
-                return null;
-            return parent.GetCustomAttribute<T>() ?? getAttrInParent<T>(parent.DeclaringType);
+            Type = PermType.Grant;
+        }
+        public Perm(NodeInfo node, PermType type) : base(node.Field)
+        {
+            Type = type;
         }
 
-        public T GetAttribute<T>(bool inherit = true) where T : PermissionAttribute
-        {
-            var attr = Field.GetCustomAttribute<T>();
-            if (attr == null && inherit)
-                attr = getAttrInParent<T>(Field.DeclaringType);
-            return attr;
-        }
+        public static Perm Parse(string n) => new Perm(n);
 
-        public bool HasAttr<T>(bool inherit = true) where T : PermissionAttribute
+        private Perm(string node) : base(null)
         {
-            return GetAttribute<T>(inherit) != null;
-        }
-
-        public Perm(FieldInfo info)
-        {
-            Field = info;
-            RawNode = (string)info.GetValue(null);
-        }
-
-        [JsonConstructor]
-        private Perm(string node)
-        {
-            RawNode = node;
+            if(node.StartsWith('+'))
+            {
+                Node = node[1..];
+                Type = PermType.Allow;
+            } else if (node.StartsWith('-'))
+            {
+                Node = node[1..];
+                Type = PermType.Deny;
+            } else
+            {
+                Node = node;
+                Type = PermType.Grant;
+            }
+            base.Field = Perms.Parse(Node)?.Field;
         }
     
-        bool grantsPerm(Perm hasNode, out bool inherited)
+        public bool isMatch(NodeInfo seeking, out bool inherited)
         {
             inherited = false;
-            if (this.RawNode == hasNode.RawNode)
+            if (this.Node == seeking.Node)
                 return true;
-            if (this.RawNode == Perms.All)
+            if (this.Node == Perms.All)
                 return false;
             inherited = false;
-            var hasSplit = hasNode.Node.Split('.');
-            var wantedSplit = this.Node.Split('.');
+            var hasSplit = this.Node.Split('.');
+            var wantedSplit = seeking.Node.Split('.');
             for (int i = 0; i < hasSplit.Length && i < wantedSplit.Length; i++)
             {
                 if (hasSplit[i] == "*")
@@ -77,30 +80,6 @@ namespace DiscordBot.Classes
             }
             return false;
         }
-
-        /// <summary>
-        /// Determines whether the <see cref="BotUser"/> has this permission
-        /// </summary>
-        /// <param name="inheritsPerm">If true, user recieves perm from wildcard, and does not have it directly</param>
-        /// <returns></returns>
-        public bool UserHasPerm(BotUser user, out bool inheritsPerm)
-        {
-            inheritsPerm = false;
-            if (user == null)
-                return false;
-            foreach(var node in user.Permissions)
-            {
-                if (grantsPerm(node, out inheritsPerm))
-                    return true;
-            }
-            return false;
-        }
-
-        public bool UserHasPerm(BotUser user) => UserHasPerm(user, out _);
-
-        public bool HasPerm(BotCommandContext context) => UserHasPerm(context.BotUser);
-        public bool HasPerm(APIContext context) => UserHasPerm(context.User);
-    
     }
 
     public class JsonPermConverter : JsonConverter
@@ -112,7 +91,7 @@ namespace DiscordBot.Classes
 
         public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
         {
-            return Perms.Parse((string)reader.Value);
+            return Perm.Parse((string)reader.Value);
         }
 
         public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
@@ -123,4 +102,19 @@ namespace DiscordBot.Classes
         }
     }
 
+    public enum PermType
+    {
+        /// <summary>
+        /// Highest priority provide
+        /// </summary>
+        Allow,
+        /// <summary>
+        /// Denial of permission
+        /// </summary>
+        Deny,
+        /// <summary>
+        /// Lowest priority provide
+        /// </summary>
+        Grant
+    }
 }

@@ -1,4 +1,5 @@
 ﻿using DiscordBot.Classes;
+using DiscordBot.Permissions;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -63,7 +64,7 @@ namespace DiscordBot
         [Description("All permissions")]
         public const string All = "*";
 
-        public static Dictionary<string, Perm> AllPermissions { get; set; } = new Dictionary<string, Perm>();
+        public static Dictionary<string, NodeInfo> AllNodes { get; set; } = new Dictionary<string, NodeInfo>();
 
         static List<FieldInfo> findPerms(Type mainType)
         {
@@ -75,9 +76,9 @@ namespace DiscordBot
             return fields;
         } 
 
-        public static Perm Parse(string n)
+        public static NodeInfo Parse(string n)
         {
-            AllPermissions.TryGetValue(n, out var p);
+            AllNodes.TryGetValue(n, out var p);
             return p;
         }
 
@@ -86,8 +87,8 @@ namespace DiscordBot
             var fields = findPerms(typeof(Perms));
             foreach (var x in fields)
             {
-                var perm = new Perm(x);
-                AllPermissions[perm.RawNode] = perm;
+                var node = new NodeInfo(x);
+                AllNodes[node.Node] = node;
             }
         }
     }

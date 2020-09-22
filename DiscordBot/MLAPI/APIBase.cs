@@ -1,4 +1,5 @@
 ﻿using DiscordBot.MLAPI;
+using DiscordBot.Permissions;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -26,16 +27,7 @@ namespace DiscordBot.MLAPI
         private string BaseFolder { get; set; }
         public APIContext Context { get; set; }
 
-        public bool HasNode(string perm)
-        {
-            var node = Perms.Parse(perm);
-            if(node == null)
-            {
-                Program.LogMsg($"Attempted checking invalid perm: {Context.Path}, '{perm}'");
-                return false;
-            }
-            return node.HasPerm(Context);
-        }
+        public bool HasNode(string perm) => Context.HasPerm(perm);
 
         public enum SidebarType
         {

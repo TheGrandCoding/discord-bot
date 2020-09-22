@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
@@ -58,5 +59,23 @@ namespace DiscordBot.Commands.Modules
             await ReplyAsync($"Registered to {c.Mention}");
             return new BotResult();
         }
+    
+        [Command("search")]
+        [Summary("Searches for a country's code")]
+        public async Task Search(string input)
+        {
+            var cultures = CultureInfo.GetCultures(CultureTypes.SpecificCultures);
+            foreach(var x in cultures)
+            {
+                if(x.DisplayName.Contains(input, StringComparison.OrdinalIgnoreCase))
+                {
+                    await ReplyAsync($"Add: `{Program.Prefix}covid register {x.TwoLetterISOLanguageName}`\r\n" +
+                        $"\r\n>>> {x.DisplayName}");
+                    return;
+                }
+            }
+            await ReplyAsync("Could not find any countries by that input.");
+        }
+    
     }
 }

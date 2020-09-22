@@ -89,6 +89,10 @@ namespace DiscordBot.Services.EduLink
             var s = Program.Deserialise<save>(ReadSave());
             SeenHomeworks = s.seen ?? new List<int>();
             Info = s.info ?? new Dictionary<ulong, HomeworkPreferences>();
+        }
+
+        public override void OnLoaded()
+        {
 #if DEBUG
             OnDailyTick();
 #endif
@@ -108,6 +112,8 @@ namespace DiscordBot.Services.EduLink
                 var grouped = await client.HomeworkAsync();
                 foreach(var hwk in grouped.Current)
                 {
+                    if (hwk.Subject == "-1" || hwk.Subject == "Other")
+                        continue;
                     if (homeworks.TryGetValue(hwk.Id, out var dsh))
                     {
                         dsh.Homeworks[client] = hwk;
@@ -210,6 +216,8 @@ namespace DiscordBot.Services.EduLink
 
         public List<BotUser> GetStudents(EduLinkService service)
         {
+            if (Homework.Subject == "-1") // "Other"? impossible to tell.
+                return new List<BotUser>();
             var classes = new List<string>();
             foreach(var usr in Homeworks.Keys)
             {
@@ -218,7 +226,7 @@ namespace DiscordBot.Services.EduLink
                     var id = service.Clients.FirstOrDefault(x => x.Value.CurrentUser.UserName == usr.CurrentUser.UserName).Key;
                     var bUser = Program.GetUserOrDefault(id);
                     var keypair = bUser.Classes.FirstOrDefault(x => x.Value == Homework.Subject);
-                    if (!classes.Contains(keypair.Key))
+                    if (keypair.Key != null && !classes.Contains(keypair.Key))
                         classes.Add(keypair.Key);
                 } catch (Exception ex)
                 {

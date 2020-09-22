@@ -1,5 +1,6 @@
 ﻿using DiscordBot.Classes;
 using DiscordBot.Classes.HTMLHelpers.Objects;
+using DiscordBot.Permissions;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -14,7 +15,7 @@ namespace DiscordBot.MLAPI.Modules.Bot
     {
         public Logs(APIContext c) : base(c, "/") 
         {
-            hasPerms = Perms.Parse(Perms.Bot.Developer.SeeAPILogs).HasPerm(Context);
+            hasPerms = PermChecker.HasPerm(Context, Perms.Bot.Developer.SeeAPILogs);
         }
 
         public bool hasPerms;

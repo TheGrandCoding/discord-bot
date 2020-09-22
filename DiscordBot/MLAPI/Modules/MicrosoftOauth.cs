@@ -23,7 +23,9 @@ namespace DiscordBot.MLAPI.Modules
         {
         }
 
-        public static string getUrl(IUser user, Action<MSScopeOptions> action = null)
+        public static string getUrl(IUser user, Action<MSScopeOptions> action = null) => getUrl(user.Id, action);
+        public static string getUrl(BotUser user, Action<MSScopeOptions> action = null) => getUrl(user.Id, action);
+        public static string getUrl(ulong id, Action<MSScopeOptions> action = null)
         {
             var msScope = new MSScopeOptions();
             if (action == null)
@@ -33,7 +35,7 @@ namespace DiscordBot.MLAPI.Modules
                     x.User_Read = true;
                 };
             action(msScope);
-            string stateValue = user.Id.ToString();
+            string stateValue = id.ToString();
             stateValue += "." + Program.ToBase64(msScope.ToString());
             var ru = new RequestUrl($"https://login.microsoftonline.com/{Program.Configuration["ms_auth:tenant_id"]}/oauth2/v2.0/authorize");
             var url = ru.CreateAuthorizeUrl(

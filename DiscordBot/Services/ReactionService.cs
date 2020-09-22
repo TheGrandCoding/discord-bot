@@ -129,7 +129,7 @@ namespace DiscordBot.Services
                     _eh.Invoke(this, args);
                 } else
                 {
-                    GetMethod().Invoke(null, new [] { args });
+                    GetMethod().Invoke(null, new object[] { this, args });
                 }
 
             }

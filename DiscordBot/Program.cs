@@ -5,6 +5,7 @@ using Discord.Rest;
 using Discord.WebSocket;
 using DiscordBot.Classes;
 using DiscordBot.MLAPI;
+using DiscordBot.Permissions;
 using DiscordBot.Services;
 using DiscordBot.TypeReaders;
 using Microsoft.Extensions.Configuration;
@@ -28,11 +29,10 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.8.22"; 
+        public const string VERSION = "0.9.0"; 
         public const string CHANGELOG = VERSION + @"
-== Chess WS work
-Now order main page to reload if changes occur outside.  
-Further, display any timed games in progress on main page.
+== Permissions changes
+Changed how permissions worked for bot.
 ";
         public static DiscordSocketClient Client { get; set; }
         public static IConfigurationRoot Configuration { get; set; }
@@ -48,6 +48,8 @@ Further, display any timed games in progress on main page.
         public static Random RND { get; set; } = new Random();
 
         public static bool ShouldDownload { get; set; } = false;
+
+        public int something = 0xff;
 
         #region Configuration Specific Settings
 
@@ -351,8 +353,8 @@ Further, display any timed games in progress on main page.
                 var bUser = GetUserOrDefault(owner);
                 if(bUser != null)
                 {
-                    var perm = Perms.Parse(Perms.Bot.All);
-                    if(!perm.UserHasPerm(bUser))
+                    var perm = Perm.Parse(Perms.Bot.All);
+                    if(!PermChecker.UserHasPerm(bUser, perm))
                     {
                         bUser.Permissions.Add(perm);
                         Program.Save();

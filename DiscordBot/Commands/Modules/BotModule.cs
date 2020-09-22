@@ -1,10 +1,13 @@
 ﻿using Discord;
 using Discord.Commands;
+using DiscordBot.Classes;
 using DiscordBot.Commands;
 using DiscordBot.Services;
+using DiscordBot.Utils;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -12,14 +15,39 @@ namespace DiscordBot.Commands.Modules
 {
     [Group("bot")]
     [Name("Bot Commands")]
-    public class BotCmdModule : BotModule
+    public sealed class BotCmdModule : BotModule
     {
+        List<char> allowed_chars;
+        public BotCmdModule()
+        {
+            allowed_chars = new List<char>();
+            for(int i = 65; i < (65+26); i++)
+            {
+                allowed_chars.Add(Convert.ToChar(i));
+            }
+            for (int i = 97; i < (97 + 26); i++)
+            {
+                allowed_chars.Add(Convert.ToChar(i));
+            }
+            allowed_chars.Add(' ');
+            allowed_chars.Add('\'');
+        }
         [Command("close")]
         [Summary("Closes the bot")]
         public async Task Close(int code = 0)
         {
             await Success("Closing");
             Program.Close(code);
+        }
+
+        [Command("approve")]
+        [Description("Approves a user for wider access to bot things")]
+        [RequirePermission(Perms.Bot.ApproveUser)]
+        public async Task Approve(BotUser b)
+        {
+            b.IsApproved = true;
+            b.Permissions.Add(Perm.Parse(Perms.Bot.User.All));
+            await ReplyAsync("User has been approved.");
         }
 
         [Command("dtick")]
@@ -75,6 +103,80 @@ namespace DiscordBot.Commands.Modules
                 .AddField("Status Code", response.StatusCode, true)
                 .AddField("Status Text", response.ReasonPhrase)
                 .Build());
+        }
+    
+
+        [Command("name")]
+        [Summary("Views your own override name")]
+        public async Task BotName()
+        {
+            var bUser = Program.GetUser(Context.User);
+            await ReplyAsync($"{(bUser.OverrideName == null ? "<null>" : bUser.OverrideName)}");
+        }
+
+
+        List<char> findIllegalChars(string name)
+        {
+            var ls = new List<char>();
+            foreach(var x in name)
+            {
+                if (!allowed_chars.Contains(x))
+                    ls.Add(x);
+            }
+            return ls;
+        }
+
+        BotResult checkName(string newName)
+        {
+            if (newName.Length <= 2 || newName.Length >= 16)
+                return new BotResult("Length of name too few or great.");
+            var illegal = findIllegalChars(newName).Distinct().ToList();
+            if(illegal.Count > 0)
+            {
+                var asString = $"Names cannot contain the below: ";
+                foreach(var il in illegal)
+                {
+                    asString += "\r\n- " + il.ToEnglishName();
+                }
+                return new BotResult(asString);
+            }
+            return new BotResult();
+
+        }
+
+        [Command("name")]
+        [Summary("Sets your own name")]
+        [RequirePermission(Perms.Bot.User.ChangeSelfName)]
+        public async Task<RuntimeResult> ChangeSelfName(string newName)
+        {
+            var s = checkName(newName);
+            if (!s.IsSuccess)
+                return s;
+            var bUser = Program.GetUser(Context.User);
+            bUser.OverrideName = newName;
+            await ReplyAsync(":ballot_box_with_check: Done");
+            return new BotResult();
+        }
+
+        [Command("name")]
+        [Summary("View someone else's name")]
+        [RequirePermission(Perms.Bot.User.ViewOtherName)]
+        public async Task SeeOtherName(BotUser bUser)
+        {
+            await ReplyAsync($"{(bUser.OverrideName == null ? "<null>" : bUser.OverrideName)}");
+        }
+
+        [Command("name")]
+        [Summary("Sets someone else's name")]
+        [RequirePermission(Perms.Bot.User.ChangeOtherName)]
+        public async Task<RuntimeResult> ChangeOtherName(BotUser bUser, string newName)
+        {
+            var s = checkName(newName);
+            if (!s.IsSuccess)
+                return s;
+            bUser.OverrideName = newName;
+            await ReplyAsync(":ballot_box_with_check: Done");
+            return new BotResult();
         }
     }
 }

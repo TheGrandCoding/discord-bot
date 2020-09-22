@@ -43,7 +43,7 @@ namespace DiscordBot.MLAPI.Modules
                     redirectTo = "/login/approval";
                     var admin_id = ulong.Parse(Program.Configuration["settings:admin"]);
                     string avatar = userInfo.GetAvatarUrl() ?? userInfo.GetDefaultAvatarUrl();
-                    Program.GetUserOrDefault(admin_id).SendMessageAsync(embed: new EmbedBuilder()
+                    Program.GetUserOrDefault(admin_id).FirstValidUser.SendMessageAsync(embed: new EmbedBuilder()
                         .WithTitle("MLAPI User")
                         .WithDescription($"{userInfo.Username}#{userInfo.Discriminator} ({userInfo.Id}) is awaiting approval")
                         .WithUrl(Handler.LocalAPIUrl + "/bot/approve")
