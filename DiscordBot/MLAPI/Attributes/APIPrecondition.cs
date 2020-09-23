@@ -5,7 +5,7 @@ using Discord.Commands;
 
 namespace DiscordBot.MLAPI
 {
-    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = false, Inherited = true)]
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = false, Inherited = false)]
     public abstract class APIPrecondition : Attribute
     {
         public string OR { get; set; } = "";

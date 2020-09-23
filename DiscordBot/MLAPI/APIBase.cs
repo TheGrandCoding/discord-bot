@@ -21,6 +21,11 @@ namespace DiscordBot.MLAPI
     {
         public APIBase(APIContext context, string path)
         {
+            if(path.StartsWith('/'))
+            {
+                Program.LogMsg($"{this.GetType().Name}'s path should not begin with a '/'.", Discord.LogSeverity.Warning, "API");
+                path = path[1..];
+            }
             Context = context;
             BaseFolder = path;
         }

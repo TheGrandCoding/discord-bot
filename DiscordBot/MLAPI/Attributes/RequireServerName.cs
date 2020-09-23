@@ -1,7 +1,9 @@
 ﻿using Discord.Commands;
 using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Text;
+using WebSocketSharp;
 
 namespace DiscordBot.MLAPI
 {
@@ -40,6 +42,13 @@ namespace DiscordBot.MLAPI
 
         public override PreconditionResult Check(APIContext context)
         {
+#if DEBUG
+            if(_domain == "localhost")
+            {
+                if (IPAddress.TryParse(context.Host, out var ips) && ips.IsLocal())
+                    return PreconditionResult.FromSuccess();
+            }
+#endif
             return _domain == null || context.Host == Domain
                 ? PreconditionResult.FromSuccess()
                 : PreconditionResult.FromError("Authentication failed");
