@@ -68,7 +68,10 @@ namespace DiscordBot.Services
             wanted.AddHours(0.5);
             var diff = wanted - DateTime.Now;
             var ms = (int)Math.Ceiling(diff.TotalMilliseconds);
-            Thread.Sleep(ms < 100 ? 100 : ms);
+            if (ms <= 0)
+                ms = 1;
+            Program.LogMsg($"Waiting for {diff.Minutes}mns, {diff.Seconds}s");
+            Thread.Sleep(ms);
         }
 
         string thousand(int input)

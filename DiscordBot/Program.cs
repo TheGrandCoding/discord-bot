@@ -29,7 +29,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.9.2"; 
+        public const string VERSION = "0.9.3"; 
         public const string CHANGELOG = VERSION + @"
 == Permissions changes
 Changed how permissions worked for bot.
@@ -222,7 +222,7 @@ Changed how permissions worked for bot.
         static string formatMsg(LogMessage msg)
         {
             var sb = new StringBuilder();
-            sb.Append(DateTime.Now.ToString("[hh:mm:ss.fff] "));
+            sb.Append(DateTime.Now.ToString("[HH:mm:ss.fff] "));
             sb.Append($"<{msg.Severity.ToString().PadRight(8)}|{(msg.Source ?? "n/s").PadRight(18)}> ");
             int padLength = sb.Length + 1;
             var s = msg.Exception?.ToString() ?? msg.Message ?? "n/m";
