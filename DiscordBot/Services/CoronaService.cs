@@ -63,8 +63,7 @@ namespace DiscordBot.Services
             var diff = wanted - DateTime.Now;
             var ms = (int)Math.Ceiling(diff.TotalMilliseconds);
             if (ms <= 0)
-                ms = 1000;
-            Program.LogMsg($"Waiting for {diff.Minutes}mns, {diff.Seconds}s");
+                ms = (1000 * 60 * 15);
             Thread.Sleep(ms);
         }
 
