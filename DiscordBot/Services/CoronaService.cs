@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -19,32 +20,55 @@ namespace DiscordBot.Services
     {
         public const string URL = @"https://corona-api.com/countries/";
 
+        public Dictionary<string, List<DateTime>> AverageUpdateTimes = new Dictionary<string, List<DateTime>>();
         public List<SendingEntry> Entries = new List<SendingEntry>();
+        public DateTime lastDone = DateTime.Now;
+
+        class save
+        {
+            public Dictionary<string, List<DateTime>> update;
+            public List<SendingEntry> entries;
+        }
 
         public override string GenerateSave()
         {
-            return Program.Serialise(Entries);
+            var s = new save()
+            {
+                update = AverageUpdateTimes,
+                entries = Entries
+            };
+            return Program.Serialise(s);
         }
 
         public override void OnReady()
         {
-            var s = ReadSave("[]");
-            Entries = Program.Deserialise<List<SendingEntry>>(s);
+            var s = ReadSave("{}");
+            if(s[0] == '[')
+            {
+                Entries = Program.Deserialise<List<SendingEntry>>(s);
+                AverageUpdateTimes = new Dictionary<string, List<DateTime>>();
+            } else
+            {
+                var sv = Program.Deserialise<save>(s);
+                AverageUpdateTimes = sv.update;
+                Entries = sv.entries;
+            }
             var t = new Thread(threadWork);
             t.Start();
         }
 
         void handleTimeout()
         {
-            var wanted = new DateTime(DateTime.Now.Year,
-                DateTime.Now.Month,
-                DateTime.Now.Day,
-                DateTime.Now.Hour,
+            var wanted = new DateTime(lastDone.Year,
+                lastDone.Month,
+                lastDone.Day,
+                lastDone.Hour,
                 0,
                 0);
-            wanted = wanted.AddHours(3);
+            wanted.AddHours(0.5);
             var diff = wanted - DateTime.Now;
-            Thread.Sleep((int)Math.Ceiling(diff.TotalMilliseconds));
+            var ms = (int)Math.Ceiling(diff.TotalMilliseconds);
+            Thread.Sleep(ms < 100 ? 100 : ms);
         }
 
         string thousand(int input)
@@ -127,6 +151,48 @@ namespace DiscordBot.Services
             }
         }
 
+        double getProbability(int c)
+        {
+            switch(c)
+            {
+                case 0:
+                case 1:
+                    return 1d;
+                case 2:
+                    return 0.95d;
+                case 3:
+                    return 0.75d;
+                case 4:
+                case 5:
+                    return 0.5;
+                case 6:
+                case 7:
+                case 8:
+                    return 0.3;
+                case 9:
+                    return 0.2;
+                case 10:
+                    return 0.1;
+                default:
+                    return 0.01;
+            }
+        }
+
+        bool shouldDoEntryNow(string code)
+        {
+            List<DateTime> times;
+            if (!AverageUpdateTimes.TryGetValue(code, out times))
+                times = new List<DateTime>();
+            if (times.Any(x => x.DayOfYear == DateTime.Now.DayOfYear))
+                return false;
+            var odds = getProbability(times.Count);
+            if (Program.RND.NextDouble() < odds)
+                return true;
+            var now = DateTime.Now;
+            var time = new DateTime(now.Year, now.Month, now.Day).AddSeconds(times.Select(x => x.TimeOfDay.TotalSeconds).Average());
+            return now > time;
+        }
+
         void withinTryWork()
         {
             var client = Program.Services.GetRequiredService<HttpClient>();
@@ -135,12 +201,17 @@ namespace DiscordBot.Services
                 handleTimeout();
                 Dictionary<string, CoronaData> dataDict = new Dictionary<string, CoronaData>();
                 var codes = Entries.Select(x => x.Code).Distinct();
+                bool anyDone = false;
                 foreach(var entry in Entries)
                 {
-                    if(!dataDict.ContainsKey(entry.Code))
+                    if(!dataDict.ContainsKey(entry.Code) && shouldDoEntryNow(entry.Code))
                     {
+                        anyDone = true;
+                        var stamp = new Stopwatch();
+                        stamp.Start();
                         var req = new HttpRequestMessage(HttpMethod.Get, $"{URL}{entry.Code}");
                         var response = client.SendAsync(req).Result;
+                        stamp.Stop();
                         string text = response.Content.ReadAsStringAsync().Result;
                         if (!response.IsSuccessStatusCode)
                         {
@@ -151,7 +222,26 @@ namespace DiscordBot.Services
                             continue;
                         }
                         var data = Program.Deserialise<CoronaResponse>(text);
+                        if(DateTime.Now > data.Data.UpdatedAt)
+                        {
+                            List<DateTime> ls;
+                            if (!AverageUpdateTimes.TryGetValue(entry.Code, out ls))
+                            {
+                                ls = new List<DateTime>();
+                                AverageUpdateTimes[entry.Code] = ls;
+                            }
+                            if(ls.Count == 0 || ls.Last() < data.Data.UpdatedAt)
+                            {
+                                ls.Add(data.Data.UpdatedAt);
+                                Program.LogMsg($"Update {entry.Code} at {data.Data.UpdatedAt.TimeOfDay}", LogSeverity.Info, "CoronaAPI");
+                            }
+                        }
                         dataDict[entry.Code] = data.Data;
+                        if (stamp.ElapsedMilliseconds < 1500)
+                        {
+                            Program.LogMsg("Invoking pre-emptive rate-limit", LogSeverity.Info, "CoronaAPI");
+                            Thread.Sleep(1500);
+                        }
                     }
                 }
                 foreach(var entry in Entries)
@@ -170,7 +260,11 @@ namespace DiscordBot.Services
                         });
                     }
                 }
-                this.OnSave();
+                if(anyDone)
+                {
+                    lastDone = DateTime.Now;
+                    this.OnSave();
+                }
             }
         }
     }
