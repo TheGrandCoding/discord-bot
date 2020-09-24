@@ -59,17 +59,11 @@ namespace DiscordBot.Services
 
         void handleTimeout()
         {
-            var wanted = new DateTime(lastDone.Year,
-                lastDone.Month,
-                lastDone.Day,
-                lastDone.Hour,
-                0,
-                0);
-            wanted.AddHours(0.5);
+            var wanted = lastDone.AddHours(0.5);
             var diff = wanted - DateTime.Now;
             var ms = (int)Math.Ceiling(diff.TotalMilliseconds);
             if (ms <= 0)
-                ms = 1;
+                ms = 1000;
             Program.LogMsg($"Waiting for {diff.Minutes}mns, {diff.Seconds}s");
             Thread.Sleep(ms);
         }
