@@ -1,5 +1,7 @@
 ﻿using DiscordBot.Classes;
 using DiscordBot.Permissions;
+using DiscordBot.Services;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,7 +13,11 @@ namespace DiscordBot.MLAPI.Modules
 {
     public class BotPerms : APIBase
     {
-        public BotPerms(APIContext c) : base(c, "bot") { }
+        public PermissionsService Service { get; set; }
+        public BotPerms(APIContext c) : base(c, "bot") 
+        {
+            Service = Program.Services.GetRequiredService<PermissionsService>();
+        }
 
         (bool can, string err) canSetPermission(BotUser oper, BotUser target, NodeInfo node, NodeInfo requires)
         {
@@ -21,35 +27,15 @@ namespace DiscordBot.MLAPI.Modules
                 return (false, "You must have the permission yourself");
             if (!PermChecker.UserHasPerm(oper, requires))
                 return (false, $"Must have '{requires.Description}' to change");
-            var userMustHave = node.GetAttribute<MutuallyInclusive>();
-            if(userMustHave != null)
-            {
-                foreach(var x in userMustHave.PermsRequired.Select(x => Perms.Parse(x)))
-                {
-                    if (!PermChecker.UserHasPerm(target, x))
-                        return (false, $"User must have '{x.Description}' before recieving this permission");
-                }
-            }
-            var userProhibits = node.GetAttribute<MutuallyExclusive>();
-            if(userProhibits != null)
-            {
-                foreach(var x in userProhibits.PermsIllegal.Select(x => Perms.Parse(x)))
-                {
-                    if (!PermChecker.UserHasPerm(target, x))
-                        return (false, $"User must not have '{x.Description}'");
-                }
-            }
             return (true, null);
         }
 
         string buildHTML(BotUser user, FieldInfo field)
         {
             string node = (string)field.GetValue(null);
-            var perm = Perms.Parse(node);
-            if (perm.HasAttr<NotWebModifiable>())
-                return "";
+            var perm = Service.FindNode(node);
             bool has = PermChecker.UserHasPerm(user, perm, out bool d);
-            var requires = Perms.Parse(perm.GetAttribute<AssignedByAttribute>().PermRequired);
+            var requires = Service.FindNode(perm.GetAttribute<AssignedByAttribute>().PermRequired);
             (bool canChange, _) = canSetPermission(Context.User, user, perm, requires);
             string item = $"<label id='{node}' data-change='{requires.Node}' onmouseout='nohover(this);' onmouseover='hoverp(this);'><input {((d || !canChange) ? "disabled" : "")} class='{(has ? "inp-has" : "")} {(d ? "inp-dis" : "")}' type='checkbox' id='cb_{node}' onclick='changep(this);' {(has ? "checked" : "")}/> {perm.Description}";
             return item + "</label><br/>";
@@ -115,12 +101,12 @@ namespace DiscordBot.MLAPI.Modules
                 return;
             }
             var perm = Perm.Parse(node);
-            if (perm == null || perm.HasAttr<NotWebModifiable>() || perm.Field == null)
+            if (perm == null)
             {
                 RespondRaw("Unknown permission", 404);
                 return;
             }
-            var requires = Perms.Parse(perm.GetAttribute<AssignedByAttribute>().PermRequired);
+            var requires = Service.FindNode(perm.GetAttribute<AssignedByAttribute>().PermRequired);
             (bool can, string errorReason) = canSetPermission(Context.User, other, perm, requires);
             if (can)
             {

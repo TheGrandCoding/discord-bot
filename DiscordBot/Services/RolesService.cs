@@ -1,8 +1,11 @@
 ﻿using Discord;
+using DiscordBot.Classes;
 using DiscordBot.Classes.Attributes;
+using DiscordBot.Permissions;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace DiscordBot.Services
@@ -14,6 +17,8 @@ namespace DiscordBot.Services
         public Dictionary<ulong, RolesSetup> Messages { get; set; }
         public ReactionService Service { get; set; }
 
+        public PermissionsService Permissions { get; set; }
+
         public override string GenerateSave()
         {
             return Program.Serialise(Messages);
@@ -22,8 +27,72 @@ namespace DiscordBot.Services
         {
             instance = this;
             Service = Program.Services.GetRequiredService<ReactionService>();
+            Permissions = Program.Services.GetRequiredService<PermissionsService>();
             Messages = Program.Deserialise<Dictionary<ulong, RolesSetup>>(ReadSave());
+            Dictionary<string, string> permissions = new Dictionary<string, string>();
+            foreach(var x in Messages)
+            { // since it may be removed.
+                Service.Register(x.Value.Message, EventAction.Added | EventAction.Removed, handleReact, x.Key.ToString());
+                var guild = Program.Client.GetGuild(x.Key);
+                // in case reactions were added whilst bot offline
+                Permissions.RegisterNewNode(new NodeInfo(
+                    $"roles.{guild.Id}.*",
+                    "Use all reaction roles for " + guild.Name)
+                    .SetAssignedBy("roles.*"));
+                foreach(var emoteStr in x.Value.Roles.Keys)
+                {
+                    IEmote emote;
+                    if(Emote.TryParse(emoteStr, out var _e))
+                    {
+                        emote = _e;
+                    } else
+                    {
+                        emote = new Emoji(emoteStr);
+                    }
+                    var role = guild.GetRole(x.Value.Roles[emoteStr]);
+                    var rolePerm = new NodeInfo(
+                        $"roles.{guild.Id}.{role.Id}",
+                        $"Use reaction to get/remove {role.Name} for {guild.Name}")
+                        .SetAssignedBy($"roles.{guild.Id}.*");
+                    Permissions.RegisterNewNode(rolePerm);
+                }
+            }
         }
+
+        public override void OnLoaded()
+        {
+            foreach (var x in Messages)
+            { // since it may be removed.
+                var guild = Program.Client.GetGuild(x.Key);
+                foreach (var emoteStr in x.Value.Roles.Keys)
+                {
+                    IEmote emote;
+                    if (Emote.TryParse(emoteStr, out var _e))
+                    {
+                        emote = _e;
+                    }
+                    else
+                    {
+                        emote = new Emoji(emoteStr);
+                    }
+                    var role = guild.GetRole(x.Value.Roles[emoteStr]);
+                    var reacts = x.Value.Message.GetReactionUsersAsync(emote, 100).FlattenAsync().Result;
+                    var rolePerm = Permissions.FindNode($"roles.{guild.Id}.{role.Id}");
+                    foreach (var u in reacts)
+                    {
+                        var botUser = Program.GetUser(u);
+                        if (PermChecker.UserHasPerm(botUser, rolePerm))
+                        {
+                            var gUser = guild.GetUser(u.Id);
+                            if (!gUser.Roles.Any(x => x.Id == role.Id))
+                                gUser.AddRoleAsync(role);
+                        }
+                    }
+
+                }
+            }
+        }
+
         public void Register(IGuild guild, IUserMessage message, Action<EmojiStore> action)
         {
             if(Messages.TryGetValue(guild.Id, out var prior))

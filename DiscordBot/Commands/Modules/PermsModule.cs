@@ -3,6 +3,7 @@ using Discord.Addons.Interactive;
 using Discord.Commands;
 using DiscordBot.Classes;
 using DiscordBot.Permissions;
+using DiscordBot.Services;
 using DiscordBot.TypeReaders;
 using System;
 using System.Collections.Generic;
@@ -15,13 +16,14 @@ namespace DiscordBot.Commands.Modules
     [Name("Bot Permissions Module")]
     public class PermsModule : BotModule
     {
+        public PermissionsService Service { get; set; }
         [Command("list")]
         [Summary("Lists all nodes, with an optional prefix search")]
         public async Task ListAllPermissions(string prefix = null)
         {
             var pages = new List<string>();
             string cPage = "";
-            foreach(var node in Perms.AllNodes.Values)
+            foreach(var node in Service.AllNodes.Values)
             {
                 if (prefix != null && !node.Node.StartsWith(prefix))
                     continue;
@@ -70,7 +72,7 @@ namespace DiscordBot.Commands.Modules
             paginator.Content = "These are the effective permissions of the user, taking into account wildcards, denials and allowals.";
             var pages = new List<string>();
             string cPage = "";
-            foreach (var perm in Perms.AllNodes.Values)
+            foreach (var perm in Service.AllNodes.Values)
             {
                 if (!PermChecker.UserHasPerm(u, perm, out var inherit))
                     continue;
@@ -207,7 +209,5 @@ namespace DiscordBot.Commands.Modules
             await printListFor(user);
             return new BotResult();
         }
-
-
     }
 }

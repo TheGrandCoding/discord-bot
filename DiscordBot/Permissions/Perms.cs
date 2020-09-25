@@ -30,31 +30,6 @@ namespace DiscordBot
         public string PermRequired { get; set; }
         public AssignedByAttribute(string perm) { PermRequired = perm; }
     }
-
-    /// <summary>
-    /// Indicates this permission cannot be given without the User also having the others specified
-    /// </summary>
-    public class MutuallyInclusive : PermissionAttribute
-    {
-        public string[] PermsRequired { get; set; }
-        public MutuallyInclusive(params string[] perms) { PermsRequired = perms; }
-    }
-
-    /// <summary>
-    /// Indicates this permission cannot be given if the User has any of the ones specified
-    /// </summary>
-    public class MutuallyExclusive : PermissionAttribute
-    {
-        public string[] PermsIllegal { get; set; }
-        public MutuallyExclusive(params string[] reject) { PermsIllegal = reject; }
-    }
-
-    /// <summary>
-    /// Indicates this permission should not be displayed or modifiable via the MLAPI.
-    /// </summary>
-    public class NotWebModifiable : PermissionAttribute
-    { }
-
     #endregion
 
     [Description("Description failed to fetch")]
@@ -63,33 +38,5 @@ namespace DiscordBot
     {
         [Description("All permissions")]
         public const string All = "*";
-
-        public static Dictionary<string, NodeInfo> AllNodes { get; set; } = new Dictionary<string, NodeInfo>();
-
-        static List<FieldInfo> findPerms(Type mainType)
-        {
-            var fields = (from f in mainType.GetFields()
-                         where f.FieldType == typeof(string)
-                         select f).ToList();
-            foreach (var sub in mainType.GetNestedTypes())
-                fields.AddRange(findPerms(sub));
-            return fields;
-        } 
-
-        public static NodeInfo Parse(string n)
-        {
-            AllNodes.TryGetValue(n, out var p);
-            return p;
-        }
-
-        static Perms()
-        {
-            var fields = findPerms(typeof(Perms));
-            foreach (var x in fields)
-            {
-                var node = new NodeInfo(x);
-                AllNodes[node.Node] = node;
-            }
-        }
     }
 }

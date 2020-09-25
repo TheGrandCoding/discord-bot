@@ -28,18 +28,21 @@ namespace DiscordBot.Classes
 
         public PermType Type { get; set; }
 
-        public Perm(FieldInfo info) : base(info)
+        public Perm(FieldInfo info) : base(null, null)
         {
+            var x = new FieldNodeInfo(info);
+            Node = x.Node;
+            Description = x.Description;
             Type = PermType.Grant;
         }
-        public Perm(NodeInfo node, PermType type) : base(node.Field)
+        public Perm(NodeInfo node, PermType type) : base(node.Node, node.Description)
         {
             Type = type;
         }
 
         public static Perm Parse(string n) => new Perm(n);
 
-        private Perm(string node) : base(null)
+        private Perm(string node) : base(null, null)
         {
             if(node.StartsWith('+'))
             {
@@ -54,7 +57,6 @@ namespace DiscordBot.Classes
                 Node = node;
                 Type = PermType.Grant;
             }
-            base.Field = Perms.Parse(Node)?.Field;
         }
     
         public bool isMatch(NodeInfo seeking, out bool inherited)

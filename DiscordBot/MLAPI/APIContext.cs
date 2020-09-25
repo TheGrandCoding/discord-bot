@@ -1,7 +1,9 @@
 ﻿using Discord.Commands;
 using DiscordBot.Classes;
 using DiscordBot.Permissions;
+using DiscordBot.Services;
 using HttpMultipartParser;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -20,13 +22,16 @@ namespace DiscordBot.MLAPI
         public string Query => Request.Url.Query;
         public string Method => Request.HttpMethod;
 
+        static PermissionsService pService;
+
         public string IP => Request.Headers["X-Forwarded-For"] ?? Request.RemoteEndPoint.Address.ToString();
 
         public bool isInNetwork => IP.StartsWith("192.168.1.");
 
         public bool HasPerm(string perm)
         {
-            var node = Perms.Parse(perm);
+            pService ??= Program.Services.GetRequiredService<PermissionsService>();
+            var node = pService.FindNode(perm);
             if (node == null)
             {
                 Program.LogMsg($"Attempted checking invalid perm: {Path}, '{perm}'");
