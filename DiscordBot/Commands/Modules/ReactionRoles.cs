@@ -1,10 +1,13 @@
 ﻿using Discord;
 using Discord.Commands;
+using Discord.WebSocket;
+using DiscordBot.Classes;
 using DiscordBot.Commands;
 using DiscordBot.Services;
 using Microsoft.IdentityModel.Tokens;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -12,9 +15,11 @@ namespace DiscordBot.Commands.Modules
 {
     [Group("roles")]
     [Name("Reaction Roles")]
+    [RequireUserPermission(GuildPermission.ManageRoles)]
     public class ReactionRoles : BotModule
     {
         public RolesService Service { get; set; }
+
         [Command("start")]
         [Alias("register")]
         [Summary("Sends a message for reaction roles to be added to")]
@@ -69,6 +74,39 @@ namespace DiscordBot.Commands.Modules
             });
             Service.OnSave();
             return new BotResult();
+        }
+
+        [Command("block")]
+        [Summary("Prevents a user from performing any reaction roles in this server")]
+        public async Task BlockWhole(SocketGuildUser user)
+        {
+            var bUser = Program.GetUser(user);
+            var perm = Perm.Parse($"-roles.{user.Guild.Id}.*");
+            if(bUser.Permissions.RemoveAll(x => x.RawNode == perm.RawNode) > 0)
+            {
+                await ReplyAsync("Unblocked");
+            } else
+            {
+                bUser.Permissions.Add(perm);
+                await ReplyAsync("Blocked.");
+            }
+        }
+
+        [Command("block")]
+        [Summary("Prevents a user from getting the specific role via reaction in this server")]
+        public async Task BlockWhole(SocketGuildUser user, IRole role)
+        {
+            var bUser = Program.GetUser(user);
+            var perm = Perm.Parse($"-roles.{user.Guild.Id}.{role.Id}");
+            if (bUser.Permissions.RemoveAll(x => x.RawNode == perm.RawNode) > 0)
+            {
+                await ReplyAsync("Unblocked");
+            }
+            else
+            {
+                bUser.Permissions.Add(perm);
+                await ReplyAsync("Blocked.");
+            }
         }
     }
 }

@@ -85,7 +85,10 @@ namespace DiscordBot.Services
                         {
                             var gUser = guild.GetUser(u.Id);
                             if (!gUser.Roles.Any(x => x.Id == role.Id))
+                            {
                                 gUser.AddRoleAsync(role);
+                                Program.LogMsg($"Catching up, adding '{role.Name}' to {gUser.Username}", LogSeverity.Info, "Roles");
+                            }
                         }
                     }
 
@@ -126,7 +129,14 @@ namespace DiscordBot.Services
             var role = txt.Guild.GetRole(roleId);
             if (role == null)
                 return;
+            var perm = $"roles.{role.Guild.Id}.{role.Id}";
             var user = txt.Guild.GetUserAsync(e.User.Id).Result;
+            var bUser = Program.GetUser(user);
+            if(PermChecker.UserHasPerm(bUser, perm) == false)
+            {
+                user.SendMessageAsync($":x: You do not have permission to use {e.Emote} to receive or remove the role \"{role.Name}\"");
+                return;
+            }
             if (e.Action == EventAction.Added)
                 user.AddRoleAsync(role);
             else
