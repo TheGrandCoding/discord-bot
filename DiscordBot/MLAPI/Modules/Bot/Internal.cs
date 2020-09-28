@@ -76,7 +76,7 @@ namespace DiscordBot.MLAPI.Modules.Bot
             }
         }
 
-        static string Bash(this string cmd)
+        static string Bash(string cmd)
         {
             var escapedArgs = cmd.Replace("\"", "\\\"");
 
