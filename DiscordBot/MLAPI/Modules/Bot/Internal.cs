@@ -75,5 +75,48 @@ namespace DiscordBot.MLAPI.Modules.Bot
                 RespondRaw("Failed.", 400);
             }
         }
+
+        static string Bash(this string cmd)
+        {
+            var escapedArgs = cmd.Replace("\"", "\\\"");
+
+            var process = new Process()
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = "/bin/bash",
+                    Arguments = $"-c \"{escapedArgs}\"",
+                    RedirectStandardOutput = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                }
+            };
+            process.Start();
+            string result = process.StandardOutput.ReadToEnd();
+            process.WaitForExit();
+            return result;
+        }
+
+
+        [Method("POST"), Path("/bot/nea")]
+        [RequireAuthentication(false)]
+        [RequireApproval(false)]
+        public void NEAWebhook()
+        {
+            string value = Context.HTTP.Request.Headers["Authorization"];
+            var bytes = Convert.FromBase64String(value.Split(' ')[1]);
+            var combined = Encoding.UTF8.GetString(bytes);
+            var password = combined.Split(':')[1];
+            if (password == Program.Configuration["tokens:github:internal"])
+            {
+                Program.LogMsg("Updating NEA files...", Discord.LogSeverity.Warning, "NEA");
+                Program.LogMsg(Bash("/bot/dl_nea.sh"), Discord.LogSeverity.Verbose, "NEA");
+                RespondRaw("OK", 200);
+            }
+            else
+            {
+                RespondRaw("Failed.", 400);
+            }
+        }
     }
 }
