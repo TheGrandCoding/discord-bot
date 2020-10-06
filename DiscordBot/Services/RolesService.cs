@@ -49,6 +49,7 @@ namespace DiscordBot.Services
                     {
                         emote = new Emoji(emoteStr);
                     }
+                    x.Value.Message.AddReactionAsync(emote).Wait();
                     var role = guild.GetRole(x.Value.Roles[emoteStr]);
                     var rolePerm = new NodeInfo(
                         $"roles.{guild.Id}.{role.Id}",
