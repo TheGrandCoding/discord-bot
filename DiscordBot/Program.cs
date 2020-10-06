@@ -29,7 +29,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.9.11"; 
+        public const string VERSION = "0.9.12"; 
         public const string CHANGELOG = VERSION + @"
 == Permissions changes
 Changed how permissions worked for bot.

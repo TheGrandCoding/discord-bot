@@ -54,6 +54,33 @@ namespace DiscordBot.Commands.Modules
             return new BotResult();
         }
 
+        [Command("list")]
+        [Summary("Lists to the roles current")]
+        public async Task<RuntimeResult> ListRoles()
+        {
+            if (!Service.Messages.TryGetValue(Context.Guild.Id, out var setup))
+                return new BotResult($"There are no roles; you must run `{Program.Prefix}roles register` in the desired channel first");
+            var builder = new EmbedBuilder();
+            builder.Description = $"[Link to Message]({setup.Message.GetJumpUrl()})";
+            await ReplyAsync(embed: builder.Build());
+            return new BotResult();
+        }
+
+        [Command("inspect")]
+        [Summary("Inspects a role interaction")]
+        public async Task Inspect()
+        {
+            if(RolesService.Inspection == null)
+            {
+                RolesService.Inspection = (ITextChannel)Context.Channel;
+                await ReplyAsync("Inspecting roles.");
+            } else
+            {
+                RolesService.Inspection = null;
+                await ReplyAsync("No longer inspecting roles.");
+            }
+        }
+
         [Command("remove")]
         [Summary("Removes the emote-role pair.")]
         public async Task<RuntimeResult> RemoveRole(IEmote emote)

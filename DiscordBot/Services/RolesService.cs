@@ -1,6 +1,8 @@
 ﻿using Discord;
+using Discord.Commands;
 using DiscordBot.Classes;
 using DiscordBot.Classes.Attributes;
+using DiscordBot.Commands;
 using DiscordBot.Permissions;
 using Microsoft.Extensions.DependencyInjection;
 using System;
@@ -16,6 +18,8 @@ namespace DiscordBot.Services
         static RolesService instance { get; set; }
         public Dictionary<ulong, RolesSetup> Messages { get; set; }
         public ReactionService Service { get; set; }
+
+        public static ITextChannel Inspection { get; set; }
 
         public PermissionsService Permissions { get; set; }
 
@@ -117,31 +121,47 @@ namespace DiscordBot.Services
             Service.OnSave();
         }
 
-        public static void handleReact(object sender, ReactionEventArgs e)
+        static async System.Threading.Tasks.Task<BotResult> runReactions(ReactionEventArgs e)
         {
             if (!(ulong.TryParse(e.State, out var guildId)))
-                return;
+                return new BotResult($"Failed to parse '{e.State}' as ulong.");
             if (!(instance.Messages.TryGetValue(guildId, out var setup)))
-                return;
+                return new BotResult($"Guild {guildId} has no reaction roles set up.");
             if (!(setup.Roles.TryGetValue(e.Emote, out var roleId)))
-                return;
+                return new BotResult($"Emote {e.Emote} does not have a corresponding role.");
             if (!(e.Message.Channel is ITextChannel txt))
-                return;
+                return new BotResult($"Current channel, {e.Message.Channel} is not a text channel");
             var role = txt.Guild.GetRole(roleId);
             if (role == null)
-                return;
+                return new BotResult($"Role {roleId} does not exist.");
             var perm = $"roles.{role.Guild.Id}.{role.Id}";
-            var user = txt.Guild.GetUserAsync(e.User.Id).Result;
+            var user = await txt.Guild.GetUserAsync(e.User.Id);
             var bUser = Program.GetUser(user);
-            if(PermChecker.UserHasPerm(bUser, perm) == false)
+            if (PermChecker.UserHasPerm(bUser, perm) == false)
             {
-                user.SendMessageAsync($":x: You do not have permission to use {e.Emote} to receive or remove the role \"{role.Name}\"");
-                return;
+                await user.SendMessageAsync($":x: You do not have permission to use {e.Emote} to receive or remove the role \"{role.Name}\"");
+                return new BotResult($"User {bUser.Name} lacks the `{perm}` permission.\r\n" +
+                    $"Use `{Program.Prefix}perms viewo {bUser.Id}` to see what permissions they do have.");
             }
             if (e.Action == EventAction.Added)
-                user.AddRoleAsync(role);
+                await user.AddRoleAsync(role);
             else
-                user.RemoveRoleAsync(role);
+                await user.RemoveRoleAsync(role);
+            return new BotResult("Successfully handled reaction.");
+        }
+
+        public static void handleReact(object sender, ReactionEventArgs e)
+        {
+            var result = runReactions(e).Result;
+            if (Inspection != null)
+            {
+                var builder = new EmbedBuilder();
+                builder.Title = "Reaction Role";
+                builder.AddField("User", $"{e.User.Username}#{e.User.Discriminator}\r\n{e.User.Id}", true);
+                builder.AddField("Emote", e.Emote, true);
+                builder.Description = $"**{result.Reason}**";
+                Inspection.SendMessageAsync(embed: builder.Build());
+            }
         }
 
         public class RolesSetup
