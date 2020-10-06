@@ -180,6 +180,7 @@ namespace DiscordBot.Services.EduLink
         {
             if (!Emotes.WHITE_CHECK_MARK.Equals(args.Emote))
                 return;
+            Program.LogMsg($"{EduLink == null} - {EduLink?.Clients == null}");
             if (!EduLink.Clients.TryGetValue(args.User.Id, out var client))
                 return;
             if (!int.TryParse(args.State, out var hwkId))

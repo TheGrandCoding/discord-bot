@@ -128,8 +128,6 @@ namespace DiscordBot.Services
             zza_services = new List<Service>();
             zza_services.Add(backup);
             zza_services.AddRange(_servs);
-            foreach (var x in zza_services)
-                Console.WriteLine("  - " + x.Name);
             sendFunction("OnReady");
         }
     
@@ -210,12 +208,10 @@ namespace DiscordBot.Services
 
                 if (aAttribute.Types.Contains(yType))
                 {
-                    Console.WriteLine($"{x.Name} after {y.Name}");
                     return "y".CompareTo("x");
                 }
                 if (bAttribute.Types.Contains(xType))
                 {
-                    Console.WriteLine($"{x.Name} before {y.Name}");
                     return "x".CompareTo("y");
                 }
                 return 0;
