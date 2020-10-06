@@ -35,6 +35,8 @@ namespace DiscordBot.Services
         {
             if (AllNodes.ContainsKey(n.Node))
                 throw new ArgumentException("Impossible to override existing permission.");
+            if (n.HasAttr<AssignedByAttribute>() == false)
+                throw new ArgumentException("Every node must have an Assigned by.");
             AllNodes[n.Node] = n;
         }
 

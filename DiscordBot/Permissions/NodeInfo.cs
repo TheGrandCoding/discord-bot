@@ -56,7 +56,26 @@ namespace DiscordBot.Permissions
             Field = info;
             if(info != null)
                 Node = (string)info.GetValue(null);
-            Attributes = info?.GetCustomAttributes<PermissionAttribute>(true).ToList() ?? new List<PermissionAttribute>();
+            Attributes = getAttrirbs(info);
+        }
+
+        List<PermissionAttribute> getAttrirbs(Type type)
+        {
+            var ls = new List<PermissionAttribute>();
+            foreach (var x in type.GetCustomAttributes<PermissionAttribute>())
+                ls.Add(x);
+            if (type.DeclaringType != null)
+                ls.AddRange(getAttrirbs(type.DeclaringType));
+            return ls;
+        }
+        List<PermissionAttribute> getAttrirbs(FieldInfo field)
+        {
+            var ls = new List<PermissionAttribute>();
+            foreach (var x in field.GetCustomAttributes<PermissionAttribute>())
+                ls.Add(x);
+            if (field.DeclaringType != null)
+                ls.AddRange(getAttrirbs(field.DeclaringType));
+            return ls;
         }
 
         public override string Description
