@@ -105,7 +105,7 @@ namespace DiscordBot.MLAPI.Modules.UserModule
                 .Add("table_other_nicks", other));
         }
 
-        [Path("/user/nickchange"), Method("GET")]
+        [Path("/user/nickchange"), Method("PATCH")]
         public void ChangeUserNickname(ulong guildId, ulong userId, string newnick = "")
         {
             var guild = Program.Client.GetGuild(guildId);
