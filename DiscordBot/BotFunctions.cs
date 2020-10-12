@@ -30,6 +30,14 @@ namespace DiscordBot
                 existing = new BotUser(user);
                 Program.Users.Add(existing);
             }
+            if(existing.Permissions.Count == 0
+                && Program.AppInfo != null 
+                && Program.AppInfo.Owner.Id == existing.Id
+            )
+            {
+                existing.Permissions.Add(Perm.Parse("bot.*"));
+            }
+
             return existing;
         }
 
