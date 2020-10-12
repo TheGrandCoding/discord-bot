@@ -1,5 +1,6 @@
 ﻿using Discord.WebSocket;
 using DiscordBot.Classes;
+using DiscordBot.Permissions;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -42,7 +43,11 @@ namespace DiscordBot.MLAPI.Modules.UserModule
             }
             else if (oper.Id == target.Id)
             {
-                return true;
+                if (oper.GuildPermissions.ChangeNickname)
+                    return true;
+                var botU = Program.GetUser(oper);
+                if (PermChecker.UserHasPerm(botU, Perms.Bot.User.ChangeServerNickname))
+                    return true;
             }
             return false;
         }

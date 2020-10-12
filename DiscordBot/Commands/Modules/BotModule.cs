@@ -50,6 +50,16 @@ namespace DiscordBot.Commands.Modules
             await ReplyAsync("User has been approved.");
         }
 
+        [Command("disapprove")]
+        [Description("Disapproves a user for wider access to bot things")]
+        [RequirePermission(Perms.Bot.ApproveUser)]
+        public async Task Disapprove(BotUser b)
+        {
+            b.IsApproved = false;
+            b.Permissions = new List<Perm>();
+            await ReplyAsync("User has been disapproved.");
+        }
+
         [Command("dtick")]
         [Summary("Calls OnDailyTick for all services")]
         [RequireOwner]

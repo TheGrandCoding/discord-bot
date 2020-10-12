@@ -36,6 +36,9 @@ namespace DiscordBot
                 [Description("All user permissions")]
                 public const string All = "bot.user.*";
 
+                [Description("Change own nickname in a server")]
+                public const string ChangeServerNickname = "bot.user.nickname_self";
+
                 [Description("Change own override name")]
                 public const string ChangeSelfName = "bot.user.changename_self";
 
