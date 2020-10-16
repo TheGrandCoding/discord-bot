@@ -160,7 +160,7 @@ namespace ChessClient.Classes.Chess
         #endregion
 
         #region Multipurpose Messages
-
+        Log
         #endregion
     }
 }
