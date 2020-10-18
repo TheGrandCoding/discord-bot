@@ -26,6 +26,7 @@ namespace DiscordBot.Services
                 return;
             var builder = new EmbedBuilder();
             builder.Title = $"Status Updated";
+            builder.AddField($"Time", DateTime.Now.ToString("HH:mm:ss.fff"));
             builder.WithAuthor(arg1);
             builder.Description = $"{arg1.Status} to {arg2.Status}";
             foreach (var usr in monitor.Status)
@@ -38,6 +39,8 @@ namespace DiscordBot.Services
                 return;
             var builder = new EmbedBuilder();
             builder.Title = $"VC Updated";
+            builder.WithCurrentTimestamp();
+            builder.AddField($"Time", DateTime.Now.ToString("HH:mm:ss.fff"));
             builder.WithAuthor(arg1);
             if (arg3.VoiceChannel == null)
                 builder.Description = $"Left {arg2.VoiceChannel.Name}";
