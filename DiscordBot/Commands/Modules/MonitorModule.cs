@@ -45,7 +45,7 @@ namespace DiscordBot.Commands.Modules
             }
             else
             {
-                await ReplyAsync("Removed monitor for user.")
+                await ReplyAsync("Removed monitor for user.");
             }
         }
     }
