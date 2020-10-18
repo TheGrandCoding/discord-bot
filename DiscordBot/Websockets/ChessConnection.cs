@@ -296,6 +296,7 @@ namespace DiscordBot.WebSockets
 
             if(ping.Id == PacketId.ConnRequest)
             {
+                Send(new ChessPacket(PacketId.Log, ping.Content));
                 var token = ping.Content["token"].ToObject<string>();
                 bool usesAntiCheat = ping.Content["cheat"].ToObject<bool>();
                 Player = Players.FirstOrDefault(x => x.VerifyOnlineReference == token);
