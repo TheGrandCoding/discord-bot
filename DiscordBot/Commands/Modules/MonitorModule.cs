@@ -27,7 +27,7 @@ namespace DiscordBot.Commands.Modules
                 await ReplyAsync("Added monitor for user.");
             } else
             {
-                await ReplyAsync("Removed monitor for user.")
+                await ReplyAsync("Removed monitor for user.");
             }
         }
         [Command("status")]
