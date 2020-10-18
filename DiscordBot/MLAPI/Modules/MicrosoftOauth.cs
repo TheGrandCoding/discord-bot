@@ -1,11 +1,8 @@
 ﻿using Discord;
 using DiscordBot.Classes;
 using DiscordBot.Services;
-using IdentityModel;
 using IdentityModel.Client;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.IdentityModel.JsonWebTokens;
-using Microsoft.IdentityModel.Tokens;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
@@ -13,7 +10,6 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Text;
 
 namespace DiscordBot.MLAPI.Modules
 {

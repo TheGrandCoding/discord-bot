@@ -36,7 +36,6 @@ namespace DiscordBot.Services
             Dictionary<string, string> permissions = new Dictionary<string, string>();
             foreach(var x in Messages)
             { // since it may be removed.
-                Service.Register(x.Value.Message, EventAction.Added | EventAction.Removed, handleReact, x.Key.ToString());
                 var guild = Program.Client.GetGuild(x.Key);
                 // in case reactions were added whilst bot offline
                 Permissions.RegisterNewNode(new NodeInfo(
@@ -66,8 +65,14 @@ namespace DiscordBot.Services
 
         public override void OnLoaded()
         {
+            OnDailyTick();
+        }
+
+        public override void OnDailyTick()
+        {
             foreach (var x in Messages)
             { // since it may be removed.
+                Service.Register(x.Value.Message, EventAction.Added | EventAction.Removed, handleReact, x.Key.ToString());
                 var guild = Program.Client.GetGuild(x.Key);
                 foreach (var emoteStr in x.Value.Roles.Keys)
                 {
