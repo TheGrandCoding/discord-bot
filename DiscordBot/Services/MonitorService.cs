@@ -2,6 +2,7 @@
 using Discord.WebSocket;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace DiscordBot.Services
@@ -41,10 +42,16 @@ namespace DiscordBot.Services
             if (!Monitors.TryGetValue((arg1 ?? arg2).Id, out var monitor))
                 return;
             var builder = new EmbedBuilder();
-            builder.Title = $"Status Updated";
+            builder.Title = $"User Updated";
+            builder.WithCurrentTimestamp();
             builder.AddField($"Time", DateTime.Now.ToString("HH:mm:ss.fff"));
             builder.WithAuthor(arg1);
-            builder.Description = $"{arg1.Status} to {arg2.Status}";
+            var calc = new ChangeCalculator(arg1, arg2);
+            var changes = calc.GetChanges();
+            foreach(var change in changes)
+            {
+                builder.AddField(change.Type, $"{change.Before} -> {change.After}");
+            }
             foreach (var usr in monitor.Status)
                 await usr.SendMessageAsync(embed: builder.Build());
         }
@@ -73,6 +80,69 @@ namespace DiscordBot.Services
     {
         public List<SocketGuildUser> VC { get; set; } = new List<SocketGuildUser>();
         public List<SocketGuildUser> Status { get; set; } = new List<SocketGuildUser>();
+    }
+
+    class ChangeCalculator
+    {
+        public SocketGuildUser Before { get; set; }
+        public SocketGuildUser After { get; set; }
+        public ChangeCalculator(SocketGuildUser before, SocketGuildUser after)
+        {
+            Before = before;
+            After = after;
+        }
+
+        public List<Change> GetChanges()
+        {
+            var ls = new List<Change>();
+            foreach(var x in this.GetType().GetMethods().Where(x => x.ReturnType == typeof(Change)))
+            {
+                ls.Add((Change)x.Invoke(this, new object[] { }));
+            }
+            return ls.Where(x => x != null).ToList();
+        }
+
+        Change compareStatus()
+        {
+            return Before.Status == After.Status ? null : Change.Status(Before.Status, After.Status);
+        }
+        string getActivity(IActivity thing)
+        {
+            if (thing == null)
+                return null;
+            return $"{thing.Type} {thing.Name}";
+        } 
+        Change compareActivity()
+        {
+            var before = Before.Activity;
+            var after = After.Activity;
+            if (after == null)
+                return Change.Activity(getActivity(before), "[null]");
+            if (before == null)
+                return Change.Activity("[null]", getActivity(after));
+            if (before.Type == ActivityType.Listening && after.Type == ActivityType.Listening)
+                return null;
+            if (before.Name == after.Name)
+                return null;
+            return Change.Activity(getActivity(before), getActivity(after));
+        }
+    }
+
+    class Change
+    {
+        public string Type { get; set; }
+        public string Before { get; set; }
+        public string After { get; set; }
+        public Change(string type, string before, string after)
+        {
+            Type = type;
+            Before = before;
+            After = after;
+        }
+        public static Change Status(UserStatus before, UserStatus after) 
+            => new Change("Status", before.ToString(), after.ToString());
+        public static Change Activity(string before, string after)
+            => new Change("Activity", before, after);
     }
 
 }
