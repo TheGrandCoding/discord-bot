@@ -20,8 +20,24 @@ namespace DiscordBot.Services
             Program.Client.GuildMemberUpdated += Client_GuildMemberUpdated;
         }
 
+        bool shouldAct(SocketGuildUser user)
+        {
+            foreach(var guild in Program.Client.Guilds)
+            {
+                var inG = guild.GetUser(user.Id);
+                if (inG == null)
+                    continue;
+                if (guild.Id != user.Guild.Id)
+                    return false;
+                return true;
+            }
+            return true;
+        }
+
         private async System.Threading.Tasks.Task Client_GuildMemberUpdated(SocketGuildUser arg1, SocketGuildUser arg2)
         {
+            if (!shouldAct(arg1 ?? arg2))
+                return;
             if (!Monitors.TryGetValue((arg1 ?? arg2).Id, out var monitor))
                 return;
             var builder = new EmbedBuilder();
