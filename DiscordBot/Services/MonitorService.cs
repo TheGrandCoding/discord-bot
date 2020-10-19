@@ -50,7 +50,7 @@ namespace DiscordBot.Services
             var changes = calc.GetChanges();
             foreach(var change in changes)
             {
-                builder.AddField(change.Type, $"{change.Before} -> {change.After}");
+                builder.AddField(change.Type, $"{change.Before} -> {change.After}", true);
             }
             foreach (var usr in monitor.Status)
                 await usr.SendMessageAsync(embed: builder.Build());
@@ -102,7 +102,7 @@ namespace DiscordBot.Services
             return ls.Where(x => x != null).ToList();
         }
 
-        Change compareStatus()
+        public Change compareStatus()
         {
             return Before.Status == After.Status ? null : Change.Status(Before.Status, After.Status);
         }
@@ -112,7 +112,7 @@ namespace DiscordBot.Services
                 return null;
             return $"{thing.Type} {thing.Name}";
         } 
-        Change compareActivity()
+        public Change compareActivity()
         {
             var before = Before.Activity;
             var after = After.Activity;
