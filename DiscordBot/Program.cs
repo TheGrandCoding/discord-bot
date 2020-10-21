@@ -13,6 +13,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
+using Pomelo.EntityFrameworkCore.MySql.Storage;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -30,7 +32,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.9.22"; 
+        public const string VERSION = "0.9.23"; 
         public const string CHANGELOG = VERSION + @"
 == Permissions changes
 Changed how permissions worked for bot.
@@ -270,7 +272,9 @@ Changed how permissions worked for bot.
                 .AddSingleton<CommandHandlingService>()
                 .AddSingleton<InteractiveService>();
             var options = new DbContextOptionsBuilder()
-                .UseSqlServer(Configuration["tokens:db"]);
+                .UseMySql(Configuration["tokens:db"], mysqlOptions =>
+                mysqlOptions.ServerVersion(new ServerVersion(new Version(10, 3, 25), ServerType.MariaDb))
+            );
             var db = new LogContext(options.Options);
             coll.AddSingleton(db);
             var http = new HttpClient();

@@ -77,7 +77,7 @@ namespace DiscordBot.Services
                 builder.Description = $"Left {arg2.VoiceChannel.Name}";
             else if (arg2.VoiceChannel == null)
                 builder.Description = $"Join {arg3.VoiceChannel.Name}";
-            else
+            else if(arg2.VoiceChannel.Id != arg3.VoiceChannel.Id)
                 builder.Description = $"Moved from {arg2.VoiceChannel.Name} to {arg3.VoiceChannel.Name}";
             foreach (var usr in monitor.VC)
                 await usr.SendMessageAsync(embed: builder.Build());
