@@ -191,6 +191,8 @@ namespace DiscordBot.Services
                 return true;
             if (before == null)
                 return false;
+            if (before is CustomStatusGame game && after is CustomStatusGame gameAfter)
+                return (game.Emote?.Equals(gameAfter.Emote) ?? gameAfter.Emote == null) && game.State == gameAfter.State;
             return before.Equals(after);
         }
 

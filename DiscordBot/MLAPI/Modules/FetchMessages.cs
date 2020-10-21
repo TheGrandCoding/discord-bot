@@ -457,7 +457,7 @@ namespace DiscordBot.MLAPI.Modules
                     USER += "<div class='layout-2DM8Md'>";
                     USER += "<div class='avatar-3uk_u9'>";
                     USER += "<div class='wrapper-3t9DeA' " +
-                        $"role='img' aria-label='{member.Username}, {member.Status}'" +
+                        $"role='img' aria-label='{member.Username}, {member.Activity}'" +
                         " aria-hidden='false' style='width: 32px; height: 32px;'>";
                     USER += "<svg width='40' height='32' viewBox='0 0 40 32' class='mask-1l8v16 svg-2V3M55' aria-hidden='true'>";
                     USER += "<foreignObject x='0' y='0' width='32' height='32' mask='url(#svg-mask-avatar-status-round-32)'>";
