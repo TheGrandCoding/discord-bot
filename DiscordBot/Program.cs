@@ -32,7 +32,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.10.3"; 
+        public const string VERSION = "0.10.4"; 
         public const string CHANGELOG = VERSION + @"
 == Permissions changes
 Changed how permissions worked for bot.
@@ -277,7 +277,10 @@ Changed how permissions worked for bot.
 #else
             var options = new DbContextOptionsBuilder()
                 .UseMySql(Configuration["tokens:db"], mysqlOptions =>
-                mysqlOptions.ServerVersion(new ServerVersion(new Version(10, 3, 25), ServerType.MariaDb))
+                {
+                    mysqlOptions.CharSet(CharSet.Utf8Mb4);
+                    mysqlOptions.ServerVersion(new ServerVersion(new Version(10, 3, 25), ServerType.MariaDb));
+                }
             );
 #endif
             var db = new LogContext(options.Options);
