@@ -1,8 +1,10 @@
 ﻿using Discord;
 using Discord.WebSocket;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 
 namespace DiscordBot.Services
@@ -47,10 +49,15 @@ namespace DiscordBot.Services
             builder.AddField($"Time", DateTime.Now.ToString("HH:mm:ss.fff"));
             builder.WithAuthor(arg1);
             var calc = new ChangeCalculator(arg1, arg2);
-            var changes = calc.GetChanges();
+            var changes = calc.GetChangesReflection();
             foreach(var change in changes)
             {
-                builder.AddField(change.Type, $"{change.Before} -> {change.After}", true);
+                string value = "";
+                if (change.Before == null)
+                    value = change.After;
+                else
+                    value = $"{change.Before} -> {change.After}";
+                builder.AddField(change.Type, value, true);
             }
             foreach (var usr in monitor.Status)
                 await usr.SendMessageAsync(embed: builder.Build());
@@ -65,10 +72,11 @@ namespace DiscordBot.Services
             builder.WithCurrentTimestamp();
             builder.AddField($"Time", DateTime.Now.ToString("HH:mm:ss.fff"));
             builder.WithAuthor(arg1);
+            builder.WithColor(Color.Purple);
             if (arg3.VoiceChannel == null)
                 builder.Description = $"Left {arg2.VoiceChannel.Name}";
             else if (arg2.VoiceChannel == null)
-                builder.Description = $"Join {arg2.VoiceChannel.Name}";
+                builder.Description = $"Join {arg3.VoiceChannel.Name}";
             else
                 builder.Description = $"Moved from {arg2.VoiceChannel.Name} to {arg3.VoiceChannel.Name}";
             foreach (var usr in monitor.VC)
@@ -92,7 +100,7 @@ namespace DiscordBot.Services
             After = after;
         }
 
-        public List<Change> GetChanges()
+        /*public List<Change> GetChanges()
         {
             var ls = new List<Change>();
             foreach(var x in this.GetType().GetMethods().Where(x => x.ReturnType == typeof(Change)))
@@ -100,7 +108,92 @@ namespace DiscordBot.Services
                 ls.Add((Change)x.Invoke(this, new object[] { }));
             }
             return ls.Where(x => x != null).ToList();
+        }*/
+
+        public List<Change> GetChangesReflection() 
+        {
+            var properties = typeof(SocketGuildUser).GetProperties();
+            var ls = new List<Change>();
+            foreach(var property in properties)
+            {
+                if (property.Name == "Guild")
+                    continue;
+                if (property.Name == "VoiceChannel"
+                    || property.Name == "VoiceSessionId"
+                    || property.Name == "VoiceState")
+                    continue;
+                if (property.Name == "MutualGuilds")
+                    continue;
+                if (IsPropertyACollection(property))
+                    ls.AddRange(getChangesList(property));
+                else
+                    ls.AddRange(getChangesSingular(property));
+            }
+            return ls;
         }
+
+        bool IsPropertyACollection(PropertyInfo property)
+        {
+            return property.PropertyType.GetInterface(typeof(IEnumerable<>).FullName) != null;
+        }
+
+        string toStr(IEnumerable list)
+        {
+            if (list == null)
+                return "null";
+            var sb = new StringBuilder();
+            sb.Append("[");
+            foreach (var x in list)
+                sb.Append(toStr(x));
+            sb.Append("]");
+            return sb.ToString();
+        }
+        string toStr(object thing)
+        {
+            if (thing == null)
+                return "null";
+            if (thing is GuildPermissions perms)
+            {
+                return perms.RawValue.ToString();
+            } else
+            {
+                return thing.ToString();
+            }
+        }
+
+        List<Change> getChangesList(PropertyInfo property)
+        {
+            var before = ((IEnumerable)property.GetValue(Before)).Cast<object>();
+            var after = ((IEnumerable)property.GetValue(After)).Cast<object>();
+            if (before == null || after == null)
+                return new Change(property.Name, toStr(before), toStr(after));
+            var added = after.Where(x => before.Contains(x) == false).ToList();
+            var removed = before.Where(x => after.Contains(x) == false).ToList();
+            var ls = new List<Change>();
+            if (added.Count > 0)
+                ls.Add(new Change("+" + property.Name, null, toStr(added)));
+            if (removed.Count > 0)
+                ls.Add(new Change("-" + property.Name, null, toStr(removed)));
+            return ls;
+        }
+        List<Change> getChangesSingular(PropertyInfo property)
+        {
+            var before = property.GetValue(Before);
+            var after = property.GetValue(After);
+            if (isEqual(before, after))
+                return new List<Change>();
+            return new Change(property.Name, toStr(before), toStr(after));
+        }
+
+        bool isEqual(object before, object after)
+        {
+            if (before == null && after == null)
+                return true;
+            if (before == null)
+                return false;
+            return before.Equals(after);
+        }
+
 
         public Change compareStatus()
         {
@@ -143,6 +236,8 @@ namespace DiscordBot.Services
             => new Change("Status", before.ToString(), after.ToString());
         public static Change Activity(string before, string after)
             => new Change("Activity", before, after);
+
+        public static implicit operator List<Change>(Change This) => new List<Change>() { This };
     }
 
 }
