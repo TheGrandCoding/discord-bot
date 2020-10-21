@@ -43,6 +43,9 @@ namespace DiscordBot.Classes
         [JsonProperty("perms")]
         public List<Perm> Permissions { get; set; } = new List<Perm>();
 
+        [JsonProperty("vpnlast")]
+        public Dictionary<ulong, DateTime> LastVisitVPN { get; set; } = new Dictionary<ulong, DateTime>();
+
         [JsonIgnore]
         public string MLAPIPassword {  get
             {
