@@ -120,7 +120,7 @@ namespace DiscordBot.Services
             }
         }
 
-        public MsgModel(SocketUserMessage message)
+        public MsgModel(IUserMessage message)
         {
             Guild = ((IGuildChannel)message.Channel).GuildId;
             Channel = message.Channel.Id;
@@ -242,7 +242,7 @@ namespace DiscordBot.Services
                 if (!total.Any(x => x.Id == ds.Id))
                 {
                     total.Add(new DiscordMsg(this, (IUserMessage)ds));
-                    var toStore = new MsgModel((SocketUserMessage)ds);
+                    var toStore = new MsgModel((IUserMessage)ds);
                     DB.Messages.Add(toStore);
                     changes = true;
                 }

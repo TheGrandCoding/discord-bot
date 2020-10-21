@@ -14,7 +14,7 @@ namespace DiscordBot.RESTAPI.Functions.HTML
 {
     public class RAW : APIBase
     {
-        public RAW(APIContext context) : base(context, "/")
+        public RAW(APIContext context) : base(context, "")
         {
         }
 
