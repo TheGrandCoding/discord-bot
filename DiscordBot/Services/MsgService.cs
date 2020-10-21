@@ -236,11 +236,19 @@ namespace DiscordBot.Services
                 if (!dsMessages.Any(ds => ds.Id == x.Id))
                     x.IsDeleted = true;
             }
+            bool changes = false;
             foreach(var ds in dsMessages)
             {
                 if (!total.Any(x => x.Id == ds.Id))
+                {
                     total.Add(new DiscordMsg(this, (IUserMessage)ds));
+                    var toStore = new MsgModel((SocketUserMessage)ds);
+                    DB.Messages.Add(toStore);
+                    changes = true;
+                }
             }
+            if (changes)
+                await DB.SaveChangesAsync();
             return total;
         }
 
