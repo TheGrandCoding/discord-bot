@@ -19,7 +19,7 @@ namespace DiscordBot.Services
             perform().Wait();
         }
 
-        async Task perform()
+        public async Task perform()
         {
             var guild = Program.Client.GetGuild(365230804734967840);
             foreach (var bUser in Program.Users.Where(x => !x.GeneratedUser && !x.ServiceUser && x.Classes.Count > 0).ToList())

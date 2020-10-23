@@ -4,6 +4,7 @@ using DiscordBot.Commands.Attributes;
 using DiscordBot.Services;
 using EduLinkDLL;
 using EduLinkDLL.Exceptions;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -50,6 +51,15 @@ namespace DiscordBot.Commands.Modules.EduLink
                 return;
             }
             await ReplyAsync($"Account is linked to {client.CurrentUser.UserName}, {client.CurrentUser.Forename}");
+        }
+
+        [Command("roles")]
+        [RequirePermission(Perms.Bot.Developer.All)]
+        public async Task SetRoles()
+        {
+            var service = Program.Services.GetRequiredService<ClassRoleService>();
+            await service.perform();
+            await ReplyAsync("Done.");
         }
     }
 }
