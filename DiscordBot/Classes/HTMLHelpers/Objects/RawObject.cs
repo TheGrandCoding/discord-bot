@@ -10,14 +10,23 @@ namespace DiscordBot.Classes.HTMLHelpers.Objects
         {
             RawText = text;
         }
-        protected override void WriteOpenTag(StringBuilder sb)
+        protected override void WriteOpenTag(StringBuilder sb, int tab = -1)
         {
+            if (tab > -1)
+            {
+                sb.Append(new string(' ', tab * 4));
+                sb.Append("\r\n");
+            }
         }
-        protected override void WriteContent(StringBuilder sb)
+        protected override void WriteContent(StringBuilder sb, int tab = -1)
         {
+            if (tab > -1)
+                sb.Append(new string(' ', tab * 4));
             sb.Append(RawText);
+            if(tab > -1)
+                sb.Append("\r\n");
         }
-        protected override void WriteCloseTag(StringBuilder sb)
+        protected override void WriteCloseTag(StringBuilder sb, int tab = -1)
         {
         }
 

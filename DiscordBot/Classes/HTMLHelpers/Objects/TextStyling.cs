@@ -18,4 +18,11 @@ namespace DiscordBot.Classes.HTMLHelpers.Objects
             RawText = content;
         }
     }
+    public class ItalicText : DOMBase
+    {
+        public ItalicText(string content, string id = null, string cls = null) : base("i", id, cls)
+        {
+            RawText = content;
+        }
+    }
 }

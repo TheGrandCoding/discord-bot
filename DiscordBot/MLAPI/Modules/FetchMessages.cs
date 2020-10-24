@@ -1,6 +1,8 @@
 ﻿using Discord;
 using Discord.Rest;
 using Discord.WebSocket;
+using DiscordBot.Classes.HTMLHelpers;
+using DiscordBot.Classes.HTMLHelpers.Objects;
 using DiscordBot.Commands.Modules.MLAPI;
 using DiscordBot.Services;
 using Microsoft.Extensions.DependencyInjection;
@@ -176,6 +178,8 @@ namespace DiscordBot.MLAPI.Modules
             {
                 foreach (var role in user.Roles.OrderByDescending(x => x.Position))
                 {
+                    if (role.Color == Color.Default)
+                        continue;
                     return getRGBFromColor(role.Color);
                 }
             }
@@ -184,8 +188,9 @@ namespace DiscordBot.MLAPI.Modules
 
         SocketGuildUser Self;
         bool HasUnreadMessages = false;
-        string getMsgContent(SocketGuild guild, ReturnedMsg m, out bool mentioned)
+        HTMLBase getMsgContent(SocketGuild guild, ReturnedMsg m, out bool mentioned)
         {
+            var div = new Div(cls: "markup-2BOw-j messageContent-2qWWxC");
             mentioned = false;
             string basic = m.Content;
             #region Strip Harmful Stuff
@@ -245,14 +250,28 @@ namespace DiscordBot.MLAPI.Modules
             #region Markdown Replacement
             // Skip for now.
             #endregion
-            return basic;
+            return div.WithRawText(basic);
         }
 
-        string addDateSep(DateTime now, bool isNew)
+        Div addDateSep(DateTime now, bool isNew)
         {
-            return $"<div class='divider-3_HH5L {(isNew ? "msg-unread" : "")} hasContent-1_DUdQ divider-JfaTT5 hasContent-1cNJDh'>" +
-                    $"<span class='content-1o0f9g'>{now.ToString("MMMM d, yyyy")}</span>" +
-                "</div>";
+            var div = new Div()
+            {
+                ClassList =
+                {
+                    "divider-3_HH5L",
+                    "hasContent-1_DUdQ" +
+                    "divider-JfaTT5" +
+                    "hasContent-1cNJDh"
+                }
+            };
+            if (isNew)
+                div.ClassList.Add("msg-unread");
+            div.Children.Add(new Span(cls: "content-1o0f9g")
+            {
+                RawText = now.ToString("MMMM d, yyyy")
+            });
+            return div;
         }
 
         string getEmbed(Embed embed)
@@ -318,27 +337,89 @@ namespace DiscordBot.MLAPI.Modules
             return message.CreatedAt.DateTime > last;
         }
 
-        string getChat(SocketGuild guild, SocketTextChannel channel, ulong before = ulong.MaxValue)
+        #region Message HTML
+
+        HTMLBase getMessageHeader(ReturnedMsg msg, string authorName, string roleColor)
+        {
+            var h2 = new H2(cls: "header-23xsNx");
+            h2.Children.Add(new Span(cls: "latin24CompactTimeStamp-2V7XIQ timestamp-3ZCmNB timestampVisibleOnHover-2bQeI4")
+            {
+                Children =
+                {
+                    new Span()
+                    {
+                        Children =
+                        {
+                            new ItalicText("[", cls: "separator-2nZzUB").WithTag("aria-hidden", "true"),
+                            new RawObject(msg.CreatedAt.ToString("hh:mm tt")),
+                            new ItalicText("] ", cls: "separator-2nZzUB").WithTag("aria-hidden", "true")
+                        }
+                    }.WithTag("aria-label", msg.CreatedAt.ToString("hh:mm tt"))
+
+                }
+            });
+            var usernameStuffs = new Span(cls: "headerText-3Uvj1Y");
+            usernameStuffs.Children.Add(new Span(cls: "username-1A8OIy clickable-1bVtEA")
+                                    .WithTag("style", $"color: {roleColor}")
+                                    .WithTag("tabIndex", "0")
+                                    .WithTag("aria-controls", "popout_320")
+                                    .WithTag("aria-expanded", "false")
+                                    .WithTag("role", "button")
+                                    .WithRawText(authorName));
+            usernameStuffs.Children.Add(new ItalicText(":", cls: "separator-2nZzUB"));
+            h2.Children.Add(usernameStuffs);
+            return h2;
+        }
+
+        HTMLBase getMessage(ReturnedMsg msg, SocketGuild guild, string authorName, string roleColor)
+        {
+            var messageDiv = new Div(id: msg.Id.ToString(), cls: "message-2qnXI6 groupStart-23k01U wrapper-2a6GCs compact-T3H92H zalgo-jN1Ica");
+            messageDiv.WithTag("role", "group")
+                .WithTag("tabindex", "-1");
+            var contentsDiv = new Div(cls: "contents-2mQqc9").WithTag("role", "document");
+            if (msg.IsDeleted)
+                messageDiv.ClassList.Add("message-deleted");
+            contentsDiv.Children.Add(getMessageHeader(msg, authorName, roleColor));
+            contentsDiv.Children.Add(getMsgContent(guild, msg, out var mentioned));
+            messageDiv.Children.Add(contentsDiv);
+            if (mentioned)
+                messageDiv.ClassList.Add("mentioned-xhSam7");
+            return messageDiv;
+        }
+
+        #endregion
+
+
+        HTMLBase getChat(SocketGuild guild, SocketTextChannel channel, ulong before = ulong.MaxValue)
         {
             if (!hasAccessTo(channel))
             {
-                return "<div class='error'>You are unable to access this channel</div>";
+                return new Div(cls: "error") { RawText = "You are unable to access this channel" };
             }
             List<ReturnedMsg> messages = DB.GetCombinedMsgs(guild.Id, channel.Id, before, limit: 100).Result;
-            string txt = "";
+            var main = new Div(cls: "scrollerInner-2YIMLh")
+                .WithTag("role", "log")
+                .WithTag("tabindex", "0")
+                .WithTag("id", "chat-messages");
             DateTime lastMessage = DateTime.MinValue;
             bool hasSetNew = false;
             foreach (var msg in messages.OrderBy(x => x.Id))
             {
-                if (string.IsNullOrWhiteSpace(txt) && messages.Count == 100)
+                if (main.Children.Count == 0 && messages.Count == 100)
                 { // if count below 100, then clearly there are no more messages to find, as we cant even get 100
-                    txt = $"<div id='loadMoreBtn' tabindex='0' class='hasMore-3e72_v' role='button' " +
-                        $"onclick='loadMore(\"{msg.Id}\")'>Load more messages</div>";
+                    main.Children.Add(new Div(id: "loadMorebtn", cls: "hasMore-3e72_v")
+                    {
+                        OnClick = $"loadMore('{msg.Id}');",
+                        RawText = "Load more messages"
+                    }
+                    .WithTag("tabIndex", "0")
+                    .WithTag("role", "button")
+                    );
                 }
                 bool isNew = hasSetNew == false && isMessageNew(channel, msg);
                 if (lastMessage.DayOfYear != msg.CreatedAt.DayOfYear || isNew)
                 {
-                    txt += addDateSep(msg.CreatedAt.DateTime, isNew);
+                    main.Children.Add(addDateSep(msg.CreatedAt.DateTime, isNew));
                 }
                 hasSetNew = hasSetNew || isNew;
                 lastMessage = msg.CreatedAt.DateTime;
@@ -364,46 +445,22 @@ namespace DiscordBot.MLAPI.Modules
                     authorName = "unknown";
                     roleColor = getRoleColor(null);
                 }
-                string MESSAGE = "";
-                var deletedThing = msg.IsDeleted ? "message-deleted" : "";
-                MESSAGE += $"<div class='message-2qnXI6 {deletedThing} wrapper-2a6GCs compact-T3H92H zalgo-jN1Ica[[MENTION]]'>";
-                MESSAGE += "<div class='contents-2mQqc9'>";
-                #region Message Metadata - Author and Time
-                MESSAGE += "<h2 class='header-23xsNx'>";
-                #region Message Time
-                MESSAGE += "<span class='latin24CompactTimeStamp-2V7XIQ timestamp-3ZCmNB timestampVisibleOnHover-2bQeI4'>";
-                MESSAGE += $"<span aria-label='{msg.CreatedAt.ToString("f")}'>";
-                MESSAGE += "<i class='separator-2nZzUB' aria-hidden='true'>[</i>";
-                MESSAGE += $"{msg.CreatedAt.ToString("hh:mm tt")}";
-                MESSAGE += "<i class='separator-2nZzUB' aria-hidden='true'>]</i>";
-                MESSAGE += "</span>";
-                MESSAGE += "</span>";
-                #endregion
-                #region Message Author
-                MESSAGE += $"<span tabindex='0' aria-controls='popout_320' aria-expanded='false' " +
-                    $"class='username-1A8OIy clickable-1bVtEA' role='button' " +
-                    $"style='color: {roleColor};'>{authorName}</span>";
-                MESSAGE += "<i class='separator-2nZzUB'>:</i>";
-                #endregion
-                MESSAGE += "</h2>";
-                #endregion
-                MESSAGE += $"<div class='markup-2BOw-j messageContent-2qWWxC'>{getMsgContent(guild, msg, out bool mentioned)}</div>";
-                MESSAGE += "</div>";
-                //foreach (var embd in msg.Embeds)
-                //{
-                //    MESSAGE += getEmbed(embd as Embed);
-                //}
-                MESSAGE += "</div>";
-                txt += MESSAGE.Replace("[[MENTION]]", mentioned ? " mentioned-xhSam7" : "");
+                var mDiv = getMessage(msg, guild, authorName, roleColor);
+                main.Children.Add(mDiv);
             }
             if (before != ulong.MaxValue)
             { // offer ability to jump back to present
-                txt += $"<div tabindex='0' class='hasMore-3e72_v' role='button' " +
-                    $"onclick='loadMore(\"0\")'>Back to present</div>";
+                main.Children.Add(new Div(cls: "hasMore-3e72_v")
+                {
+                    OnClick = "loadMore('0')",
+                    RawText = "Back to present"
+                }.WithTag("tabIndex", "0").WithTag("role", "button"));
             }
             Context.User.LastVisitVPN[channel.Id] = DateTime.Now;
             Program.Save();
-            return txt;
+            var overall = new Div(cls: "scrollerContent-WzeG7R content-3YMskv");
+            overall.Children.Add(main);
+            return overall;
         }
 
         SocketGuild getDefaultGuild()

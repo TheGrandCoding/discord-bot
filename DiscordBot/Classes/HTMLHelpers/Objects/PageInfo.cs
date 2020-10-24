@@ -10,10 +10,10 @@ namespace DiscordBot.Classes.HTMLHelpers.Objects
         {
 
         }
-        protected override void WriteOpenTag(StringBuilder sb)
+        protected override void WriteOpenTag(StringBuilder sb, int tab = -1)
         {
             sb.Append($"<!DOCTYPE html>");
-            base.WriteOpenTag(sb);
+            base.WriteOpenTag(sb, tab);
         }
     }
     public class PageHeader : HTMLBase

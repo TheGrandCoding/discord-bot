@@ -1,22 +1,30 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
-using System.Web;
 
 namespace DiscordBot.Classes.HTMLHelpers
 {
+    [DebuggerDisplay("{DebuggerDisplay,nq}")]
     public abstract class HTMLBase
     {
+        private string DebuggerDisplay => ToString(true);
+
         public string Tag { get; protected set; }
 
+        private List<string> m_classes = new List<string>();
+
         public string Id { get => get("id"); set => set("id", value); }
-        public string Class { get => get("class"); set => set("class", value); }
+        public string Class { get => string.Join(' ', m_classes); set => m_classes = (value ?? "").Split(' ').ToList(); }
+
+        public List<string> ClassList { get => m_classes; }
+
         public string RawText { get; set; }
         protected Dictionary<string, string> tagValues { get; set; } = new Dictionary<string, string>();
         public HTMLBase(string tag, string id, string cls)
         {
             Tag = tag;
+            tagValues["class"] = null;
             Id = id;
             Class = cls;
             Children = new List<HTMLBase>();
@@ -24,9 +32,14 @@ namespace DiscordBot.Classes.HTMLHelpers
     
         public List<HTMLBase> Children { get; protected set; }
         
-        protected virtual void WriteOpenTag(StringBuilder sb)
+        protected virtual void WriteOpenTag(StringBuilder sb, int tab = -1)
         {
+            if (tab > -1)
+                sb.Append(new string(' ', tab * 4));
             sb.Append($"<{Tag}");
+            set("class", Class);
+            if (m_classes.Count == 0)
+                tagValues.Remove("class");
             foreach(var keypair in tagValues)
             {
                 var key = keypair.Key;
@@ -37,6 +50,8 @@ namespace DiscordBot.Classes.HTMLHelpers
                     sb.Append($" {key}=\"{val}\"");
             }
             sb.Append(">");
+            if (tab > -1)
+                sb.Append("\r\n");
         }
         protected string get(string thing) => tagValues.GetValueOrDefault(thing.ToLower());
         protected void set(string thing, string val) => tagValues[thing.ToLower()] = val;
@@ -48,25 +63,35 @@ namespace DiscordBot.Classes.HTMLHelpers
             else
                 tagValues.Remove(thing);
         }
-        protected virtual void WriteCloseTag(StringBuilder sb)
+        protected virtual void WriteCloseTag(StringBuilder sb, int tab = -1)
         {
+            if (tab > -1)
+                sb.Append(new string(' ', tab * 4));
             sb.Append($"</{Tag}>");
+            if (tab > -1)
+                sb.Append("\r\n");
         }
 
-        protected virtual void WriteContent(StringBuilder sb) 
+        protected virtual void WriteContent(StringBuilder sb, int tab = -1) 
         {
+            if (RawText == null)
+                return;
+            if (tab > -1)
+                sb.Append(new string(' ', tab * 4));
             sb.Append(RawText);
+            if (tab > -1)
+                sb.Append("\r\n");
         }
 
-        public void Write(StringBuilder sb)
+        public void Write(StringBuilder sb, int tab = -1)
         {
-            WriteOpenTag(sb);
-            WriteContent(sb);
+            WriteOpenTag(sb, tab);
+            WriteContent(sb, tab == -1 ? -1 : tab + 1);
             foreach(var child in Children)
             {
-                child.Write(sb);
+                child.Write(sb, tab == -1 ? -1 : tab + 1);
             }
-            WriteCloseTag(sb);
+            WriteCloseTag(sb, tab);
         }
 
         public HTMLBase WithTag(string name, string value)
@@ -74,11 +99,24 @@ namespace DiscordBot.Classes.HTMLHelpers
             tagValues[name] = value;
             return this;
         }
+        public HTMLBase WithRawText(string content)
+        {
+            RawText = content;
+            return this;
+        }
 
         public override string ToString()
         {
             var sb = new StringBuilder();
             Write(sb);
+            return sb.ToString();
+        }
+        public string ToString(bool withFormatting)
+        {
+            if (!withFormatting)
+                return ToString();
+            var sb = new StringBuilder();
+            Write(sb, 0);
             return sb.ToString();
         }
 
