@@ -297,12 +297,32 @@ namespace DiscordBot.Services
                 dsMessages = await dsChnl.GetMessagesAsync(limit).FlattenAsync();
             else
                 dsMessages = await dsChnl.GetMessagesAsync(before, Direction.Before, limit).FlattenAsync();
+            bool changes = false;
             foreach(var x in total)
             {
-                if (!dsMessages.Any(ds => ds.Id == x.Id))
+                var inDs = dsMessages.FirstOrDefault(ds => ds.Id == x.Id);
+                if (inDs == null)
+                {
                     x.IsDeleted = true;
+                    if (x.Content == null)
+                        x.Content = "[Message content is not stored and cannot be fetched]";
+                }
+                else
+                {
+                    if(x.Content == null)
+                    {
+                        x.Content = inDs.Content;
+                        var msgContent = new MsgContent()
+                        {
+                            Message = inDs.Id,
+                            Timestamp = (inDs.EditedTimestamp ?? inDs.Timestamp).DateTime,
+                            Content = inDs.Content
+                        };
+                        DB.Contents.Add(msgContent);
+                        changes = true;
+                    }
+                }
             }
-            bool changes = false;
             foreach(var ds in dsMessages)
             {
                 if (!total.Any(x => x.Id == ds.Id))
