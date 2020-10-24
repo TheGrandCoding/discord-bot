@@ -73,9 +73,8 @@ namespace DiscordBot.Services
         public long ChannelId { get; set; }
         public long MessageId { get; set; }
         public long AuthorId { get; set; }
-        public string Content { get; set; }
-        public string Attachments { get; set; }
         public long? ContentId { get; set; }
+        public string Attachments { get; set; }
 
         [NotMapped]
         public ulong Guild
