@@ -325,9 +325,11 @@ namespace DiscordBot.Services
             }
             foreach(var ds in dsMessages)
             {
+                if (!(ds is IUserMessage umsg))
+                    continue;
                 if (!total.Any(x => x.Id == ds.Id))
                 {
-                    total.Add(new DiscordMsg(this, (IUserMessage)ds));
+                    total.Add(new DiscordMsg(this, umsg));
                     var content = new MsgContent()
                     {
                         Message = ds.Id,
@@ -336,7 +338,7 @@ namespace DiscordBot.Services
                     };
                     DB.Contents.Add(content);
                     await DB.SaveChangesAsync();
-                    var toStore = new MsgModel((IUserMessage)ds);
+                    var toStore = new MsgModel(umsg);
                     toStore.ContentId = content.Id;
                     DB.Messages.Add(toStore);
                     changes = true;

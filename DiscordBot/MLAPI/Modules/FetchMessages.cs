@@ -420,7 +420,7 @@ namespace DiscordBot.MLAPI.Modules
             {
                 if (main.Children.Count == 0 && messages.Count == 100)
                 { // if count below 100, then clearly there are no more messages to find, as we cant even get 100
-                    main.Children.Add(new Div(id: "loadMorebtn", cls: "hasMore-3e72_v")
+                    main.Children.Add(new Div(id: "loadMoreBtn", cls: "hasMore-3e72_v")
                     {
                         OnClick = $"loadMore('{msg.Id}');",
                         RawText = "Load more messages"
