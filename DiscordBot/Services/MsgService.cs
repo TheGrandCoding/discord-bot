@@ -195,7 +195,7 @@ namespace DiscordBot.Services
         public DbMsg(MsgService s, MsgModel model) : base(s)
         {
             Id = model.Message;
-            Content = s.GetLatestContent(Id).Content;
+            Content = s.GetLatestContent(Id)?.Content.TrimEnd();
             Author = Program.Client.GetGuild(model.Guild)?.GetUser(model.Author) ?? null;
             Author ??= Program.Client.GetUser(model.Author);
         }
@@ -228,7 +228,7 @@ namespace DiscordBot.Services
         {
             if (arg2.Author.IsBot || arg2.Author.IsWebhook)
                 return;
-            var origMsg = await DB.Messages.AsQueryable().FirstOrDefaultAsync(x => x.MessageId == get(arg1.Id));
+            var origMsg = await DB.Messages.AsQueryable().FirstOrDefaultAsync(x => x.MessageId == cast(arg1.Id));
             if (origMsg == null)
                 return; // TODO: add the message in
             var currentContent = DB.Contents.First(x => x.Id == origMsg.ContentId);
@@ -251,7 +251,7 @@ namespace DiscordBot.Services
             return ulong.Parse(id1) < id2;
         }
 
-        long get(ulong t)
+        public long cast(ulong t)
         {
             unchecked
             {
@@ -261,17 +261,17 @@ namespace DiscordBot.Services
 
         public List<MsgContent> GetContents(ulong message)
         {
-            var t = DB.Contents.AsQueryable().Where(x => x.MessageId == get(message));
+            var t = DB.Contents.AsQueryable().Where(x => x.MessageId == cast(message));
             return t.ToList();
         }
         public MsgContent GetLatestContent(ulong message)
         {
-            return GetContents(message).Last();
+            return GetContents(message).LastOrDefault();
         }
 
         public async Task<List<DbMsg>> GetMessagesAsync(ulong guild, ulong channel, ulong before = ulong.MaxValue, int limit = 25)
         {
-            var query = DB.Messages.AsQueryable().Where(x => x.GuildId == get(guild) && x.ChannelId == get(channel));
+            var query = DB.Messages.AsQueryable().Where(x => x.GuildId == cast(guild) && x.ChannelId == cast(channel));
             var msgs = query.AsAsyncEnumerable()
                 .Where(x => x.Message < before)
                 .OrderByDescending(x => x.Message)
@@ -308,7 +308,16 @@ namespace DiscordBot.Services
                 if (!total.Any(x => x.Id == ds.Id))
                 {
                     total.Add(new DiscordMsg(this, (IUserMessage)ds));
+                    var content = new MsgContent()
+                    {
+                        Message = ds.Id,
+                        Timestamp = (ds.EditedTimestamp ?? ds.Timestamp).DateTime,
+                        Content = ds.Content
+                    };
+                    DB.Contents.Add(content);
+                    await DB.SaveChangesAsync();
                     var toStore = new MsgModel((IUserMessage)ds);
+                    toStore.ContentId = content.Id;
                     DB.Messages.Add(toStore);
                     changes = true;
                 }

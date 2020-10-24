@@ -1,4 +1,5 @@
 ﻿using Discord;
+using Discord.Addons.Interactive;
 using Discord.Commands;
 using DiscordBot.Classes;
 using DiscordBot.Commands;
@@ -188,5 +189,32 @@ namespace DiscordBot.Commands.Modules
             await ReplyAsync(":ballot_box_with_check: Done");
             return new BotResult();
         }
+    
+        [Command("msg")]
+        [Summary("Views prior content of a message")]
+        [RequireOwner]
+        public async Task<RuntimeResult> SeeMessageHistory(ulong messageId)
+        {
+            var db = Program.Services.GetRequiredService<MsgService>();
+            var dbMsg = db.DB.Messages.FirstOrDefault(x => x.MessageId == db.cast(messageId));
+            if (dbMsg == null)
+                return new BotResult("Message is not in database.");
+            var contents = db.GetContents(messageId).OrderBy(x => x.Timestamp);
+            var paginator = new PaginatedMessage();
+            paginator.Title = $"Message History";
+            var url = $"https://discord.com/channels/{dbMsg.Guild}/{dbMsg.Channel}/{dbMsg.Message}";
+            paginator.Content = $"{url}";
+            var ls = new List<string>();
+            int i = 0;
+            foreach(var content in contents)
+            {
+                ls.Add(content.Content);
+                paginator.Content += $"\r\n{i++}: {content.Timestamp:dd/MM/yyyy HH:mm:ss}";
+            }
+            paginator.Pages = ls;
+            await PagedReplyAsync(paginator);
+            return new BotResult();
+        }
+    
     }
 }
