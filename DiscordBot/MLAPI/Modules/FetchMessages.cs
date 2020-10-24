@@ -380,7 +380,20 @@ namespace DiscordBot.MLAPI.Modules
             if (msg.IsDeleted)
                 messageDiv.ClassList.Add("message-deleted");
             contentsDiv.Children.Add(getMessageHeader(msg, authorName, roleColor));
-            contentsDiv.Children.Add(getMsgContent(guild, msg, out var mentioned));
+            bool mentioned = false;
+            try
+            {
+                contentsDiv.Children.Add(getMsgContent(guild, msg, out mentioned));
+            }
+            catch (Exception ex)
+            {
+                Program.LogMsg($"Failed with {msg.Id}", LogSeverity.Critical, "VPN");
+                Program.LogMsg($"{msg.Author == null}");
+                Program.LogMsg($"{msg.Content == null}");
+                Program.LogMsg($"{msg.CreatedAt == null}");
+                Program.LogMsg($"{msg.Timestamp == null}");
+                throw;
+            }
             messageDiv.Children.Add(contentsDiv);
             if (mentioned)
                 messageDiv.ClassList.Add("mentioned-xhSam7");
