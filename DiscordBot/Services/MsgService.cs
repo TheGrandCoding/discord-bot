@@ -195,7 +195,7 @@ namespace DiscordBot.Services
         public DbMsg(MsgService s, MsgModel model) : base(s)
         {
             Id = model.Message;
-            Content = model.Content;
+            Content = s.GetLatestContent(Id).Content;
             Author = Program.Client.GetGuild(model.Guild)?.GetUser(model.Author) ?? null;
             Author ??= Program.Client.GetUser(model.Author);
         }
