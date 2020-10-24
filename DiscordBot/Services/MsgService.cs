@@ -235,7 +235,8 @@ namespace DiscordBot.Services
                         Content = message.Content
                     };
                     DB.Contents.Add(content);
-                    message.ContentId = id++;
+                    DB.SaveChanges();
+                    message.ContentId = content.Id;
                     DB.Messages.Update(message);
                 }
                 DB.SaveChanges();
