@@ -261,7 +261,7 @@ namespace DiscordBot.Services
 
         public List<MsgContent> GetContents(ulong message)
         {
-            var t = DB.Contents.AsQueryable().Where(x => x.Message == message);
+            var t = DB.Contents.AsQueryable().Where(x => x.MessageId == get(message));
             return t.ToList();
         }
         public MsgContent GetLatestContent(ulong message)
