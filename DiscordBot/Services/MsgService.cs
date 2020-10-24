@@ -223,26 +223,6 @@ namespace DiscordBot.Services
             Program.Client.MessageUpdated += Client_MessageUpdated;
             Program.Client.ChannelUpdated += Client_ChannelUpdated;
             Program.Client.GuildUpdated += Client_GuildUpdated;
-            if(!DB.Contents.Any())
-            {
-                long id = 1;
-                foreach(var message in DB.Messages)
-                {
-                    var content = new MsgContent()
-                    {
-                        Message = message.Message,
-                        Timestamp = SnowflakeUtils.FromSnowflake(message.Message).UtcDateTime,
-                        Content = message.Content
-                    };
-                    DB.Contents.Add(content);
-                    DB.SaveChanges();
-                    message.ContentId = content.Id;
-                    DB.Messages.Update(message);
-                }
-                DB.SaveChanges();
-                Program.LogMsg("Migrated data to new table.", LogSeverity.Critical, "DB");
-                throw new Exception("Crash bot.");
-            }
         }
 
         private async Task Client_MessageUpdated(Cacheable<IMessage, ulong> arg1, SocketMessage arg2, ISocketMessageChannel arg3)
