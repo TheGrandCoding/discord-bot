@@ -22,6 +22,7 @@ namespace DiscordBot.Services
 
         public DbSet<MsgModel> Messages { get; set; }
         public DbSet<NameTimestamps> Names { get; set; }
+        public DbSet<MsgContent> Contents { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -31,7 +32,39 @@ namespace DiscordBot.Services
                 .HasKey(m => new { m.ObjectId, m.Timestamp });
             modelBuilder.Entity<MsgModel>()
                 .Property(x => x.MessageId);
+            modelBuilder.Entity<MsgContent>()
+                .Property(x => x.Id)
+                .UseIdentityColumn();
         }
+    }
+
+    public class MsgContent
+    {
+        public long Id { get; set; }
+        public long MessageId { get; set; }
+
+        [NotMapped]
+        public ulong Message
+        {
+            get
+            {
+                unchecked
+                {
+                    return (ulong)MessageId;
+                }
+            }
+
+            set
+            {
+                unchecked
+                {
+                    MessageId = (long)value;
+                }
+            }
+        }
+
+        public DateTime Timestamp { get; set; }
+        public string Content { get; set; }
     }
 
     public class MsgModel
@@ -42,6 +75,7 @@ namespace DiscordBot.Services
         public long AuthorId { get; set; }
         public string Content { get; set; }
         public string Attachments { get; set; }
+        public long? ContentId { get; set; }
 
         [NotMapped]
         public ulong Guild
@@ -126,7 +160,6 @@ namespace DiscordBot.Services
             Channel = message.Channel.Id;
             Message = message.Id;
             Author = message.Author.Id;
-            Content = message.Content;
             Attachments = string.Join(',', System.Linq.Enumerable.Select(message.Attachments, x => x.Url));
         }
 
@@ -181,13 +214,56 @@ namespace DiscordBot.Services
 
     public class MsgService : Service
     {
+        public override bool IsCritical => true;
         public LogContext DB { get; set; }
         public override void OnReady()
         {
             DB = Program.Services.GetRequiredService<LogContext>();
             Program.Client.MessageReceived += Client_MessageReceived;
+            Program.Client.MessageUpdated += Client_MessageUpdated;
             Program.Client.ChannelUpdated += Client_ChannelUpdated;
             Program.Client.GuildUpdated += Client_GuildUpdated;
+            if(!DB.Contents.Any())
+            {
+                long id = 1;
+                foreach(var message in DB.Messages)
+                {
+                    var content = new MsgContent()
+                    {
+                        Message = message.Message,
+                        Timestamp = SnowflakeUtils.FromSnowflake(message.Message).UtcDateTime,
+                        Content = message.Content
+                    };
+                    DB.Contents.Add(content);
+                    message.ContentId = id++;
+                    DB.Messages.Update(message);
+                }
+                DB.SaveChanges();
+                Program.LogMsg("Migrated data to new table.", LogSeverity.Critical, "DB");
+                throw new Exception("Crash bot.");
+            }
+        }
+
+        private async Task Client_MessageUpdated(Cacheable<IMessage, ulong> arg1, SocketMessage arg2, ISocketMessageChannel arg3)
+        {
+            if (arg2.Author.IsBot || arg2.Author.IsWebhook)
+                return;
+            var origMsg = await DB.Messages.AsQueryable().FirstOrDefaultAsync(x => x.MessageId == get(arg1.Id));
+            if (origMsg == null)
+                return; // TODO: add the message in
+            var currentContent = DB.Contents.First(x => x.Id == origMsg.ContentId);
+            if (currentContent.Content == arg2.Content)
+                return;
+            var newContent = new MsgContent()
+            {
+                Content = arg2.Content,
+                Timestamp = arg2.EditedTimestamp.GetValueOrDefault(DateTimeOffset.Now).DateTime,
+                Message = arg2.Id
+            };
+            await DB.Contents.AddAsync(newContent);
+            await DB.SaveChangesAsync();
+            origMsg.ContentId = newContent.Id;
+            await DB.SaveChangesAsync();
         }
 
         bool isLessThan(string id1, ulong id2)
@@ -201,6 +277,16 @@ namespace DiscordBot.Services
             {
                 return (long)t;
             }
+        }
+
+        public List<MsgContent> GetContents(ulong message)
+        {
+            var t = DB.Contents.AsQueryable().Where(x => x.Message == message);
+            return t.ToList();
+        }
+        public MsgContent GetLatestContent(ulong message)
+        {
+            return GetContents(message).Last();
         }
 
         public async Task<List<DbMsg>> GetMessagesAsync(ulong guild, ulong channel, ulong before = ulong.MaxValue, int limit = 25)
@@ -309,7 +395,16 @@ namespace DiscordBot.Services
                 return;
             if (arg.Author.IsBot || arg.Author.IsWebhook)
                 return;
+            var content = new MsgContent()
+            {
+                Message = umsg.Id,
+                Content = umsg.Content,
+                Timestamp = umsg.Timestamp.DateTime,
+            };
+            DB.Contents.Add(content);
+            DB.SaveChanges();
             var msg = new MsgModel(umsg);
+            msg.ContentId = content.Id;
             DB.Messages.Add(msg);
             await DB.SaveChangesAsync();
             Console.WriteLine($"{getWhere(umsg)}: {arg.Author.Username}: {arg.Content}");
