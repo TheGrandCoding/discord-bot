@@ -180,11 +180,13 @@ namespace DiscordBot.Services
                 return;
             var service = Program.Services.GetRequiredService<MsgService>();
             var content = service.GetLatestContent(arg1.Id);
+            var dbMsg = await service.GetMessageAsync(arg1.Id);
             var builder = new EmbedBuilder()
                 .WithTitle("Message Deleted")
                 .WithColor(Color.Red)
                 .WithDescription(content?.Content ?? "[unknown last content]");
-            builder.AddField("Channel", $"{txt.Mention}");
+            builder.AddField("Channel", $"{txt.Mention}", true);
+            builder.AddField("Author", $"{dbMsg.Author.Id}\r\n<@{dbMsg.Author.Id}>", true);
             await SendLog(txt.Guild, "messages", builder, arg1.Id);
             if (isDirty)
                 OnSave();
@@ -206,8 +208,10 @@ namespace DiscordBot.Services
             var builder = new EmbedBuilder()
                 .WithTitle("Message Edited")
                 .WithColor(Color.Blue)
+                .WithUrl(arg2.GetJumpUrl())
                 .WithDescription(latestContent ?? "[unknown prior content]");
-            builder.AddField("Channel", txt.Mention);
+            builder.AddField("Channel", txt.Mention, true);
+            builder.AddField("Author", $"{arg2.Author.Id}\r\n<@{arg2.Author.Id}>", true);
             await SendLog(txt.Guild, "messages", builder, arg1.Id);
             if (isDirty)
                 OnSave();

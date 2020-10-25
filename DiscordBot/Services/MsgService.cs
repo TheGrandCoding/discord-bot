@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
@@ -198,6 +199,44 @@ namespace DiscordBot.Services
             Content = s.GetLatestContent(Id)?.Content.TrimEnd();
             Author = Program.Client.GetGuild(model.Guild)?.GetUser(model.Author) ?? null;
             Author ??= Program.Client.GetUser(model.Author);
+            if(Author == null)
+            {
+                var dbu = new DbUser(model.Author);
+                dbu.Username = s.GetNamesFor(model.Author).LastOrDefault()?.Name;
+                Author = dbu;
+            }
+        }
+    }
+
+    public class DbUser : IUser
+    {
+        public DbUser(ulong id)
+        {
+            Id = id;
+        }
+        public string AvatarId => throw new NotImplementedException();
+        public string Discriminator { get; set; }
+        public ushort DiscriminatorValue => throw new NotImplementedException();
+        public bool IsBot => throw new NotImplementedException();
+        public bool IsWebhook => throw new NotImplementedException();
+        public string Username { get; set; }
+        public DateTimeOffset CreatedAt => throw new NotImplementedException();
+        public ulong Id { get; }
+        public string Mention => throw new NotImplementedException();
+        public IActivity Activity => throw new NotImplementedException();
+        public UserStatus Status => throw new NotImplementedException();
+        public IImmutableSet<ClientType> ActiveClients => throw new NotImplementedException();
+        public string GetAvatarUrl(ImageFormat format = ImageFormat.Auto, ushort size = 128)
+        {
+            throw new NotImplementedException();
+        }
+        public string GetDefaultAvatarUrl()
+        {
+            throw new NotImplementedException();
+        }
+        public Task<IDMChannel> GetOrCreateDMChannelAsync(RequestOptions options = null)
+        {
+            throw new NotImplementedException();
         }
     }
 
@@ -219,6 +258,7 @@ namespace DiscordBot.Services
             Program.Client.ChannelUpdated += Client_ChannelUpdated;
             Program.Client.GuildUpdated += Client_GuildUpdated;
         }
+
 
         private async Task Client_MessageUpdated(Cacheable<IMessage, ulong> arg1, SocketMessage arg2, ISocketMessageChannel arg3)
         {
