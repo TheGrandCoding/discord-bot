@@ -46,7 +46,7 @@ namespace DiscordBot.Services
         private async Task handleItTho(Cacheable<IUserMessage, ulong> arg1, EventAction act, Discord.WebSocket.SocketReaction arg3)
         {
             var user = Program.Client.GetUser(arg3.UserId);
-            if (user.IsBot)
+            if (user == null || user.IsBot)
                 return;
             if (messages.TryGetValue(arg1.Id, out var msg))
             {

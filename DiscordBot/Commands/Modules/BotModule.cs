@@ -1,6 +1,7 @@
 ﻿using Discord;
 using Discord.Addons.Interactive;
 using Discord.Commands;
+using Discord.WebSocket;
 using DiscordBot.Classes;
 using DiscordBot.Commands;
 using DiscordBot.Services;
@@ -196,7 +197,8 @@ namespace DiscordBot.Commands.Modules
         public async Task<RuntimeResult> SeeMessageHistory(ulong messageId)
         {
             var db = Program.Services.GetRequiredService<MsgService>();
-            var dbMsg = db.DB.Messages.FirstOrDefault(x => x.MessageId == db.cast(messageId));
+            using var DB = Program.Services.GetRequiredService<LogContext>();
+            var dbMsg = DB.Messages.FirstOrDefault(x => x.MessageId == db.cast(messageId));
             if (dbMsg == null)
                 return new BotResult("Message is not in database.");
             var contents = db.GetContents(messageId).OrderBy(x => x.Timestamp);
@@ -216,5 +218,29 @@ namespace DiscordBot.Commands.Modules
             return new BotResult();
         }
     
+        [Command("log")]
+        [Summary("Gets invite to logging guild")]
+        public async Task GetLogInvite()
+        {
+            var srv = Program.Services.GetRequiredService<LoggingService>();
+            var chnl = await srv.LogGuild.GetDefaultChannelAsync();
+            var inv = await chnl.CreateInviteAsync(maxAge: 60 * 5, maxUses: 1);
+            await ReplyAsync(inv.ToString());
+        }
+
+        [Command("ladmin")]
+        [Summary("Toggles admin rights in log guild")]
+        [RequireOwner]
+        public async Task ToggleAdmin()
+        {
+            var srv = Program.Services.GetRequiredService<LoggingService>();
+            var usr = (SocketGuildUser)Context.User;
+            var role = srv.LogGuild.Roles.First(x => x.Name == "Log Master");
+            if (usr.Roles.Any(x => x.Name == "Log Master"))
+                await usr.RemoveRoleAsync(role);
+            else
+                await usr.AddRoleAsync(role);
+            await ReplyAsync("Done.");
+        }
     }
 }

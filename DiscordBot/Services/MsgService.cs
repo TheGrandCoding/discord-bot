@@ -209,15 +209,11 @@ namespace DiscordBot.Services
         public string Name { get; set; }
     }
 
-
-
     public class MsgService : Service
     {
         public override bool IsCritical => true;
-        public LogContext DB { get; set; }
         public override void OnReady()
         {
-            DB = Program.Services.GetRequiredService<LogContext>();
             Program.Client.MessageReceived += Client_MessageReceived;
             Program.Client.MessageUpdated += Client_MessageUpdated;
             Program.Client.ChannelUpdated += Client_ChannelUpdated;
@@ -228,6 +224,7 @@ namespace DiscordBot.Services
         {
             if (arg2.Author.IsBot || arg2.Author.IsWebhook)
                 return;
+            using var DB = Program.Services.GetRequiredService<LogContext>();
             var origMsg = await DB.Messages.AsQueryable().FirstOrDefaultAsync(x => x.MessageId == cast(arg1.Id));
             if (origMsg == null)
                 return; // TODO: add the message in
@@ -261,6 +258,7 @@ namespace DiscordBot.Services
 
         public List<MsgContent> GetContents(ulong message)
         {
+            using var DB = Program.Services.GetRequiredService<LogContext>();
             var t = DB.Contents.AsQueryable().Where(x => x.MessageId == cast(message));
             return t.ToList();
         }
@@ -271,6 +269,7 @@ namespace DiscordBot.Services
 
         public async Task<List<DbMsg>> GetMessagesAsync(ulong guild, ulong channel, ulong before = ulong.MaxValue, int limit = 25)
         {
+            using var DB = Program.Services.GetRequiredService<LogContext>();
             var query = DB.Messages.AsQueryable().Where(x => x.GuildId == cast(guild) && x.ChannelId == cast(channel));
             var msgs = query.AsAsyncEnumerable()
                 .Where(x => x.Message < before)
@@ -280,8 +279,18 @@ namespace DiscordBot.Services
             return result.Select(x => new DbMsg(this, x)).ToList();
         }
 
+        public async Task<DbMsg> GetMessageAsync(ulong messageId)
+        {
+            using var DB = Program.Services.GetRequiredService<LogContext>();
+            var model = DB.Messages.AsQueryable().FirstOrDefault(x => x.MessageId == cast(messageId));
+            if (model == null)
+                return null;
+            return new DbMsg(this, model);
+        }
+
         public async Task<List<ReturnedMsg>> GetCombinedMsgs(ulong guild, ulong channel, ulong before = ulong.MaxValue, int limit = 25)
         {
+            using var DB = Program.Services.GetRequiredService<LogContext>();
             var fromDb = await GetMessagesAsync(guild, channel, before, limit);
             var total = new List<ReturnedMsg>();
             foreach (var x in fromDb)
@@ -361,6 +370,7 @@ namespace DiscordBot.Services
                 Timestamp = DateTime.Now,
                 Name = arg2.Name
             };
+            using var DB = Program.Services.GetRequiredService<LogContext>();
             DB.Names.Add(stamp);
             await DB.SaveChangesAsync();
         }
@@ -379,12 +389,14 @@ namespace DiscordBot.Services
                 Timestamp = DateTime.Now,
                 Name = chnl2.Name
             };
+            using var DB = Program.Services.GetRequiredService<LogContext>();
             DB.Names.Add(stamp);
             await DB.SaveChangesAsync();
         }
 
         public List<NameTimestamps> GetNamesFor(ulong id)
         {
+            using var DB = Program.Services.GetRequiredService<LogContext>();
             return Enumerable.Where(DB.Names, x => x.ObjectId == id).ToList();
         }
         public string GetNameForAndAt(ulong id, DateTime time)
@@ -412,6 +424,7 @@ namespace DiscordBot.Services
                 Content = umsg.Content,
                 Timestamp = umsg.Timestamp.DateTime,
             };
+            using var DB = Program.Services.GetRequiredService<LogContext>();
             DB.Contents.Add(content);
             DB.SaveChanges();
             var msg = new MsgModel(umsg);

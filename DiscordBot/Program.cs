@@ -32,7 +32,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.10.13"; 
+        public const string VERSION = "0.10.14"; 
         public const string CHANGELOG = VERSION + @"
 == Permissions changes
 Changed how permissions worked for bot.
@@ -271,20 +271,18 @@ Changed how permissions worked for bot.
                 }))
                 .AddSingleton<CommandHandlingService>()
                 .AddSingleton<InteractiveService>();
+            coll.AddDbContext<LogContext>(options =>
+            {
 #if WINDOWS
-            var options = new DbContextOptionsBuilder()
-                .UseSqlServer(Configuration["tokens:db"]);
+                options.UseSqlServer(Configuration["tokens:db"]);
 #else
-            var options = new DbContextOptionsBuilder()
-                .UseMySql(Configuration["tokens:db"], mysqlOptions =>
+                options.UseMySql(Configuration["tokens:db"], mysqlOptions =>
                 {
                     mysqlOptions.CharSet(CharSet.Utf8Mb4);
                     mysqlOptions.ServerVersion(new ServerVersion(new Version(10, 3, 25), ServerType.MariaDb));
                 }
-            );
 #endif
-            var db = new LogContext(options.Options);
-            coll.AddSingleton(db);
+            }, ServiceLifetime.Transient);
             var http = new HttpClient();
             http.DefaultRequestHeaders.Add("User-Agent", $"dsMLAPI-v{VER_STR}");
             coll.AddSingleton(typeof(HttpClient), http);

@@ -20,7 +20,13 @@ namespace DiscordBot.Classes
                 || objectType == typeof(SocketGuildUser)
                 || objectType == typeof(IUserMessage)
                 || objectType == typeof(RestUserMessage)
-                || objectType == typeof(SocketUserMessage);
+                || objectType == typeof(SocketUserMessage)
+                || objectType == typeof(ICategoryChannel)
+                || objectType == typeof(SocketCategoryChannel)
+                || objectType == typeof(RestCategoryChannel)
+                || objectType == typeof(IRole)
+                || objectType == typeof(SocketRole)
+                || objectType == typeof(RestRole);
         }
 
         public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
@@ -33,10 +39,14 @@ namespace DiscordBot.Classes
             var guild = Program.Client.GetGuild(gid);
             if (objectType == typeof(SocketTextChannel) || objectType == typeof(ITextChannel))
                 return guild.GetTextChannel(id);
+            if (objectType == typeof(SocketCategoryChannel) || objectType == typeof(ICategoryChannel))
+                return guild.GetCategoryChannel(id);
             if(objectType == typeof(SocketVoiceChannel) || objectType == typeof(IVoiceChannel))
                 return guild.GetVoiceChannel(id);
             if(objectType == typeof(SocketGuildUser) || objectType == typeof(IGuildUser)) 
                 return guild.GetUser(id);
+            if (objectType == typeof(SocketRole) || objectType == typeof(IRole))
+                return guild.GetRole(id);
             if(objectType == typeof(SocketUserMessage) || objectType == typeof(IUserMessage))
             {
                 var msgId = ulong.Parse(split[2]);
@@ -57,6 +67,10 @@ namespace DiscordBot.Classes
             if(value is IGuildChannel gc)
             {
                 var jval = new JValue($"{gc.GuildId}.{gc.Id}");
+                jval.WriteTo(writer);
+            } else if(value is IRole rl)
+            {
+                var jval = new JValue($"{rl.Guild.Id}.{rl.Id}");
                 jval.WriteTo(writer);
             } else if(value is IGuildUser gu)
             {
