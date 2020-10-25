@@ -280,7 +280,7 @@ Changed how permissions worked for bot.
                 {
                     mysqlOptions.CharSet(CharSet.Utf8Mb4);
                     mysqlOptions.ServerVersion(new ServerVersion(new Version(10, 3, 25), ServerType.MariaDb));
-                }
+                });
 #endif
             }, ServiceLifetime.Transient);
             var http = new HttpClient();
