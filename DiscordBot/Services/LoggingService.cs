@@ -187,6 +187,7 @@ namespace DiscordBot.Services
                 .WithDescription(content?.Content ?? "[unknown last content]");
             builder.AddField("Channel", $"{txt.Mention}", true);
             builder.AddField("Author", $"{dbMsg.Author.Id}\r\n<@{dbMsg.Author.Id}>", true);
+            builder.AddField("Original Sent", SnowflakeUtils.FromSnowflake(arg1.Id).ToString("dd/MM/yy HH:mm:ss.fff"), true);
             await SendLog(txt.Guild, "messages", builder, arg1.Id);
             if (isDirty)
                 OnSave();
@@ -208,10 +209,11 @@ namespace DiscordBot.Services
             var builder = new EmbedBuilder()
                 .WithTitle("Message Edited")
                 .WithColor(Color.Blue)
-                .WithUrl(arg2.GetJumpUrl())
                 .WithDescription(latestContent ?? "[unknown prior content]");
             builder.AddField("Channel", txt.Mention, true);
             builder.AddField("Author", $"{arg2.Author.Id}\r\n<@{arg2.Author.Id}>", true);
+            builder.AddField("Link", arg2.GetJumpUrl(), true);
+            builder.AddField("Original Sent", SnowflakeUtils.FromSnowflake(arg2.Id).ToString("dd/MM/yy HH:mm:ss.fff"), true);
             await SendLog(txt.Guild, "messages", builder, arg1.Id);
             if (isDirty)
                 OnSave();
