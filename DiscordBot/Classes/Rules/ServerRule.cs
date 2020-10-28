@@ -1,6 +1,7 @@
 ﻿using Discord;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace DiscordBot.Classes.Rules
@@ -22,7 +23,11 @@ namespace DiscordBot.Classes.Rules
         public List<IUserMessage> Messages { get; set; } = new List<IUserMessage>();
         public ITextChannel RuleChannel { get; set; }
 
-
+        static char[] arr = new char[] { '.', ',', ':', ' ' };
+        public static bool shouldAddSpace(string s)
+        {
+            return !arr.Any(x => s.StartsWith(x));
+        }
 
         public List<EmbedBuilder> GetEmbeds()
         {
@@ -34,7 +39,7 @@ namespace DiscordBot.Classes.Rules
                 var field = new EmbedFieldBuilder()
                 {
                     Name = $"#{rule.Id}",
-                    Value = $"**{rule.Short}**: {rule.Long}"
+                    Value = $"**{rule.Short}**{(shouldAddSpace(rule.Long) ? " " : "")}{rule.Long}"
                 };
                 if(builder.Fields.Count >= 10)
                 {
