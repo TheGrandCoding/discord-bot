@@ -15,7 +15,7 @@ namespace DiscordBot.Classes.Rules
 
     public class RuleSet
     {
-        public int Counter = 1;
+        public int Counter = 0;
         public List<ServerRule> CurrentRules { get; set; } = new List<ServerRule>();
         public List<ServerRule> ProposedRules { get; set; } = new List<ServerRule>();
 
