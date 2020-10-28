@@ -22,6 +22,7 @@ namespace DiscordBot.Commands.Modules
         public RulesService Service { get; set; }
 
         [Command("new")]
+        [Alias("add", "create")]
         [Summary("Creates a new rule")]
         public async Task Create()
         {
@@ -145,6 +146,7 @@ namespace DiscordBot.Commands.Modules
                 Service.Rules[Context.Guild.Id] = set;
             }
             set.CurrentRules = ls;
+            set.Counter = set.CurrentRules.Select(x => x.Id).Max() + 1;
             await Service.Update(set);
             Service.OnSave();
             await ReplyAsync($"Imported {ls.Count} rules");
