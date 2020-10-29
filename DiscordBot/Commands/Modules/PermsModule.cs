@@ -7,6 +7,7 @@ using DiscordBot.Services;
 using DiscordBot.TypeReaders;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -118,6 +119,26 @@ namespace DiscordBot.Commands.Modules
         [RequirePermission(Perms.Bot.Developer.ViewPermissions)]
         public async Task ViewOther(BotUser u) => await printListFor(u);
 
+        [Command("whohas")]
+        [Summary("Lists who has the given permission")]
+        [RequirePermission(Perms.Bot.Developer.ViewPermissions)]
+        public async Task<RuntimeResult> WhoHas(string node)
+        {
+            var perm = Service.FindNode(node);
+            if (perm == null)
+                return new BotResult("There does not exist a permission node by that text.");
+
+            string s = "";
+            foreach(var usr in Program.Users)
+            {
+                if(PermChecker.UserHasPerm(usr, perm))
+                    s += $"- <@{usr.Id}>\r\n";
+            }
+            if (s == "")
+                s = "No users have that permission.";
+            await Context.Channel.SendMessageAsync(s, allowedMentions: AllowedMentions.None);
+            return new BotResult();
+        }
 
         [Command("effective")]
         [Summary("View your effective permissions")]

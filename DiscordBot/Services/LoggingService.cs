@@ -181,6 +181,8 @@ namespace DiscordBot.Services
             var service = Program.Services.GetRequiredService<MsgService>();
             var content = service.GetLatestContent(arg1.Id);
             var dbMsg = await service.GetMessageAsync(arg1.Id);
+            if (dbMsg == null)
+                return;
             var builder = new EmbedBuilder()
                 .WithTitle("Message Deleted")
                 .WithColor(Color.Red)
