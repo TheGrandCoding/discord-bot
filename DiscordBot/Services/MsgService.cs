@@ -379,7 +379,7 @@ namespace DiscordBot.Services
             {
                 if (!(ds is IUserMessage umsg))
                     continue;
-                if (!total.Any(x => x.Id == ds.Id))
+                if (!DB.Messages.Any(x => x.MessageId == cast(ds.Id)))
                 {
                     total.Add(new DiscordMsg(this, umsg));
                     var content = new MsgContent()
