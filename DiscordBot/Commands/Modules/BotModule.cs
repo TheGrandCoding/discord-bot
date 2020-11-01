@@ -206,6 +206,10 @@ namespace DiscordBot.Commands.Modules
             paginator.Title = $"Message History";
             var url = $"https://discord.com/channels/{dbMsg.Guild}/{dbMsg.Channel}/{dbMsg.Message}";
             paginator.Content = $"{url}";
+            if(!string.IsNullOrWhiteSpace(dbMsg.Attachments))
+            {
+                paginator.Content += "\r\n" + dbMsg.Attachments.Replace(",", "\r\n");
+            }
             var ls = new List<string>();
             int i = 0;
             foreach(var content in contents)
