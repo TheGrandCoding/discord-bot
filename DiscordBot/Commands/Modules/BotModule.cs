@@ -208,6 +208,7 @@ namespace DiscordBot.Commands.Modules
             paginator.Content = $"{url}";
             if(!string.IsNullOrWhiteSpace(dbMsg.Attachments))
             {
+                Console.WriteLine(dbMsg.Attachments);
                 paginator.Content += "\r\n" + dbMsg.Attachments.Replace(",", "\r\n");
             }
             var ls = new List<string>();
