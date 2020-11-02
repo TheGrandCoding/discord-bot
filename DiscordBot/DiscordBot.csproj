@@ -36,7 +36,7 @@
 
   <ItemGroup>
     <PackageReference Include="CheAle14.EduLinkDLL" Version="0.0.4-alpha05" />
-    <PackageReference Include="Discord.Addons.Interactive" Version="2.0.0" />
+    <PackageReference Include="Discord.Addons.Interactive" Version="2.3.0-dev-20201028.4-00001" />
     <PackageReference Include="Discord.Net" Version="2.3.0-dev-20201028.4" />
     <PackageReference Include="Html2Markdown" Version="3.3.1.407" />
     <PackageReference Include="HttpMultipartParser" Version="4.3.1" />
