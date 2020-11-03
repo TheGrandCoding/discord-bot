@@ -467,7 +467,7 @@ namespace DiscordBot.Services
                 if (!DB.Messages.Any(x => x.MessageId == cast(ds.Id)))
                 {
                     total.Add(new DiscordMsg(this, umsg));
-                    await AddMessage((SocketMessage)umsg);
+                    await AddMessage(umsg);
                 }
             }
             if (changes)
