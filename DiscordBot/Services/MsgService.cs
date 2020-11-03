@@ -260,8 +260,93 @@ namespace DiscordBot.Services
             Program.Client.MessageUpdated += Client_MessageUpdated;
             Program.Client.ChannelUpdated += Client_ChannelUpdated;
             Program.Client.GuildUpdated += Client_GuildUpdated;
+#if !DEBUG
+            Catchup().Wait();
+#endif
         }
 
+#region Startup catchup
+        async Task Catchup()
+        {
+            using var DB = Program.Services.GetRequiredService<LogContext>();
+            foreach (var guild in Program.Client.Guilds)
+            {
+                if (guild.Id != 365230804734967840)
+                    continue;
+                try
+                {
+                    await Catchup(guild, DB);
+                } catch(Exception ex)
+                {
+                    Program.LogMsg(ex, "Cch-" + guild.Id.ToString());
+                }
+            }
+        }
+        async Task Catchup(SocketGuild guild, LogContext DB)
+        {
+            foreach(var txt in guild.TextChannels)
+            {
+                try
+                {
+                    await Catchup(txt, DB);
+                }
+                catch (Exception ex)
+                {
+                    Program.LogMsg(ex, $"{guild.Id}-{txt.Id}");
+                }
+            }
+        }
+        async Task Catchup(SocketTextChannel txt, LogContext DB)
+        {
+            bool exit = false;
+            do
+            {
+                var msgs = await txt.GetMessagesAsync(limit: 10).FlattenAsync();
+                var ordered = msgs.OrderByDescending(x => x.Id);
+                // Highest first, meaning latest message
+                foreach (var x in ordered)
+                {
+                    if (!(x is IUserMessage sm))
+                        continue;
+                    // x, starting at the latest message in the channel
+                    if (DB.Messages.Any(db => db.MessageId == cast(sm.Id)))
+                    {
+                        exit = true;
+                        break;
+                    }
+                    await AddMessage(sm);
+                }
+            } while (!exit);
+        }
+#endregion
+
+        async Task AddMessage(IMessage arg)
+        {
+            if (!(arg is IUserMessage umsg))
+                return;
+            if (!(arg.Channel is IGuildChannel))
+                return;
+            if (arg.Author.IsBot || arg.Author.IsWebhook)
+                return;
+            var content = new MsgContent()
+            {
+                Message = umsg.Id,
+                Content = umsg.Content,
+                Timestamp = umsg.Timestamp.DateTime,
+            };
+            using var DB = Program.Services.GetRequiredService<LogContext>();
+            DB.Contents.Add(content);
+            DB.SaveChanges();
+            var msg = new MsgModel(umsg);
+            msg.ContentId = content.Id;
+            DB.Messages.Add(msg);
+            await DB.SaveChangesAsync();
+            var bg = Console.BackgroundColor;
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.BackgroundColor = ConsoleColor.White;
+            Console.WriteLine($"{getWhere(umsg)}: {arg.Author.Username}: {arg.Content}");
+            Console.BackgroundColor = bg;
+        }
 
         private async Task Client_MessageUpdated(Cacheable<IMessage, ulong> arg1, SocketMessage arg2, ISocketMessageChannel arg3)
         {
@@ -382,18 +467,7 @@ namespace DiscordBot.Services
                 if (!DB.Messages.Any(x => x.MessageId == cast(ds.Id)))
                 {
                     total.Add(new DiscordMsg(this, umsg));
-                    var content = new MsgContent()
-                    {
-                        Message = ds.Id,
-                        Timestamp = (ds.EditedTimestamp ?? ds.Timestamp).DateTime,
-                        Content = ds.Content
-                    };
-                    DB.Contents.Add(content);
-                    await DB.SaveChangesAsync();
-                    var toStore = new MsgModel(umsg);
-                    toStore.ContentId = content.Id;
-                    DB.Messages.Add(toStore);
-                    changes = true;
+                    await AddMessage((SocketMessage)umsg);
                 }
             }
             if (changes)
@@ -455,37 +529,18 @@ namespace DiscordBot.Services
 
         private async System.Threading.Tasks.Task Client_MessageReceived(SocketMessage arg)
         {
-            if (!(arg is SocketUserMessage umsg))
-                return;
-            if (!(arg.Channel is SocketGuildChannel))
-                return;
-            if (arg.Author.IsBot || arg.Author.IsWebhook)
-                return;
-            var content = new MsgContent()
-            {
-                Message = umsg.Id,
-                Content = umsg.Content,
-                Timestamp = umsg.Timestamp.DateTime,
-            };
-            using var DB = Program.Services.GetRequiredService<LogContext>();
-            DB.Contents.Add(content);
-            DB.SaveChanges();
-            var msg = new MsgModel(umsg);
-            msg.ContentId = content.Id;
-            DB.Messages.Add(msg);
-            await DB.SaveChangesAsync();
-            Console.WriteLine($"{getWhere(umsg)}: {arg.Author.Username}: {arg.Content}");
+            await AddMessage(arg);
         }
 
-        string getWhere(SocketUserMessage m)
+        string getWhere(IUserMessage m)
         {
             var s = "{0}/{1}#{2}";
             var guildName = "";
             var categoryName = "";
-            if (m.Channel is SocketTextChannel g)
+            if (m.Channel is ITextChannel g)
             {
                 guildName = g.Guild.Name;
-                categoryName = g.Category?.Name ?? "";
+                categoryName = g.GetCategoryAsync().Result?.Name ?? "";
             }
             return string.Format(s, guildName, categoryName, m.Channel.Name);
         }

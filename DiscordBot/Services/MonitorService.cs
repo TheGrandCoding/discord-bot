@@ -65,22 +65,46 @@ namespace DiscordBot.Services
 
         private async System.Threading.Tasks.Task Client_UserVoiceStateUpdated(Discord.WebSocket.SocketUser arg1, Discord.WebSocket.SocketVoiceState arg2, Discord.WebSocket.SocketVoiceState arg3)
         {
-            if (!Monitors.TryGetValue(arg1.Id, out var monitor))
-                return;
-            var builder = new EmbedBuilder();
-            builder.Title = $"VC Updated";
-            builder.WithCurrentTimestamp();
-            builder.AddField($"Time", DateTime.Now.ToString("HH:mm:ss.fff"));
-            builder.WithAuthor(arg1);
-            builder.WithColor(Color.Purple);
-            if (arg3.VoiceChannel == null)
-                builder.Description = $"Left {arg2.VoiceChannel.Name}";
-            else if (arg2.VoiceChannel == null)
-                builder.Description = $"Join {arg3.VoiceChannel.Name}";
-            else if(arg2.VoiceChannel.Id != arg3.VoiceChannel.Id)
-                builder.Description = $"Moved from {arg2.VoiceChannel.Name} to {arg3.VoiceChannel.Name}";
-            foreach (var usr in monitor.VC)
-                await usr.SendMessageAsync(embed: builder.Build());
+            var alreadyDoneMonitors = new List<ulong>();
+            var alreadySent = new List<ulong>();
+            foreach(var state in new SocketVoiceChannel[] { arg2.VoiceChannel, arg3.VoiceChannel})
+            {
+                if (state == null)
+                    continue;
+                foreach(var usr in state.Users)
+                {
+                    if (alreadyDoneMonitors.Contains(usr.Id))
+                        continue;
+                    alreadyDoneMonitors.Add(usr.Id);
+                    if(!Monitors.TryGetValue(usr.Id, out var monitor))
+                        continue;
+                    var builder = new EmbedBuilder();
+                    builder.Title = $"VC Updated";
+                    builder.WithCurrentTimestamp();
+                    builder.AddField($"Time", DateTime.Now.ToString("HH:mm:ss.fff"));
+                    builder.WithAuthor(arg1);
+                    builder.WithColor(Color.Purple);
+                    if (arg3.VoiceChannel == null)
+                        builder.Description = $"Left {arg2.VoiceChannel.Name}";
+                    else if (arg2.VoiceChannel == null)
+                        builder.Description = $"Join {arg3.VoiceChannel.Name}";
+                    else if (arg2.VoiceChannel.Id != arg3.VoiceChannel.Id)
+                        builder.Description = $"Moved from {arg2.VoiceChannel.Name} to {arg3.VoiceChannel.Name}";
+                    if (string.IsNullOrWhiteSpace(builder.Description))
+                        return;
+                    if (usr.Id != arg1.Id)
+                        builder.WithFooter($"Proxy - {usr.Username}#{usr.Discriminator}", usr.GetAvatarUrl() ?? usr.GetDefaultAvatarUrl());
+                    foreach (var _u in monitor.VC)
+                    {
+                        if (alreadySent.Contains(_u.Id))
+                            continue;
+                        alreadySent.Add(_u.Id);
+                        await _u.SendMessageAsync(embed: builder.Build());
+                    }
+                    break;
+                }
+            }
+            
         }
     }
 
