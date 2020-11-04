@@ -169,15 +169,14 @@ namespace DiscordBot.MLAPI.Modules
             var session = user.Tokens.FirstOrDefault(x => x.Name == AuthToken.SessionToken);
             if (session == null)
             {
-                session = new AuthToken(AuthToken.SessionToken, 1);
+                session = new AuthToken(AuthToken.SessionToken, 32);
                 user.Tokens.Add(session);
             }
-            // New session, so we'll invalidate any other login
-            session.Regenerate(32);
+            // to prevent logging out any other devices, we'll maintain the same token value.
             Program.Save(); // ensure we save the session so it persists for multiple days
             context.HTTP.Response.Cookies.Add(new Cookie(AuthToken.SessionToken, session.Value, "/")
             {
-                Expires = DateTime.Now.AddDays(3)
+                Expires = DateTime.Now.AddDays(7)
             });
         }
 
@@ -265,6 +264,8 @@ namespace DiscordBot.MLAPI.Modules
                 return;
             }
             Context.User.MLAPIPassword = pwd;
+            Context.User.Tokens.RemoveAll(x => x.Name == AuthToken.SessionToken);
+            SetLoginSession(Context, Context.User);
             Program.Save();
             Context.HTTP.Response.Headers["Location"] = "/";
             RespondRaw("Set", HttpStatusCode.Redirect);

@@ -36,6 +36,7 @@ namespace DiscordBot.Commands.Modules
         }
         [Command("close")]
         [Summary("Closes the bot")]
+        [RequireOwner]
         public async Task Close(int code = 0)
         {
             await Success("Closing");
@@ -125,7 +126,6 @@ namespace DiscordBot.Commands.Modules
             var bUser = Program.GetUser(Context.User);
             await ReplyAsync($"{(bUser.OverrideName == null ? "<null>" : bUser.OverrideName)}");
         }
-
 
         List<char> findIllegalChars(string name)
         {
