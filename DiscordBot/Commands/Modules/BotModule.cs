@@ -203,6 +203,17 @@ namespace DiscordBot.Commands.Modules
                 return new BotResult("Message is not in database.");
             var contents = db.GetContents(messageId).OrderBy(x => x.Timestamp);
             var paginator = new PaginatedMessage();
+            var opt = PaginatedAppearanceOptions.Default;
+            paginator.Options = new PaginatedAppearanceOptions()
+            {
+                Back = opt.Back,
+                Next = opt.Next,
+                Stop = opt.Stop,
+                Info = opt.Info,
+                InformationText = "Displays a message's content, from the first time the bot recorded it and every edit since until the last known content.",
+                DisplayInformationIcon = false,
+                JumpDisplayOptions = JumpDisplayOptions.Never
+            };
             paginator.Title = $"Message History";
             var url = $"https://discord.com/channels/{dbMsg.Guild}/{dbMsg.Channel}/{dbMsg.Message}";
             paginator.Content = $"{url}";

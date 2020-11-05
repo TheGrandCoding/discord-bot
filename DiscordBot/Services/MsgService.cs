@@ -10,7 +10,10 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Net;
+using System.Reflection.Metadata;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace DiscordBot.Services
@@ -318,13 +321,68 @@ namespace DiscordBot.Services
                 }
             } while (!exit);
         }
-#endregion
+        #endregion
+
+        #region Image Handling
+
+        struct imageData
+        {
+            public IAttachment Attachment;
+            public IGuild Guild;
+            public ulong MessageId;
+        }
+
+        void HandleAttachment(IAttachment attachment, IGuild guild, ulong id)
+        {
+            var data = new imageData()
+            {
+                Attachment = attachment,
+                Guild = guild,
+                MessageId = id
+            };
+            var thr = new Thread(downloadAttachmentThread);
+            thr.Start(data);
+        }
+
+        void downloadAttachmentThread(object arg)
+        {
+            if (!(arg is imageData data))
+                return;
+            using var cl = new WebClient();
+            var path = Path.Combine(Path.GetTempPath(), $"{data.MessageId}_{data.Attachment.Filename}");
+            cl.DownloadFile(data.Attachment.Url, path);
+            var service = Program.Services.GetRequiredService<LoggingService>();
+            var chnl = service.GetChannel(data.Guild, "attachment").Result;
+            var message = chnl.SendFileAsync(path, $"{data.Guild.Id}-{data.MessageId}").Result;
+            using var DB = Program.Services.GetRequiredService<LogContext>();
+            MsgModel dbMsg;
+            int tries = 0;
+            do
+            {
+                dbMsg = DB.Messages.AsQueryable().FirstOrDefault(x => x.MessageId == cast(data.MessageId));
+                if (dbMsg == null)
+                {
+                    if (tries > 20)
+                    {
+                        Program.LogMsg($"Cancel - Could not locate message {data.MessageId} for setting new attachment url.", LogSeverity.Error, "LogAtt");
+                        return;
+                    }
+                    tries++;
+                    Program.LogMsg($"{tries:00} - Could not locate message {data.MessageId} for setting new attachment url.", LogSeverity.Warning, "LogAtt");
+                    Thread.Sleep(1000 * tries);
+                }
+            } while (dbMsg == null);
+            dbMsg.Attachments = dbMsg.Attachments.Replace(data.Attachment.Url, message.Attachments.First().Url);
+            DB.SaveChanges();
+        }
+
+        #endregion
 
         async Task AddMessage(IMessage arg)
         {
             if (!(arg is IUserMessage umsg))
                 return;
-            if (!(arg.Channel is IGuildChannel))
+            if (!(arg.Channel is IGuildChannel guildChannel))
                 return;
             if (arg.Author.IsBot || arg.Author.IsWebhook)
                 return;
@@ -342,10 +400,14 @@ namespace DiscordBot.Services
             DB.Messages.Add(msg);
             await DB.SaveChangesAsync();
             var bg = Console.BackgroundColor;
-            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.ForegroundColor = ConsoleColor.Black;
             Console.BackgroundColor = ConsoleColor.White;
             Console.WriteLine($"{getWhere(umsg)}: {arg.Author.Username}: {arg.Content}");
             Console.BackgroundColor = bg;
+            foreach(var attch in umsg.Attachments)
+            {
+                HandleAttachment(attch, guildChannel.Guild, umsg.Id);
+            }
         }
 
         private async Task Client_MessageUpdated(Cacheable<IMessage, ulong> arg1, SocketMessage arg2, ISocketMessageChannel arg3)
