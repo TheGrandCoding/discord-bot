@@ -196,71 +196,7 @@ namespace DiscordBot.MLAPI.Modules
 
         SocketGuildUser Self;
         bool HasUnreadMessages = false;
-        HTMLBase getMsgContent(SocketGuild guild, ReturnedMsg m, out bool mentioned)
-        {
-            var div = new Div(cls: "markup-2BOw-j messageContent-2qWWxC");
-            mentioned = false;
-            string basic = m.Content;
-            #region Strip Harmful Stuff
-            // Remove < and > to prevent injection i guess
-            basic = basic.Replace("<", "&lt;").Replace(">", "&gt;");
-            #endregion
-
-            #region Mention Parsing
-            /*
-            #region User Mentions
-            foreach (var id in m.MentionedUserIds)
-            {
-                if (id == Context.User.Id)
-                    mentioned = true;
-                var usr = guild.GetUser(id);
-                string[] replaceFroms = new string[]
-                {
-                    $"&lt;@!{id}&gt;",
-                    $"&lt;@{id}&gt;",
-                };
-                string replaceTo = "";
-                if (usr == null)
-                {
-                    replaceTo = "<span class='mention wrapper-3WhCwL'>@deleted-user</span>";
-                }
-                else
-                {
-                    replaceTo = $"<span class='wrapper-3WhCwL mention interactive'>@{(usr.Nickname ?? usr.Username)}</span>";
-                }
-                foreach (var from in replaceFroms)
-                    basic = basic.Replace(from, replaceTo);
-            }
-            #endregion
-            #region Role Mentions
-            foreach (var id in m.MentionedRoleIds)
-            {
-                var role = guild.GetRole(id);
-                if (Self.Roles.Contains(role))
-                    mentioned = true;
-                string replaceFrom = $"&lt;@&{id}&gt;";
-                string replaceTo = "";
-                if (role == null)
-                {
-                    replaceTo = "<span class='mention wrapper-3WhCwL'>@deleted-role</span>";
-                }
-                else
-                {
-                    replaceTo = $"<span style='color: {getRGBFromColor(role.Color)};" +
-                        $"background-color: {getRGBFromColor(role.Color, "0.1")}' class='wrapper-3WhCwL mention interactive'>@{role.Name}</span>";
-                }
-                basic = basic.Replace(replaceFrom, replaceTo);
-            }
-            #endregion
-            */
-            #endregion
-
-            #region Markdown Replacement
-            // Skip for now.
-            #endregion
-            return div.WithRawText(basic);
-        }
-
+        
         Div addDateSep(DateTime now, bool isNew)
         {
             var div = new Div()
@@ -347,6 +283,98 @@ namespace DiscordBot.MLAPI.Modules
 
         #region Message HTML
 
+        static string[] imageExtensions = new string[] { "jpeg", "jpg", "png" };
+        bool isImage(string x)
+        {
+            foreach (var ext in imageExtensions)
+                if (x.ToLower().EndsWith(ext))
+                    return true;
+            return false;
+        }
+
+        HTMLBase getMsgAttachments(ReturnedMsg message)
+        {
+            var split = message.Attachments.Split(',').Where(x => isImage(x)).ToList();
+            if (split.Count == 0)
+                return null;
+            var container = new Div(cls: "container-1ov-mD");
+            foreach(var image in split)
+            {
+                var anchor = new Anchor(image, cls: "anchor-3Z-8Bb anchorUnderlineOnHover-2ESHQB imageWrapper-2p5ogY imageZoom-1n-ADA clickable-3Ya1ho embedWrapper-lXpS3L");
+                anchor.RawText = "";
+                var img = new DiscordBot.Classes.HTMLHelpers.Objects.Image();
+                img.Src = image;
+                anchor.Children.Add(img);
+                container.Children.Add(anchor);
+            }
+            return container;
+        }
+
+        HTMLBase getMsgContent(SocketGuild guild, ReturnedMsg m, out bool mentioned)
+        {
+            var div = new Div(cls: "markup-2BOw-j messageContent-2qWWxC");
+            mentioned = false;
+            string basic = m.Content;
+            #region Strip Harmful Stuff
+            // Remove < and > to prevent injection i guess
+            basic = basic.Replace("<", "&lt;").Replace(">", "&gt;");
+            #endregion
+
+            #region Mention Parsing
+            /*
+            #region User Mentions
+            foreach (var id in m.MentionedUserIds)
+            {
+                if (id == Context.User.Id)
+                    mentioned = true;
+                var usr = guild.GetUser(id);
+                string[] replaceFroms = new string[]
+                {
+                    $"&lt;@!{id}&gt;",
+                    $"&lt;@{id}&gt;",
+                };
+                string replaceTo = "";
+                if (usr == null)
+                {
+                    replaceTo = "<span class='mention wrapper-3WhCwL'>@deleted-user</span>";
+                }
+                else
+                {
+                    replaceTo = $"<span class='wrapper-3WhCwL mention interactive'>@{(usr.Nickname ?? usr.Username)}</span>";
+                }
+                foreach (var from in replaceFroms)
+                    basic = basic.Replace(from, replaceTo);
+            }
+            #endregion
+            #region Role Mentions
+            foreach (var id in m.MentionedRoleIds)
+            {
+                var role = guild.GetRole(id);
+                if (Self.Roles.Contains(role))
+                    mentioned = true;
+                string replaceFrom = $"&lt;@&{id}&gt;";
+                string replaceTo = "";
+                if (role == null)
+                {
+                    replaceTo = "<span class='mention wrapper-3WhCwL'>@deleted-role</span>";
+                }
+                else
+                {
+                    replaceTo = $"<span style='color: {getRGBFromColor(role.Color)};" +
+                        $"background-color: {getRGBFromColor(role.Color, "0.1")}' class='wrapper-3WhCwL mention interactive'>@{role.Name}</span>";
+                }
+                basic = basic.Replace(replaceFrom, replaceTo);
+            }
+            #endregion
+            */
+            #endregion
+
+            #region Markdown Replacement
+            // Skip for now.
+            #endregion
+            return div.WithRawText(basic);
+        }
+
         HTMLBase getMessageHeader(ReturnedMsg msg, string authorName, string roleColor)
         {
             var h2 = new H2(cls: "header-23xsNx");
@@ -402,6 +430,9 @@ namespace DiscordBot.MLAPI.Modules
                 Program.LogMsg($"{msg.Timestamp == null}");
                 throw;
             }
+            var attachments = getMsgAttachments(msg);
+            if (attachments != null)
+                contentsDiv.Children.Add(attachments);
             messageDiv.Children.Add(contentsDiv);
             if (mentioned)
                 messageDiv.ClassList.Add("mentioned-xhSam7");

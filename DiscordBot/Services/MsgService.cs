@@ -183,6 +183,8 @@ namespace DiscordBot.Services
         public DateTimeOffset CreatedAt => SnowflakeUtils.FromSnowflake(Id);
         public IUser Author { get; set; }
 
+        public string Attachments { get; set; }
+
         public bool IsDeleted { get; set; }
     }
     public class DiscordMsg : ReturnedMsg
@@ -192,6 +194,7 @@ namespace DiscordBot.Services
             Id = message.Id;
             Content = message.Content;
             Author = message.Author;
+            Attachments = string.Join(',', message.Attachments.Select(x => x.Url));
         }
     }
     public class DbMsg : ReturnedMsg
@@ -208,6 +211,7 @@ namespace DiscordBot.Services
                 dbu.Username = s.GetNamesFor(model.Author).LastOrDefault()?.Name;
                 Author = dbu;
             }
+            Attachments = model.Attachments;
         }
     }
 
