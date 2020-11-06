@@ -73,6 +73,8 @@ namespace DiscordBot.Services
                     continue;
                 foreach(var usr in state.Users)
                 {
+                    if (usr.IsBot)
+                        continue;
                     if (alreadyDoneMonitors.Contains(usr.Id))
                         continue;
                     alreadyDoneMonitors.Add(usr.Id);
@@ -97,6 +99,8 @@ namespace DiscordBot.Services
                     foreach (var _u in monitor.VC)
                     {
                         if (alreadySent.Contains(_u.Id))
+                            continue;
+                        if (_u.Id == arg1.Id)
                             continue;
                         alreadySent.Add(_u.Id);
                         await _u.SendMessageAsync(embed: builder.Build());
