@@ -65,6 +65,8 @@ namespace DiscordBot.Services
 
         private async System.Threading.Tasks.Task Client_UserVoiceStateUpdated(Discord.WebSocket.SocketUser arg1, Discord.WebSocket.SocketVoiceState arg2, Discord.WebSocket.SocketVoiceState arg3)
         {
+            if (arg1.IsBot)
+                return;
             var alreadyDoneMonitors = new List<ulong>();
             var alreadySent = new List<ulong>();
             foreach(var state in new SocketVoiceChannel[] { arg2.VoiceChannel, arg3.VoiceChannel})
@@ -84,7 +86,7 @@ namespace DiscordBot.Services
                     builder.Title = $"VC Updated";
                     builder.WithCurrentTimestamp();
                     builder.AddField($"Time", DateTime.Now.ToString("HH:mm:ss.fff"));
-                    builder.WithAuthor(arg1);
+                    builder.WithAuthor($"{arg1.Username}#{arg1.Discriminator}", arg1.GetAvatarUrl() ?? arg1.GetDefaultAvatarUrl());
                     builder.WithColor(Color.Purple);
                     if (arg3.VoiceChannel == null)
                         builder.Description = $"Left {arg2.VoiceChannel.Name}";
