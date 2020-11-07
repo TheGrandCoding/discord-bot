@@ -67,13 +67,34 @@ namespace DiscordBot.Services
         {
             if (arg1.IsBot)
                 return;
+            var builder = new EmbedBuilder();
+            builder.Title = $"VC Updated";
+            builder.WithCurrentTimestamp();
+            builder.AddField($"Time", DateTime.Now.ToString("HH:mm:ss.fff"));
+            builder.WithAuthor($"{arg1.Username}#{arg1.Discriminator}", arg1.GetAvatarUrl() ?? arg1.GetDefaultAvatarUrl());
+            builder.WithColor(Color.Purple);
+            var beforeUsers = arg2.VoiceChannel?.Users.ToList() ?? new List<SocketGuildUser>();
+            var afterUsers = arg3.VoiceChannel?.Users.ToList() ?? new List<SocketGuildUser>();
+            if (arg3.VoiceChannel == null)
+            {
+                builder.Description = $"Left {arg2.VoiceChannel.Name}";
+                beforeUsers.Add((SocketGuildUser)arg1);
+            }
+            else if (arg2.VoiceChannel == null)
+            {
+                builder.Description = $"Join {arg3.VoiceChannel.Name}";
+            }
+            else if (arg2.VoiceChannel.Id != arg3.VoiceChannel.Id)
+            {
+                builder.Description = $"Moved from {arg2.VoiceChannel.Name} to {arg3.VoiceChannel.Name}";
+            }
+            if (string.IsNullOrWhiteSpace(builder.Description))
+                return;
             var alreadyDoneMonitors = new List<ulong>();
             var alreadySent = new List<ulong>();
-            foreach(var state in new SocketVoiceChannel[] { arg2.VoiceChannel, arg3.VoiceChannel})
+            foreach(var list in new List<List<SocketGuildUser>> { beforeUsers, afterUsers})
             {
-                if (state == null)
-                    continue;
-                foreach(var usr in state.Users)
+                foreach(var usr in list)
                 {
                     if (usr.IsBot)
                         continue;
@@ -82,20 +103,6 @@ namespace DiscordBot.Services
                     alreadyDoneMonitors.Add(usr.Id);
                     if(!Monitors.TryGetValue(usr.Id, out var monitor))
                         continue;
-                    var builder = new EmbedBuilder();
-                    builder.Title = $"VC Updated";
-                    builder.WithCurrentTimestamp();
-                    builder.AddField($"Time", DateTime.Now.ToString("HH:mm:ss.fff"));
-                    builder.WithAuthor($"{arg1.Username}#{arg1.Discriminator}", arg1.GetAvatarUrl() ?? arg1.GetDefaultAvatarUrl());
-                    builder.WithColor(Color.Purple);
-                    if (arg3.VoiceChannel == null)
-                        builder.Description = $"Left {arg2.VoiceChannel.Name}";
-                    else if (arg2.VoiceChannel == null)
-                        builder.Description = $"Join {arg3.VoiceChannel.Name}";
-                    else if (arg2.VoiceChannel.Id != arg3.VoiceChannel.Id)
-                        builder.Description = $"Moved from {arg2.VoiceChannel.Name} to {arg3.VoiceChannel.Name}";
-                    if (string.IsNullOrWhiteSpace(builder.Description))
-                        return;
                     if (usr.Id != arg1.Id)
                         builder.WithFooter($"Proxy - {usr.Username}#{usr.Discriminator}", usr.GetAvatarUrl() ?? usr.GetDefaultAvatarUrl());
                     foreach (var _u in monitor.VC)
@@ -110,7 +117,6 @@ namespace DiscordBot.Services
                     break;
                 }
             }
-            
         }
     }
 
