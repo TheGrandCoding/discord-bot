@@ -83,13 +83,14 @@ namespace DiscordBot.Services
             } else if(hasEnabledPairing(user, state.IsSelfMuted))
             {
                 manage = true;
+                var ls = new List<Overwrite>();
+                foreach(var x in voice.Users)
+                {
+                    ls.Add(new Overwrite(x.Id, PermissionTarget.User, perms(x.Id == user.Id)));
+                }
                 text = await user.Guild.CreateTextChannelAsync("pair-" + voice.Name, x =>
                 {
-                    x.PermissionOverwrites = new Optional<IEnumerable<Overwrite>>(new List<Overwrite>()
-                    {
-                        new Overwrite(user.Guild.EveryoneRole.Id, PermissionTarget.Role, new OverwritePermissions(viewChannel: PermValue.Deny)),
-                        new Overwrite(user.Id, PermissionTarget.User, perms(true))
-                    });
+                    x.PermissionOverwrites = ls;
                     x.CategoryId = voice.CategoryId;
                     x.Position = 999;
                     x.Topic = $"Paired channel with <#{voice.Id}>.";
