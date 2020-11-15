@@ -4,6 +4,7 @@ using Discord.Commands;
 using Discord.Rest;
 using Discord.WebSocket;
 using DiscordBot.Classes;
+using DiscordBot.Classes.Calculator;
 using DiscordBot.MLAPI;
 using DiscordBot.Permissions;
 using DiscordBot.Services;
@@ -32,7 +33,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.11.4"; 
+        public const string VERSION = "0.11.5"; 
         public const string CHANGELOG = VERSION + @"
 == Permissions changes
 Changed how permissions worked for bot.

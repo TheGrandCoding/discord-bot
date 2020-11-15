@@ -20,16 +20,16 @@ namespace DiscordBot.Commands.Modules
         [Alias("c", "calc", "calculator")]
         public async Task<RuntimeResult> Calculate([Remainder]string input)
         {
-            double result;
-            var calc = new Calculator();
+            Result result;
+            var calc = new CalculationTree(input);
             try
             {
-                result = calc.Output(input);
+                result = calc.Calculate();
             } catch (Exception ex)
             {
-                return new BotResult($"Failed: {ex.Message}\r\n```\n{string.Join("\n", calc.Steps)}\n```");
+                return new BotResult($"Failed: {ex.Message}\r\n```\n{string.Join("\n", calc.CalcLog)}\n```");
             }
-            await ReplyAsync($"Answer: **{result}**\r\n```\n{string.Join("\n", calc.Steps)}\n```");
+            await ReplyAsync($"Answer: **{result}**\r\n```\n{string.Join("\n", calc.CalcLog)}\n```");
             return new BotResult();
         }
 
@@ -38,14 +38,11 @@ namespace DiscordBot.Commands.Modules
         public async Task ListMethods()
         {
             var sb = new StringBuilder();
-            var c = new Calculator();
-            foreach(var proc in c.Processes)
+            foreach(var meth in CalculationTree.Functions)
             {
-                if (!(proc is MethodFunction meth))
-                    continue;
-                var args = meth.method.GetParameters()
+                var args = meth.GetParameters()
                     .Select(x => $"*{x.ParameterType.Name}* `{x.Name}`");
-                sb.Append($"*{meth.method.ReturnType.Name}* **{meth.Name}**({string.Join(", ", args)})\n");
+                sb.Append($"*{meth.ReturnType.Name}* **{meth.Name}**({string.Join(", ", args)})\n");
             }
             await ReplyAsync(sb.ToString());
         }

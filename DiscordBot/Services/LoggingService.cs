@@ -208,6 +208,8 @@ namespace DiscordBot.Services
             var latestContent = latest?.Content ?? null;
             if (latestContent == arg2.Content)
                 return;
+            if (latestContent == null && (DateTime.UtcNow - arg2.CreatedAt.UtcDateTime).TotalSeconds < 1)
+                return;
             var builder = new EmbedBuilder()
                 .WithTitle("Message Edited")
                 .WithColor(Color.Blue)

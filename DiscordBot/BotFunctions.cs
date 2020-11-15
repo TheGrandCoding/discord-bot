@@ -347,5 +347,18 @@ namespace DiscordBot
                 return total;
             }
         }
+    
+        public static string GetTypeName(Type type, bool specifyEnumName = false)
+        {
+            if (type == typeof(int))
+                return "int";
+            if (type == typeof(bool))
+                return "bool";
+            if (!specifyEnumName && type.IsEnum)
+                return "enum";
+            if (type.FullName.StartsWith("System"))
+                return type.FullName["System.".Length..].ToLower();
+            return type.FullName;
+        }
     }
 }

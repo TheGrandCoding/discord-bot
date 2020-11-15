@@ -16,7 +16,9 @@ namespace DiscordBot.Classes
             return objectType == typeof(ITextChannel)
                 || objectType == typeof(SocketTextChannel)
                 || objectType == typeof(RestTextChannel)
+                || objectType == typeof(IVoiceChannel)
                 || objectType == typeof(SocketVoiceChannel)
+                || objectType == typeof(RestVoiceChannel)
                 || objectType == typeof(SocketGuildUser)
                 || objectType == typeof(IUserMessage)
                 || objectType == typeof(RestUserMessage)
@@ -62,21 +64,21 @@ namespace DiscordBot.Classes
             return null;
         }
 
-        public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
+        public string GetValue(object value)
         {
-            if(value is IGuildChannel gc)
+            if (value is IGuildChannel gc)
             {
-                var jval = new JValue($"{gc.GuildId}.{gc.Id}");
-                jval.WriteTo(writer);
-            } else if(value is IRole rl)
+                return $"{gc.GuildId}.{gc.Id}";
+            }
+            else if (value is IRole rl)
             {
-                var jval = new JValue($"{rl.Guild.Id}.{rl.Id}");
-                jval.WriteTo(writer);
-            } else if(value is IGuildUser gu)
+                return $"{rl.Guild.Id}.{rl.Id}";
+            }
+            else if (value is IGuildUser gu)
             {
-                var jval = new JValue($"{gu.GuildId}.{gu.Id}");
-                jval.WriteTo(writer);
-            } else if (value is IUserMessage m)
+                return $"{gu.GuildId}.{gu.Id}";
+            }
+            else if (value is IUserMessage m)
             {
                 ulong gId = 0;
                 ulong cId = m.Channel.Id;
@@ -85,14 +87,19 @@ namespace DiscordBot.Classes
                     gId = c.GuildId;
                 if (m.Channel is IDMChannel d)
                     cId = d.Recipient.Id;
-                var jval = new JValue($"{gId}.{cId}.{mId}");
-                jval.WriteTo(writer);
+                return $"{gId}.{cId}.{mId}";
             }
             else if (value is IEntity<ulong> eu)
             {
-                var jval = new JValue($"0.{eu.Id}");
-                jval.WriteTo(writer);
+                return $"0.{eu.Id}";
             }
+            return (value ?? "<null>").ToString();
+        }
+
+        public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
+        {
+            var jval = new JValue(GetValue(value));
+            jval.WriteTo(writer);
         }
     }
 }
