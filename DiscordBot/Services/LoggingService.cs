@@ -104,7 +104,7 @@ namespace DiscordBot.Services
 
         public bool isDirty = false;
 
-        static Semaphore Lock = new Semaphore(0, 1);
+        static Semaphore Lock = new Semaphore(1, 1);
 
         async Task createCategory(IGuild guild, guildSave guildInfo)
         {
@@ -141,7 +141,9 @@ namespace DiscordBot.Services
         }
         public async Task<ITextChannel> GetChannel(IGuild guild, string action)
         {
+            Program.LogMsg($"Entering lock for {guild.Name}", LogSeverity.Info, action);
             Lock.WaitOne();
+            Program.LogMsg($"Achieved lock for {guild.Name}", LogSeverity.Info, action);
             try
             {
                 if(GuildMap.TryGetValue(guild.Id, out var guildSave))
@@ -164,6 +166,7 @@ namespace DiscordBot.Services
             finally
             {
                 Lock.Release();
+                Program.LogMsg($"Released lock for {guild.Name}", LogSeverity.Info, action);
             }
         }
         #endregion
