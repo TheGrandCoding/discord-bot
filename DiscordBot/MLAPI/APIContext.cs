@@ -28,6 +28,8 @@ namespace DiscordBot.MLAPI
 
         public bool isInNetwork => IP.StartsWith("192.168.1.");
 
+        public bool IsBehindFirewall => Request.Headers["Via"]?.Contains("smoothwall") ?? false;
+
         public bool HasPerm(string perm)
         {
             pService ??= Program.Services.GetRequiredService<PermissionsService>();

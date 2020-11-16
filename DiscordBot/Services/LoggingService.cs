@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace DiscordBot.Services
@@ -103,6 +104,8 @@ namespace DiscordBot.Services
 
         public bool isDirty = false;
 
+        static Semaphore Lock = new Semaphore(0, 1);
+
         async Task createCategory(IGuild guild, guildSave guildInfo)
         {
             guildInfo.Category = await LogGuild.CreateCategoryAsync(guild.Name);
@@ -138,22 +141,30 @@ namespace DiscordBot.Services
         }
         public async Task<ITextChannel> GetChannel(IGuild guild, string action)
         {
-            if(GuildMap.TryGetValue(guild.Id, out var guildSave))
+            Lock.WaitOne();
+            try
             {
-                if (guildSave.Actions.TryGetValue(action, out var txt))
-                    return txt;
+                if(GuildMap.TryGetValue(guild.Id, out var guildSave))
+                {
+                    if (guildSave.Actions.TryGetValue(action, out var txt))
+                        return txt;
+                }
+                var category = await GetCategory(guild);
+                var sv = GuildMap[guild.Id];
+                var newtxt = await LogGuild.CreateTextChannelAsync("log-" + action, x =>
+                {
+                    x.CategoryId = category.Id;
+                    x.Topic = "Logs for any new, updated or deleted " + action + "s";
+                });
+                await newtxt.SyncPermissionsAsync();
+                sv.Actions[action] = newtxt;
+                isDirty = true;
+                return newtxt;
             }
-            var category = await GetCategory(guild);
-            var sv = GuildMap[guild.Id];
-            var newtxt = await LogGuild.CreateTextChannelAsync("log-" + action, x =>
+            finally
             {
-                x.CategoryId = category.Id;
-                x.Topic = "Logs for any new, updated or deleted " + action + "s";
-            });
-            await newtxt.SyncPermissionsAsync();
-            sv.Actions[action] = newtxt;
-            isDirty = true;
-            return newtxt;
+                Lock.Release();
+            }
         }
         #endregion
 
@@ -208,12 +219,13 @@ namespace DiscordBot.Services
             var latestContent = latest?.Content ?? null;
             if (latestContent == arg2.Content)
                 return;
-            if (latestContent == null && (DateTime.UtcNow - arg2.CreatedAt.UtcDateTime).TotalSeconds < 1)
+            var diff = DateTime.UtcNow - arg2.CreatedAt.UtcDateTime;
+            if (latestContent == null && diff.TotalSeconds < 1)
                 return;
             var builder = new EmbedBuilder()
                 .WithTitle("Message Edited")
                 .WithColor(Color.Blue)
-                .WithDescription(latestContent ?? "[unknown prior content]");
+                .WithDescription(latestContent ?? $"[unknown prior content {diff.TotalSeconds:0.0000}]");
             builder.AddField("Channel", txt.Mention, true);
             builder.AddField("Author", $"{arg2.Author.Id}\r\n<@{arg2.Author.Id}>", true);
             builder.AddField("Link", arg2.GetJumpUrl(), true);

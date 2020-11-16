@@ -5,12 +5,16 @@ using DiscordBot.Classes.HTMLHelpers;
 using DiscordBot.Classes.HTMLHelpers.Objects;
 using DiscordBot.Commands.Modules.MLAPI;
 using DiscordBot.Services;
+using EduLinkDLL.API.Models;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace DiscordBot.MLAPI.Modules
 {
@@ -303,7 +307,15 @@ namespace DiscordBot.MLAPI.Modules
                 var anchor = new Anchor(image, cls: "anchor-3Z-8Bb anchorUnderlineOnHover-2ESHQB imageWrapper-2p5ogY imageZoom-1n-ADA clickable-3Ya1ho embedWrapper-lXpS3L");
                 anchor.RawText = "";
                 var img = new DiscordBot.Classes.HTMLHelpers.Objects.Image();
-                img.Src = image;
+                img.Style = "height: 300px; width: auto;";
+                if(Context.IsBehindFirewall)
+                {
+                    var uri = new Uri(image);
+                    img.Src = $"{Handler.LocalAPIUrl}{uri.PathAndQuery}";
+                } else
+                {
+                    img.Src = image;
+                }
                 anchor.Children.Add(img);
                 container.Children.Add(anchor);
             }
@@ -315,12 +327,39 @@ namespace DiscordBot.MLAPI.Modules
             var div = new Div(cls: "markup-2BOw-j messageContent-2qWWxC");
             mentioned = false;
             string basic = m.Content;
-            #region Strip Harmful Stuff
-            // Remove < and > to prevent injection i guess
-            basic = basic.Replace("<", "&lt;").Replace(">", "&gt;");
-            #endregion
 
             #region Mention Parsing
+
+            #region User Mentions
+            var rgx = new Regex(@"(?<!\\)<@!?([0-9]{17,18})>");
+            var done = new List<ulong>();
+            foreach(Match match in rgx.Matches(basic))
+            {
+                var userId = ulong.Parse(match.Groups[1].Value);
+                if (done.Contains(userId))
+                    continue;
+                if(userId == Context.User.Id)
+                    mentioned = true;
+                done.Add(userId);
+                string display = "@unkown-user";
+                var user = guild.GetUser(userId);
+                if(user != null)
+                {
+                    display = $"@{user.Nickname ?? user.Username}";
+                } else
+                {
+                    var any = Program.GetUserOrDefault(userId);
+                    if (any != null)
+                        display = $"@{any.Name}";
+                }
+                var span = new Span(cls: "mention wrapper-3WhCwL mention interactive")
+                    .WithTag("tabindex", "0")
+                    .WithTag("data-id", $"{userId}")
+                    .WithRawText(display);
+                basic = basic.Replace(match.Value, span.ToString());
+            }
+            #endregion
+
             /*
             #region User Mentions
             foreach (var id in m.MentionedUserIds)
@@ -690,6 +729,16 @@ namespace DiscordBot.MLAPI.Modules
                 Program.LogMsg("VPN", ex);
                 RespondRaw(ex.Message, System.Net.HttpStatusCode.InternalServerError);
             }
+        }
+    
+        [Method("GET"), PathRegex(@"\/attachments\/[0-9]{17,18}\/[0-9]{17,18}\/[A-Za-z0-9]+")]
+        public void ProxyImage()
+        {
+            var client = Program.Services.GetRequiredService<HttpClient>();
+            var stream = client.GetStreamAsync($"https://cdn.discordapp.com{Context.Path}").Result;
+            stream.CopyTo(Context.HTTP.Response.OutputStream);
+            Context.HTTP.Response.Close();
+            StatusSent = 200;
         }
     }
 }
