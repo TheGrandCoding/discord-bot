@@ -13,6 +13,7 @@ using System.Net.Http;
 using System.Reflection.Metadata;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace DiscordBot.Services
 {
@@ -21,6 +22,7 @@ namespace DiscordBot.Services
         public const string URL = @"https://corona-api.com/countries/";
 
         public Dictionary<string, List<DateTime>> AverageUpdateTimes = new Dictionary<string, List<DateTime>>();
+        public Dictionary<ulong, DateTime> Isolation = new Dictionary<ulong, DateTime>();
         public List<SendingEntry> Entries = new List<SendingEntry>();
         public DateTime lastDone = DateTime.Now;
 
@@ -28,6 +30,7 @@ namespace DiscordBot.Services
         {
             public Dictionary<string, List<DateTime>> update;
             public List<SendingEntry> entries;
+            public Dictionary<ulong, DateTime> isolation;
         }
 
         public override string GenerateSave()
@@ -35,7 +38,8 @@ namespace DiscordBot.Services
             var s = new save()
             {
                 update = AverageUpdateTimes,
-                entries = Entries
+                entries = Entries,
+                isolation = Isolation
             };
             return Program.Serialise(s);
         }
@@ -52,9 +56,15 @@ namespace DiscordBot.Services
                 var sv = Program.Deserialise<save>(s);
                 AverageUpdateTimes = sv.update;
                 Entries = sv.entries;
+                Isolation = sv.isolation ?? new Dictionary<ulong, DateTime>();
             }
             var t = new Thread(threadWork);
             t.Start();
+        }
+
+        public override void OnDailyTick()
+        {
+            checkIsolationNicknames().Wait();
         }
 
         void handleTimeout()
@@ -133,6 +143,29 @@ namespace DiscordBot.Services
                 builder.Color = casesPerMil <= 250 ? Color.Green : Color.Orange;
             }
             return builder;
+        }
+
+        async Task checkIsolationNicknames()
+        {
+            var ls = new List<ulong>();
+            foreach(var keypair in Isolation)
+            {
+                if(keypair.Value < DateTime.Now)
+                {
+                    ls.Add(keypair.Key);
+                    foreach(var guild in Program.Client.Guilds)
+                    {
+                        var usr = guild.GetUser(keypair.Key);
+                        if (usr == null)
+                            continue;
+                        var text = Emotes.MICROBE.Name;
+                        if (usr.Nickname == null || usr.Nickname.StartsWith(text) == false)
+                            continue;
+                        await usr.ModifyAsync(x => x.Nickname = usr.Nickname.Substring(text.Length));
+                    }
+                }
+            }
+            foreach (var x in ls) Isolation.Remove(x);
         }
 
         void threadWork()

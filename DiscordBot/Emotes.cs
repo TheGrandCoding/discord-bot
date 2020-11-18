@@ -10,5 +10,6 @@ namespace DiscordBot
         public static IEmote THUMBS_UP = new Emoji("👍");
         public static IEmote WHITE_CHECK_MARK = new Emoji("✅");
         public static IEmote HAMMER = new Emoji("🔨");
+        public static IEmote MICROBE = new Emoji("🦠");
     }
 }
