@@ -22,7 +22,7 @@ namespace DiscordBot.Commands.Modules
             builder.Title = "Emojis";
             foreach(var emoji in Context.Guild.Emotes)
             {
-                if(emoji.RoleIds != null)
+                if(emoji.RoleIds != null && emoji.RoleIds.Count > 0)
                 {
                     var value = emoji.RoleIds.Select(x => Context.Guild.GetRole(x).Mention);
                     builder.AddField(emoji.ToString(), string.Join("\r\n", value), true);
