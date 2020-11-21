@@ -10,10 +10,12 @@ namespace DiscordBot.Classes.Chess
     {
         public ChessPlayer Self { get; set; }
         public ChessPlayer Other { get; set; }
+        public ChessDbContext DB { get; set; }
         public double Weight { get; set; }
 
-        public ChessWeightedRecommend(ChessPlayer self, ChessPlayer other)
+        public ChessWeightedRecommend(ChessDbContext db, ChessPlayer self, ChessPlayer other)
         {
+            DB = db;
             Self = self;
             Other = other;
             Calculate();
@@ -22,17 +24,13 @@ namespace DiscordBot.Classes.Chess
         DateTime lastPlayedAgainst(ChessPlayer p1, ChessPlayer p2)
         {
             DateTime last = DateTime.Now.AddDays(-1000);
-            foreach(var day in p1.Days)
+            var games = DB.GetGamesWith(p1);
+            var withP2 = games.Where(x => x.LoserId == p2.Id || x.WinnerId == p2.Id);
+            foreach(var x in withP2)
             {
-                foreach(var entry in day.Entries)
+                if (x.Timestamp > last)
                 {
-                    if(entry.againstId == p2.Id)
-                    {
-                        if (day.Date > last)
-                        {
-                            last = day.Date;
-                        }
-                    }
+                    last = x.Timestamp;
                 }
             }
             return last;
@@ -53,11 +51,16 @@ namespace DiscordBot.Classes.Chess
             return ((1 / 2d) * (days * days)) - 50;
         }
 
+        int getArbVote(ChessPlayer player, ChessPlayer other)
+        {
+            return player.ArbVotes.FirstOrDefault(x => x.VoteeId == other.Id)?.Score ?? 0;
+        }
+
         // not actually random, but name reserved.
         public double calc_Random()
         {
-            var vote = Math.Min(0, Self.ArbiterVotePreferences.GetValueOrDefault(Other.Id, 0));
-            vote += Math.Min(0, Other.ArbiterVotePreferences.GetValueOrDefault(Self.Id, 0));
+            var vote = Math.Min(0, getArbVote(Self, Other));
+            vote += Math.Min(0, getArbVote(Other, Self));
             // ignore positive values, since we dont want to *prefer* they play.
             // also include their vote of us.
             return vote * 50;

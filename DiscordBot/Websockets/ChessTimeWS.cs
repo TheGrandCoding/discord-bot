@@ -3,6 +3,7 @@ using DiscordBot.Classes.Chess;
 using DiscordBot.Classes.Chess.Online;
 using DiscordBot.Classes.Chess.TimedOnline;
 using DiscordBot.Services;
+using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
@@ -27,11 +28,12 @@ namespace DiscordBot.Websockets
 
         protected override void OnOpen()
         {
+            using var db = Program.Services.GetRequiredService<ChessDbContext>();
             try
             {
                 var auth = Context.CookieCollection[AuthToken.SessionToken];
                 var bUser = Program.Users.FirstOrDefault(x => x.Tokens.Any(y => y.Name == AuthToken.SessionToken && y.Value == auth.Value));
-                Player = ChessService.Players.FirstOrDefault(x => x.ConnectedAccount == bUser.Id);
+                Player = db.Players.FirstOrDefault(x => x.DiscordAccount == ChessService.cast(bUser.Id));
             } catch 
             {
                 Context.WebSocket.Close(CloseStatusCode.Normal, "Forbidden - must authenticate.");

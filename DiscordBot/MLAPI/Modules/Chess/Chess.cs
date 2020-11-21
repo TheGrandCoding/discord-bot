@@ -1,13 +1,18 @@
 ﻿using Discord;
+using Discord.Rest;
 using DiscordBot.Classes;
 using DiscordBot.Classes.Chess;
 using DiscordBot.Classes.HTMLHelpers;
 using DiscordBot.Classes.HTMLHelpers.Objects;
+using DiscordBot.Classes.ServerList;
 using DiscordBot.MLAPI.Exceptions;
 using DiscordBot.RESTAPI.Functions.HTML;
 using DiscordBot.Services;
 using DiscordBot.Utils;
+using Markdig.Extensions.SelfPipeline;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
+using MongoDB.Bson.Serialization;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
@@ -18,6 +23,7 @@ using System.Net.Http;
 using System.Reflection.Metadata;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using static DiscordBot.Services.ChessService;
 
@@ -96,7 +102,8 @@ namespace DiscordBot.MLAPI.Modules
         public override void AfterExecute()
         {
             if (didChange)
-                ChessS.OnSave();
+                DB.SaveChanges();
+            DB.Dispose();
             if(Context.Method != "GET" && SelfPlayer != null && SelfPlayer.Id == ChessService.BuiltInClassRoomChess)
             {
                 Context.User.VerifiedEmail = "@";
@@ -254,7 +261,7 @@ namespace DiscordBot.MLAPI.Modules
                     "alt='Warning' " +
                     "width='20' height='20' valign='middle' style='margin-left: 5px;' title='User must use chessclock in any games.'>";
             }
-            if (player.ActiveNotes.Count > 0 && doesHavePerm(ChessPerm.Moderator))
+            if (doesHavePerm(ChessPerm.Moderator) && player.ActiveNotes.Count > 0)
             {
                 warning += "<img " +
                     "src='https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/Warning_icon.svg/630px-Warning_icon.svg.png' " +
@@ -277,11 +284,11 @@ namespace DiscordBot.MLAPI.Modules
         {
             string TABLE = "";
             int rank = 1;
-            foreach (var player in Players.OrderByDescending(x => x.Rating + x.Modifier).ThenByDescending(x => x.WinRate).ThenByDescending(x => x.Wins + x.Losses))
+            foreach (var player in DB.Players.ToList().OrderByDescending(x => x.Rating + x.Modifier).ThenByDescending(x => x.WinRate).ThenByDescending(x => x.Wins + x.Losses))
             {
-                if (player.ShouldContinueInLoop && player.Id != ChessService.AIPlayer.Id)
+                if ((player.Removed || player.IsBuiltInAccount) && player.Id != ChessService.AIPlayer.Id)
                     continue;
-                var lastDate = ChessS.getLastPresentDate(player);
+                var lastDate = ChessS.getLastPresentDate(DB, player);
                 var fridays = ChessS.FridaysBetween(DateTime.Now, lastDate);
                 string color = "";
                 if(fridays >= 4)
@@ -387,14 +394,14 @@ namespace DiscordBot.MLAPI.Modules
             }
             string TABLE = "";
             int i = 0;
-            foreach(var usr in Players.OrderBy(x => x.Name))
+            foreach(var usr in DB.Players.ToList().OrderBy(x => x.Name))
             {
                 if (usr.ShouldContinueInLoop || usr.IsBanned)
                     continue;
                 string ROW = $"<tr><td>";
                 ROW += $"<input id='i-{i++}' type='text' class='text' maxlength='1' value='' placeholder='leave blank if not here' onkeyup='return addPresent(event, this, \"{usr.Id}\");'/>";
                 ROW += $"{getPlayerNameRow(usr, 0)}</td>";
-                ROW += $"<td>{ChessS.getLastPresentDate(usr, true).ToString("yyyy-MM-dd")}</td>";
+                ROW += $"<td>{ChessS.getLastPresentDate(DB, usr, true).ToString("yyyy-MM-dd")}</td>";
                 TABLE += ROW + "</tr>";
             }
             ReplyFile("register.html", 200, new Replacements().Add("table", TABLE));
@@ -434,7 +441,7 @@ namespace DiscordBot.MLAPI.Modules
             }
             string TABLE = "";
             var now = DateTime.Now.DayOfYear;
-            var ppresent = Players.Where(shouldIncludeInRecommend);
+            var ppresent = DB.Players.ToList().Where(shouldIncludeInRecommend);
             var players = ppresent.OrderBy(x => x.Rating).ToList();
             List<int> complete = new List<int>();
             bool debug = Context.Query.Contains("debug");
@@ -458,7 +465,7 @@ namespace DiscordBot.MLAPI.Modules
                 {
                     if (other.Id == player.Id || complete.Contains(other.Id))
                         continue;
-                    calculators.Add(new ChessWeightedRecommend(player, other));
+                    calculators.Add(new ChessWeightedRecommend(DB, player, other));
                 }
                 var ordered = calculators.OrderByDescending(x => x.Weight);
                 var selected = ordered.FirstOrDefault();
@@ -523,8 +530,8 @@ namespace DiscordBot.MLAPI.Modules
                 return;
             }
             var game = new ChessTimedGame();
-            game.White = Players.FirstOrDefault(x => x.Id == wp);
-            game.Black = Players.FirstOrDefault(x => x.Id == bp);
+            game.White = DB.Players.FirstOrDefault(x => x.Id == wp);
+            game.Black = DB.Players.FirstOrDefault(x => x.Id == bp);
             if(game.White == null || game.Black == null 
                 || game.White.ShouldContinueInLoop || game.White.IsBanned
                 || game.Black.ShouldContinueInLoop || game.Black.IsBanned)
@@ -566,7 +573,7 @@ namespace DiscordBot.MLAPI.Modules
         [Method("GET"), Path("/chess/ban")]
         public void ChessBan(int id)
         {
-            var target = Players.FirstOrDefault(x => x.Id == id);
+            var target = DB.Players.FirstOrDefault(x => x.Id == id);
             if(target == null || target.Removed)
             {
                 HTTPError(System.Net.HttpStatusCode.NotFound, "Player", "Unknown player with that Id");
@@ -580,7 +587,7 @@ namespace DiscordBot.MLAPI.Modules
         public void HistoricGameBase()
         {
             string players = "";
-            foreach (var player in Players.OrderByDescending(x => x.Rating))
+            foreach (var player in DB.Players.ToList().OrderByDescending(x => x.Rating))
             {
                 if (player.ShouldContinueInLoop)
                     continue;
@@ -593,19 +600,8 @@ namespace DiscordBot.MLAPI.Modules
             }
             ReplyFile("debug_addmatch.html", 200, new Replacements().Add("playerlist", players));
         }
-
-        [Method("PUT"), Path("/chess/api/previous")]
-        public void AddHistoricGame(int p1, int p2, string date, bool draw)
-        {
-            var player1 = Players.FirstOrDefault(x => x.Id == p1);
-            var player2 = Players.FirstOrDefault(x => x.Id == p2);
-            var dSplit = date.Split('-');
-            var dateTime = new DateTime(int.Parse(dSplit[0]), int.Parse(dSplit[1]), int.Parse(dSplit[2]));
-            player1.SetGameOnDay(player2, draw ? ChessGameStatus.Draw : ChessGameStatus.Loss, dateTime);
-            didChange = true;
-            RespondRaw("Ok");
-        }
 #endif
+
 #region Thing
         [Method("POST"), Path("/chess/api/pullr")]
         [RequireValidHTTPAgent(false)]
@@ -649,11 +645,11 @@ namespace DiscordBot.MLAPI.Modules
         {
             string mods = "";
             string justices = "<br/>- Chief Justice Alex C<br/>";
-            foreach (var player in Players.Where(x => x.Permission.HasFlag(ChessPerm.Moderator)).OrderBy(x => x.Name))
+            foreach (var player in DB.Players.ToList().Where(x => x.Permission.HasFlag(ChessPerm.Moderator)).OrderBy(x => x.Name))
             {
                 mods += $"- {getPlayerName(player)}<br/>";
             }
-            foreach(var player in Players.Where(x => x.Permission == ChessPerm.Justice).OrderBy(x => x.Name))
+            foreach(var player in DB.Players.ToList().Where(x => x.Permission == ChessPerm.Justice).OrderBy(x => x.Name))
             {
                 justices += $"- Justice {getPlayerName(player)}<br/>";
             }
@@ -693,7 +689,7 @@ namespace DiscordBot.MLAPI.Modules
             }
             string table = "";
             string ineligible = "";
-            foreach(var player in Players.OrderBy(x => x.Name))
+            foreach(var player in DB.Players.ToList().OrderBy(x => x.Name))
             {
                 if (player.ShouldContinueInLoop || player.Id == SelfPlayer.Id)
                     continue;
@@ -702,7 +698,7 @@ namespace DiscordBot.MLAPI.Modules
                 {
                     string ROW = "<tr>";
                     ROW += $"<td>{player.Name}</td>";
-                    int current = SelfPlayer.ArbiterVotePreferences.GetValueOrDefault(player.Id, 0);
+                    int current = SelfPlayer.ArbVotes.FirstOrDefault(x => x.VoteeId == player.Id)?.Score ?? 0;
                     for (int i = -2; i <= 2; i++)
                     {
                         ROW += $"<td><input type='checkbox' {(i == current ? "checked" : "")} onclick='setVote({player.Id}, {i})'></td>";
@@ -710,7 +706,7 @@ namespace DiscordBot.MLAPI.Modules
                     table += ROW + "</tr>";
                 } else
                 {
-                    SelfPlayer.ArbiterVotePreferences.Remove(player.Id);
+                    SelfPlayer.ArbVotes.RemoveAll(x => x.VoteeId == player.Id);
                     didChange = true;
                     ineligible += new ListItem($"<strong>{player.Name}:</strong> {result.ErrorReason}");
                 }
@@ -718,7 +714,7 @@ namespace DiscordBot.MLAPI.Modules
             ReplyFile("election.html", 200, new Replacements()
                 .Add("table", table)
                 .Add("inelig", ineligible)
-                .Add("arbiter", Players.FirstOrDefault(x => x.Permission.HasFlag(ChessPerm.Arbiter)).Name)
+                .Add("arbiter", DB.Players.FirstOrDefault(x => x.Permission.HasFlag(ChessPerm.Arbiter)).Name)
                 );
         }
 
@@ -731,7 +727,7 @@ namespace DiscordBot.MLAPI.Modules
                 RespondRaw($"You are unable to vote; must have played at least {ChessService.VoterGamesRequired} games", 403);
                 return;
             }
-            var player = Players.FirstOrDefault(x => x.Id == id);
+            var player = DB.Players.FirstOrDefault(x => x.Id == id);
             var result = checkArbiterCandidacy(player);
             if (!result.IsSuccess)
             {
@@ -739,7 +735,11 @@ namespace DiscordBot.MLAPI.Modules
                 return;
             }
             value = Math.Clamp(value, -2, 2);
-            SelfPlayer.ArbiterVotePreferences[id] = value;
+            SelfPlayer.ArbVotes.RemoveAll(x => x.VoteeId == id);
+            SelfPlayer.ArbVotes.Add(new ArbiterVote(SelfPlayer)
+            {
+                Score = value
+            });
             didChange = true;
             RespondRaw("");
         }
@@ -749,7 +749,7 @@ namespace DiscordBot.MLAPI.Modules
         public void MatchBase()
         {
             string players = "";
-            foreach (var player in Players.OrderByDescending(x => x.Rating))
+            foreach (var player in DB.Players.AsQueryable().OrderByDescending(x => x.Rating))
             {
                 if (player.ShouldContinueInLoop)
                     continue;
@@ -785,7 +785,7 @@ namespace DiscordBot.MLAPI.Modules
         [Method("GET"), Path("/chess/history")]
         public void UserHistory(int id, bool full = false)
         {
-            var player = Players.FirstOrDefault(x => x.Id == id);
+            var player = DB.Players.FirstOrDefault(x => x.Id == id);
             if (player == null)
             {
                 HTTPError(System.Net.HttpStatusCode.NotFound, "Unknown player", "Id given did not match any known player.");
@@ -807,19 +807,8 @@ namespace DiscordBot.MLAPI.Modules
             if(full)
             {
                 dates = new List<DateTime>();
-                foreach(var p in Players)
-                {
-                    foreach(var d in p.Days)
-                    {
-                        if (p.Id == player.Id)
-                        {
-                            dates.Add(d.Date);
-                            continue;
-                        }
-                        if (d.Entries.FirstOrDefault(x => x.againstId == player.Id) != null)
-                            dates.Add(d.Date);
-                    }
-                }
+                foreach (var game in DB.Games)
+                    dates.Add(game.Timestamp);
                 dates = dates.Distinct(new Classes.DateEquality()).OrderBy(x => x).ToList();
             } else
             {
@@ -827,13 +816,27 @@ namespace DiscordBot.MLAPI.Modules
             }
             foreach (var date in dates)
             {
-                var entries = ChessS.BuildEntries(player, date, ignoreOnline:false);
-                var pending = new List<ChessPendingGame>();
-                if(doesHavePerm(ChessPerm.Moderator))
+                var anyGames = DB.GetGamesOnDate(player.Id, date).ToList();
+                var entries = anyGames.Where(x => x.IsApproved).ToList();
+                var modPending = new List<ChessGame>();
+                var playerPending = new List<ChessGame>();
+                if (doesHavePerm(ChessPerm.Moderator))
+                    modPending = anyGames.Where(x => x.NeedsModApproval).ToList();
+                foreach(var game in anyGames)
                 {
-                    pending = ChessService.PendingGames.Where(x => (x.Player1Id == player.Id || x.Player2Id == player.Id) && x.RecordedAt.DayOfYear == date.DayOfYear).ToList();
+                    if (game.IsApproved)
+                        continue;
+                    if (game.NeedsModApproval)
+                        continue;
+
+                    if (game.NeedsWinnerApproval && game.WinnerId == SelfPlayer.Id)
+                        playerPending.Add(game);
+                    else if (game.NeedsLoserApproval && game.LoserId == SelfPlayer.Id)
+                        playerPending.Add(game);
                 }
-                string DATE = $"<tr><th rowspan='{entries.Count + 2 + pending.Count}'>{date.DayOfWeek} {date.ToShortDateString()}</th></tr><tr>";
+
+                int total = entries.Count + modPending.Count + playerPending.Count;
+                string DATE = $"<tr><th rowspan='{total + 2}'>{date.DayOfWeek} {date.ToShortDateString()}</th></tr><tr>";
                 if (entries.Count == 0)
                 {
                     DATE += $"<td colspan='2'>No games played</td></tr>";
@@ -843,11 +846,12 @@ namespace DiscordBot.MLAPI.Modules
                     foreach (var entry in entries)
                     {
                         count++;
-                        var against = ChessS.GetPlayer(entry.againstId);
-                        DATE += $"<td{(entry.onlineGame ? " class='online'" : "")}>{(getPlayerName(against) ?? "unknown")}</td><td>{entry.State}";
+                        var against = entry.WinnerId == player.Id ? entry.Loser : entry.Winner;
+                        var state = entry.Draw ? "Draw" : entry.WinnerId == player.Id ? "Winner" : "Loser";
+                        DATE += $"<td>{(getPlayerName(against) ?? "unknown")}</td><td>{state}";
                         if (ADMIN)
                         {
-                            DATE += $"<input type='button' value='Remove' style='margin-left:5px;' onclick='dispute(\"{date.DayOfYear}\", \"{date.Year}\", \"{player.Id}\", \"{entry.Id}\");' />";
+                            DATE += $"<input type='button' value='Remove' style='margin-left:5px;' onclick='dispute(\"{entry.Id}\");' />";
                         }
                         DATE += "</td></tr><tr>";
                     }
@@ -862,26 +866,40 @@ namespace DiscordBot.MLAPI.Modules
                     }
                 }
                 TABLE += DATE;
+                var pending = new List<ChessGame>();
+                pending.AddRange(modPending);
+                pending.AddRange(playerPending);
                 foreach(var thing in pending)
                 {
-                    string ROW = $"<tr style='background-color: orange;'>";
-                    var against = thing.Player1Id == player.Id ? thing.Player2 : thing.Player1;
-                    string type = "";
-                    if (thing.Draw)
-                        type = "Draw";
-                    else if (thing.Player1Id == player.Id)
-                        type = "Won";
-                    else
-                        type = "Loss";
+                    bool modOrPlayer = thing.NeedsModApproval;
+                    string ROW = $"<tr style='background-color: {(modOrPlayer ? "orange" : "blue")};'>";
+                    var against = thing.WinnerId == player.Id 
+                        ? (thing.Loser ?? DB.Players.FirstOrDefault(x => x.Id == thing.LoserId)) 
+                        : (thing.Winner ?? DB.Players.FirstOrDefault(x => x.Id == thing.WinnerId));
+                    var type = thing.Draw ? "Draw" : thing.WinnerId == player.Id ? "Won" : "Loss";
                     ROW += $"<td>{getPlayerName(against)}</td>";
                     ROW += $"<td>{type} ";
-                    if (thing.Player1Id == SelfPlayer.Id || thing.Player2Id == SelfPlayer.Id)
+                    string approveStr = $"<input type='button' value='Approve' onclick='approveGame(\"{thing.Id}\");'/>";
+                    if (thing.NeedsModApproval)
                     {
-                        ROW += "<span class='label label-error'>No Approve: Conflict</span>";
+                        if(thing.WinnerId == SelfPlayer.Id || thing.LoserId == SelfPlayer.Id)
+                        {
+                            approveStr = "<span class='label label-error'>Cannot approve own game</span>";
+                        } else if(!doesHavePerm(ChessPerm.Moderator))
+                        {
+                            approveStr = "";
+                        }
                     } else
                     {
-                        ROW += $"<input type='button' value='Approve' onclick='approveGame(\"{thing.Reference}\");'/>";
+                        if(thing.NeedsLoserApproval == false && thing.LoserId == SelfPlayer.Id)
+                        {
+                            approveStr = $"<span class='label label-error'>Game must be approved by {against.Name}</span>";
+                        } else if (thing.NeedsWinnerApproval == false && thing.WinnerId == SelfPlayer.Id)
+                        {
+                            approveStr = $"<span class='label label-error'>Game must be approved by {against.Name}</span>";
+                        }
                     }
+                    ROW += approveStr;
                     ROW += "</td>";
                     TABLE += ROW + "</tr>";
                 }
@@ -889,11 +907,12 @@ namespace DiscordBot.MLAPI.Modules
 
 
             List<ChessNote> notes = new List<ChessNote>();
-            var lastDate = ChessS.getLastPresentDate(player);
+            var lastDate = ChessS.getLastPresentDate(DB, player);
             var lastDiff = DateTime.Now - lastDate;
             if (lastDiff.TotalDays > 14)
             {
-                notes.Add(new ChessNote(null, $"No games played in {(int)lastDiff.TotalDays} days"));
+                var note = new ChessNote(null, player, $"No games played in {(int)lastDiff.TotalDays} days", 1);
+                notes.Add(note);
             }
             notes.AddRange(player.ActiveNotes);
 
@@ -903,11 +922,13 @@ namespace DiscordBot.MLAPI.Modules
                 WARNINGS = $"<div id='warnings' style='border: 3px orange solid;background-color: #ff6666;width: 100%;margin: 5px;padding: 2px;'><ul>";
                 foreach (var note in notes)
                 {
-                    WARNINGS += $"<li><strong>{note.Note}</strong>";
-                    if (note.Author != null)
-                        WARNINGS += $" ({note.Author.Name})";
-                    var dateExpires = note.Date.AddDays(note.DaysExpire);
-                    var difff = dateExpires - DateTime.Now;
+                    WARNINGS += $"<li><strong>{note.Text}</strong>";
+                    if (note.OperatorId != 0)
+                    {
+                        var oper = DB.Players.FirstOrDefault(x => x.Id == note.OperatorId);
+                        WARNINGS += $" ({oper.Name})";
+                    }
+                    var difff = note.ExpiresAt - DateTime.Now;
                     WARNINGS += $"; expires in {(int)difff.TotalDays} days</li>";
                 }
                 WARNINGS += "</ul></div>";
@@ -1088,7 +1109,7 @@ namespace DiscordBot.MLAPI.Modules
         {
             var TABLE = new Table();
             TABLE.Children.Add(_modGetHeaders());
-            foreach (var user in Players.OrderByDescending(x => x.Rating))
+            foreach (var user in DB.Players.AsQueryable().OrderByDescending(x => x.Rating))
             {
                 var ROW = new TableRow();
                 if(user.Removed)
@@ -1149,7 +1170,7 @@ namespace DiscordBot.MLAPI.Modules
         public void UserPermissions()
         {
             string TABLE = "";
-            foreach(var player in Players.OrderBy(x => x.Id))
+            foreach(var player in DB.Players.AsQueryable().OrderBy(x => x.Id))
             {
                 string ROW = "<tr>";
                 ROW += $"<td>{player.Id}</td>";
@@ -1177,7 +1198,7 @@ namespace DiscordBot.MLAPI.Modules
                 RespondRaw("Must be logged in", 403);
                 return;
             }
-            var player = Players.FirstOrDefault(x => x.Id == chessId);
+            var player = DB.Players.FirstOrDefault(x => x.Id == chessId);
             if(player == null)
             {
                 RespondRaw("Unknown player", 404);
@@ -1211,7 +1232,7 @@ namespace DiscordBot.MLAPI.Modules
         public void SetPermPlayer(int id, int role)
         {
             var perm = (ChessPerm)role;
-            var player = Players.FirstOrDefault(x => x.Id == id);
+            var player = DB.Players.FirstOrDefault(x => x.Id == id);
             if(player == null)
             {
                 RespondRaw("Unknown player", 404);
@@ -1237,7 +1258,7 @@ namespace DiscordBot.MLAPI.Modules
         [RequireChess(ChessPerm.Moderator)]
         public void AddNewNote(int id, string note, int expires = 31)
         {
-            var player = Players.FirstOrDefault(x => x.Id == id);
+            var player = DB.Players.FirstOrDefault(x => x.Id == id);
             if(player == null)
             {
                 RespondRaw("Unknown player", 404);
@@ -1254,7 +1275,8 @@ namespace DiscordBot.MLAPI.Modules
                 return;
             }
             LogAdminAction("Note Added", note, ("Against", player.Name), ("Expires", $"{expires} days"));
-            player.Notes.Add(new ChessNote(Context.User, note, expires));
+            var thing = new ChessNote(SelfPlayer, player, note, expires);
+            player.Notes.Add(thing);
             didChange = true;
             RespondRaw("Added");
         }
@@ -1267,7 +1289,7 @@ namespace DiscordBot.MLAPI.Modules
                 HTTPError(System.Net.HttpStatusCode.Forbidden, "No permissions", "You are not allowed to do that");
                 return;
             }
-            foreach(var usrs in Players)
+            foreach(var usrs in DB.Players)
             {
                 usrs.SetScoreOnDay(usrs.Rating, DateTime.Now);
             }
@@ -1283,7 +1305,7 @@ namespace DiscordBot.MLAPI.Modules
                 RespondRaw("Error: You do not have permission to do that", 403);
                 return;
             }
-            var existing = Players.FirstOrDefault(x => x.Name == name);
+            var existing = DB.Players.FirstOrDefault(x => x.Name == name);
             if (existing != null)
             {
                 RespondRaw("User already exists", 400);
@@ -1294,9 +1316,9 @@ namespace DiscordBot.MLAPI.Modules
                 Name = name,
                 Losses = 0,
                 Wins = 0,
-                Rating = 100
+                Rating = StartingValue,
             };
-            Players.Add(player);
+            DB.Players.Add(player);
             LogAdminAction("Account Created", player.Name);
             didChange = true;
             RespondRaw("Ok");
@@ -1310,7 +1332,7 @@ namespace DiscordBot.MLAPI.Modules
                 RespondRaw("No permission", 403);
                 return;
             }
-            var player = Players.FirstOrDefault(x => x.Id == id);
+            var player = DB.Players.FirstOrDefault(x => x.Id == id);
             if (player == null || player.Removed)
             {
                 RespondRaw("No player", 404);
@@ -1332,7 +1354,7 @@ namespace DiscordBot.MLAPI.Modules
                 RespondRaw("Error: You do not have permission to do that", 403);
                 return;
             }
-            var player = Players.FirstOrDefault(x => x.Id == id);
+            var player = DB.Players.FirstOrDefault(x => x.Id == id);
             if (player == null || player.Removed)
             {
                 RespondRaw("Player not found", 404);
@@ -1343,7 +1365,7 @@ namespace DiscordBot.MLAPI.Modules
                 RespondRaw("That account cannot have its name changed", 403);
                 return;
             }
-            player.Notes.Add(new ChessNote(Context.User, $"Changed name from {player.Name} to {newName}", 8));
+            player.Notes.Add(new ChessNote(SelfPlayer, player, $"Changed name from {player.Name} to {newName}", 8));
             player.Name = newName;
             didChange = true;
             RespondRaw("Updated");
@@ -1357,7 +1379,7 @@ namespace DiscordBot.MLAPI.Modules
                 RespondRaw("No permission", 403);
                 return;
             }
-            var usr = Players.FirstOrDefault(x => x.Id == id);
+            var usr = DB.Players.FirstOrDefault(x => x.Id == id);
             if(usr == null)
             {
                 RespondRaw("User not found", 404);
@@ -1380,21 +1402,10 @@ namespace DiscordBot.MLAPI.Modules
             }
             else
             {
-                usr.Rating = 100;
-                usr.Days = new List<ChessDay>();
-                foreach(var otherUser in ChessService.Players)
-                {
-                    foreach(var otherDay in otherUser.Days)
-                    {
-                        int v = otherDay.Entries.RemoveAll(x => x.againstId == usr.Id);
-                        if(v > 0)
-                        {
-                            Program.LogMsg($"Removed {v} games between {otherUser.Name} and rejoined {usr.Name}", LogSeverity.Info, "UserRejoin");
-                        }
-                    }
-                }
+                usr.Rating = StartingValue;
                 usr.Wins = 0;
                 usr.Losses = 0;
+                usr.Modifier = 0;
                 LogAdminAction("User Rejoins", usr.Name);
             }
             RespondRaw("User toggled", 200);
@@ -1405,7 +1416,7 @@ namespace DiscordBot.MLAPI.Modules
         [RequirePermNode(DiscordBot.Perms.Bot.Developer.SetActualChessRating)]
         public void ModifyUserScore(int id, int value)
         {
-            var usr = Players.FirstOrDefault(x => x.Id == id);
+            var usr = DB.Players.FirstOrDefault(x => x.Id == id);
             if (usr == null)
             {
                 RespondRaw("User not found", 404);
@@ -1416,10 +1427,17 @@ namespace DiscordBot.MLAPI.Modules
                 RespondRaw("Account score cannot be changed");
                 return;
             }
+            if(value == usr.Rating)
+            {
+                RespondRaw("Values are identical");
+                return;
+            }
             int old = usr.Rating;
             LogAdminAction("Score Manually Set", "Technical modifcation to rating", ("Player", usr.Name), ("Old", old.ToString()), ("New", value.ToString()));
-            usr.SetRating(value, Context.User, "manually set via website");
-            didChange = old != value;
+            usr.Rating = value;
+            var note = new ChessNote(SelfPlayer, usr, $"Rating set to {value} from {old} ({value - old})", 14);
+            usr.Notes.Add(note);
+            didChange = true;
             RespondRaw("Updated");
         }
 
@@ -1427,7 +1445,7 @@ namespace DiscordBot.MLAPI.Modules
         [RequireChess(ChessPerm.Moderator)]
         public void ModifyUserScoreMod(int id, int value)
         {
-            var usr = Players.FirstOrDefault(x => x.Id == id);
+            var usr = DB.Players.FirstOrDefault(x => x.Id == id);
             if (usr == null)
             {
                 RespondRaw("User not found", 404);
@@ -1446,60 +1464,28 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("PUT"), Path("/chess/api/dispute")]
-        public void DisputeGamePlayed(int day, int year, int user, int entryId)
+        public void DisputeGamePlayed(int gameId)
         {
-            var player = Players.FirstOrDefault(x => x.Id == user);
-            if(player == null)
-            {
-                RespondRaw("Unknown player", 404);
-                return;
-            }
-            ChessEntry entry = null;
-            ChessPlayer opposition = null;
-            DateTime? date = null;
-            ChessGameStatus STATE = ChessGameStatus.Draw;
-            foreach(var _player in ChessService.Players)
-            {
-                foreach(var _day in _player.Days)
-                {
-                    if (_day.Date.Year != year)
-                        continue;
-                    if (_day.Date.DayOfYear != day)
-                        continue;
-                    entry = _day.Entries.FirstOrDefault(x => x.Id == entryId);
-                    if(entry != null)
-                    {
-                        opposition = _player.Id == player.Id ? Players.FirstOrDefault(x => x.Id == entry.againstId) : _player;
-                        STATE = _player.Id == player.Id ? entry.State : ChessS.SwapStatePerspective(entry.State);
-                        date = _day.Date;
-                        _day.Entries.Remove(entry);
-                        didChange = true;
-                        break; // out of _day loop
-                    }
-                }
-                if(entry != null)
-                {
-                    break;
-                }
-            }
-            if(entry == null || opposition == null || date == null)
+            var entry = DB.Games.FirstOrDefault(x => x.Id == gameId);
+            if(entry == null)
             {
                 RespondRaw("Unable to find game entry.", 404);
                 return;
             }
-            player.Notes.Add(new ChessNote(Context.User, $"Removed {STATE} against {opposition.Name}", 8));
-            opposition.Notes.Add(new ChessNote(Context.User, $"Removed {ChessS.SwapStatePerspective(STATE)} against {player.Name}", 8));
-            LogAdminAction("Game Removed", $"Date: {date.Value.ToShortDateString()}" +
-                $"{(entry.onlineGame ? "\r\nOnline: yes" : "")}", 
-                ("P1", player.Name), ("P2", opposition.Name), ("State", STATE.ToString()));
-            if(STATE == ChessGameStatus.Won)
+            var winner = entry.Winner;
+            var opposition = entry.Loser;
+            winner.Notes.Add(new ChessNote(SelfPlayer, winner, $"Removed {(entry.Draw ? "draw" : "win")} against {opposition.Name}", 8));
+            opposition.Notes.Add(new ChessNote(SelfPlayer, opposition, $"Removed {(entry.Draw ? "draw" : "loss")} against {winner.Name}", 8));
+            LogAdminAction("Game Removed", $"Date: {entry.Timestamp.ToShortDateString()}", 
+                ("P1", winner.Name), ("P2", opposition.Name), ("State", entry.Draw ? "Draw" : "P1 won"));
+            if(entry.Draw)
             {
-                player.Wins--;
+                winner.Losses--;
                 opposition.Losses--;
-            } else if (STATE == ChessGameStatus.Loss)
+            } else
             {
-                player.Losses--;
-                opposition.Wins--;
+                winner.Wins--;
+                opposition.Losses--;
             }
             RespondRaw("");
         }
@@ -1507,7 +1493,7 @@ namespace DiscordBot.MLAPI.Modules
         [Method("PUT"), Path("/chess/api/monitor")]
         public void ToggleMonitor(int id)
         {
-            var player = Players.FirstOrDefault(x => x.Id == id);
+            var player = DB.Players.FirstOrDefault(x => x.Id == id);
             if(player == null)
             {
                 RespondRaw("Unknown player", 404);
@@ -1541,7 +1527,7 @@ namespace DiscordBot.MLAPI.Modules
         [Method("PUT"), Path("/chess/api/time")]
         public void ToggleRequireTiming(int id)
         {
-            var player = Players.FirstOrDefault(x => x.Id == id);
+            var player = DB.Players.FirstOrDefault(x => x.Id == id);
             if (player == null)
             {
                 RespondRaw("Unknown player", 404);
@@ -1558,42 +1544,49 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("PUT"), Path("/chess/api/approve")]
-        public void ApproveMonitorGame(string reference)
+        public void ApproveMonitorGame(int id)
         {
-            if(!doesHavePerm(ChessPerm.Moderator))
-            {
-                RespondRaw("No permission", 403);
-                return;
-            }
-            var pending = PendingGames.FirstOrDefault(x => x.Reference == reference);
-            if(pending == null)
+            var game = DB.Games.FirstOrDefault(x => x.Id == id);
+            if(game == null)
             {
                 RespondRaw("Unknown game", 404);
                 return;
             }
-            int p1Was = pending.Player1.Rating;
-            int p2Was = pending.Player2.Rating;
-            pending.Player1.Rating += pending.P1_Change;
-            pending.Player2.Rating += pending.P2_Change;
-            var e = pending.Player1.SetGameOnDay(pending.Player2, pending.Draw ? ChessGameStatus.Draw : ChessGameStatus.Won, pending.RecordedAt);
-            e.selfWas = p1Was;
-            e.otherWas = p2Was;
-            LogAdminAction("Approved Game", $"{Context.User.Name} approves game: {pending.Player1.Name} v {pending.Player2.Name} Draw:{pending.Draw}",
-                ("P1 Score", $"{pending.P1_StartScore} + {pending.P1_Change} = {pending.Player1.Rating}"),
-                ("P2 Score", $"{pending.P2_StartScore} + {pending.P2_Change} = {pending.Player2.Rating}")
-                );
-            if(pending.Draw)
+            if(game.NeedsModApproval)
             {
-                pending.Player1.Losses++;
-                pending.Player2.Losses++;
-            } else
+                if(!doesHavePerm(ChessPerm.Moderator))
+                {
+                    RespondRaw("Game must be approved by a Moderator, and you are not that.", 403);
+                    return;
+                }
+                game.ApprovalGiven |= ApprovedBy.Moderator;
+            } else if (game.NeedsWinnerApproval && game.WinnerId == SelfPlayer.Id)
             {
-                pending.Player1.Wins++;
-                pending.Player2.Losses++;
+                game.ApprovalGiven |= ApprovedBy.Winner;
+            } else if (game.NeedsLoserApproval && game.LoserId == SelfPlayer.Id)
+            {
+                game.ApprovalGiven |= ApprovedBy.Loser;
             }
-            ChessS.LogEntry(pending.Player1, e, pending.Player2);
+            if(game.IsApproved)
+            {
+                int p1Was = game.Winner.Rating;
+                int p2Was = game.Loser.Rating;
+                game.Winner.Rating += game.WinnerChange;
+                game.Loser.Rating += game.LoserChange;
+                if(game.Draw)
+                    game.Winner.Losses++;
+                else
+                    game.Winner.Wins++;
+                game.Loser.Losses++;
+                LogAdminAction("Game Approved", $"Game has been approved by {SelfPlayer.Name}",
+                    ("Date", game.Timestamp.ToShortDateString()),
+                    ("State", game.Draw ? "Draw" : "P1 Won"),
+                    (game.Draw ? "P1" : "Winner", game.Winner.Name + "\r\nRating changed by " + game.WinnerChange.ToString()),
+                    (game.Draw ? "P2" : "Loser", game.Loser.Name + "\r\nRating changed by " + game.LoserChange.ToString())
+                    );
+                ChessS.LogEntry(game);
+            }
             didChange = true;
-            PendingGames.Remove(pending);
             RespondRaw("");
         }
 
@@ -1605,7 +1598,7 @@ namespace DiscordBot.MLAPI.Modules
                 RespondRaw("No permissions", 403);
                 return;
             }
-            var player = Players.FirstOrDefault(x => x.Id == id);
+            var player = DB.Players.FirstOrDefault(x => x.Id == id);
             if(player == null)
             {
                 RespondRaw("unknown player", 404);
@@ -1651,7 +1644,7 @@ namespace DiscordBot.MLAPI.Modules
         [Method("PUT"), Path("/chess/api/moderator")]
         public void ModUser(int id)
         {
-            var player = Players.FirstOrDefault(x => x.Id == id);
+            var player = DB.Players.FirstOrDefault(x => x.Id == id);
             if(player == null)
             {
                 RespondRaw("Error: player does not exist", 404);
@@ -1705,7 +1698,7 @@ namespace DiscordBot.MLAPI.Modules
             }
             foreach(var id in ids)
             {
-                var player = Players.FirstOrDefault(x => x.Id == id);
+                var player = DB.Players.FirstOrDefault(x => x.Id == id);
                 if(player == null)
                 {
                     RespondRaw($"Could not find player with id {id}", 400);
@@ -1749,7 +1742,7 @@ namespace DiscordBot.MLAPI.Modules
         }
 
 
-        public static void addGameEntry(ChessPlayer winP, ChessPlayer lossP, bool draw, Func<ChessPlayer, int> kFunction, bool onlineGame, out int httpCode)
+        public static ChessGame createGameEntry(ChessPlayer winP, ChessPlayer lossP, bool draw, Func<ChessPlayer, int> kFunction, bool onlineGame, out int httpCode)
         {
             if (kFunction == null)
                 kFunction = defaultKFunction;
@@ -1758,53 +1751,51 @@ namespace DiscordBot.MLAPI.Modules
             winP.DateLastPresent = null; // so it auto-calculates
             lossP.DateLastPresent = null;
 
+            var game = new ChessGame(winP, lossP)
+            {
+                Draw = draw,
+                WinnerChange = winnerRating - winP.Rating,
+                LoserChange = loserRating - lossP.Rating,
+                Timestamp = DateTime.Now,
+            };
+
             httpCode = 201;
             if (winP.RequireGameApproval || lossP.RequireGameApproval || winP.RequireTiming || lossP.RequireTiming)
             {
-                var pend = new ChessPendingGame(winP, lossP, DateTime.Now, winnerRating - winP.Rating, loserRating - lossP.Rating);
-                pend.OnlineGame = onlineGame;
-                pend.Draw = draw;
-                PendingGames.Add(pend);
-                ChessS.LogEntry(pend);
+                game.ApprovalNeeded |= ApprovedBy.Moderator;
                 if (winP.RequireGameApproval || lossP.RequireGameApproval)
                     httpCode = 204;
                 else // require timing
                     httpCode = 202;
             }
+            else if(onlineGame)
+            {
+                game.ApprovalNeeded |= ApprovedBy.Loser | ApprovedBy.Winner;
+                httpCode = 203;
+                ChessS.LogGame(game);
+            }
             else
             {
-                int p1Was = winP.Rating;
-                int p2Was = lossP.Rating;
                 winP.Rating = winnerRating;
                 lossP.Rating = loserRating;
-                var e = winP.SetGameOnDay(lossP, draw ? ChessGameStatus.Draw : ChessGameStatus.Won, DateTime.Now);
-                e.onlineGame = onlineGame;
-                e.selfWas = p1Was;
-                e.otherWas = p2Was;
-                ChessS.LogEntry(winP, e, lossP);
-                if (draw)
-                {
-                    winP.Losses++; // Draw is a loss for both sides
-                    lossP.Losses++;
-                }
+                if (game.Draw)
+                    winP.Losses++;
                 else
-                {
                     winP.Wins++;
-                    lossP.Losses++;
-                }
+                lossP.Losses++;
+                ChessS.LogEntry(game);
             }
-
             winP.SetScoreOnDay(winP.Rating, DateTime.Now);
             lossP.SetScoreOnDay(lossP.Rating, DateTime.Now);
-
+            return game;
         }
 
         [Method("GET"), Path("/chess/api/testmatch")]
         [RequireChess(ChessPerm.Player)]
         public void PretendMatch(int winner, int loser, bool draw)
         {
-            var winP = Players.FirstOrDefault(x => x.Id == winner);
-            var lossP = Players.FirstOrDefault(x => x.Id == loser);
+            var winP = DB.Players.FirstOrDefault(x => x.Id == winner);
+            var lossP = DB.Players.FirstOrDefault(x => x.Id == loser);
             if (winP == null)
             {
                 RespondRaw("Unknown winner", 404);
@@ -1841,12 +1832,18 @@ namespace DiscordBot.MLAPI.Modules
                 $"<p>{lossP.Name}: {lossP.Rating} -> <strong>{loserRating}</strong></p>");
         }
 
-        [Method("PUT"), Path("/chess/api/match")]
-        [RequireChess(ChessPerm.AddMatch)]
-        public void AddNewMatch(int winner, int loser, bool draw = false)
+        bool canAddMatch(ChessPlayer win, ChessPlayer loss, bool external)
         {
-            var winP = Players.FirstOrDefault(x => x.Id == winner);
-            var lossP = Players.FirstOrDefault(x => x.Id == loser);
+            return doesHavePerm(ChessPerm.AddMatch)
+                || (external 
+                    &&  win.Id == SelfPlayer.Id || loss.Id == loss.Id);
+        }
+
+        [Method("PUT"), Path("/chess/api/match")]
+        public void AddNewMatch(int winner, int loser, bool draw = false, bool external = false)
+        {
+            var winP = DB.Players.FirstOrDefault(x => x.Id == winner);
+            var lossP = DB.Players.FirstOrDefault(x => x.Id == loser);
             if(winP == null)
             {
                 RespondRaw("Unknown winner", 404);
@@ -1877,7 +1874,17 @@ namespace DiscordBot.MLAPI.Modules
                 RespondRaw($"{lossP.Name} is currently banned", 403);
                 return;
             }
-            addGameEntry(winP, lossP, draw, null, false, out int httpCode);
+            if(!canAddMatch(winP, lossP, external))
+            {
+                RespondRaw($"You do not have permission to add that match.");
+                return;
+            }
+            var game = createGameEntry(winP, lossP, draw, null, external, out int httpCode);
+            if (game.NeedsWinnerApproval && game.WinnerId == SelfPlayer.Id)
+                game.ApprovalGiven |= ApprovedBy.Winner;
+            else if (game.NeedsLoserApproval && game.LoserId == SelfPlayer.Id)
+                game.ApprovalGiven |= ApprovedBy.Loser;
+            DB.Games.Add(game);
             didChange = true;
             RespondRaw("Updated", httpCode);
         }

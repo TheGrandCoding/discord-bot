@@ -5,6 +5,8 @@ using System.Text;
 using Discord.Commands;
 using DiscordBot.Classes.Chess;
 using DiscordBot.MLAPI.Exceptions;
+using DiscordBot.Services;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace DiscordBot.MLAPI
 {
@@ -31,7 +33,8 @@ namespace DiscordBot.MLAPI
         {
             if (context.User == null)
                 throw new RedirectException("/login", "You must be logged in");
-            var player = Services.ChessService.Players.FirstOrDefault(x => x.ConnectedAccount == context.User.Id);
+            using var db = Program.Services.GetRequiredService<ChessDbContext>();
+            var player = db.Players.FirstOrDefault(x => x.DiscordAccount == ChessService.cast(context.User.Id));
             if (player == null)
                 return PreconditionResult.FromError("Either no connected account, or not found");
             string newline = context.WantsHTML ? "<br/>" : "\n";

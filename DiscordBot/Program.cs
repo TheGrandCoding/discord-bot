@@ -5,6 +5,7 @@ using Discord.Rest;
 using Discord.WebSocket;
 using DiscordBot.Classes;
 using DiscordBot.Classes.Calculator;
+using DiscordBot.Classes.Chess;
 using DiscordBot.MLAPI;
 using DiscordBot.Permissions;
 using DiscordBot.Services;
@@ -256,6 +257,12 @@ Changed how permissions worked for bot.
             return Task.CompletedTask;
         }
 
+        public static string getDbString(string database)
+        {
+            var config = Configuration["tokens:db"];
+            return string.Format(config, database);
+        }
+
         private static ServiceProvider ConfigureServices()
         {
             var coll = new ServiceCollection()
@@ -272,12 +279,14 @@ Changed how permissions worked for bot.
                 }))
                 .AddSingleton<CommandHandlingService>()
                 .AddSingleton<InteractiveService>();
-            coll.AddDbContext<LogContext>(options =>
+            coll.AddDbContext<LogContext>(ServiceLifetime.Transient);
+            coll.AddDbContext<ChessDbContext>(options =>
             {
 #if WINDOWS
-                options.UseSqlServer(Configuration["tokens:db"]);
+                options.UseSqlServer(getDbString("chsData"));
+                options.EnableSensitiveDataLogging();
 #else
-                options.UseMySql(Configuration["tokens:db"], mysqlOptions =>
+                options.UseMySql(getDbString("chsData"), mysqlOptions =>
                 {
                     mysqlOptions.CharSet(CharSet.Utf8Mb4);
                     mysqlOptions.ServerVersion(new ServerVersion(new Version(10, 3, 25), ServerType.MariaDb));

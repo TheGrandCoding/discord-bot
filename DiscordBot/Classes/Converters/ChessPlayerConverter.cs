@@ -1,5 +1,6 @@
 ﻿using DiscordBot.Classes.Chess;
 using DiscordBot.Services;
+using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
@@ -15,7 +16,8 @@ namespace DiscordBot.Classes.Converters
 
         public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
         {
-            return ChessService.Players.FirstOrDefault(x => x.Id == (long)reader.Value);
+            using var db = Program.Services.GetRequiredService<ChessDbContext>();
+            return db.Players.FirstOrDefault(x => x.Id == (int)reader.Value);
         }
 
         public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)

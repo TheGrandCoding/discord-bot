@@ -1,5 +1,6 @@
 ﻿using Discord;
 using DiscordBot.Classes;
+using DiscordBot.Classes.Chess;
 using DiscordBot.Services;
 using IdentityModel.Client;
 using Microsoft.Extensions.DependencyInjection;
@@ -68,15 +69,16 @@ namespace DiscordBot.MLAPI.Modules
             var service = Program.Services.GetRequiredService<ChessService>();
             if (service != null && !Context.User.ServiceUser && !Context.User.GeneratedUser)
             {
+                using var db = Program.Services.GetRequiredService<ChessDbContext>();
                 string name = $"{jobj["givenName"]} {jobj["surname"].ToObject<string>()[0]}";
-                var existing = ChessService.Players.FirstOrDefault(x => x.Name == name && !x.IsBuiltInAccount);
+                var existing = db.Players.AsQueryable().FirstOrDefault(x => x.Name == name && !x.IsBuiltInAccount);
                 if (existing != null)
                 {
                     existing.ConnectedAccount = Context.User.Id;
                 }
                 else
                 {
-                    var chs = ChessService.Players.FirstOrDefault(x => x.ConnectedAccount == Context.User.Id && !x.IsBuiltInAccount);
+                    var chs = db.Players.AsQueryable().FirstOrDefault(x => x.DiscordAccount == ChessService.cast(Context.User.Id) && !x.IsBuiltInAccount);
                     if (chs != null)
                     {
                         chs.Name = name;

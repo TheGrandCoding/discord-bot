@@ -1,6 +1,7 @@
 ﻿using DiscordBot.Classes.Chess;
 using DiscordBot.Classes.HTMLHelpers.Objects;
 using DiscordBot.Services;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,21 +13,23 @@ namespace DiscordBot.MLAPI.Modules
     {
         public ChessBase(APIContext c, string path) : base(c, path)
         {
+            DB = Program.Services.GetRequiredService<ChessDbContext>();
             if(c.User != null)
             {
-                SelfPlayer = ChessService.Players.FirstOrDefault(x => x.ConnectedAccount == c.User.Id);
+                SelfPlayer = DB.Players.FirstOrDefault(x => x.DiscordAccount == ChessService.cast(c.User.Id));
             }
         }
         public ChessBase(APIContext c) : this(c, "chess") { }
         public ChessPlayer SelfPlayer { get; protected set; }
+        public ChessDbContext DB { get; set; }
 
 
         public Select GetPlayerList(string id, Func<ChessPlayer, bool> filter = null)
         {
             var sel = new Select(id: id);
-            foreach (var player in ChessService.Players.Where(x => !x.IsBuiltInAccount).OrderByDescending(x => x.Rating))
+            foreach (var player in DB.Players.AsQueryable().Where(x => !x.IsBuiltInAccount).OrderByDescending(x => x.Rating))
             {
-                if (player.ShouldContinueInLoop)
+                if (player.IsBuiltInAccount || player.Removed)
                     continue;
                 if (filter != null && !filter(player))
                     continue;
@@ -44,9 +47,9 @@ namespace DiscordBot.MLAPI.Modules
         public string GetPlayerList()
         {
             string players = "";
-            foreach (var player in ChessService.Players.Where(x => !x.IsBuiltInAccount).OrderByDescending(x => x.Rating))
+            foreach (var player in DB.Players.AsQueryable().Where(x => !x.IsBuiltInAccount).OrderByDescending(x => x.Rating))
             {
-                if (player.ShouldContinueInLoop)
+                if (player.IsBuiltInAccount || player.Removed)
                     continue;
                 string bannnn = "";
                 if (player.IsBanned)
@@ -106,5 +109,11 @@ namespace DiscordBot.MLAPI.Modules
 
         protected bool doesHavePerm(ChessPerm perm) => doesHavePerm(perm, Context.User);
 
+        public override void ResponseHalted(HaltExecutionException ex)
+        {
+            if (DB != null)
+                DB.Dispose();
+            base.ResponseHalted(ex);
+        }
     }
 }

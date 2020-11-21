@@ -20,13 +20,27 @@ namespace DiscordBot.Services
 {
     public class LogContext : DbContext
     {
-        public LogContext([NotNull] DbContextOptions options) : base(options)
+        public LogContext()
         {
         }
+
 
         public DbSet<MsgModel> Messages { get; set; }
         public DbSet<NameTimestamps> Names { get; set; }
         public DbSet<MsgContent> Contents { get; set; }
+
+        protected override void OnConfiguring(DbContextOptionsBuilder options)
+        {
+#if WINDOWS
+            options.UseSqlServer(Program.getDbString("BotLog"));
+#else
+                options.UseMySql(Program.getDbString("botData"), mysqlOptions =>
+                {
+                    mysqlOptions.CharSet(CharSet.Utf8Mb4);
+                    mysqlOptions.ServerVersion(new ServerVersion(new Version(10, 3, 25), ServerType.MariaDb));
+                });
+#endif
+        }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -263,16 +277,16 @@ namespace DiscordBot.Services
         public override bool IsCritical => true;
         public override void OnReady()
         {
+#if !DEBUG
             Program.Client.MessageReceived += Client_MessageReceived;
             Program.Client.MessageUpdated += Client_MessageUpdated;
             Program.Client.ChannelUpdated += Client_ChannelUpdated;
             Program.Client.GuildUpdated += Client_GuildUpdated;
-#if !DEBUG
             Catchup().Wait();
 #endif
         }
 
-#region Startup catchup
+        #region Startup catchup
         async Task Catchup()
         {
             using var DB = Program.Services.GetRequiredService<LogContext>();
