@@ -198,17 +198,43 @@ namespace DiscordBot.Commands.Modules
             });
         }
 
+#if DEBUG
+        const int max = 2;
+#else
+        const int max = 24;
+#endif
         public EmbedBuilder ToEmbed()
         {
             var builder = new EmbedBuilder();
             builder.Title = $"Last {Maximum} Messages";
             builder.Description = $"Global " + AllStats.ToString();
-            foreach(var keypair in Stats)
+            var ordered = Stats.OrderByDescending(x => x.Value.TotalSent).Select(x => x.Key).ToList();
+            if(ordered.Count > max)
             {
-                var percSent = (keypair.Value.TotalSent / (double)AllStats.TotalSent) * 100;
-                var val = keypair.Value.ToString();
+                var os = new ValueStats();
+                Stats[0] = os;
+                DisplayNames[0] = "Other";
+                foreach(var other in ordered.Skip(max))
+                {
+                    // new = old + (val - old / n)
+                    var ex = Stats[other];
+                    for(int i = 0; i < ex.TotalSent; i++)
+                    {
+                        os.TotalSent++;
+                        os.AddAverage(ex.AverageLength, ref os.AverageLength);
+                        os.AddAverage(ex.AverageSecondsIntoDay, ref os.AverageSecondsIntoDay);
+                    }
+                }
+                ordered = ordered.Take(max).ToList();
+                ordered.Add(0);
+            }
+            foreach(var id in ordered)
+            {
+                var stats = Stats[id];
+                var percSent = (stats.TotalSent / (double)AllStats.TotalSent) * 100;
+                var val = stats.ToString();
                 val += $"\r\nPerc: {percSent:00.0}%";
-                var key = DisplayNames.GetValueOrDefault(keypair.Key, keypair.Key.ToString());
+                var key = DisplayNames.GetValueOrDefault(id, id.ToString());
                 builder.AddField(key, val, true);
             }
             var duration = DateTime.Now - StartedAt;

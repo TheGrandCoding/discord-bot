@@ -84,6 +84,7 @@ namespace DiscordBot.Services
             {
                 manage = true;
                 var ls = new List<Overwrite>();
+                ls.Add(new Overwrite(user.Guild.EveryoneRole.Id, PermissionTarget.Role, new OverwritePermissions(viewChannel: PermValue.Deny)));
                 foreach(var x in voice.Users)
                 {
                     ls.Add(new Overwrite(x.Id, PermissionTarget.User, perms(x.Id == user.Id)));
