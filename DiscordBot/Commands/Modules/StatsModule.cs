@@ -208,12 +208,12 @@ namespace DiscordBot.Commands.Modules
             var builder = new EmbedBuilder();
             builder.Title = $"Last {Maximum} Messages";
             builder.Description = $"Global " + AllStats.ToString();
-            var ordered = Stats.OrderByDescending(x => x.Value.TotalSent).Select(x => x.Key).ToList();
+            var ordered = Stats.OrderByDescending(x => x.Value.TotalSent).Where(x => x.Key != 0).Select(x => x.Key).ToList();
             if(ordered.Count > max)
             {
                 var os = new ValueStats();
                 Stats[0] = os;
-                DisplayNames[0] = "Other";
+                DisplayNames[0] = $"Other ({max - ordered.Count})";
                 foreach(var other in ordered.Skip(max))
                 {
                     // new = old + (val - old / n)
