@@ -306,7 +306,7 @@ namespace DiscordBot.MLAPI.Modules
             {
                 var anchor = new Anchor(image, cls: "anchor-3Z-8Bb anchorUnderlineOnHover-2ESHQB imageWrapper-2p5ogY imageZoom-1n-ADA clickable-3Ya1ho embedWrapper-lXpS3L");
                 anchor.RawText = "";
-                var img = new DiscordBot.Classes.HTMLHelpers.Objects.Image();
+                var img = new DiscordBot.Classes.HTMLHelpers.Objects.Img();
                 img.Style = "height: 300px; width: auto;";
                 if(Context.IsBehindFirewall)
                 {
@@ -577,21 +577,130 @@ namespace DiscordBot.MLAPI.Modules
             return null;
         }
 
-        string getUsers(SocketGuild guild, SocketTextChannel channel)
+        const string onlineFill = "#43b581";
+        (string, string) getStatusMaskInfo(SocketGuildUser user)
+        {
+            if (user.ActiveClients.Any(x => x == Discord.ClientType.Mobile))
+                return ("online-mobile", onlineFill);
+            if (user.Status == UserStatus.Online)
+                return ("online", onlineFill);
+            if (user.Status == UserStatus.DoNotDisturb)
+                return ("dnd", "#f04747");
+            if (user.Status == UserStatus.Idle || user.Status == UserStatus.AFK)
+                return ("idle", "orange");
+            return ("none", "black");
+        }
+
+        HTMLBase getUserAvatar(SocketGuildUser user)
+        {
+            var avatar = new Div(cls: "avatar-3uk_u9");
+            var div = new Div(cls: "wrapper-3t9DeA")
+                .WithTag("style", "width: 32px; height: 32px;");
+            avatar.Children.Add(div);
+            var svg = new Svg(cls: "mask-1l8v16 svg-2V3M55")
+                .WithTag("viewbox", "0 0 40 32")
+                .WithTag("width", "40")
+                .WithTag("height", "32");
+            div.Children.Add(svg);
+            var foreignObject = new ForeignObject()
+                .WithTag("x", "0").WithTag("y", "0")
+                .WithTag("width", "32").WithTag("height", "32")
+                .WithTag("mask", "url(#svg-mask-avatar-status-round-32)");
+            var img = new Img(cls: "avatar-VxgULZ")
+            {
+                Src = user.GetAvatarUrl() ?? user.GetDefaultAvatarUrl()
+            };
+            foreignObject.Children.Add(img);
+            svg.Children.Add(foreignObject);
+
+            var status = new Rect("22", "22", "10", "10", cls: "pointerEvents-2zdfdO")
+            {
+                Fill = "#43b581",
+            };
+            (string ending, string colour) = getStatusMaskInfo(user);
+            status.Mask = $"url(#svg-mask-status-{ending})";
+            status.Fill = colour;
+            if(ending != "none")
+                svg.Children.Add(status);
+            return avatar;
+        }
+
+        HTMLBase getUserSubText(SocketGuildUser user)
+        {
+            var subText = new Div(cls: "subText-1KtqkB");
+            if (user.Activity == null)
+                return subText;
+            var activity = new Div(cls: "activity-2Gy-9S");
+            subText.Children.Add(activity);
+            var txt = $"{user.Activity.Type} <strong>{user.Activity.Name}</strong>";
+            if (user.Activity is CustomStatusGame cs)
+                txt = cs.State;
+            var activityText = new Div(cls: "activityText-yGKsKm");
+            activity.Children.Add(activityText);
+
+            activityText.RawText = txt;
+
+            var activityRuler = new Div(cls: "textRuler-wO-qHe activityText-yGKsKm")
+                .WithTag("aria-hidden", "true");
+            activityRuler.RawText = txt;
+            activity.Children.Add(activityRuler);
+            return subText;
+        }
+        HTMLBase getUserContent(SocketGuildUser user)
+        {
+            var content = new Div(cls: "content-3QAtGj");
+
+            var nameAndDecorators = new Div(cls: "nameAndDecorators-5FJ2dg");
+            content.Children.Add(nameAndDecorators);
+            var name = new Div(cls: "name-uJV0GL");
+            nameAndDecorators.Children.Add(name);
+            var nameSpan = new Span(cls: "roleColor-rz2vM0");
+            name.Children.Add(nameSpan);
+            nameSpan.Style = "color:" + getRoleColor(user);
+            nameSpan.RawText = user.Nickname ?? user.Username;
+
+            if(user.IsBot)
+            {
+                var botDiv = new Div(cls: "botTag-3W9SuW botTagRegular-2HEhHi botTag-2WPJ74 px-10SIf7");
+                botDiv.Children.Add(new Span(cls: "botText-1526X_").WithRawText("BOT"));
+                nameAndDecorators.Children.Add(botDiv);
+            }
+
+            content.Children.Add(getUserSubText(user));
+            return content;
+        }
+        HTMLBase getUser(SocketGuildUser user)
+        {
+            var memberContainer = new Div(cls: "member-3-YXUe container-2Pjhx- clickable-1JJAn8");
+            var containerLayout = new Div(cls: "layout-2DM8Md");
+            memberContainer.Children.Add(containerLayout);
+            containerLayout.Children.Add(getUserAvatar(user));
+            containerLayout.Children.Add(getUserContent(user));
+            return containerLayout;
+        }
+
+        HTMLBase getUsers(SocketGuild guild, SocketTextChannel channel)
         {
             if (guild == null || channel == null)
-                return "<div>An error occured!</div>";
-            string USERS = "";
+                return new Div().WithRawText("An unknown error occured!");
+            var membersWrap = new Div(cls: "membersWrap-2h-GB4 hiddenMembers-2dcs_q");
+            var members = new Div(cls: "members-1998pB thin-1ybCId scrollerBase-289Jih fade-2kXiP2")
+                .WithTag("style", "overflow: hidden scroll; padding-right: 0px;")
+                .WithTag("id", $"members-{channel.Id}");
+            membersWrap.Children.Add(members);
+            var content = new Div(cls: "content-3YMskv");
+            members.Children.Add(content);
+
             List<ulong> done = new List<ulong>();
-            string offLine = "";
+            var offlineList = new List<HTMLBase>();
             int offlineCount = 0;
-            int blockedUsers = 0;
             foreach (var role in guild.Roles.OrderByDescending(x => x.Position))
             {
                 if (!role.IsHoisted && !role.IsEveryone)
                     continue;
-                string ROLE_NAME = $"<header class='membersGroup-v9BXpm container-2ax-kl'>{role.Name} — [[COUNT]]</header>";
-                string ROLE = "";
+                var header = new H2(cls: "membersGroup-v9BXpm container-2ax-kl");
+                var headerSpan = new Span();
+                header.Children.Add(headerSpan);
                 int roleMembers = 0;
                 foreach (var member in channel.Users)
                 {
@@ -599,54 +708,39 @@ namespace DiscordBot.MLAPI.Modules
                         continue;
                     if (!member.Roles.Contains(role))
                         continue;
-                    string USER = "";
-                    USER += "<div tabindex='0' class='member-3-YXUe container-2Pjhx- clickable-1JJAn8' " +
-                        "aria-controls='popout_884' aria-expanded='false' role='button'>";
-                    USER += "<div class='layout-2DM8Md'>";
-                    USER += "<div class='avatar-3uk_u9'>";
-                    USER += "<div class='wrapper-3t9DeA' " +
-                        $"role='img' aria-label='{member.Username}, {member.Activity}'" +
-                        " aria-hidden='false' style='width: 32px; height: 32px;'>";
-                    USER += "<svg width='40' height='32' viewBox='0 0 40 32' class='mask-1l8v16 svg-2V3M55' aria-hidden='true'>";
-                    USER += "<foreignObject x='0' y='0' width='32' height='32' mask='url(#svg-mask-avatar-status-round-32)'>";
-                    USER += $"<img src='{member.GetAvatarUrl(size: 256) ?? member.GetDefaultAvatarUrl()}' alt=' ' class='avatar-VxgULZ' aria-hidden='true'>";
-                    USER += "</foreignObject>";
-                    USER += "</svg></div></div>";
-
-                    USER += "<div class='content-3QAtGj'>";
-                    USER += "<div class='nameAndDecorators-5FJ2dg'>";
-                    USER += "<span class='roleColor-rz2vM0' style='color: " +
-                        $"{getRoleColor(member)};'>{member.Nickname ?? member.Username}</span>";
-                    USER += "</div></div>";
-                    USER += $"<div class='subText-1KtqkB'>{member.Activity?.Name ?? ""}</div>";
-                    USER += "</div>";
-                    USER += "</div>";
+                    var div = getUser(member);
                     done.Add(member.Id);
                     if (member.Status == UserStatus.Offline)
                     {
-                        offLine += USER;
+                        offlineList.Add(div);
                         offlineCount++;
                     }
                     else
                     {
-                        ROLE += USER;
                         roleMembers++;
+                        if (roleMembers == 1) // must add header
+                            members.Children.Add(header);
+                        members.Children.Add(div);
                     }
                 }
                 if (roleMembers > 0)
                 {
-                    USERS += ROLE_NAME.Replace("[[COUNT]]", roleMembers.ToString());
-                    USERS += ROLE;
+                    headerSpan.RawText = $"{role.Name} — {roleMembers}";
                 }
             }
             if (offlineCount > 0)
             {
-                USERS += $"<header class='membersGroup-v9BXpm container-2ax-kl'>Offline — {offlineCount}</header>";
-                USERS += offLine;
+                members.Children.Add(new H2(cls: "membersGroup-v9BXpm container-2ax-kl")
+                {
+                    Children =
+                    {
+                        new Span(cls: "").WithRawText($"Offline — {offlineCount}")
+                    }
+                });
+                foreach (var x in offlineList)
+                    members.Children.Add(x);
             }
-            if (blockedUsers > 0)
-                USERS += $"<header class='membersGroup-v9BXpm container-2ax-kl'>Blocked — {blockedUsers}</header>";
-            return USERS;
+            return membersWrap;
         }
 
         [Method("GET"), Path("/" + urlName)]

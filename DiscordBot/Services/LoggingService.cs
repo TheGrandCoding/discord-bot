@@ -148,7 +148,7 @@ namespace DiscordBot.Services
             {
                 if(GuildMap.TryGetValue(guild.Id, out var guildSave))
                 {
-                    if (guildSave.Actions.TryGetValue(action, out var txt))
+                    if (guildSave.Actions.TryGetValue(action, out var txt) && txt != null)
                         return txt;
                 }
                 var category = await GetCategory(guild);

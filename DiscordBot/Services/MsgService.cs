@@ -348,45 +348,61 @@ namespace DiscordBot.Services
             thr.Start(data);
         }
 
+        Semaphore downloadLock = new Semaphore(1, 1);
         void downloadAttachmentThread(object arg)
         {
             if (!(arg is imageData data))
                 return;
-            Program.LogMsg($"Downloading {data.Attachment.Url}", LogSeverity.Info, "Attch");
-            using var cl = new WebClient();
-            cl.DownloadProgressChanged += (object sender, DownloadProgressChangedEventArgs e) =>
+#if DEBUG
+            return;
+#endif
+            try
             {
-                Program.LogMsg($"Progress {data.Attachment.Url}: {e.ProgressPercentage}%, {e.BytesReceived}");
-            };
-            var path = Path.Combine(Path.GetTempPath(), $"{data.MessageId}_{data.Attachment.Filename}");
-            cl.DownloadFile(data.Attachment.Url, path);
-            Program.LogMsg($"Downloaded {data.Attachment.Url}");
-            var service = Program.Services.GetRequiredService<LoggingService>();
-            var chnl = service.GetChannel(data.Guild, "attachment").Result;
-            Program.LogMsg($"Uploading {data.Attachment.Url}");
-            var message = chnl.SendFileAsync(path, $"{data.Guild.Id}-{data.MessageId}").Result;
-            Program.LogMsg($"Uploaded {data.Attachment.Url}");
-            using var DB = Program.Services.GetRequiredService<LogContext>();
-            MsgModel dbMsg;
-            int tries = 0;
-            do
-            {
-                dbMsg = DB.Messages.AsQueryable().FirstOrDefault(x => x.MessageId == cast(data.MessageId));
-                if (dbMsg == null)
+                downloadLock.WaitOne();
+                Program.LogMsg($"Downloading {data.Attachment.Url}", LogSeverity.Info, "Attch");
+                using var cl = new WebClient();
+                cl.DownloadProgressChanged += (object sender, DownloadProgressChangedEventArgs e) =>
                 {
-                    if (tries > 20)
+                    Program.LogMsg($"Progress {data.Attachment.Url}: {e.ProgressPercentage}%, {e.BytesReceived}");
+                };
+                var path = Path.Combine(Path.GetTempPath(), $"{data.MessageId}_{data.Attachment.Filename}");
+                cl.DownloadFile(data.Attachment.Url, path);
+                Program.LogMsg($"Downloaded {data.Attachment.Url}");
+                var service = Program.Services.GetRequiredService<LoggingService>();
+                var chnl = service.GetChannel(data.Guild, "attachment").Result;
+                Program.LogMsg($"Uploading {data.Attachment.Url}");
+                var message = chnl.SendFileAsync(path, $"{data.Guild.Id}-{data.MessageId}").Result;
+                Program.LogMsg($"Uploaded {data.Attachment.Url}");
+                using var DB = Program.Services.GetRequiredService<LogContext>();
+                MsgModel dbMsg;
+                int tries = 0;
+                do
+                {
+                    dbMsg = DB.Messages.AsQueryable().FirstOrDefault(x => x.MessageId == cast(data.MessageId));
+                    if (dbMsg == null)
                     {
-                        Program.LogMsg($"Cancel - Could not locate message {data.MessageId} for setting new attachment url.", LogSeverity.Error, "LogAtt");
-                        return;
+                        if (tries > 20)
+                        {
+                            Program.LogMsg($"Cancel - Could not locate message {data.MessageId} for setting new attachment url.", LogSeverity.Error, "LogAtt");
+                            return;
+                        }
+                        tries++;
+                        Program.LogMsg($"{tries:00} - Could not locate message {data.MessageId} for setting new attachment url.", LogSeverity.Warning, "LogAtt");
+                        Thread.Sleep(1000 * tries);
                     }
-                    tries++;
-                    Program.LogMsg($"{tries:00} - Could not locate message {data.MessageId} for setting new attachment url.", LogSeverity.Warning, "LogAtt");
-                    Thread.Sleep(1000 * tries);
-                }
-            } while (dbMsg == null);
-            dbMsg.Attachments = dbMsg.Attachments.Replace(data.Attachment.Url, message.Attachments.First().Url);
-            DB.SaveChanges();
-            Program.LogMsg($"Completed all {data.Attachment.Url}", LogSeverity.Warning, "Attch");
+                } while (dbMsg == null);
+                dbMsg.Attachments = dbMsg.Attachments.Replace(data.Attachment.Url, message.Attachments.First().Url);
+                DB.SaveChanges();
+                Program.LogMsg($"Completed all {data.Attachment.Url}", LogSeverity.Warning, "Attch");
+            }
+            catch (Exception ex)
+            {
+                Program.LogMsg("DownloadAttch", ex);
+            }
+            finally
+            {
+                downloadLock.Release();
+            }
         }
 
         #endregion
