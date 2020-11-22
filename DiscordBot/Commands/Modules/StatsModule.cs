@@ -79,6 +79,7 @@ namespace DiscordBot.Commands.Modules
         public Dictionary<ulong, ValueStats> Stats { get; set; } = new Dictionary<ulong, ValueStats>();
         public Dictionary<ulong, string> DisplayNames { get; set; } = new Dictionary<ulong, string>();
         public ValueStats AllStats = new ValueStats();
+        public DateTime StartedAt { get; set; } = DateTime.Now;
         public DateTime? LastSentUpdate = null;
 
         public void Add(IUserMessage message)
@@ -192,6 +193,8 @@ namespace DiscordBot.Commands.Modules
                 var key = DisplayNames.GetValueOrDefault(keypair.Key, keypair.Key.ToString());
                 builder.AddField(key, val, true);
             }
+            var duration = DateTime.Now - StartedAt;
+            builder.WithFooter($"Elapsed: {duration:hh:mm:ss}");
             return builder;
         }
     }
