@@ -61,6 +61,16 @@ namespace DiscordBot.Commands.Modules
                 await ReplyAsync("This channel has no statistics ongoing");
             }
         }
+
+        [Command("fstop")]
+        [Summary("Force stops all stats checks")]
+        [RequireOwner]
+        public async Task FStop()
+        {
+            foreach (var x in Tokens.Values)
+                x.Cancel();
+            Tokens = new Dictionary<ulong, CancellationTokenSource>();
+        }
     }
 
     public class Statistics
