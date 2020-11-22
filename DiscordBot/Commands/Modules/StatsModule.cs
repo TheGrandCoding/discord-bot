@@ -119,7 +119,7 @@ namespace DiscordBot.Commands.Modules
                 try
                 {
                     IEnumerable<IMessage> messages;
-                    int lim = Math.Max(100, Remaining);
+                    int lim = Math.Clamp(Remaining, 1, 100);
                     if (lastMessage == null)
                         messages = Channel.GetMessagesAsync(lim).FlattenAsync().Result;
                     else

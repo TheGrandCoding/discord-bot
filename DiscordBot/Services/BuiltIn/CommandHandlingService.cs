@@ -70,7 +70,7 @@ namespace DiscordBot.Services
             if (cmd.Attributes.Any(x => x is SensitiveAttribute))
                 return log + " [redacted]";
             var split = input.Split(' ');
-            for(int i = 0; i < cmd.Parameters.Count; i++)
+            for(int i = 0; i < cmd.Parameters.Count && i < split.Length; i++)
             {
                 var arg = cmd.Parameters[i];
                 if (arg.Attributes.Any(x => x is SensitiveAttribute))
@@ -79,8 +79,14 @@ namespace DiscordBot.Services
                 } else
                 {
                     var end = arg.IsRemainder ? new Index(1, true) : new Index(i + 1);
-                    var value = split[new Range(new Index(i), end)];
-                    log += " " + string.Join(' ', value);
+                    if(arg.IsOptional && (i + 1) >= split.Length)
+                    {
+                        log += $" <{arg.DefaultValue}>";
+                    } else
+                    {
+                        var value = split[new Range(new Index(i), end)];
+                        log += " " + string.Join(' ', value);
+                    }
                 }
                 if (arg.IsRemainder)
                     break;
