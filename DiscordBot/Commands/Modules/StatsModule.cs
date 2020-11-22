@@ -105,7 +105,15 @@ namespace DiscordBot.Commands.Modules
             try
             {
                 threadLoop();
-            } finally
+            } catch(Exception ex)
+            {
+                Program.LogMsg("Stats", ex);
+                try
+                {
+                    Status.ModifyAsync(x => x.Content = $"Erorr ocurred: {ex}");
+                } catch { }
+            } 
+            finally
             {
                 StatsModule.Tokens.Remove(Channel.Id);
             }
@@ -194,7 +202,7 @@ namespace DiscordBot.Commands.Modules
                 builder.AddField(key, val, true);
             }
             var duration = DateTime.Now - StartedAt;
-            builder.WithFooter($"Elapsed: {duration:hh:mm:ss}");
+            builder.WithFooter($"Elapsed: {duration.Hours:00}:{duration.Minutes:00}:{duration.Seconds:00}");
             return builder;
         }
     }
