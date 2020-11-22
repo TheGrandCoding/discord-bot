@@ -131,17 +131,18 @@ namespace DiscordBot.Commands.Modules
 
         public void threadLoop()
         {
+            ulong? lastMessage = null;
             do
             {
-                IUserMessage lastMessage = null;
                 try
                 {
                     IEnumerable<IMessage> messages;
-                    int lim = Math.Clamp(Remaining, 1, 100);
+                    int lim = Math.Clamp(Remaining, 1, 5);
                     if (lastMessage == null)
                         messages = Channel.GetMessagesAsync(lim).FlattenAsync().Result;
                     else
-                        messages = Channel.GetMessagesAsync(lastMessage, Direction.Before, lim).FlattenAsync().Result;
+                        messages = Channel.GetMessagesAsync(lastMessage.Value, Direction.Before, lim).FlattenAsync().Result;
+                    lastMessage = messages.LastOrDefault()?.Id;
                     var any = false;
                     foreach(var msg in messages)
                     {
@@ -155,7 +156,6 @@ namespace DiscordBot.Commands.Modules
                         if (!DisplayNames.ContainsKey(msg.Author.Id))
                             DisplayNames[msg.Author.Id] = $"{msg.Author.Username}#{msg.Author.Discriminator}";
                         Add(usm);
-                        lastMessage = usm;
                         Remaining--;
                         Update();
                         if (Remaining <= 0 || Token.IsCancellationRequested)
