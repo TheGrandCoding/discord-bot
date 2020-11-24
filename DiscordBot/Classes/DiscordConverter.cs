@@ -28,7 +28,11 @@ namespace DiscordBot.Classes
                 || objectType == typeof(RestCategoryChannel)
                 || objectType == typeof(IRole)
                 || objectType == typeof(SocketRole)
-                || objectType == typeof(RestRole);
+                || objectType == typeof(RestRole)
+                || objectType == typeof(IGuild)
+                || objectType == typeof(SocketGuild)
+                || objectType == typeof(IGuildUser)
+                || objectType == typeof(SocketGuildUser);
         }
 
         public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
@@ -39,6 +43,10 @@ namespace DiscordBot.Classes
             var id = ulong.Parse(split[1]);
 
             var guild = Program.Client.GetGuild(gid);
+            if (objectType == typeof(SocketGuild) || objectType == typeof(IGuild))
+                return guild;
+            if (objectType == typeof(SocketGuildUser) || objectType == typeof(IGuildUser))
+                return guild.GetUser(id);
             if (objectType == typeof(SocketTextChannel) || objectType == typeof(ITextChannel))
                 return guild.GetTextChannel(id);
             if (objectType == typeof(SocketCategoryChannel) || objectType == typeof(ICategoryChannel))
@@ -88,6 +96,9 @@ namespace DiscordBot.Classes
                 if (m.Channel is IDMChannel d)
                     cId = d.Recipient.Id;
                 return $"{gId}.{cId}.{mId}";
+            } else if(value is IGuild g)
+            {
+                return $"{g.Id}.0";
             }
             else if (value is IEntity<ulong> eu)
             {

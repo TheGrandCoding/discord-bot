@@ -103,9 +103,10 @@ namespace DiscordBot
             }
         }
 
-        static JsonSerializerSettings getSettings(params JsonConverter[] conv)
+        static JsonSerializerSettings getSettings(TypeNameHandling handling, params JsonConverter[] conv)
         {
             var settings = new JsonSerializerSettings();
+            settings.TypeNameHandling = handling;
             settings.Converters.Add(new DiscordConverter());
             settings.Converters.Add(new Classes.ServerList.MLJsonConverter());
             settings.Converters.Add(new Classes.ServerList.IPConverter());
@@ -117,13 +118,13 @@ namespace DiscordBot
             return settings;
         }
 
-        public static string Serialise(object obj, params JsonConverter[] conv)
+        public static string Serialise(object obj, TypeNameHandling handling = TypeNameHandling.None, params JsonConverter[] conv)
         {
-            return JsonConvert.SerializeObject(obj, getSettings(conv));
+            return JsonConvert.SerializeObject(obj, getSettings(handling, conv));
         }
         public static T Deserialise<T>(string input, params JsonConverter[] conv)
         {
-            return JsonConvert.DeserializeObject<T>(input, getSettings(conv));
+            return JsonConvert.DeserializeObject<T>(input, getSettings(TypeNameHandling.Auto, conv));
         }
 
         public static Discord.Commands.TypeReaderResult AttemptParseInput<TArg>(string input) =>

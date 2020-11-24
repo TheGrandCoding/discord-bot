@@ -17,7 +17,7 @@ namespace DiscordBot.Services
 
         public override string GenerateSave()
         {
-            return Program.Serialise(Hearings, new ChessPlayerConverter());
+            return Program.Serialise(Hearings, TypeNameHandling.None, new ChessPlayerConverter());
         }
         public override void OnLoaded()
         {

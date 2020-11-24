@@ -544,6 +544,7 @@ namespace DiscordBot.Services
                     if(x.Content == null)
                     {
                         x.Content = inDs.Content;
+#if !DEBUG
                         var msgContent = new MsgContent()
                         {
                             Message = inDs.Id,
@@ -552,6 +553,7 @@ namespace DiscordBot.Services
                         };
                         DB.Contents.Add(msgContent);
                         changes = true;
+#endif
                     }
                 }
             }
@@ -562,7 +564,9 @@ namespace DiscordBot.Services
                 if (!DB.Messages.Any(x => x.MessageId == cast(ds.Id)))
                 {
                     total.Add(new DiscordMsg(this, umsg));
+#if !DEBUG
                     await AddMessage(umsg);
+#endif
                 }
             }
             if (changes)
