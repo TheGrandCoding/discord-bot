@@ -29,9 +29,9 @@ namespace DiscordBot.Classes.HTMLHelpers
             Class = cls;
             Children = new List<HTMLBase>();
         }
-    
+
         public List<HTMLBase> Children { get; protected set; }
-        
+
         protected virtual void WriteOpenTag(StringBuilder sb, int tab = -1)
         {
             if (tab > -1)
@@ -40,7 +40,7 @@ namespace DiscordBot.Classes.HTMLHelpers
             set("class", Class);
             if (m_classes.Count == 0)
                 tagValues.Remove("class");
-            foreach(var keypair in tagValues)
+            foreach (var keypair in tagValues)
             {
                 var key = keypair.Key;
                 var val = keypair.Value;
@@ -72,7 +72,7 @@ namespace DiscordBot.Classes.HTMLHelpers
                 sb.Append("\r\n");
         }
 
-        protected virtual void WriteContent(StringBuilder sb, int tab = -1) 
+        protected virtual void WriteContent(StringBuilder sb, int tab = -1)
         {
             if (RawText == null)
                 return;
@@ -87,7 +87,7 @@ namespace DiscordBot.Classes.HTMLHelpers
         {
             WriteOpenTag(sb, tab);
             WriteContent(sb, tab == -1 ? -1 : tab + 1);
-            foreach(var child in Children)
+            foreach (var child in Children)
             {
                 child.Write(sb, tab == -1 ? -1 : tab + 1);
             }
@@ -121,6 +121,11 @@ namespace DiscordBot.Classes.HTMLHelpers
         }
 
         public static implicit operator string(HTMLBase b) => b.ToString();
+        public static HTMLBase operator +(HTMLBase left, HTMLBase right)
+        {
+            left.Children.Add(right);
+            return left;
+        }
     }
 
     public abstract class DOMBase : HTMLBase

@@ -182,6 +182,7 @@ namespace DiscordBot.Services
         public DateTimeOffset Timestamp => SnowflakeUtils.FromSnowflake(Id);
         public DateTimeOffset CreatedAt => SnowflakeUtils.FromSnowflake(Id);
         public IUser Author { get; set; }
+        public List<IEmbed> Embeds { get; set; }
 
         public string Attachments { get; set; }
 
@@ -195,6 +196,7 @@ namespace DiscordBot.Services
             Content = message.Content;
             Author = message.Author;
             Attachments = string.Join(',', message.Attachments.Select(x => x.Url));
+            Embeds = message.Embeds.ToList();
         }
     }
     public class DbMsg : ReturnedMsg
@@ -212,6 +214,7 @@ namespace DiscordBot.Services
                 Author = dbu;
             }
             Attachments = model.Attachments;
+            Embeds = new List<IEmbed>();
         }
     }
 
@@ -252,7 +255,7 @@ namespace DiscordBot.Services
 
     public class NameTimestamps
     {
-        public ulong ObjectId { get; set; }
+        public long ObjectId { get; set; }
         public DateTime Timestamp { get; set; }
 
         public string Name { get; set; }
@@ -428,11 +431,11 @@ namespace DiscordBot.Services
             msg.ContentId = content.Id;
             DB.Messages.Add(msg);
             await DB.SaveChangesAsync();
-            var bg = Console.BackgroundColor;
             Console.ForegroundColor = ConsoleColor.Black;
             Console.BackgroundColor = ConsoleColor.White;
             Console.WriteLine($"{getWhere(umsg)}: {arg.Author.Username}: {arg.Content}");
-            Console.BackgroundColor = bg;
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.BackgroundColor = ConsoleColor.Black;
             foreach(var attch in umsg.Attachments)
             {
                 HandleAttachment(attch, guildChannel.Guild, umsg.Id);
@@ -537,6 +540,7 @@ namespace DiscordBot.Services
                 }
                 else
                 {
+                    x.Embeds = inDs.Embeds.ToList();
                     if(x.Content == null)
                     {
                         x.Content = inDs.Content;
@@ -574,7 +578,7 @@ namespace DiscordBot.Services
                 return;
             var stamp = new NameTimestamps()
             {
-                ObjectId = arg2.Id,
+                ObjectId = cast(arg2.Id),
                 Timestamp = DateTime.Now,
                 Name = arg2.Name
             };
@@ -593,7 +597,7 @@ namespace DiscordBot.Services
                 return;
             var stamp = new NameTimestamps()
             {
-                ObjectId = chnl1.Id,
+                ObjectId = cast(chnl1.Id),
                 Timestamp = DateTime.Now,
                 Name = chnl2.Name
             };
@@ -605,7 +609,7 @@ namespace DiscordBot.Services
         public List<NameTimestamps> GetNamesFor(ulong id)
         {
             using var DB = Program.Services.GetRequiredService<LogContext>();
-            return Enumerable.Where(DB.Names, x => x.ObjectId == id).ToList();
+            return DB.Names.AsQueryable().Where(x => x.ObjectId == cast(id)).ToList();
         }
         public string GetNameForAndAt(ulong id, DateTime time)
         {

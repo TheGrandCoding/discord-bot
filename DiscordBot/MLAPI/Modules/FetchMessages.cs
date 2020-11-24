@@ -6,6 +6,7 @@ using DiscordBot.Classes.HTMLHelpers.Objects;
 using DiscordBot.Commands.Modules.MLAPI;
 using DiscordBot.Services;
 using EduLinkDLL.API.Models;
+using Markdig.Helpers;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
@@ -23,7 +24,7 @@ namespace DiscordBot.MLAPI.Modules
     {
         public MsgService DB { get; set; }
         const string urlName = "vpn";
-        const string channelIcon = "<svg width='24' height='24' viewBox='0 0 24 24' class='icon-1_QxNX'><path fill='currentColor' fill-rule='evenodd' clip-rule='evenodd' d='M5.88657 21C5.57547 21 5.3399 20.7189 5.39427 20.4126L6.00001 17H2.59511C2.28449 17 2.04905 16.7198 2.10259 16.4138L2.27759 15.4138C2.31946 15.1746 2.52722 15 2.77011 15H6.35001L7.41001 9H4.00511C3.69449 9 3.45905 8.71977 3.51259 8.41381L3.68759 7.41381C3.72946 7.17456 3.93722 7 4.18011 7H7.76001L8.39677 3.41262C8.43914 3.17391 8.64664 3 8.88907 3H9.87344C10.1845 3 10.4201 3.28107 10.3657 3.58738L9.76001 7H15.76L16.3968 3.41262C16.4391 3.17391 16.6466 3 16.8891 3H17.8734C18.1845 3 18.4201 3.28107 18.3657 3.58738L17.76 7H21.1649C21.4755 7 21.711 7.28023 21.6574 7.58619L21.4824 8.58619C21.4406 8.82544 21.2328 9 20.9899 9H17.41L16.35 15H19.7549C20.0655 15 20.301 15.2802 20.2474 15.5862L20.0724 16.5862C20.0306 16.8254 19.8228 17 19.5799 17H16L15.3632 20.5874C15.3209 20.8261 15.1134 21 14.8709 21H13.8866C13.5755 21 13.3399 20.7189 13.3943 20.4126L14 17H8.00001L7.36325 20.5874C7.32088 20.8261 7.11337 21 6.87094 21H5.88657ZM9.41045 9L8.35045 15H14.3504L15.4104 9H9.41045Z'></path></svg>";
+        const string channelIcon = "<path fill='currentColor' d='M14 8C14 7.44772 13.5523 7 13 7H9.76001L10.3657 3.58738C10.4201 3.28107 10.1845 3 9.87344 3H8.88907C8.64664 3 8.43914 3.17391 8.39677 3.41262L7.76001 7H4.18011C3.93722 7 3.72946 7.17456 3.68759 7.41381L3.51259 8.41381C3.45905 8.71977 3.69449 9 4.00511 9H7.41001L6.35001 15H2.77011C2.52722 15 2.31946 15.1746 2.27759 15.4138L2.10259 16.4138C2.04905 16.7198 2.28449 17 2.59511 17H6.00001L5.39427 20.4126C5.3399 20.7189 5.57547 21 5.88657 21H6.87094C7.11337 21 7.32088 20.8261 7.36325 20.5874L8.00001 17H14L13.3943 20.4126C13.3399 20.7189 13.5755 21 13.8866 21H14.8709C15.1134 21 15.3209 20.8261 15.3632 20.5874L16 17H19.5799C19.8228 17 20.0306 16.8254 20.0724 16.5862L20.2474 15.5862C20.301 15.2802 20.0655 15 19.7549 15H16.35L16.6758 13.1558C16.7823 12.5529 16.3186 12 15.7063 12C15.2286 12 14.8199 12.3429 14.7368 12.8133L14.3504 15H8.35045L9.41045 9H13C13.5523 9 14 8.55228 14 8Z'></path>";
         public bool canViewAllChannels = false;
         public VPN(APIContext c) : base(c, "vpn")
         {
@@ -132,51 +133,73 @@ namespace DiscordBot.MLAPI.Modules
             return msgs;
         }
 
-        string getChannels(SocketGuild guild, SocketTextChannel selected)
+        HTMLBase getTextChannel(SocketTextChannel chnl, SocketTextChannel selected)
+        {
+            var guild = chnl.Guild;
+            var container = new Div(cls: "containerDefault--pIXnN");
+            var iconVisibility = new Div(cls: "iconVisibility-sTNpHs wrapper-2jXpOf");
+            if (chnl.Id == selected?.Id)
+                iconVisibility.ClassList.Add("modeSelected-346R90");
+            DateTime last;
+            if (Context.User.LastVisitVPN.TryGetValue(chnl.Id, out var item))
+                last = item;
+            else
+                last = DateTime.Now.AddDays(-1);
+            var diff = DateTime.Now - last;
+            int count = 0;
+            if (diff.TotalMinutes >= 10)
+                count = numUnreadMessages(chnl, out bool mention);
+            if (count > 0)
+            {
+                iconVisibility.ClassList.Add("modeUnread-1qO3K1");
+                iconVisibility.Children.Add(new Div(cls: "unread-2lAfLh"));
+            }
+            container.Children.Add(iconVisibility);
+            var content = new Div(cls: "content-1x5b-n");
+            iconVisibility.Children.Add(content);
+            var href = new Anchor($"/{urlName}?guild={guild.Id}&channel={chnl.Id}", "", cls: "mainContent-u_9PKf");
+            content.Children.Add(href);
+            var svg = new Svg("0 0 24 24", "24", "24", cls: "icon-1DeIlz");
+            href.Children.Add(svg);
+            svg.Children.Add(new RawObject(channelIcon));
+
+            href.Children.Add(new Div(cls: "name-23GUGE overflow-WK9Ogt").WithRawText(chnl.Name));
+            return container;
+        }
+
+        HTMLBase getCategoryChannel(SocketCategoryChannel chnl)
+        {
+            var container = new Div(cls: "containerDefault-3tr_sE");
+            var iconVisibility = new Div(cls: "iconVisibility-fhcwiH wrapper-PY0fhH clickable-536fPF");
+            container.Children.Add(iconVisibility);
+            var mainContent = new Div(cls: "mainContent-2h-GEV");
+            iconVisibility.Children.Add(mainContent);
+            mainContent.Children.Add(new H2(cls: "name-3l27Hl container-2ax-kl").WithRawText(chnl.Name.ToUpper()));
+            return container;
+        }
+
+        HTMLBase getChannels(SocketGuild guild, SocketTextChannel selected)
         {
             var usr = guild.GetUser(Context.User.Id);
             if (usr == null)
-                return "";
-            string txt = "";
-            foreach (var cat in guild.CategoryChannels.OrderBy(x => x.Position))
+                return new Div().WithRawText("An internal error occured processing this request");
+            var chnlContent = new Div(cls: "content-3YMskv");
+            foreach (var txt in guild.TextChannels.Where(x => x.CategoryId.HasValue == false).OrderBy(x => x.Position))
+                chnlContent.Children.Add(getTextChannel(txt, selected));
+            foreach(var cat in guild.CategoryChannels.OrderBy(x => x.Position))
             {
-                string TEXT = "";
-                TEXT += $"<div class='chat-category' id='{cat.Id}'>{cat.Name}</div>";
-                bool any = false;
-                foreach (var chnl in cat.Channels.OrderBy(x => x.Position))
+                chnlContent.Children.Add(getCategoryChannel(cat));
+                foreach(var chnl in cat.Channels.OrderBy(x => x.Position))
                 {
-                    if (!(chnl is SocketTextChannel textC))
-                        continue;
-                    if (!hasAccessTo(textC))
-                        continue;
-                    any = true;
-                    DateTime last;
-                    if (Context.User.LastVisitVPN.TryGetValue(chnl.Id, out var item))
-                        last = item;
-                    else
-                        last = DateTime.Now.AddDays(-1);
-                    var diff = DateTime.Now - last;
-                    int count = 0;
-                    if (diff.TotalMinutes >= 10)
-                        count = numUnreadMessages(textC, out bool mention);
-                    TEXT += $"<div class='containerDefault-1ZnADq'>";
-                    TEXT += "<div tabindex='0' class='wrapper-1ucjTd' role='button'>";
-                    if (count > 0)
+                    if (chnl is SocketTextChannel txt)
                     {
-                        TEXT += $"<div class='chat-unread-blob'></div>";
+                        if (!hasAccessTo(txt))
+                            continue;
+                        chnlContent.Children.Add(getTextChannel(txt, selected));
                     }
-                    TEXT += "<div class='content-3at_AU'>";
-                    TEXT += $"{channelIcon}" +
-                        $"<div class='name-3_Dsmg {(count > 0 ? "chat-unread" : "")}'><a href='/vpn?guild={guild.Id}&channel={chnl.Id}'>{chnl.Name}</a>";
-                    TEXT += $"</div>" +
-                        $"</div>" +
-                        $"</div>" +
-                        $"</div>";
                 }
-                if (any)
-                    txt += TEXT;
             }
-            return txt;
+            return chnlContent;
         }
 
         string getRGBFromColor(Color clr, string a = "")
@@ -222,59 +245,6 @@ namespace DiscordBot.MLAPI.Modules
             return div;
         }
 
-        string getEmbed(Embed embed)
-        {
-            if (embed == null)
-                return "";
-            string text = "<div class='container-1ov-mD'>";
-            text += "<div class='embedWrapper-lXpS3L embedFull-2tM8-- embed-IeVjo6 markup-2BOw-j'>";
-            text += "<div class='grid-1nZz7S'>";
-            text += $"<div class='embedTitle-3OXDkz embedMargin-UO5XwE'>{embed.Title}</div>";
-            if (!string.IsNullOrWhiteSpace(embed.Description))
-                text += $"<div class='embedDescription-1Cuq9a embedMargin-UO5XwE'>{embed.Description}</div>";
-            if (embed.Fields.Length > 0)
-            {
-                text += $"<div class='embedFields-2IPs5Z'>";
-                int maxCol = 5;
-                int column = 1;
-                foreach (var field in embed.Fields)
-                {
-                    if (!field.Inline)
-                    {
-                        column = 1;
-                    }
-                    text += $"<div class='embedField-1v-Pnh' style='grid-column: {column} / {maxCol};'>";
-                    text += $"<div class='embedFieldName-NFrena'>{field.Name}</div>" +
-                        $"<div class='embedFieldValue-nELq2s'>{field.Value}</div>";
-                    text += "</div>";
-                    if (field.Inline)
-                    {
-                        if (maxCol == 5)
-                        {
-                            maxCol = 9;
-                            column = 5;
-                        }
-                        else if (maxCol == 9)
-                        {
-                            maxCol = 13;
-                            column = 9;
-                        }
-                    }
-                }
-                text += "</div>";
-            }
-            if (embed.Footer.HasValue)
-            {
-                text += $"<div class='embedFooter-3yVop- embedMargin-UO5XwE'>" +
-                    $"<span class='embedFooterText-28V_Wb'>{embed.Footer.Value.Text}</span>" +
-                    $"</div>";
-            }
-            text += "</div>";
-            text += "</div>";
-            text += "</div>";
-            return text;
-        }
-
         bool isMessageNew(SocketTextChannel channel, ReturnedMsg message)
         {
             DateTime last;
@@ -306,8 +276,9 @@ namespace DiscordBot.MLAPI.Modules
             {
                 var anchor = new Anchor(image, cls: "anchor-3Z-8Bb anchorUnderlineOnHover-2ESHQB imageWrapper-2p5ogY imageZoom-1n-ADA clickable-3Ya1ho embedWrapper-lXpS3L");
                 anchor.RawText = "";
+                anchor.Style = "min-height: 50px; width: 100%;";
                 var img = new DiscordBot.Classes.HTMLHelpers.Objects.Img();
-                img.Style = "height: 300px; width: auto;";
+                img.Style = "position: relative; max-height: 300px; max-width: 90%; width: auto;";
                 if(Context.IsBehindFirewall)
                 {
                     var uri = new Uri(image);
@@ -322,31 +293,46 @@ namespace DiscordBot.MLAPI.Modules
             return container;
         }
 
-        HTMLBase getMsgContent(SocketGuild guild, ReturnedMsg m, out bool mentioned)
+        string parseMarkdown(SocketGuild guild, string content, out bool mentioned, bool redact = false)
         {
-            var div = new Div(cls: "markup-2BOw-j messageContent-2qWWxC");
             mentioned = false;
-            string basic = m.Content;
+            string basic = content;
+            if(redact)
+            {
+                var sb = new StringBuilder();
+                for(int i = 0; i <basic.Length; i++)
+                {
+                    if(basic[i].IsAlpha())
+                    {
+                        sb.Append('█');
+                    } else
+                    {
+                        sb.Append(basic[i]);
+                    }
+                }
+                basic = sb.ToString();
+            }
 
             #region Mention Parsing
 
             #region User Mentions
             var rgx = new Regex(@"(?<!\\)<@!?([0-9]{17,18})>");
             var done = new List<ulong>();
-            foreach(Match match in rgx.Matches(basic))
+            foreach (Match match in rgx.Matches(basic))
             {
                 var userId = ulong.Parse(match.Groups[1].Value);
                 if (done.Contains(userId))
                     continue;
-                if(userId == Context.User.Id)
+                if (userId == Context.User.Id)
                     mentioned = true;
                 done.Add(userId);
                 string display = "@unkown-user";
                 var user = guild.GetUser(userId);
-                if(user != null)
+                if (user != null)
                 {
                     display = $"@{user.Nickname ?? user.Username}";
-                } else
+                }
+                else
                 {
                     var any = Program.GetUserOrDefault(userId);
                     if (any != null)
@@ -411,6 +397,119 @@ namespace DiscordBot.MLAPI.Modules
             #region Markdown Replacement
             // Skip for now.
             #endregion
+            return basic;
+        }
+
+        HTMLBase getEmbed(SocketGuild guild, IEmbed embed)
+        {
+            var embedContainer = new Div(cls: "embedWrapper-lXpS3L embedFull-2tM8-- embed-IeVjo6 markup-2BOw-j");
+            embedContainer.Style = $"border-color: {getRGBFromColor(embed.Color ?? Color.Default)};";
+            var grid = new Div(cls: "grid-1nZz7S");
+            embedContainer.Children.Add(grid);
+
+            if(!string.IsNullOrWhiteSpace(embed.Title))
+            {
+                grid.Children.Add(new Div(cls: "embedTitle-3OXDkz embedMargin-UO5XwE").WithRawText(embed.Title));
+            }
+            if(!string.IsNullOrWhiteSpace(embed.Description))
+            {
+                var descMrkd = parseMarkdown(guild, embed.Description, out _);
+                grid.Children.Add(new Div(cls: "embedDescription-1Cuq9a embedMargin-UO5XwE").WithRawText(descMrkd));
+            }
+            if(embed.Fields.Length > 0)
+            {
+                var fields = new Div(cls: "embedFields-2IPs5Z");
+                var rows = new List<EmbedField?[]>();
+                grid.Children.Add(fields);
+                var currentRow = new EmbedField?[3];
+                foreach(var field in embed.Fields)
+                {
+                    if(!field.Inline)
+                    {
+                        if(currentRow[0] != null)
+                        {
+                            rows.Add(currentRow);
+                            currentRow = new EmbedField?[3];
+                        }
+                        currentRow[0] = field;
+                        rows.Add(currentRow);
+                        currentRow = new EmbedField?[3];
+                    }
+                    else
+                    {
+                        if(currentRow[2] != null)
+                        {
+                            rows.Add(currentRow);
+                            currentRow = new EmbedField?[3];
+                        }
+                        if (currentRow[0] == null)
+                            currentRow[0] = field;
+                        else if (currentRow[1] == null)
+                            currentRow[1] = field;
+                        else
+                            currentRow[2] = field;
+                    }
+                }
+                if (currentRow[0] != null)
+                    rows.Add(currentRow);
+
+
+                foreach (var array in rows)
+                {
+                    int length = array[2] != null ? 3 : array[1] != null ? 2 : 1;
+                    for(int i = 0; i < length; i++)
+                    {
+                        var field = array[i].Value;
+                        var embedField = new Div(cls: "embedField-1v-Pnh");
+                        embedField.Style = $"grid-column: {getGrid(i, length)}";
+                        embedField.Children.Add(new Div(cls: "embedFieldName-NFrena").WithRawText(field.Name));
+                        embedField.Children.Add(new Div(cls: "embedFieldValue-nELq2s")
+                            .WithRawText(parseMarkdown(guild, field.Value, out _)));
+                        fields.Children.Add(embedField);
+                    }
+                }
+            }
+            if (embed.Footer.HasValue || embed.Timestamp.HasValue)
+            {
+                var footer = new Div(cls: "embedFooter-3yVop- embedMargin-UO5XwE");
+                grid.Children.Add(footer);
+
+                var footerText = new Div(cls: "embedFooterText-28V_Wb");
+                footer.Children.Add(footerText);
+
+                if (embed.Footer.HasValue && !string.IsNullOrWhiteSpace(embed.Footer.Value.Text))
+                {
+                    footerText.RawText = embed.Footer.Value.Text;
+                }
+                if(embed.Timestamp.HasValue)
+                {
+                    if(!string.IsNullOrWhiteSpace(footerText.RawText))
+                    {
+                        footerText.RawText += new Span(cls: "embedFooterSeparator-3klTIQ").WithRawText("•");
+                    }
+                    footerText.RawText += embed.Timestamp.Value.ToString($"yyyy/MM/dd HH:mm:ss.fff");
+                }
+            }
+            return embedContainer;
+        }
+
+        string getGrid(int rowNumber, int total)
+        {
+            if (total == 1)
+                return "1 / 13";
+            if(total == 2)
+                return rowNumber == 0 ? "1 / 7" : "7 / 13";
+            if (rowNumber == 0)
+                return "1 / 5";
+            if (rowNumber == 1)
+                return "5 / 9";
+            return "9 / 13";
+        }
+
+        HTMLBase getMsgContent(SocketGuild guild, ReturnedMsg m, out bool mentioned)
+        {
+            var div = new Div(cls: "markup-2BOw-j messageContent-2qWWxC");
+            var basic = parseMarkdown(guild, m.Content, out mentioned, m.IsDeleted && canViewAllChannels == false);
             return div.WithRawText(basic);
         }
 
@@ -451,6 +550,7 @@ namespace DiscordBot.MLAPI.Modules
             var messageDiv = new Div(id: msg.Id.ToString(), cls: "message-2qnXI6 groupStart-23k01U wrapper-2a6GCs compact-T3H92H zalgo-jN1Ica");
             messageDiv.WithTag("role", "group")
                 .WithTag("tabindex", "-1");
+            messageDiv.OnClick = "ctrlPopupId(this, event);";
             var contentsDiv = new Div(cls: "contents-2mQqc9").WithTag("role", "document");
             if (msg.IsDeleted)
                 messageDiv.ClassList.Add("message-deleted");
@@ -475,6 +575,17 @@ namespace DiscordBot.MLAPI.Modules
             messageDiv.Children.Add(contentsDiv);
             if (mentioned)
                 messageDiv.ClassList.Add("mentioned-xhSam7");
+
+            if(msg.Embeds.Count > 0)
+            {
+                var containerDiv = new Div(cls: "container-1ov-mD");
+                messageDiv.Children.Add(containerDiv);
+                foreach(var embed in msg.Embeds)
+                {
+                    containerDiv.Children.Add(getEmbed(guild, embed));
+                }
+            }
+
             return messageDiv;
         }
 
@@ -597,10 +708,7 @@ namespace DiscordBot.MLAPI.Modules
             var div = new Div(cls: "wrapper-3t9DeA")
                 .WithTag("style", "width: 32px; height: 32px;");
             avatar.Children.Add(div);
-            var svg = new Svg(cls: "mask-1l8v16 svg-2V3M55")
-                .WithTag("viewbox", "0 0 40 32")
-                .WithTag("width", "40")
-                .WithTag("height", "32");
+            var svg = new Svg("0 0 40 32", "40", "32", cls: "mask-1l8v16 svg-2V3M55");
             div.Children.Add(svg);
             var foreignObject = new ForeignObject()
                 .WithTag("x", "0").WithTag("y", "0")

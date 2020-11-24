@@ -94,6 +94,11 @@ namespace DiscordBot.Services
                         if (PermChecker.UserHasPerm(botUser, rolePerm))
                         {
                             var gUser = guild.GetUser(u.Id);
+                            if(gUser == null)
+                            {
+                                x.Value.Message.RemoveReactionAsync(emote, u);
+                                continue;
+                            }
                             if (!gUser.Roles.Any(x => x.Id == role.Id))
                             {
                                 gUser.AddRoleAsync(role);
