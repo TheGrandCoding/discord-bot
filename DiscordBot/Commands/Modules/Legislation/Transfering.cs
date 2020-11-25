@@ -26,7 +26,7 @@ namespace DiscordBot.Commands.Modules.Legislation
                 await ReplyAsync("No such law exists; available: \r\n" + string.Join("\r\n", Service.Laws.Keys));
                 return;
             }
-            var lawPath = Path.Combine(LegislationService.StorageFolder, law.PathName);
+            var lawPath = Path.Combine(LegislationService.StorageFolder, law.PathName + ".json");
             await Context.Channel.SendFileAsync(lawPath);
         }
 
