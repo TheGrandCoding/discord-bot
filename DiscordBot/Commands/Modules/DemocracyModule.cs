@@ -18,6 +18,33 @@ namespace DiscordBot.Commands.Modules
     {
         public DemocracyService Service { get; set; }
 
+        [Command("list")]
+        [Summary("Lists all active votes")]
+        public async Task List()
+        {
+            EmbedBuilder builder = new EmbedBuilder();
+            builder.Title = "Democracy in Action";
+            builder.Description = $"BE IT ENACTED by the Queen’s most Excellent Majesty, by and with the advice and consent of " +
+                $"the Lords Spiritual and Temporal, and Commons, in this present Parliament assembled, " +
+                $"and by the authority of the same, as follows:—";
+            foreach(var x in Service.Items)
+            {
+                string value;
+                if (x.Value.StatusMessage != null)
+                    value = $"[Link]({x.Value.StatusMessage.GetJumpUrl()})";
+                else
+                    value = $"Message Removed, id: {x.Key}";
+                value += $"\r\n";
+                value += $"Ayes: {x.Value.Ayes.Count}\r\n" +
+                    $"Noes: {x.Value.Noes.Count}\r\n" +
+                    $"Not voted: {x.Value.Abstained.Count}";
+                builder.AddField(x.Value.getTitle(), value);
+            }
+            if (builder.Fields.Count == 0)
+                builder.AddField("Nothing", "There are no current active votes.");
+            await ReplyAsync(embed: builder.Build());
+        }
+
         [Command("kick")]
         [Summary("Initiates a vote to kick the provided user")]
         [RequireUserPermission(GuildPermission.KickMembers)]
@@ -25,11 +52,6 @@ namespace DiscordBot.Commands.Modules
         public async Task<RuntimeResult> Kick(SocketGuildUser target, [Remainder]string reason)
         {
             var msg = await ReplyAsync("[...]");
-            Task _ = Task.Run(async () =>
-            {
-                await msg.AddReactionAsync(Emotes.THUMBS_UP);
-                await msg.AddReactionAsync(Emotes.THUMBS_DOWN);
-            });
             var vk = new VoteKick(Context.Guild, Context.User as SocketGuildUser, target, reason, msg);
             await ReplyAsync("This vote shall be performed when a majority of users having any one of the below roles votes Aye:" +
                 "\r\n" + string.Join("\r\n", vk.WhitelistedRoles.Select(x => x.Name)) +
@@ -58,6 +80,11 @@ namespace DiscordBot.Commands.Modules
                 await vk.Update();
                 await ReplyAsync("Using roles:\r\n" + string.Join("\r\n", vk.WhitelistedRoles.Select(x => x.Name)));
             }
+            Task _ = Task.Run(async () =>
+            {
+                await msg.AddReactionAsync(Emotes.THUMBS_UP);
+                await msg.AddReactionAsync(Emotes.THUMBS_DOWN);
+            });
             Service.Items[msg.Id] = vk;
             Service.OnSave();
             await vk.Update("Initialising...");
@@ -71,11 +98,6 @@ namespace DiscordBot.Commands.Modules
         public async Task<RuntimeResult> Ban(SocketGuildUser target, [Remainder]string reason)
         {
             var msg = await ReplyAsync("[...]");
-            Task _ = Task.Run(async () =>
-            {
-                await msg.AddReactionAsync(Emotes.THUMBS_UP);
-                await msg.AddReactionAsync(Emotes.THUMBS_DOWN);
-            });
             var vk = new VoteBan(Context.Guild, Context.User as SocketGuildUser, target, reason, msg);
             await ReplyAsync("This vote shall be performed when a majority of users having any one of the below roles votes Aye:" +
                 "\r\n" + string.Join("\r\n", vk.WhitelistedRoles.Select(x => x.Name)) +
@@ -105,6 +127,11 @@ namespace DiscordBot.Commands.Modules
                 await vk.Update();
                 await ReplyAsync("Using roles:\r\n" + string.Join("\r\n", vk.WhitelistedRoles.Select(x => x.Name)));
             }
+            Task _ = Task.Run(async () =>
+            {
+                await msg.AddReactionAsync(Emotes.THUMBS_UP);
+                await msg.AddReactionAsync(Emotes.THUMBS_DOWN);
+            });
             Service.Items[msg.Id] = vk;
             Service.OnSave();
             await vk.Update("Initialising...");
