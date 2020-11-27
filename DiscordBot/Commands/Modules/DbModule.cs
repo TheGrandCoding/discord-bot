@@ -23,8 +23,45 @@ namespace DiscordBot.Commands.Modules
                 return (long)s;
             }
         }
+        
+        string formatCSV(IEnumerable<MsgModel> messages, LogContext db)
+        {
+            var sb = new StringBuilder();
+            sb.Append($"Id,AuthorId,Timestamp,Content\r\n");
+            foreach (var msg in messages)
+            {
+                sb.Append($"\"{msg.Message}\",");
+                sb.Append($"\"{msg.Author}\",");
+                sb.Append($"\"{SnowflakeUtils.FromSnowflake(msg.Message):HH:mm:ss.fff}\",");
+                if (msg.ContentId.HasValue)
+                {
+                    var content = db.Contents.FirstOrDefault(x => x.Id == msg.ContentId.Value);
+                    sb.Append($"\"{content.Content.Replace("\n", "\\n")}\"");
+                }
+                else
+                {
+                    sb.Append("\"<no content available>\"");
+                }
+                sb.Append("\r\n");
+            }
+            return sb.ToString();
+        }
+
+        string formatSimple(IEnumerable<MsgModel> models, LogContext db)
+        {
+            var sb = new StringBuilder();
+            foreach (var msg in models) 
+            {
+                var content = msg.ContentId.HasValue ? db.Contents.FirstOrDefault(x => x.Id == msg.ContentId.Value).Content : "<no content available>";
+                content = (content ?? "<null>").Replace("\n", "\\n");
+                sb.Append($"{SnowflakeUtils.FromSnowflake(msg.Message):HH:mm} {msg.Author}: {content}\r\n");
+            }
+            return sb.ToString();
+        }
+
+
         [Command("export")]
-        public async Task Export(ulong channel, ulong after = ulong.MinValue, ulong before = ulong.MaxValue)
+        public async Task Export(ulong channel, string format = "simple", ulong after = ulong.MinValue, ulong before = ulong.MaxValue)
         {
             using var db = Program.Services.GetRequiredService<LogContext>();
             var chnlId = cast(channel);
@@ -33,25 +70,20 @@ namespace DiscordBot.Commands.Modules
                 .ToList()
                 .Where(x => x.Message >= after)
                 .Where(x => x.Message <= before);
-            var sb = new StringBuilder();
-            sb.Append($"Id,AuthorId,Timestamp,Content\r\n");
-            foreach (var msg in messages)
+            string text;
+            if(format == "simple")
             {
-                sb.Append($"\"{msg.Message}\",");
-                sb.Append($"\"{msg.Author}\",");
-                sb.Append($"\"{SnowflakeUtils.FromSnowflake(msg.Message):HH:mm:ss.fff}\",");
-                if(msg.ContentId.HasValue)
-                {
-                    var content = db.Contents.FirstOrDefault(x => x.Id == msg.ContentId.Value);
-                    sb.Append($"\"{content.Content.Replace("\n", "\\n")}\"");
-                } else
-                {
-                    sb.Append("\"<no content available>\"");
-                }
-                sb.Append("\r\n");
+                text = formatSimple(messages, db);
+            } else if (format == "csv")
+            {
+                text = formatCSV(messages, db);
+            } else
+            {
+                await ReplyAsync("Error: 'format' must be simple or csv");
+                return;
             }
-            var path = Path.Combine(Path.GetTempPath(), $"{channel}.csv");
-            File.WriteAllText(path, sb.ToString());
+            var path = Path.Combine(Path.GetTempPath(), $"{channel}.txt");
+            File.WriteAllText(path, text);
             await Context.Channel.SendFileAsync(path);
         }
     }
