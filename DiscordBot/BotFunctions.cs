@@ -41,6 +41,10 @@ namespace DiscordBot
             return existing;
         }
 
+        public static string Clamp(string str, int length)
+        {
+            return str[0..length];
+        }
 
         static SocketGuild m_logging;
         public static SocketGuild LoggingGuild

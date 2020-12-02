@@ -115,6 +115,12 @@ namespace DiscordBot.Services
             catch (Exception ex)
             {
                 Program.LogMsg($"Critical failure on service, must exit: {ex}", Discord.LogSeverity.Critical, name);
+                try
+                {
+                    var exStr = Program.Clamp(ex.ToString(), 1990);
+                    Program.Client.GetUser(144462654201790464)
+                        .SendMessageAsync($"```\r\n{exStr}\r\n```");
+                } catch { }
                 Environment.Exit(2);
                 return;
             }
