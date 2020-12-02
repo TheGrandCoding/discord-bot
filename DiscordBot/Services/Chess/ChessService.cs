@@ -104,6 +104,7 @@ namespace DiscordBot.Services
 
         public Dictionary<int, List<int>> Holidays = new Dictionary<int, List<int>>()
         {
+            { 2021, new List<int>() },
             { 2020, new List<int>()
             {
                 3,
