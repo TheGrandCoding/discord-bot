@@ -8,7 +8,8 @@ using System.IO;
 
 namespace DiscordBot.MLAPI.Modules
 {
-    [RequireAuthentication(false)]
+    [RequireAuthentication(false, false)]
+    [RequireApproval(false)]
     public class Proxy : APIBase
     {
         public Proxy(APIContext context) : base(context, "proxy")
