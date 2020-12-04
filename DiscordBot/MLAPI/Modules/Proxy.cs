@@ -8,6 +8,7 @@ using System.IO;
 
 namespace DiscordBot.MLAPI.Modules
 {
+    [RequireAuthentication(false)]
     public class Proxy : APIBase
     {
         public Proxy(APIContext context) : base(context, "proxy")
@@ -38,6 +39,8 @@ namespace DiscordBot.MLAPI.Modules
                 }
                 Context.HTTP.Response.AppendHeader(hd, val);
             }
+
+
             using var responseStream = response.GetResponseStream();
             if(response.ContentType.Contains("text") || response.ContentType.Contains("css"))
             {
