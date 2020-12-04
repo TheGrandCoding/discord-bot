@@ -31,7 +31,12 @@ namespace DiscordBot.MLAPI.Modules
             var response = (HttpWebResponse)request.GetResponse();
             foreach(string hd in response.Headers.AllKeys)
             {
-                Context.HTTP.Response.AppendHeader(hd, response.Headers[hd]);
+                var val = response.Headers[hd];
+                if(hd == "Location")
+                {
+                    val = "/proxy" + val;
+                }
+                Context.HTTP.Response.AppendHeader(hd, val);
             }
             using var responseStream = response.GetResponseStream();
             if(response.ContentType.Contains("text") || response.ContentType.Contains("css"))
