@@ -92,7 +92,7 @@ namespace DiscordBot.MLAPI.Modules
         [Method("GET"), PathRegex(@"\/proxy\/.+")]
         public void ProxyGetWebsite()
         {
-            var path = new Uri(Context.HTTP.Request.Url.PathAndQuery.Substring("proxy/".Length));
+            var path = new Uri(Context.HTTP.Request.Url.PathAndQuery.Substring("proxy/".Length + 1));
             request(path);
         }
 
