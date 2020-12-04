@@ -18,19 +18,23 @@ namespace DiscordBot.MLAPI.Modules
 
         void request(Uri path)
         {
+            Program.LogMsg($"{Context.Method} {path}");
             var request = (HttpWebRequest)WebRequest.CreateHttp(path);
             request.Method = Context.Method;
             request.CookieContainer = new CookieContainer();
             foreach(Cookie ck in Context.Request.Cookies)
             {
+                Program.LogMsg($"Add-Cookie: {ck}");
                 request.CookieContainer.Add(ck);
             }
             request.Headers = new WebHeaderCollection();
             foreach(var name in Context.Request.Headers.AllKeys)
             {
+                Program.LogMsg($"Add-Header: {name}={Context.Request.Headers[name]}");
                 request.Headers.Add(name, Context.Request.Headers[name]);
             }
             var response = (HttpWebResponse)request.GetResponse();
+            Program.LogMsg($"Response: {response.StatusCode}");
             foreach(string hd in response.Headers.AllKeys)
             {
                 var val = response.Headers[hd];
@@ -38,13 +42,16 @@ namespace DiscordBot.MLAPI.Modules
                 {
                     val = "/proxy" + val;
                 }
+                Program.LogMsg($"Response-Header: {hd}={val}");
                 Context.HTTP.Response.AppendHeader(hd, val);
             }
 
 
             using var responseStream = response.GetResponseStream();
+            Program.LogMsg($"Content-Type: {response.ContentType}");
             if(response.ContentType.Contains("text") || response.ContentType.Contains("css"))
             {
+                Program.LogMsg("Doing string checks");
                 var stack = new StringStack("https://".Length);
                 using var reader = new StreamReader(responseStream, Encoding.UTF8);
                 using var writer = new StreamWriter(Context.HTTP.Response.OutputStream, Encoding.UTF8);
@@ -70,12 +77,16 @@ namespace DiscordBot.MLAPI.Modules
                 }
             } else
             {
+                Program.LogMsg("Copying entire thing");
                 responseStream.CopyTo(Context.HTTP.Response.OutputStream);
             }
             Context.HTTP.Response.StatusCode = (int)response.StatusCode;
             Context.HTTP.Response.StatusDescription = response.StatusDescription;
             Context.HTTP.Response.ContentType = response.ContentType;
             Context.HTTP.Response.ContentEncoding = Encoding.GetEncoding(response.ContentEncoding);
+            Context.HTTP.Response.Close();
+            StatusSent = (int)response.StatusCode;
+            Program.LogMsg($"Done with {StatusSent}");
         }
 
         [Method("GET"), PathRegex(@"\/proxy\/(?<path>.+)")]
