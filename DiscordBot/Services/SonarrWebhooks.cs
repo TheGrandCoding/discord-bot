@@ -258,8 +258,8 @@ namespace DiscordBot.Services.Sonarr
         public int EpisodeNumber { get; }
         public int SeasonNumber { get; }
         public string Title { get; }
-        public DateTime AirDate { get; }
-        public DateTime AirDateUtc { get; }
+        public DateTime? AirDate { get; }
+        public DateTime? AirDateUtc { get; }
         public string Quality { get; }
         public int QualityVersion { get; }
         public EpisodeInfo(JObject jobj)
@@ -268,8 +268,10 @@ namespace DiscordBot.Services.Sonarr
             EpisodeNumber = jobj["episodeNumber"].ToObject<int>();
             SeasonNumber = jobj["seasonNumber"].ToObject<int>();
             Title = jobj["title"].ToObject<string>();
-            AirDate = jobj["airDate"].ToObject<DateTime>();
-            AirDateUtc = jobj["airDateUtc"].ToObject<DateTime>();
+            if (jobj.TryGetValue("airDate", out var ad))
+                AirDate = ad.ToObject<DateTime>();
+            if (jobj.TryGetValue("airDateUtc", out var adu))
+                AirDateUtc = adu.ToObject<DateTime>();
             Quality = jobj["quality"].ToObject<string>();
             QualityVersion = jobj["qualityVersion"].ToObject<int>();
         }
