@@ -301,7 +301,7 @@ namespace DiscordBot.Services.Sonarr
             RelativePath = jobj["relativePath"].ToObject<string>();
             Path = jobj["path"].ToObject<string>();
             Quality = jobj["quality"]?.ToObject<string>() ?? "";
-            QualityVersion = jobj["qualityVersion"]?.ToObject<int>() : 0;
+            QualityVersion = jobj["qualityVersion"]?.ToObject<int>() ?? 0;
         }
     }
     #endregion
