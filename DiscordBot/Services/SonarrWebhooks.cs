@@ -272,8 +272,8 @@ namespace DiscordBot.Services.Sonarr
                 AirDate = ad.ToObject<DateTime>();
             if (jobj.TryGetValue("airDateUtc", out var adu))
                 AirDateUtc = adu.ToObject<DateTime>();
-            Quality = jobj["quality"].ToObject<string>();
-            QualityVersion = jobj["qualityVersion"].ToObject<int>();
+            Quality = jobj["quality"]?.ToObject<string>() ?? null;
+            QualityVersion = jobj["qualityVersion"]?.ToObject<int>() ?? 0;
         }
     }
     public class ReleaseInfo
@@ -283,9 +283,9 @@ namespace DiscordBot.Services.Sonarr
         public long Size { get; }
         public ReleaseInfo(JObject jobj)
         {
-            Quality = jobj["quality"].ToObject<string>();
+            Quality = jobj["quality"]?.ToObject<string>() ?? "";
             QualityVersion = jobj["qualityVersion"].ToObject<int>();
-            Size = jobj["size"].ToObject<long>();
+            Size = jobj["size"]?.ToObject<long>() : 0;
         }
     }
     public class EpisodeFileInfo
@@ -300,8 +300,8 @@ namespace DiscordBot.Services.Sonarr
             Id = jobj["id"].ToObject<int>();
             RelativePath = jobj["relativePath"].ToObject<string>();
             Path = jobj["path"].ToObject<string>();
-            Quality = jobj["quality"].ToObject<string>();
-            QualityVersion = jobj["qualityVersion"].ToObject<int>();
+            Quality = jobj["quality"]?.ToObject<string>() ?? "";
+            QualityVersion = jobj["qualityVersion"]?.ToObject<int>() : 0;
         }
     }
     #endregion
