@@ -48,7 +48,7 @@ namespace DiscordBot.Classes
             if (objectType == typeof(SocketGuildUser) || objectType == typeof(IGuildUser))
                 return guild.GetUser(id);
             if (objectType == typeof(SocketTextChannel) || objectType == typeof(ITextChannel))
-                return guild.GetTextChannel(id);
+                return (ITextChannel)guild.GetTextChannel(id) ?? new NullTextChannel(id, gid);
             if (objectType == typeof(SocketCategoryChannel) || objectType == typeof(ICategoryChannel))
                 return guild.GetCategoryChannel(id);
             if(objectType == typeof(SocketVoiceChannel) || objectType == typeof(IVoiceChannel))

@@ -111,8 +111,11 @@ namespace DiscordBot.MLAPI
                 }
             }
 
+            bool requireExcessQueryMatch = true;
             foreach (var pred in preconditions)
             {
+                if (pred is RequireNoExcessQuery rqp)
+                    requireExcessQueryMatch = rqp.Required;
                 PreconditionResult result = null;
                 try
                 {
@@ -188,7 +191,7 @@ namespace DiscordBot.MLAPI
             foreach (var key in context.GetAllKeys())
             {
                 var para = paramaters.FirstOrDefault(x => x.Name == key);
-                if (para == null)
+                if (para == null && requireExcessQueryMatch)
                     return final.WithError($"Unknown argument specified: {key}");
             }
             weight += 50;

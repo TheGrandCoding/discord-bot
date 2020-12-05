@@ -5,6 +5,9 @@ using System.Text;
 using System.Net;
 using Microsoft.Extensions.DependencyInjection;
 using System.IO;
+using DiscordBot.Utils;
+using System.Threading;
+using System.Linq;
 
 namespace DiscordBot.MLAPI.Modules
 {
@@ -21,6 +24,7 @@ namespace DiscordBot.MLAPI.Modules
             Program.LogMsg($"{Context.Method} {path}");
             var request = (HttpWebRequest)WebRequest.CreateHttp(path);
             request.Method = Context.Method;
+            request.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
             request.CookieContainer = new CookieContainer();
             foreach(Cookie ck in Context.Request.Cookies)
             {
@@ -33,75 +37,118 @@ namespace DiscordBot.MLAPI.Modules
                 Program.LogMsg($"Add-Header: {name}={Context.Request.Headers[name]}");
                 request.Headers.Add(name, Context.Request.Headers[name]);
             }
-            var response = (HttpWebResponse)request.GetResponse();
+            request.Headers["Host"] = path.Host;
+            using var response = (HttpWebResponse)request.GetResponseWithoutException();
             Program.LogMsg($"Response: {response.StatusCode}");
-            foreach(string hd in response.Headers.AllKeys)
-            {
-                var val = response.Headers[hd];
-                if(hd == "Location")
-                {
-                    val = "/proxy" + val;
-                }
-                Program.LogMsg($"Response-Header: {hd}={val}");
-                Context.HTTP.Response.AppendHeader(hd, val);
-            }
-
 
             using var responseStream = response.GetResponseStream();
+            var RESPONSEARRAY = new List<byte>();
             Program.LogMsg($"Content-Type: {response.ContentType}");
-            if(response.ContentType.Contains("text") || response.ContentType.Contains("css"))
+            Context.HTTP.Response.ContentType = response.ContentType;
+            if (response.ContentEncoding != null)
+                Context.HTTP.Response.ContentEncoding = Encoding.GetEncoding(response.ContentEncoding);
+            if (response.ContentType.Contains("text") || response.ContentType.Contains("css"))
             {
                 Program.LogMsg("Doing string checks");
-                var stack = new StringStack("https://".Length);
+                //var stack = new StringStack("https://".Length);
+                var buffer = new StringStack("xhttps://".Length);
                 using var reader = new StreamReader(responseStream, Encoding.UTF8);
-                using var writer = new StreamWriter(Context.HTTP.Response.OutputStream, Encoding.UTF8);
-                string repUrl = $"{DiscordBot.MLAPI.Handler.LocalAPIUrl}/proxy";
+                string repUrl = $"{DiscordBot.MLAPI.Handler.LocalAPIUrl}/proxy/";
                 int urlLength = repUrl.Length;
                 while(!reader.EndOfStream)
                 {
                     var c = Convert.ToChar(reader.Read());
-                    stack.Add(c);
-                    var ss = stack.ToString();
-                    if(ss == "https://")
+                    //stack.Add(c);
+                    var ss = buffer.ToString();
+                    if(ss.StartsWith("https://"))
                     {
-                        writer.BaseStream.Seek(-("https://".Length), SeekOrigin.Current);
-                        writer.Write(repUrl);
-                        writer.BaseStream.Seek(urlLength, SeekOrigin.Current);
-                    } else if (ss == "http://")
+                        RESPONSEARRAY.AddRange(Encoding.UTF8.GetBytes(repUrl));
+                    } else if (ss.StartsWith("http://"))
                     {
-                        writer.BaseStream.Seek(-("http://".Length), SeekOrigin.Current);
-                        writer.Write(repUrl);
-                        writer.BaseStream.Seek(urlLength, SeekOrigin.Current);
+                        RESPONSEARRAY.AddRange(Encoding.UTF8.GetBytes(repUrl));
                     }
-                    writer.Write(c);
+                    if (buffer.Count > "https://".Length)
+                    {
+                        RESPONSEARRAY.AddRange(Encoding.UTF8.GetBytes(buffer.Peek().ToString()));
+                    }
+                    buffer.Add(c);
                 }
-            } else
+                while (buffer.Count > 0)
+                    RESPONSEARRAY.AddRange(Encoding.UTF8.GetBytes(buffer.Pop().ToString()));
+            }
+            else if(response.ContentLength > 0)
             {
                 Program.LogMsg("Copying entire thing");
-                responseStream.CopyTo(Context.HTTP.Response.OutputStream);
+                var buffer = new byte[1024];
+                int read;
+                do
+                {
+                    read = responseStream.Read(buffer, 0, buffer.Length);
+                    RESPONSEARRAY.AddRange(buffer.Take(read));
+                    if (read == 0)
+                        break;
+                } while (read > 0);
             }
             Context.HTTP.Response.StatusCode = (int)response.StatusCode;
+            Context.HTTP.Response.ContentLength64 = RESPONSEARRAY.LongCount();
             Context.HTTP.Response.StatusDescription = response.StatusDescription;
-            Context.HTTP.Response.ContentType = response.ContentType;
-            Context.HTTP.Response.ContentEncoding = Encoding.GetEncoding(response.ContentEncoding);
-            Context.HTTP.Response.Close();
             StatusSent = (int)response.StatusCode;
+            foreach (string hd in response.Headers.AllKeys)
+            {
+                var val = response.Headers[hd];
+                if (hd == "Location")
+                {
+                    val = "/proxy/" + val;
+                }
+                if (hd == "Content-Length")
+                    continue;
+                Program.LogMsg($"Response-Header: {hd}={val}");
+                Context.HTTP.Response.AppendHeader(hd, val);
+            }
+            int retries = 0;
+        start:
+            try
+            {
+                Context.HTTP.Response.Close(RESPONSEARRAY.ToArray(), false);
+            }
+            catch(InvalidOperationException ex)
+            {
+                Program.LogMsg("Failed to close stream " + ex.ToString(), Discord.LogSeverity.Warning, "Proxy");
+                retries++;
+                if(retries < 20)
+                {
+                    Thread.Sleep(50);
+                    goto start;
+                }
+            }
             Program.LogMsg($"Done with {StatusSent}");
         }
 
         [Method("GET"), PathRegex(@"\/proxy\/.+")]
+        [RequireNoExcessQuery(false)]
         public void ProxyGetWebsite()
         {
             var str = Context.HTTP.Request.Url.PathAndQuery.Substring("proxy/".Length + 1);
-            var indexOfMMM = str.IndexOf(':');
-            str = str.Insert(indexOfMMM, "/");
+            if(!(str.StartsWith("https://") || str.StartsWith("http://")))
+            {
+                var indexOfMMM = str.IndexOf(':');
+                str = str.Insert(indexOfMMM + 1, "/");
+            }
             var path = new Uri(str);
             request(path);
         }
 
         [Method("POST"), PathRegex(@"\/proxy\/(?<path>.+)")]
-        public void ProxyPostWebsite(Uri path)
+        [RequireNoExcessQuery(false)]
+        public void ProxyPostWebsite()
         {
+            var str = Context.HTTP.Request.Url.PathAndQuery.Substring("proxy/".Length + 1);
+            if (!(str.StartsWith("https://") || str.StartsWith("http://")))
+            {
+                var indexOfMMM = str.IndexOf(':');
+                str = str.Insert(indexOfMMM + 1, "/");
+            }
+            var path = new Uri(str);
             request(path);
         }
 
@@ -118,11 +165,24 @@ namespace DiscordBot.MLAPI.Modules
             count = number;
         }
 
+        public int Count => Chars.Count;
+
         public void Add(char c)
         {
             Chars.AddLast(c);
             if (Chars.Count > count)
                 Chars.RemoveFirst();
+        }
+
+        public char Peek()
+        {
+            return Chars.First.Value;
+        }
+        public char Pop()
+        {
+            var c = Peek();
+            Chars.RemoveFirst();
+            return c;
         }
 
         public override string ToString()
