@@ -285,7 +285,7 @@ namespace DiscordBot.Services.Sonarr
         {
             Quality = jobj["quality"]?.ToObject<string>() ?? "";
             QualityVersion = jobj["qualityVersion"].ToObject<int>();
-            Size = jobj["size"]?.ToObject<long>() : 0;
+            Size = jobj["size"]?.ToObject<long>() ?? 0;
         }
     }
     public class EpisodeFileInfo
