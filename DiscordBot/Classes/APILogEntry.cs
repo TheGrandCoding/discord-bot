@@ -100,13 +100,15 @@ namespace DiscordBot.Classes
                     continue;
                 }
                 var split = line.Split(':');
-                if((!addingBody && line == body) || line == ">>>>>>")
+                if(line == body)
+                    addingBody = !addingBody;
+                if(line == ">>>>>>")
                     addingBody = true;
-                if ((addingBody && line == body) || line == "<<<<<<")
+                if (line == "<<<<<<")
                     addingBody = false;
                 if(addingBody)
                 {
-                    _body += line;
+                    _body += line + "\r\n";
                     line = reader.ReadLine();
                     continue;
                 }
