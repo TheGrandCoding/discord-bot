@@ -121,7 +121,7 @@ namespace DiscordBot.Classes
         public bool IsWebhook => ((IUser)FirstValidUser).IsWebhook;
         public string Username => ((IUser)FirstValidUser)?.Username ?? null;
         public DateTimeOffset CreatedAt => ((IUser)FirstValidUser).CreatedAt;
-        public string Mention => ((IUser)FirstValidUser).Mention;
+        public string Mention => MentionUtils.MentionUser(Id);
         public IActivity Activity => ((IUser)FirstValidUser).Activity;
         public UserStatus Status => ((IUser)FirstValidUser).Status;
         public string GetAvatarUrl(ImageFormat format = ImageFormat.Auto, ushort size = 128)
