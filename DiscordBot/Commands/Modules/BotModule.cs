@@ -262,10 +262,9 @@ namespace DiscordBot.Commands.Modules
         [Command("verify")]
         [Summary("Verifies the specified user in the eyes of the bot")]
         [RequireOwner]
-        public async Task VerifyUser(IUser user)
+        public async Task VerifyUser(BotUser busr, string email = null)
         {
-            var busr = Program.GetUser(user);
-            busr.VerifiedEmail = $"{user.Username}@bot.test";
+            busr.VerifiedEmail = $"{busr.Id}@bot.test";
             busr.IsVerified = true;
             Program.Save();
         }
