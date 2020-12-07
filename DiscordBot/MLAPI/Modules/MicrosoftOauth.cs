@@ -169,9 +169,9 @@ namespace DiscordBot.MLAPI.Modules
             Program.Save();
             var redirect = Context.Request.Cookies["redirect"]?.Value;
             if (string.IsNullOrWhiteSpace(redirect))
-                redirect = "%2F";
+                redirect = Context.User?.RedirectUrl ?? "%2F";
             redirect = Uri.UnescapeDataString(redirect);
-            RespondRaw(LoadRedirectFile(redirect), 303);
+            RespondRaw(LoadRedirectFile(redirect), System.Net.HttpStatusCode.Redirect);
         }
     
     }

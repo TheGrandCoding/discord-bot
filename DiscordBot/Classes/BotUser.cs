@@ -43,6 +43,9 @@ namespace DiscordBot.Classes
         [JsonProperty("perms")]
         public List<Perm> Permissions { get; set; } = new List<Perm>();
 
+        [JsonIgnore]
+        public string RedirectUrl { get; set; }
+
         [JsonProperty("options")]
         public BotUserOptions Options { get; set; } = BotUserOptions.Default;
 

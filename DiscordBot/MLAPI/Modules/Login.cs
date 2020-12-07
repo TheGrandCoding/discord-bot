@@ -37,7 +37,7 @@ namespace DiscordBot.MLAPI.Modules
                 setSessionTokens(usr);
                 string redirectTo = Context.Request.Cookies["redirect"]?.Value;
                 if (string.IsNullOrWhiteSpace(redirectTo))
-                    redirectTo = "/";
+                    redirectTo = Context.User?.RedirectUrl ?? "/";
                 if (usr.IsApproved.HasValue == false)
                 {
                     redirectTo = "/login/approval";
@@ -269,6 +269,33 @@ namespace DiscordBot.MLAPI.Modules
             Program.Save();
             Context.HTTP.Response.Headers["Location"] = "/";
             RespondRaw("Set", HttpStatusCode.Redirect);
+        }
+    
+    
+        [Method("GET"), Path("/verify")]
+        [RequireAuthentication(true)]
+        [RequireVerifiedAccount(true)]
+        [RequireApproval(false)]
+        public void ForceVerify()
+        {
+            Context.User.IsApproved = true;
+            var service = Program.Services.GetRequiredService<EnsureLevelEliteness>();
+            foreach(var guild in Program.Client.Guilds)
+            {
+                if (!service.Guilds.TryGetValue(guild.Id, out var save))
+                    continue;
+                var usr = guild.GetUser(Context.User.Id);
+                if (usr == null)
+                    continue;
+                var role = save.VerifyRole;
+                usr.AddRoleAsync(role, new RequestOptions()
+                {
+                    AuditLogReason = $"User has now verified"
+                }).Wait();
+            }
+            Program.Save();
+            service.OnSave();
+            RespondRaw($"Verification process complete. You can close this window");
         }
     }
 }

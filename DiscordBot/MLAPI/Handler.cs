@@ -140,6 +140,11 @@ namespace DiscordBot.MLAPI
             {
                 context.User = user;
                 context.Token = t;
+                if(cookie == null)
+                    request.Response.AppendCookie(new Cookie(AuthToken.SessionToken, strToken)
+                    {
+                        Expires = DateTime.Now.AddHours(3)
+                    });
             }
             return context;
         }
@@ -259,6 +264,8 @@ namespace DiscordBot.MLAPI
             {
                 var bs = new APIBase(context, "/");
                 string current = context.Request.Url.PathAndQuery;
+                if (context.User != null)
+                    context.User.RedirectUrl = current;
                 context.HTTP.Response.AppendCookie(new Cookie("redirect", current)
                 {
                     Expires = DateTime.Now.AddDays(1),

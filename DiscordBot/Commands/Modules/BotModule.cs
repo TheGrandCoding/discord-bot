@@ -258,5 +258,48 @@ namespace DiscordBot.Commands.Modules
                 await usr.AddRoleAsync(role);
             await ReplyAsync("Done.");
         }
+    
+        [Command("verify")]
+        [Summary("Verifies the specified user in the eyes of the bot")]
+        [RequireOwner]
+        public async Task VerifyUser(IUser user)
+        {
+            var busr = Program.GetUser(user);
+            busr.VerifiedEmail = $"{user.Username}@bot.test";
+            busr.IsVerified = true;
+            Program.Save();
+        }
+
+        [Command("verified")]
+        [Summary("Lists users with the specified verification state")]
+        public async Task ListVerified(bool state = true)
+        {
+            var str = "Users " + (state ? "verified" : "not verified");
+            foreach(var usr in Program.Users)
+            {
+                if(usr.IsVerified == state)
+                {
+                    str += $"\r\n- {usr.Mention} ({usr.Name})";
+                }
+            }
+            await ReplyAsync(str, allowedMentions: new AllowedMentions(AllowedMentionTypes.None));
+        }
+
+        [Command("verifyrole"), Alias("verify_role")]
+        [Summary("The specified role requires verification by bot to be issued")]
+        [RequireContext(ContextType.Guild)]
+        public async Task VerifyRole(IRole role)
+        {
+            var sv = Program.Services.GetRequiredService<EnsureLevelEliteness>();
+            if(!sv.Guilds.TryGetValue(Context.Guild.Id, out var save))
+            {
+                save = new GuildSave();
+                sv.Guilds[Context.Guild.Id] = save;
+            }
+            save.VerifyRole = role;
+            sv.OnSave();
+            await sv.Catchup();
+            await ReplyAsync("Set.");
+        }
     }
 }
