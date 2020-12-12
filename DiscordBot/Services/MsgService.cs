@@ -344,6 +344,7 @@ namespace DiscordBot.Services
                 // Highest first, meaning latest message
                 foreach (var x in ordered)
                 {
+                    before = x.Id;
                     if (!(x is IUserMessage sm))
                         continue;
                     // x, starting at the latest message in the channel
