@@ -27,7 +27,7 @@ namespace DiscordBot.MLAPI.Modules
         public Select GetPlayerList(string id, Func<ChessPlayer, bool> filter = null)
         {
             var sel = new Select(id: id);
-            foreach (var player in DB.Players.AsQueryable().Where(x => !x.IsBuiltInAccount).OrderByDescending(x => x.Rating))
+            foreach (var player in DB.Players.AsQueryable().Where(x => !x.IsBuiltInAccount).OrderByDescending(x => x.Rating).ToList())
             {
                 if (player.IsBuiltInAccount || player.Removed)
                     continue;
@@ -47,7 +47,7 @@ namespace DiscordBot.MLAPI.Modules
         public string GetPlayerList()
         {
             string players = "";
-            foreach (var player in DB.Players.AsQueryable().Where(x => !x.IsBuiltInAccount).OrderByDescending(x => x.Rating))
+            foreach (var player in DB.Players.AsQueryable().Where(x => !x.IsBuiltInAccount).OrderByDescending(x => x.Rating).ToList())
             {
                 if (player.IsBuiltInAccount || player.Removed)
                     continue;

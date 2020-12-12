@@ -749,7 +749,7 @@ namespace DiscordBot.MLAPI.Modules
         public void MatchBase()
         {
             string players = "";
-            foreach (var player in DB.Players.AsQueryable().OrderByDescending(x => x.Rating))
+            foreach (var player in DB.Players.AsQueryable().OrderByDescending(x => x.Rating).ToList())
             {
                 if (player.ShouldContinueInLoop)
                     continue;
@@ -1109,7 +1109,7 @@ namespace DiscordBot.MLAPI.Modules
         {
             var TABLE = new Table();
             TABLE.Children.Add(_modGetHeaders());
-            foreach (var user in DB.Players.AsQueryable().OrderByDescending(x => x.Rating))
+            foreach (var user in DB.Players.AsQueryable().OrderByDescending(x => x.Rating).ToList())
             {
                 var ROW = new TableRow();
                 if(user.Removed)
@@ -1170,7 +1170,7 @@ namespace DiscordBot.MLAPI.Modules
         public void UserPermissions()
         {
             string TABLE = "";
-            foreach(var player in DB.Players.AsQueryable().OrderBy(x => x.Id))
+            foreach(var player in DB.Players.AsQueryable().OrderBy(x => x.Id).ToList())
             {
                 string ROW = "<tr>";
                 ROW += $"<td>{player.Id}</td>";

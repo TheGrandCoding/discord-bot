@@ -80,7 +80,7 @@ namespace DiscordBot.Services
         public static Dictionary<ChessPlayer, int> GetArbiterElectionResults(ChessDbContext db)
         {
             Dictionary<ChessPlayer, int> results = new Dictionary<ChessPlayer, int>();
-            foreach (var player in db.Players.AsQueryable().Where(x => !x.IsBuiltInAccount))
+            foreach (var player in db.Players.AsQueryable().Where(x => !x.IsBuiltInAccount).ToList())
             {
                 foreach (var vote in player.ArbVotes)
                 {
@@ -488,7 +488,7 @@ namespace DiscordBot.Services
 
         void SetConnectedRoles(ChessDbContext db)
         {
-            foreach (var player in db.Players.AsQueryable().Where(x => !x.IsBuiltInAccount))
+            foreach (var player in db.Players.AsQueryable().Where(x => !x.IsBuiltInAccount).ToList())
             {
                 if (player.ConnectedAccount > 0)
                 {
@@ -589,7 +589,7 @@ namespace DiscordBot.Services
 
         void SetNickNames(ChessDbContext db)
         {
-            foreach (var p in db.Players)
+            foreach (var p in db.Players.ToList())
             {
                 if (p.IsBuiltInAccount)
                     continue;
@@ -604,7 +604,7 @@ namespace DiscordBot.Services
 
         void CheckExpiredNotes(ChessDbContext db)
         {
-            foreach (var p in db.Players)
+            foreach (var p in db.Players.ToList())
             {
                 List<ChessNote> toRemove = new List<ChessNote>();
                 foreach (var note in db.GetNotesAgainst(p.Id))
@@ -673,7 +673,7 @@ namespace DiscordBot.Services
             if (Program.DailyValidateFailed())
                 return;
             bool any = false;
-            foreach (var player in db.Players.AsQueryable().Where(x => !x.IsBuiltInAccount && x.Rating > 100))
+            foreach (var player in db.Players.AsQueryable().Where(x => !x.IsBuiltInAccount && x.Rating > 100).ToList())
             {
                 var lastPresent = getLastPresentDate(db, player);
                 var lastPlayed = getLastPresentDate(db, player, true); // will ignore last present.
@@ -720,7 +720,7 @@ namespace DiscordBot.Services
 
         void setOnlineTokens(ChessDbContext db)
         {
-            foreach(var chs in db.Players.AsQueryable().Where(x => x.DiscordAccount != cast(0)))
+            foreach(var chs in db.Players.AsQueryable().Where(x => x.DiscordAccount != cast(0)).ToList())
             {
                 var usr = Program.GetUserOrDefault(chs.ConnectedAccount);
                 if (usr == null)
@@ -816,16 +816,28 @@ namespace DiscordBot.Services
 
         public override void OnDailyTick()
         {
+            int i = 0;
+            Program.LogMsg($"OnDailyTick: {i++:00}", LogSeverity.Warning, "ChessService");
             using var db = DB();
+            Program.LogMsg($"OnDailyTick: {i++:00}", LogSeverity.Warning, "ChessService");
             setQuarantine();
+            Program.LogMsg($"OnDailyTick: {i++:00}", LogSeverity.Warning, "ChessService");
             SetBuiltInRoles(db);
+            Program.LogMsg($"OnDailyTick: {i++:00}", LogSeverity.Warning, "ChessService");
             CheckLastDatePlayed(db);
+            Program.LogMsg($"OnDailyTick: {i++:00}", LogSeverity.Warning, "ChessService");
             SendRatingChanges(db);
+            Program.LogMsg($"OnDailyTick: {i++:00}", LogSeverity.Warning, "ChessService");
             setElectedArbiter(db);
+            Program.LogMsg($"OnDailyTick: {i++:00}", LogSeverity.Warning, "ChessService");
             SetConnectedRoles(db);
+            Program.LogMsg($"OnDailyTick: {i++:00}", LogSeverity.Warning, "ChessService");
             SetNickNames(db);
+            Program.LogMsg($"OnDailyTick: {i++:00}", LogSeverity.Warning, "ChessService");
             CheckExpiredNotes(db);
+            Program.LogMsg($"OnDailyTick: {i++:00}", LogSeverity.Warning, "ChessService");
             RemoveExpiredPending(db);
+            Program.LogMsg($"OnDailyTick: {i++:00}", LogSeverity.Warning, "ChessService");
             setOnlineTokens(db);
             try
             {
@@ -835,7 +847,9 @@ namespace DiscordBot.Services
             {
                 Program.LogMsg("ChessService", ex);
             }
+            Program.LogMsg($"OnDailyTick: {i++:00}", LogSeverity.Warning, "ChessService");
             db.SaveChanges();
+            Program.LogMsg($"OnDailyTick: {i++:00}", LogSeverity.Warning, "ChessService");
         }
 
         public override void OnReady()

@@ -402,7 +402,7 @@ namespace DiscordBot.MLAPI.Modules
             };
             multiSelect.Children.Add(playerTable);
             int i = 0;
-            foreach(var p in DB.Players.AsQueryable().Where(x => x.Id != SelfPlayer.Id && !x.IsBuiltInAccount).OrderByDescending(x => x.Rating))
+            foreach(var p in DB.Players.AsQueryable().Where(x => x.Id != SelfPlayer.Id && !x.IsBuiltInAccount).OrderByDescending(x => x.Rating).ToList())
             {
                 if(type == "arbiter")
                 {
@@ -502,7 +502,7 @@ namespace DiscordBot.MLAPI.Modules
                     existingWitnesses
                 }
             };
-            foreach(var player in DB.Players.AsQueryable().Where(x => !x.IsBuiltInAccount).OrderByDescending(x => x.Rating))
+            foreach(var player in DB.Players.AsQueryable().Where(x => !x.IsBuiltInAccount).OrderByDescending(x => x.Rating).ToList())
             {
                 if(hearing.Witnesses.Any(x => x.Witness.Id == player.Id))
                 {
