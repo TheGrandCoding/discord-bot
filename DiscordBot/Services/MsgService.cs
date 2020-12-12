@@ -327,9 +327,19 @@ namespace DiscordBot.Services
         {
             Program.LogMsg($"Doing #{txt.Name} - {txt.Id}", LogSeverity.Verbose, "Catchup");
             bool exit = false;
+            ulong? before = null;
+            int max = 25;
             do
             {
-                var msgs = await txt.GetMessagesAsync(limit: 25).FlattenAsync();
+                IEnumerable<IMessage> msgs;
+                if(before.HasValue)
+                {
+                    msgs = await txt.GetMessagesAsync(limit: max).FlattenAsync();
+                }
+                else
+                {
+                    msgs = await txt.GetMessagesAsync(before.Value, Direction.Before, limit: max).FlattenAsync();
+                }
                 var ordered = msgs.OrderByDescending(x => x.Id);
                 // Highest first, meaning latest message
                 foreach (var x in ordered)
@@ -343,6 +353,11 @@ namespace DiscordBot.Services
                         break;
                     }
                     await AddMessage(sm);
+                }
+                if(ordered.Count() < max)
+                {
+                    exit = true;
+                    break;
                 }
             } while (!exit);
         }
