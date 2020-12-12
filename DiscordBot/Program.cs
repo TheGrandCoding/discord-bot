@@ -286,10 +286,10 @@ Changed how permissions worked for bot.
                 options.UseSqlServer(getDbString("chsData"));
                 options.EnableSensitiveDataLogging();
 #else
-                options.UseMySql(getDbString("chsData"), mysqlOptions =>
+                options.UseMySql(getDbString("chsData"), 
+                    new MariaDbServerVersion(new Version(10, 3, 25)), mysqlOptions =>
                 {
                     mysqlOptions.CharSet(CharSet.Utf8Mb4);
-                    mysqlOptions.ServerVersion(new ServerVersion(new Version(10, 3, 25), ServerType.MariaDb));
                 });
 #endif
             }, ServiceLifetime.Transient);

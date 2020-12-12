@@ -3,6 +3,7 @@ using Discord.WebSocket;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Microsoft.Extensions.DependencyInjection;
+using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
@@ -34,11 +35,11 @@ namespace DiscordBot.Services
 #if WINDOWS
             options.UseSqlServer(Program.getDbString("BotLog"));
 #else
-                options.UseMySql(Program.getDbString("botData"), mysqlOptions =>
-                {
-                    mysqlOptions.CharSet(CharSet.Utf8Mb4);
-                    mysqlOptions.ServerVersion(new ServerVersion(new Version(10, 3, 25), ServerType.MariaDb));
-                });
+                options.UseMySql(Program.getDbString("botData"),
+                    new MariaDbServerVersion(new Version(10, 3, 25)), mysqlOptions =>
+                    {
+                        mysqlOptions.CharSet(CharSet.Utf8Mb4);
+                    });
 #endif
         }
 
