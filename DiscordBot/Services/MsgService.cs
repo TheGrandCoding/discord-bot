@@ -334,11 +334,11 @@ namespace DiscordBot.Services
                 IEnumerable<IMessage> msgs;
                 if(before.HasValue)
                 {
-                    msgs = await txt.GetMessagesAsync(limit: max).FlattenAsync();
+                    msgs = await txt.GetMessagesAsync(before.Value, Direction.Before, limit: max).FlattenAsync();
                 }
                 else
                 {
-                    msgs = await txt.GetMessagesAsync(before.Value, Direction.Before, limit: max).FlattenAsync();
+                    msgs = await txt.GetMessagesAsync(limit: max).FlattenAsync();
                 }
                 var ordered = msgs.OrderByDescending(x => x.Id);
                 // Highest first, meaning latest message
