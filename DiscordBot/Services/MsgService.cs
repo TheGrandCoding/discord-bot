@@ -279,6 +279,7 @@ namespace DiscordBot.Services
     public class MsgService : Service
     {
         public override bool IsCritical => true;
+        public override int DefaultTimeout => base.DefaultTimeout * 100;
         public override void OnReady()
         {
 #if !DEBUG
