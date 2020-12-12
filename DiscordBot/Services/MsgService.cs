@@ -310,6 +310,7 @@ namespace DiscordBot.Services
         }
         async Task Catchup(SocketGuild guild, LogContext DB)
         {
+            Program.LogMsg($"Doing #{guild.Name} - {guild.Id}", LogSeverity.Verbose, "Catchup");
             foreach(var txt in guild.TextChannels)
             {
                 try
@@ -324,10 +325,11 @@ namespace DiscordBot.Services
         }
         async Task Catchup(SocketTextChannel txt, LogContext DB)
         {
+            Program.LogMsg($"Doing #{txt.Name} - {txt.Id}", LogSeverity.Verbose, "Catchup");
             bool exit = false;
             do
             {
-                var msgs = await txt.GetMessagesAsync(limit: 10).FlattenAsync();
+                var msgs = await txt.GetMessagesAsync(limit: 25).FlattenAsync();
                 var ordered = msgs.OrderByDescending(x => x.Id);
                 // Highest first, meaning latest message
                 foreach (var x in ordered)
