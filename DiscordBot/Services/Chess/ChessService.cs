@@ -7,6 +7,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
@@ -69,7 +71,30 @@ namespace DiscordBot.Services
         public static Semaphore OnlineLock = new Semaphore(1, 1);
         public static string LatestChessVersion;
 
-        public static ChessDbContext DB() => Program.Services.GetRequiredService<ChessDbContext>();
+        public static ChessDbContext DB() 
+        {
+            var stack = new StackTrace(true);
+            var ss = new StringBuilder();
+            ss.Append($"DB, stack:");
+            foreach(var frame in stack.GetFrames())
+            {
+                if (frame.GetFileLineNumber() == 0)
+                    continue;
+                var fName = Path.GetFileName(frame.GetFileName());
+                var caller = "";
+                var method = frame.GetMethod();
+                if(method != null)
+                {
+                    caller = $"{method.DeclaringType?.Name}.{method.Name}";
+                } else
+                {
+                    caller = $"<unknown>";
+                }
+                ss.Append($"\r\n- {caller} #{frame.GetFileLineNumber()}");
+            }
+            Program.LogMsg(ss.ToString(), LogSeverity.Info, $"Chs-DB");
+            return Program.Services.GetRequiredService<ChessDbContext>();
+        }
 
         public static Dictionary<ChessPlayer, int> GetArbiterElectionResults(ChessDbContext db)
         {
