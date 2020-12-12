@@ -72,7 +72,7 @@ namespace DiscordBot.MLAPI.Modules
             {
                 ROW += $"<td>{(CurrentGame.White?.Player?.Name ?? "No white")}</td>";
                 ROW += $"<td>{(CurrentGame.Black?.Player?.Name ?? "No black")}</td>";
-                ROW += $"<td>{(SelfPlayer.OnlineGamesPlayedAgainst.Count >= ChessService.OnlineMaxTotal ? "Max games in 24h reached" : aLink($"chess://join/{token}", "Join Game"))}</td>";
+                ROW += $"<td>{ aLink($"chess://join/{token}", "Join Game")}</td>";
                 ROW += $"<td>{aLink($"chess://spectate/{token}", "Spectate Game")}</td></tr>";
             }
             TABLE += ROW;
@@ -126,7 +126,7 @@ namespace DiscordBot.MLAPI.Modules
         [RequireValidHTTPAgent(false)]
         public void GetPlayerIdentity(int id)
         {
-            var player = ChessService.Players.FirstOrDefault(x => x.Id == id);
+            var player = DB.Players.FirstOrDefault(x => x.Id == id);
             if(player == null)
             {
                 RespondRaw("Unknown player id", 404);

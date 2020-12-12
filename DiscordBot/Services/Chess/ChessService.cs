@@ -2,7 +2,6 @@
 using Discord.WebSocket;
 using DiscordBot.Classes;
 using DiscordBot.Classes.Chess;
-using DiscordBot.Classes.Chess.COA;
 using DiscordBot.Classes.Chess.Online;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
@@ -17,16 +16,13 @@ using static DiscordBot.Services.BuiltIn.BuiltInUsers;
 
 namespace DiscordBot.Services
 {
-    public class ChessService : SavedService
+    public class ChessService : Service
     {
         public override bool IsEnabled => true;
         public override bool IsCritical => true;
         public static int PlayerIdMax = 0;
-        public static List<ChessPlayer> Players = new List<ChessPlayer>();
-        public static List<ChessPendingGame> PendingGames = new List<ChessPendingGame>();
         public static Dictionary<Guid, ChessTimedGame> TimedGames = new Dictionary<Guid, ChessTimedGame>();
         public static OnlineGame CurrentGame = null;
-        public static Dictionary<ulong, IInvite> Invites = new Dictionary<ulong, IInvite>();
         public static string LoadException;
 
         public const int OnlineMaxTotal = 5;
@@ -68,38 +64,29 @@ namespace DiscordBot.Services
         /// </summary>
         public const int ModeratorOpponentsRequired = 2;
 
+        public const int StartingValue = 500;
+
         public static Semaphore OnlineLock = new Semaphore(1, 1);
         public static string LatestChessVersion;
 
-        public static Dictionary<ChessPlayer, int> GetArbiterElectionResults()
+        public static ChessDbContext DB() => Program.Services.GetRequiredService<ChessDbContext>();
+
+        public static Dictionary<ChessPlayer, int> GetArbiterElectionResults(ChessDbContext db)
         {
             Dictionary<ChessPlayer, int> results = new Dictionary<ChessPlayer, int>();
-            foreach (var player in Players.Where(x => !x.IsBuiltInAccount))
+            foreach (var player in db.Players.AsQueryable().Where(x => !x.IsBuiltInAccount))
             {
-                foreach (var vote in player.ArbiterVotePreferences)
+                foreach (var vote in player.ArbVotes)
                 {
-                    var other = Players.FirstOrDefault(x => x.Id == vote.Key);
+                    var other = db.Players.AsQueryable().FirstOrDefault(x => x.Id == vote.VoteeId);
                     if (other == null)
                         continue;
                     if (!checkArbiterCandidacy(other).IsSuccess)
                         continue;
-                    results[other] = results.GetValueOrDefault(other, 0) + vote.Value;
+                    results[other] = results.GetValueOrDefault(other, 0) + vote.Score;
                 }
             }
             return results;
-        }
-
-        public ChessGameStatus SwapStatePerspective(ChessGameStatus state)
-        {
-            switch (state)
-            {
-                case ChessGameStatus.Loss:
-                    return ChessGameStatus.Won;
-                case ChessGameStatus.Won:
-                    return ChessGameStatus.Loss;
-                default:
-                    return state;
-            }
         }
 
         public Dictionary<int, List<int>> Holidays = new Dictionary<int, List<int>>()
@@ -216,16 +203,28 @@ namespace DiscordBot.Services
             }
         }
 
-        public void LogEntry(ChessPendingGame game)
+        public List<ChessGame> GetRelatedPendings(ChessPlayer player)
+        {
+            using var db = DB();
+            return db.GetGamesWith(player).Where(x => x.ApprovalNeeded != ApprovedBy.None && (x.ApprovalNeeded != x.ApprovalGiven))
+                .ToList();
+        }
+        
+        
+        public void LogGame(ChessGame game)
         {
             EmbedBuilder builder = new EmbedBuilder();
-            builder.Title = "Pending Game";
-            builder.WithColor(Color.DarkOrange);
-            builder.Description = "Because one or both players are monitored, a Moderator must approve this game as valid";
-            builder.AddField("P1", $"{game.Player1.Name}\n{game.Player1.Rating} + {game.P1_Change}", true);
-            builder.AddField("P2", $"{game.Player2.Name}\n{game.Player2.Rating} + {game.P2_Change}", true);
+            builder.Title = "Chess Game";
+            builder.WithColor(Color.Blue);
+            builder.Description = "";
+            if(game.ApprovalNeeded.HasFlag(ApprovedBy.Moderator))
+                builder.Description = "Because one or both players are monitored, a Moderator must approve this game as valid";
+            if (game.ApprovalNeeded.HasFlag(ApprovedBy.Winner))
+                builder.Description += $"Because this game occured 'third-party', both players must approve this game as valid";
+            builder.AddField("P1", $"{game.Winner.Name}\n{game.Winner.Rating} + {game.WinnerChange}", true);
+            builder.AddField("P2", $"{game.Winner.Name}\n{game.Winner.Rating} + {game.LoserChange}", true);
             builder.AddField("Draw?", game.Draw ? "Yes" : "No", true);
-            LogChnl(builder, AdminChannel);
+            LogChnl(builder, game.ApprovalNeeded == ApprovedBy.None ? GameChannel : AdminChannel);
         }
 
         void LogEntry(IInvite invite, ChessPlayer player)
@@ -238,55 +237,50 @@ namespace DiscordBot.Services
             LogChnl(builder, SystemChannel);
         }
 
-        public IInvite GetInvite(ChessPlayer player, Classes.BotUser usr)
+        public string GetInvite(ChessPlayer player, Classes.BotUser usr)
         {
             var usrInChess = Program.ChessGuild.GetUser(usr.Id);
             if (usrInChess != null)
                 return null;
-            if (Invites.TryGetValue(usr.Id, out var existing))
-                return existing;
+            using var db = DB();
+            var existing = db.Invites.FirstOrDefault(x => x.Id == cast(usr.Id));
+            if (existing != null)
+                return existing.Code;
             var created = SystemChannel.CreateInviteAsync(0, 0, true, true, new RequestOptions() { AuditLogReason = $"For {player.Name}; {usr.Id}" }).Result;
-            Invites.Add(usr.Id, created);
+            db.Invites.Add(new ChessInvite()
+            {
+                Id = cast(usr.Id),
+                Code = created.Code
+            });
+            db.SaveChanges();
             LogEntry(created, player);
-            return created;
+            return created.Code;
         }
 
-        public void LogEntry(ChessPlayer player, ChessEntry entry, ChessPlayer opposition = null, bool isApproval = false)
+        public void LogEntry(ChessGame entry)
         {
-            if (opposition == null)
-                opposition = Players.FirstOrDefault(x => x.Id == entry.againstId);
             EmbedBuilder builder = new EmbedBuilder();
             builder.Title = "Game Added";
             builder.WithColor(Color.Blue);
-            string play = $"{player.Name}\nScore: {entry.selfWas} -> **{player.Rating}**";
-            string opp = $"{opposition.Name}\nScore: {entry.otherWas} -> **{opposition.Rating}**";
-            if (entry.State == ChessGameStatus.Draw)
+            string play = $"{entry.Winner.Name}\nRating: +{entry.WinnerChange} = **{entry.Winner.Rating}**";
+            string opp = $"{entry.Loser.Name}\nScore: {entry.LoserChange} = **{entry.Loser.Rating}**";
+            if (entry.Draw)
             {
                 builder.WithColor(Color.Green);
                 builder.WithDescription($"Game was a **draw**");
                 builder.AddField("P1", play, true);
                 builder.AddField("P2", opp, true);
             }
-            else if (entry.State == ChessGameStatus.Won)
+            else
             {
                 builder.AddField("Winner", play, true);
                 builder.AddField("Loser", opp, true);
             }
-            else if (entry.State == ChessGameStatus.Loss)
-            {
-                builder.AddField("Winner", play, true);
-                builder.AddField("Loser", opp, true);
-            }
-            if (isApproval)
+            if (entry.ApprovalNeeded != ApprovedBy.None)
             {
                 builder.AddField($"Approved From Before", "Game occured in past, now approved");
             }
             LogChnl(builder, GameChannel);
-        }
-
-        public List<ChessPendingGame> GetRelatedPendings(ChessPlayer p)
-        {
-            return PendingGames.Where(x => x != null && (x.Player1?.Id == p.Id || x.Player2?.Id == p.Id)).ToList();
         }
 
         public void LogAdmin(EmbedBuilder builder)
@@ -298,14 +292,14 @@ namespace DiscordBot.Services
         {
             EmbedBuilder builder = new EmbedBuilder();
             builder.Title = "User Banned";
-            builder.AddField("Target", ban.Against.Name, true);
-            builder.AddField("Operator", ban.GivenBy.Name, true);
+            builder.AddField("Target", ban.Target.Name, true);
+            builder.AddField("Operator", ban.OperatorId.ToString(), true);
             builder.AddField("Reason", ban.Reason, false);
             builder.AddField("Expires At", ban.ExpiresAt.ToString("yyyy-MMM-dd"), true);
             builder.AddField("Duration", Math.Round((ban.ExpiresAt - DateTime.Now).TotalDays / 7, 2).ToString() + " weeks", true);
-            if (ban.Against.Bans.Count > 1)
+            if (ban.Target.Bans.Count > 1)
             {
-                builder.AddField("Previous", $"This is the player's {ban.Against.Bans.Count}th ban");
+                builder.AddField("Previous", $"This is the player's {ban.Target.Bans.Count}th ban");
             }
             builder.WithColor(Color.Red);
             LogAdmin(builder);
@@ -321,23 +315,19 @@ namespace DiscordBot.Services
 
         public DateTime GetFridayOfThisWeek() => GetFridayOfWeek(DateTime.Now);
 
-        public DateTime getLastPresentDate(ChessPlayer player, bool doLastPlayed = false)
+        public DateTime getLastPresentDate(ChessDbContext db, ChessPlayer player, bool doLastPlayed = false)
         {
             if (player.DateLastPresent.HasValue && doLastPlayed == false)
             {
                 return player.DateLastPresent.Value;
             }
             DateTime lastPlayed = DateTime.MinValue;
-            foreach(var otherPlayer in Players)
+            var gamesInvolving = db.GetCurrentGamesWith(player);
+            foreach(var entry in gamesInvolving)
             {
-                foreach(var entry in otherPlayer.Days)
+                if(entry.Timestamp > lastPlayed)
                 {
-                    if(entry.Date > lastPlayed)
-                    {
-                        var any = entry.Entries.Any(x => otherPlayer.Id == player.Id || x.againstId == player.Id);
-                        if (any)
-                            lastPlayed = entry.Date;
-                    }
+                    lastPlayed = entry.Timestamp;
                 }
             }
             return lastPlayed;
@@ -368,17 +358,36 @@ namespace DiscordBot.Services
             }
         }
 
+        [Obsolete]
         public const int BuiltInClassRoomChess = -10;
+        [Obsolete]
         public const int BuiltInAIChess = -15;
         public BotUser BuiltInCoAUser;
         public BotUser BuiltInClassUser;
         public static ChessPlayer AIPlayer;
+
+        public static long cast(ulong v)
+        {
+            unchecked
+            {
+                return (long)v;
+            }
+        }
         
-        void SetBuiltInRoles()
+        void SetBuiltInRoles(ChessDbContext db)
         {
             var chiefJustice = ulong.Parse(Program.Configuration["chess:chief:id"]);
             var chiefName = Program.Configuration["chess:chief:name"];
-            var uu = Players.FirstOrDefault(x => x.Name == chiefName || x.ConnectedAccount == chiefJustice);
+            var uu = db.Players.AsQueryable().FirstOrDefault(x => x.Name == chiefName || x.DiscordAccount == cast(chiefJustice));
+            if(uu == null)
+            {
+                uu = new ChessPlayer()
+                {
+                    Name = chiefName,
+                    DiscordAccount = cast(chiefJustice),
+                };
+                db.Players.Add(uu);
+            }
             uu.Permission = ChessPerm.ChiefJustice;
 
             BuiltInClassUser = Program.GetUserOrDefault(ChessClass);
@@ -396,14 +405,13 @@ namespace DiscordBot.Services
             };
             BuiltInClassUser.OverrideDiscriminator = 1;
             BuiltInClassUser.ServiceUser = true;
-            var classRoom = Players.FirstOrDefault(x => x.Name == "Friday Lunch" && x.ConnectedAccount == BuiltInClassUser.Id);
+            var classRoom = db.Players.FirstOrDefault(x => x.Name == "Friday Lunch" && x.DiscordAccount == cast(BuiltInClassUser.Id));
             if (classRoom == null)
             {
                 classRoom = new ChessPlayer();
                 classRoom.IsBuiltInAccount = true;
-                classRoom.Id = BuiltInClassRoomChess;
                 classRoom.ConnectedAccount = BuiltInClassUser.Id;
-                Players.Add(classRoom);
+                db.Players.Add(classRoom);
             }
             classRoom.Name = "Friday Lunch";
             classRoom.Permission = ChessPerm.ClassRoom;
@@ -430,15 +438,14 @@ namespace DiscordBot.Services
                 coaToken.Regenerate(24);
             }
 
-            var court = Players.FirstOrDefault(x => x.Name == "Court of Appeals" && x.ConnectedAccount == BuiltInCoAUser.Id);
+            var court = db.Players.FirstOrDefault(x => x.Name == "Court of Appeals" && x.DiscordAccount == cast(BuiltInCoAUser.Id));
             if (court == null)
             {
                 court = new ChessPlayer();
                 court.Name = "Court of Appeals";
                 court.IsBuiltInAccount = true;
-                court.Id = -11;
                 court.ConnectedAccount = BuiltInCoAUser.Id;
-                Players.Add(court);
+                db.Players.Add(court);
             }
             court.Permission = ChessPerm.CourtOfAppeals;
             
@@ -449,21 +456,22 @@ namespace DiscordBot.Services
                 aiuser.OverrideName = "AI Player";
                 Program.Users.Add(aiuser);
             }
-            AIPlayer = Players.FirstOrDefault(x => x.Id == BuiltInAIChess);
+            AIPlayer = db.Players.FirstOrDefault(x => x.Name == "AI" && x.IsBuiltInAccount);
             if (AIPlayer == null)
             {
                 AIPlayer = new ChessPlayer();
                 AIPlayer.Name = "AI";
                 AIPlayer.IsBuiltInAccount = true;
-                AIPlayer.Id = BuiltInAIChess;
                 AIPlayer.ConnectedAccount = aiuser.Id;
-                Players.Add(AIPlayer);
+                db.Players.Add(AIPlayer);
             }
+            db.SaveChanges();
         }
 
         void threadSetPerms()
         {
-            SetConnectedRoles();
+            using var db = DB();
+            SetConnectedRoles(db);
         }
 
         public void SetPermissionsAThread()
@@ -472,12 +480,10 @@ namespace DiscordBot.Services
             th.Start();
         }
 
-        void SetConnectedRoles()
+        void SetConnectedRoles(ChessDbContext db)
         {
-            foreach (var player in Players)
+            foreach (var player in db.Players.AsQueryable().Where(x => !x.IsBuiltInAccount))
             {
-                if (player.IsBuiltInAccount)
-                    continue;
                 if (player.ConnectedAccount > 0)
                 {
                     var chsServer = Program.ChessGuild.GetUser(player.ConnectedAccount);
@@ -527,14 +533,14 @@ namespace DiscordBot.Services
             }
         }
 
-        void SendRatingChanges()
+        void SendRatingChanges(ChessDbContext db)
         {
             if (Program.DailyValidateFailed())
                 return;
             EmbedBuilder builder = new EmbedBuilder();
             builder.WithTitle("Leaderboard Changes");
             builder.WithColor(Color.Orange);
-            foreach (var usr in Players.OrderByDescending(x => x.Rating))
+            foreach (var usr in db.Players.AsQueryable().Where(x => !x.IsBuiltInAccount).ToList().OrderByDescending(x => x.Rating))
             {
                 // since this is happening on saturday morning..
                 var yesturday = DateTime.Now.AddDays(-1);
@@ -575,15 +581,9 @@ namespace DiscordBot.Services
                 LogChnl(builder, GameChannel);
         }
 
-        void SetIds()
+        void SetNickNames(ChessDbContext db)
         {
-            foreach (var x in PendingGames)
-                x.SetIds();
-        }
-
-        void SetNickNames()
-        {
-            foreach (var p in Players)
+            foreach (var p in db.Players)
             {
                 if (p.IsBuiltInAccount)
                     continue;
@@ -596,44 +596,47 @@ namespace DiscordBot.Services
             }
         }
 
-        void CheckExpiredNotes()
+        void CheckExpiredNotes(ChessDbContext db)
         {
-            foreach (var p in Players)
+            foreach (var p in db.Players)
             {
                 List<ChessNote> toRemove = new List<ChessNote>();
-                foreach (var note in p.Notes)
+                foreach (var note in db.GetNotesAgainst(p.Id))
                 {
-                    var expiry = note.Date.AddDays(note.DaysExpire + 90);
+                    var expiry = note.GivenAt.AddDays(note.ExpiresInDays + 90);
                     if (expiry < DateTime.Now)
                     {
                         toRemove.Add(note);
                     }
                 }
                 foreach (var x in toRemove)
-                    p.Notes.Remove(x);
+                    db.Notes.Remove(x);
             }
+            db.SaveChanges();
         }
 
-        void RemoveExpiredPending()
+        void RemoveExpiredPending(ChessDbContext db)
         {
-            var toRemove = new List<ChessPendingGame>();
-            foreach (var game in PendingGames)
+            var toRemove = new List<ChessGame>();
+            foreach (var game in db.Games.AsQueryable().Where(x => x.ApprovalNeeded != ApprovedBy.None && x.ApprovalGiven != x.ApprovalNeeded))
             {
-                var diff = DateTime.Now - game.RecordedAt;
+                var diff = DateTime.Now - game.Timestamp;
                 if (diff.TotalDays > 3)
                 {
                     var emb = new EmbedBuilder();
                     emb.Title = $"Pending Game Rejected";
-                    emb.Description = "Game was not approved in time, so has been refused";
-                    emb.AddField("P1", game.Player1.Name, true);
-                    emb.AddField("P2", game.Player2.Name, true);
+                    emb.Description = $"Game on {game.Timestamp:yyyy/MM/dd hh:mm:ss} was not approved in time, so has been refused";
+                    emb.AddField("P1", game.Winner.Name, true);
+                    emb.AddField("P2", game.Loser.Name, true);
                     emb.AddField("Draw?", game.Draw ? "Yes" : "No", true);
                     LogAdmin(emb);
                     toRemove.Add(game);
                 }
             }
             foreach (var x in toRemove)
-                PendingGames.Remove(x);
+                db.Games.Remove(x);
+            if (toRemove.Count > 0)
+                db.SaveChanges();
         }
 
         void setAutomatic(ChessPlayer player, int changeModBy, string reason)
@@ -642,25 +645,32 @@ namespace DiscordBot.Services
             int newR = player.Rating + (player.Modifier + changeModBy);
             int diff = newR - old;
             string text = diff >= 0 ? $"+{diff}" : $"{diff}";
+            using var db = DB();
             player.Modifier = player.Modifier + changeModBy;
-            player.Notes.Add(new ChessNote(BuiltInCoAUser, $"{text}: {reason}"));
+            var note = new ChessNote()
+            {
+                GivenAt = DateTime.Now,
+                ExpiresInDays = 14,
+                OperatorId = 0,
+                TargetId = player.Id,
+                Target = player,
+                Text = $"{text}: {reason}"
+            };
+            player.Notes.Add(note);
             LogAdmin(new EmbedBuilder()
                 .WithTitle("Automatic Deduction")
                 .WithDescription($"{player.Name} rating {text}, to {newR}\nReason: {reason}"));
         }
 
-        void CheckLastDatePlayed()
+        void CheckLastDatePlayed(ChessDbContext db)
         {
             if (Program.DailyValidateFailed())
                 return;
-            foreach (var player in Players)
+            bool any = false;
+            foreach (var player in db.Players.AsQueryable().Where(x => !x.IsBuiltInAccount && x.Rating > 100))
             {
-                if (player.IsBuiltInAccount)
-                    continue;
-                if (player.Rating <= 100)
-                    continue;
-                var lastPresent = getLastPresentDate(player);
-                var lastPlayed = getLastPresentDate(player, true); // will ignore last present.
+                var lastPresent = getLastPresentDate(db, player);
+                var lastPlayed = getLastPresentDate(db, player, true); // will ignore last present.
                 var presentFridays = FridaysBetween(lastPresent, DateTime.Now);
                 if (lastPresent == DateTime.MinValue)
                     presentFridays = 0;
@@ -678,9 +688,12 @@ namespace DiscordBot.Services
                     sent = true;
                     setAutomatic(player, -5, $"Not played consc. three weeks (last {lastPlayed.ToShortDateString()})");
                 }
+                any = any || sent;
                 if(sent)
                     Thread.Sleep(1500);
             }
+            if (any)
+                db.SaveChanges();
         }
 
         void getChessOnlineVersion()
@@ -699,33 +712,9 @@ namespace DiscordBot.Services
             }
         }
 
-        void fixIdIssue()
+        void setOnlineTokens(ChessDbContext db)
         {
-            var p = Players.FirstOrDefault(x => x.Id == 0);
-            if (p == null)
-                return;
-            p.Id = ++PlayerIdMax;
-            foreach (var player in Players)
-            {
-                foreach (var day in player.Days)
-                {
-                    foreach (var entry in day.Entries)
-                    {
-                        if (entry.againstId == 0)
-                            entry.againstId = p.Id;
-                    }
-                }
-                if (player.ArbiterVotePreferences.TryGetValue(0, out var vote))
-                {
-                    player.ArbiterVotePreferences.Remove(0);
-                    player.ArbiterVotePreferences[p.Id] = vote;
-                }
-            }
-        }
-
-        void setOnlineTokens()
-        {
-            foreach(var chs in Players)
+            foreach(var chs in db.Players.AsQueryable().Where(x => x.DiscordAccount != cast(0)))
             {
                 var usr = Program.GetUserOrDefault(chs.ConnectedAccount);
                 if (usr == null)
@@ -751,10 +740,10 @@ namespace DiscordBot.Services
             } while (day < afterNow);
         }
 
-        public void setElectedArbiter()
+        public void setElectedArbiter(ChessDbContext db)
         {
-            var winner = GetArbiterElectionResults().Where(x => x.Value > 0).OrderByDescending(x => x.Value).FirstOrDefault().Key;
-            var existing = Players.FirstOrDefault(x => x.Permission == ChessPerm.Arbiter);
+            var winner = GetArbiterElectionResults(db).Where(x => x.Value > 0).OrderByDescending(x => x.Value).FirstOrDefault().Key;
+            var existing = db.Players.FirstOrDefault(x => x.Permission == ChessPerm.Arbiter);
 
             if (winner?.Id != existing?.Id)
             {
@@ -771,77 +760,31 @@ namespace DiscordBot.Services
             }
         }
 
-        public ChessPlayer GetPlayer(int id) => Players.FirstOrDefault(x => x.Id == id);
-
-        public List<ChessEntry> BuildEntries(ChessPlayer player, DateTime date, bool ignoreOnline)
+        public List<ChessGame> BuildEntries(ChessPlayer player, DateTime date, bool ignoreOnline)
         {
-            var lst = new List<ChessEntry>();
-            var day = player.Days.FirstOrDefault(x => x.Date.DayOfYear == date.DayOfYear && x.Date.Year == date.Year);
-            if (day != null)
-            {
-                lst.AddRange(day.Entries);
-            }
-            // now we go through every other player..
-            foreach (var other in Players)
-            {
-                if (other.Id == player.Id)
-                    continue;
-                day = other.Days.FirstOrDefault(x => x.Date.DayOfYear == date.DayOfYear && x.Date.Year == date.Year);
-                if (day != null)
-                { // we're goin to need to swap 'Against' around, because against is currently us..
-                    foreach (var entry in day.Entries)
-                    {
-                        if (entry.againstId != player.Id)
-                            continue;
-                        if (entry.onlineGame && ignoreOnline)
-                            continue;
-                        var newEntry = new ChessEntry()
-                        {
-                            againstId = other.Id,
-                            State = SwapStatePerspective(entry.State),
-                            onlineGame = entry.onlineGame,
-                            Id = entry.Id,
-                            otherWas = entry.otherWas,
-                            selfWas = entry.selfWas
-                        };
-                        lst.Add(newEntry);
-                    }
-                }
-            }
-            return lst;
+            using var db = DB();
+            var games = db.GetGamesOnDate(player.Id, date);
+            if (ignoreOnline)
+                return games
+                    .Where(x => x.ApprovalNeeded == ApprovedBy.None || x.ApprovalNeeded == ApprovedBy.Moderator)
+                    .ToList();
+            return games.ToList();
         }
         public static List<int> GetPlayedAgainst(ChessPlayer p, int stopAt = int.MaxValue)
         {
             List<int> ids = new List<int>();
-            foreach(var x in ChessService.Players)
+            using var db = DB();
+            var gamesInvolving = db.GetCurrentGamesWith(p); 
+            foreach(var x in gamesInvolving)
             {
-                foreach(var day in x.Days)
-                {
-                    foreach(var entry in day.Entries)
-                    {
-                        if (x.Id == p.Id)
-                            ids.Add(entry.againstId);
-                        if (entry.againstId == p.Id)
-                            ids.Add(x.Id);
-                        if (ids.Count > stopAt)
-                            break;
-
-                    }
-                    if (ids.Count > stopAt)
-                        break;
-                }
+                if (x.WinnerId == p.Id)
+                    ids.Add(x.LoserId);
+                else
+                    ids.Add(x.WinnerId);
                 if (ids.Count > stopAt)
                     break;
             }
             return ids;
-        }
-
-
-        class chessSave
-        {
-            public List<ChessPlayer> players;
-            public List<ChessPendingGame> pending;
-            public Dictionary<ulong, string> invites;
         }
 
         public override void OnLoaded()
@@ -849,32 +792,6 @@ namespace DiscordBot.Services
             PopulateDiscordObjects();
             try
             {
-                var content = ReadSave("{}");
-                Invites = new Dictionary<ulong, IInvite>();
-                if (content.StartsWith("["))
-                {
-                    Players = JsonConvert.DeserializeObject<List<ChessPlayer>>(content);
-                    PendingGames = new List<ChessPendingGame>();
-                    Invites = new Dictionary<ulong, IInvite>();
-                }
-                else
-                {
-                    var save = JsonConvert.DeserializeObject<chessSave>(content);
-                    Players = save.players ?? new List<ChessPlayer>();
-                    PendingGames = save.pending ?? new List<ChessPendingGame>();
-                    Invites = new Dictionary<ulong, IInvite>();
-                    save.invites = save.invites ?? new Dictionary<ulong, string>();
-                    if (save.invites.Count > 0)
-                    {
-                        var INVITES = Program.ChessGuild.GetInvitesAsync().Result;
-                        foreach (var keypair in save.invites)
-                        {
-                            var invite = INVITES.FirstOrDefault(x => x.Id == keypair.Value);
-                            if (invite != null)
-                                Invites.Add(keypair.Key, invite);
-                        }
-                    }
-                }
                 OnDailyTick();
             }
             catch (Exception ex)
@@ -894,18 +811,17 @@ namespace DiscordBot.Services
 
         public override void OnDailyTick()
         {
+            using var db = DB();
             setQuarantine();
-            SetBuiltInRoles();
-            CheckLastDatePlayed();
-            SendRatingChanges();
-            setElectedArbiter();
-            SetConnectedRoles();
-            SetIds();
-            SetNickNames();
-            CheckExpiredNotes();
-            RemoveExpiredPending();
-            fixIdIssue();
-            setOnlineTokens();
+            SetBuiltInRoles(db);
+            CheckLastDatePlayed(db);
+            SendRatingChanges(db);
+            setElectedArbiter(db);
+            SetConnectedRoles(db);
+            SetNickNames(db);
+            CheckExpiredNotes(db);
+            RemoveExpiredPending(db);
+            setOnlineTokens(db);
             try
             {
                 getChessOnlineVersion();
@@ -914,27 +830,7 @@ namespace DiscordBot.Services
             {
                 Program.LogMsg("ChessService", ex);
             }
-            OnSave();
-        }
-
-        public override string GenerateSave()
-        {
-            var dict = new Dictionary<ulong, string>();
-            foreach (var item in Invites)
-                dict.Add(item.Key, item.Value.Id);
-            var save = new chessSave()
-            {
-                players = Players,
-                pending = PendingGames,
-                invites = dict
-            };
-            var content = JsonConvert.SerializeObject(save);
-            if (content.Length < 500)
-            {
-                Program.LogMsg("Refusing to save chess content, since its below threshhold:\n" + content, Discord.LogSeverity.Critical, "ChessService-Save");
-                return null;
-            }
-            return content;
+            db.SaveChanges();
         }
 
         public override void OnReady()
@@ -946,7 +842,8 @@ namespace DiscordBot.Services
         {
             if (arg.Guild.Id == Program.ChessGuild.Id)
             {
-                var chessUser = Players.FirstOrDefault(x => x.ConnectedAccount == arg.Id);
+                using var db = DB();
+                var chessUser = db.Players.FirstOrDefault(x => x.DiscordAccount == cast(arg.Id));
                 if (chessUser == null)
                 {
                     var r = await arg.SendMessageAsync("Error joining Chess Court of Appeals\nYou are not permitted entry");
@@ -955,7 +852,7 @@ namespace DiscordBot.Services
                 }
                 else
                 {
-                    SetConnectedRoles();
+                    SetConnectedRoles(db);
                     await arg.ModifyAsync(x => x.Nickname = chessUser.Name);
                 }
             }

@@ -120,7 +120,7 @@ namespace DiscordBot.Classes.Chess.Online
 
         void winnerLeaderboard(ChessPlayer p1, ChessPlayer p2, bool draw)
         {
-            MLAPI.Modules.Chess.addGameEntry(p1, p2, draw, x =>
+            MLAPI.Modules.Chess.createGameEntry(p1, p2, draw, x =>
             {
                 return (int)(MLAPI.Modules.Chess.defaultKFunction(x) / 2);
             }, true, out _);

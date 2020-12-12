@@ -1,4 +1,4 @@
-﻿using DiscordBot.Classes.Chess.COA;
+﻿using DiscordBot.Classes.Chess;
 using DiscordBot.Classes.HTMLHelpers.Objects;
 using System;
 using System.Collections.Generic;
@@ -17,7 +17,7 @@ namespace DiscordBot.MLAPI
         {
         }
 
-        Div getCoAContainer(AppealHearing h)
+        Div getCoAContainer(AppealsHearing h)
         {
             var main = new Div(cls: "container");
             main.Children.Add(new Div(cls: "column")
@@ -52,16 +52,16 @@ namespace DiscordBot.MLAPI
             return main;
         }
 
-        public Replacements(AppealHearing h)
+        public Replacements(AppealsHearing h)
         {
             // People can technically join petitions, or multiple people be named
             // There's one primary respondent, but others can be manually added to the title.
             // Thus, the title is the most up-to-date.
             Add("hearing", h);
             Add("venue", h.IsArbiterCase ? "THE ARBITER" : "COURT OF APPEALS");
-            Add("claimant", string.Join("; ", h.Claimants.Select(x => x.Name)).ToUpper());
-            Add("respondent", string.Join("; ", h.Respondents.Select(x => x.Name)).ToUpper());
-            Add("casen", new DiscordBot.Classes.HTMLHelpers.Objects.Anchor($"/chess/cases/{h.CaseNumber}", h.CaseNumber.ToString("0000")));
+            Add("claimant", h.collate(h.Claimants).ToUpper());
+            Add("respondent", h.collate(h.Respondents).ToUpper());
+            Add("casen", new DiscordBot.Classes.HTMLHelpers.Objects.Anchor($"/chess/cases/{h.Id}", h.Id.ToString("0000")));
             IfElse("cType", h.AppealOf.HasValue, "APPELLEE", "CLAIMANT");
             IfElse("rType", h.AppealOf.HasValue, "APPELLANT", "RESPONDENT");
             IfElse("hType", h.AppealOf.HasValue, "On matter from Appeal", (h.IsArbiterCase ? "On matter for Arbiter to Review" : "On matter for Court to Review"));

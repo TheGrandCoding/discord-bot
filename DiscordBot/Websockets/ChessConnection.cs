@@ -293,13 +293,13 @@ namespace DiscordBot.WebSockets
                 handleInGame(ping);
                 return;
             }
-
+            using var db = DB();
             if(ping.Id == PacketId.ConnRequest)
             {
                 Send(new ChessPacket(PacketId.Log, ping.Content));
                 var token = ping.Content["token"].ToObject<string>();
                 bool usesAntiCheat = ping.Content["cheat"].ToObject<bool>();
-                Player = Players.FirstOrDefault(x => x.VerifyOnlineReference == token);
+                Player = db.Players.FirstOrDefault(x => x.VerifyOnlineReference == token);
                 if (Player == null)
                 {
                     Context.WebSocket.Close(CloseStatusCode.InvalidData, "Player token invalid");
@@ -350,11 +350,6 @@ namespace DiscordBot.WebSockets
                 var type = ping.Content["mode"].ToObject<string>();
                 if (type == "join")
                 {
-                    if(Player.OnlineGamesPlayedAgainst.Count >= ChessService.OnlineMaxTotal)
-                    {
-                        Context.WebSocket.Close(CloseStatusCode.Normal, "You have already played enough today.");
-                        return;
-                    }
                     if (CurrentGame.White == null)
                     {
                         CurrentGame.White = this;
@@ -370,14 +365,6 @@ namespace DiscordBot.WebSockets
                     }
                     else if (CurrentGame.Black == null)
                     {
-                        // check if player is illegal
-                        if(Player.OnlineGamesPlayedAgainst.Count(x => x == CurrentGame.White.Player.Id) >= ChessService.OnlineMaxPlayer
-                            ||
-                           CurrentGame.White.Player.OnlineGamesPlayedAgainst.Count(x => x == Player.Id) >= ChessService.OnlineMaxPlayer)
-                        {
-                            Context.WebSocket.Close(CloseStatusCode.Normal, "You have played enough games with this player today");
-                            return;
-                        }
                         Side = PlayerSide.Black;
                         CurrentGame.Black = this;
                         CurrentGame.InnerGame = new OtherGame();
