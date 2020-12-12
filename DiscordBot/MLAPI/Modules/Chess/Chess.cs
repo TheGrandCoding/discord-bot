@@ -413,7 +413,7 @@ namespace DiscordBot.MLAPI.Modules
                 return false;
             if (player.DateLastPresent.HasValue && player.DateLastPresent.Value.DayOfYear == DateTime.Now.DayOfYear)
                 return true;
-            var val = ChessS.BuildEntries(player, DateTime.Now, true);
+            var val = ChessS.BuildEntries(player, DB, DateTime.Now, true);
             return val.Count > 0;
         }
 

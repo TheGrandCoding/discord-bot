@@ -558,7 +558,7 @@ namespace DiscordBot.Services
                     diffb -= 7;
                     weekBefore = usr.GetScoreOnDay(yesturday.AddDays(diffb));
                 } while (weekBefore == 0 && diffb > -100);
-                var gamesPlayed = BuildEntries(usr, yesturday, false);
+                var gamesPlayed = BuildEntries(usr, db, yesturday, false);
                 if (gamesPlayed.Count > 0 && score > 0)
                 { // dont bother adding them if no games were played
                     if (weekBefore == 0)
@@ -766,9 +766,8 @@ namespace DiscordBot.Services
             }
         }
 
-        public List<ChessGame> BuildEntries(ChessPlayer player, DateTime date, bool ignoreOnline)
+        public List<ChessGame> BuildEntries(ChessPlayer player, ChessDbContext db, DateTime date, bool ignoreOnline)
         {
-            using var db = DB();
             var games = db.GetGamesOnDate(player.Id, date);
             if (ignoreOnline)
                 return games

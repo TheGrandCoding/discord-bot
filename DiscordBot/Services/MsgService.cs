@@ -23,6 +23,7 @@ namespace DiscordBot.Services
     {
         public LogContext()
         {
+            Program.LogMsg($"Creating LogContext", LogSeverity.Info, "Log-DB");
         }
 
 

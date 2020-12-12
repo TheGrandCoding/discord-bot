@@ -19,7 +19,7 @@ namespace DiscordBot.Classes.Chess
     {
         public ChessDbContext CreateDbContext(string[] args)
         {
-            Program.LogMsg(Program.GetStackTrace(), LogSeverity.Info, $"Chs-DB");
+            Program.LogMsg(Program.GetStackTrace(), LogSeverity.Info, $"Chs-Factory");
             var builder = new DbContextOptionsBuilder<ChessDbContext>();
             builder.UseSqlServer("Server=(localdb)\\mssqllocaldb;Database=chsData;MultipleActiveResultSets=true");
             builder.EnableSensitiveDataLogging();
@@ -30,12 +30,10 @@ namespace DiscordBot.Classes.Chess
     {
         public ChessDbContext([NotNull] DbContextOptions<ChessDbContext> options) : base(options)
         {
-            Program.LogMsg(Program.GetStackTrace(), LogSeverity.Info, $"Chs-DB");
         }
 
         public ChessDbContext()
         {
-            Program.LogMsg(Program.GetStackTrace(), LogSeverity.Info, $"Chs-DB");
         }
 
         public DbSet<ChessPlayer> Players { get; set; }
@@ -54,7 +52,6 @@ namespace DiscordBot.Classes.Chess
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            Program.LogMsg(Program.GetStackTrace(), LogSeverity.Info, $"Chs-DB");
             modelBuilder.Entity<ChessGame>()
                 .HasIndex(x => new { x.Id, x.WinnerId, x.LoserId });
             modelBuilder.Entity<AppealsHearing>()
@@ -147,24 +144,6 @@ namespace DiscordBot.Classes.Chess
             => AppealsRelations.AsQueryable().Where(x => x.AppealHearingId == id);
 
         #endregion
-
-
-        static Semaphore lck = new Semaphore(1, 1);
-        public static void Lock(Action<ChessDbContext> action)
-        {
-            lck.WaitOne();
-            try
-            {
-                using var db = Program.Services.GetRequiredService<ChessDbContext>();
-                action(db);
-            } catch(Exception ex)
-            {
-                Program.LogMsg("DbLock", ex);
-            } finally
-            {
-                lck.Release();
-            }
-        }
     }
 
     [DebuggerDisplay("{Id} {Name} {Permission}")]
