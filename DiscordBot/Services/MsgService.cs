@@ -33,6 +33,10 @@ namespace DiscordBot.Services
 
         protected override void OnConfiguring(DbContextOptionsBuilder options)
         {
+            options.LogTo(x =>
+            {
+                Program.LogMsg(x, LogSeverity.Debug, "ChsDbLog");
+            }, Microsoft.Extensions.Logging.LogLevel.Trace);
 #if WINDOWS
             options.UseSqlServer(Program.getDbString("BotLog"));
 #else

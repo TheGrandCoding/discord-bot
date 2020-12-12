@@ -13,6 +13,7 @@ using DiscordBot.TypeReaders;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
@@ -282,15 +283,19 @@ Changed how permissions worked for bot.
             coll.AddDbContext<LogContext>(ServiceLifetime.Transient);
             coll.AddDbContext<ChessDbContext>(options =>
             {
+                options.LogTo(x =>
+                {
+                    Program.LogMsg(x, LogSeverity.Debug, "ChsDbLog");
+                }, Microsoft.Extensions.Logging.LogLevel.Trace);
 #if WINDOWS
                 options.UseSqlServer(getDbString("chsData"));
                 options.EnableSensitiveDataLogging();
 #else
                 options.UseMySql(getDbString("chsData"), 
                     new MariaDbServerVersion(new Version(10, 3, 25)), mysqlOptions =>
-                {
-                    mysqlOptions.CharSet(CharSet.Utf8Mb4);
-                });
+                    {
+                        mysqlOptions.CharSet(CharSet.Utf8Mb4);
+                    });
 #endif
             }, ServiceLifetime.Transient);
             var http = new HttpClient();
