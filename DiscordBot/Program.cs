@@ -35,7 +35,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.12.3"; 
+        public const string VERSION = "0.12.4"; 
         public const string CHANGELOG = VERSION + @"
 == Permissions changes
 Changed how permissions worked for bot.
@@ -283,10 +283,6 @@ Changed how permissions worked for bot.
             coll.AddDbContext<LogContext>(ServiceLifetime.Transient);
             coll.AddDbContext<ChessDbContext>(options =>
             {
-                options.LogTo(x =>
-                {
-                    Program.LogMsg(x, LogSeverity.Debug, "ChsDbLog");
-                }, Microsoft.Extensions.Logging.LogLevel.Trace);
 #if WINDOWS
                 options.UseSqlServer(getDbString("chsData"));
                 options.EnableSensitiveDataLogging();
