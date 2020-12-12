@@ -73,26 +73,7 @@ namespace DiscordBot.Services
 
         public static ChessDbContext DB() 
         {
-            var stack = new StackTrace(true);
-            var ss = new StringBuilder();
-            ss.Append($"DB, stack:");
-            foreach(var frame in stack.GetFrames())
-            {
-                if (frame.GetFileLineNumber() == 0)
-                    continue;
-                var fName = Path.GetFileName(frame.GetFileName());
-                var caller = "";
-                var method = frame.GetMethod();
-                if(method != null)
-                {
-                    caller = $"{method.DeclaringType?.Name}.{method.Name}";
-                } else
-                {
-                    caller = $"<unknown>";
-                }
-                ss.Append($"\r\n- {caller} #{frame.GetFileLineNumber()}");
-            }
-            Program.LogMsg(ss.ToString(), LogSeverity.Info, $"Chs-DB");
+            Program.LogMsg(Program.GetStackTrace(), LogSeverity.Info, $"Chs-DB");
             return Program.Services.GetRequiredService<ChessDbContext>();
         }
 

@@ -289,33 +289,44 @@ namespace DiscordBot.Services
             Program.Client.GuildUpdated += Client_GuildUpdated;
             Catchup().Wait();
 #endif
+
+#if DEBUG
+            Catchup().Wait();
+#endif
+        }
+
+        public static LogContext DB()
+        {
+            Program.LogMsg(Program.GetStackTrace(), LogSeverity.Info, $"Log-_db_");
+            return Program.Services.GetRequiredService<LogContext>();
         }
 
         #region Startup catchup
         async Task Catchup()
         {
-            using var DB = Program.Services.GetRequiredService<LogContext>();
+            using var _db_ = DB();
             foreach (var guild in Program.Client.Guilds)
             {
                 if (guild.Id != 365230804734967840)
                     continue;
                 try
                 {
-                    await Catchup(guild, DB);
+                    await Catchup(guild, _db_);
                 } catch(Exception ex)
                 {
                     Program.LogMsg(ex, "Cch-" + guild.Id.ToString());
                 }
             }
+            Program.LogMsg($"Done catchup, disposing of DB");
         }
-        async Task Catchup(SocketGuild guild, LogContext DB)
+        async Task Catchup(SocketGuild guild, LogContext _db_)
         {
-            Program.LogMsg($"Doing #{guild.Name} - {guild.Id}", LogSeverity.Verbose, "Catchup");
+            Program.LogMsg($"Doing guild {guild.Name} - {guild.Id}", LogSeverity.Verbose, "Catchup");
             foreach(var txt in guild.TextChannels)
             {
                 try
                 {
-                    await Catchup(txt, DB);
+                    await Catchup(txt, _db_);
                 }
                 catch (Exception ex)
                 {
@@ -323,8 +334,11 @@ namespace DiscordBot.Services
                 }
             }
         }
-        async Task Catchup(SocketTextChannel txt, LogContext DB)
+        async Task Catchup(SocketTextChannel txt, LogContext _db_)
         {
+#if DEBUG
+            int count = 0;
+#endif
             Program.LogMsg($"Doing #{txt.Name} - {txt.Id}", LogSeverity.Verbose, "Catchup");
             bool exit = false;
             ulong? before = null;
@@ -348,18 +362,25 @@ namespace DiscordBot.Services
                     if (!(x is IUserMessage sm))
                         continue;
                     // x, starting at the latest message in the channel
-                    if (DB.Messages.Any(db => db.MessageId == cast(sm.Id)))
+                    if (_db_.Messages.Any(db => db.MessageId == cast(sm.Id)))
                     {
                         exit = true;
                         break;
                     }
-                    await AddMessage(sm);
+                    await AddMessage(sm, _db_);
                 }
                 if(ordered.Count() < max)
                 {
                     exit = true;
                     break;
                 }
+#if DEBUG
+                if(count++ >= 1)
+                {
+                    exit = true;
+                    break;
+                }
+#endif
             } while (!exit);
         }
         #endregion
@@ -410,12 +431,12 @@ namespace DiscordBot.Services
                 Program.LogMsg($"Uploading {data.Attachment.Url}");
                 var message = chnl.SendFileAsync(path, $"{data.Guild.Id}-{data.MessageId}").Result;
                 Program.LogMsg($"Uploaded {data.Attachment.Url}");
-                using var DB = Program.Services.GetRequiredService<LogContext>();
+                using var _db_ = DB();
                 MsgModel dbMsg;
                 int tries = 0;
                 do
                 {
-                    dbMsg = DB.Messages.AsQueryable().FirstOrDefault(x => x.MessageId == cast(data.MessageId));
+                    dbMsg = _db_.Messages.AsQueryable().FirstOrDefault(x => x.MessageId == cast(data.MessageId));
                     if (dbMsg == null)
                     {
                         if (tries > 20)
@@ -429,7 +450,7 @@ namespace DiscordBot.Services
                     }
                 } while (dbMsg == null);
                 dbMsg.Attachments = dbMsg.Attachments.Replace(data.Attachment.Url, message.Attachments.First().Url);
-                DB.SaveChanges();
+                _db_.SaveChanges();
                 Program.LogMsg($"Completed all {data.Attachment.Url}", LogSeverity.Warning, "Attch");
             }
             catch (Exception ex)
@@ -444,7 +465,7 @@ namespace DiscordBot.Services
 
         #endregion
 
-        async Task AddMessage(IMessage arg)
+        async Task AddMessage(IMessage arg, LogContext _db_ = null)
         {
             if (!(arg is IUserMessage umsg))
                 return;
@@ -458,13 +479,18 @@ namespace DiscordBot.Services
                 Content = umsg.Content,
                 Timestamp = umsg.Timestamp.DateTime,
             };
-            using var DB = Program.Services.GetRequiredService<LogContext>();
-            DB.Contents.Add(content);
-            DB.SaveChanges();
+            bool dispose = false;
+            if(_db_ == null)
+            {
+                dispose = true;
+                _db_ = DB();
+            }
+            _db_.Contents.Add(content);
+            _db_.SaveChanges();
             var msg = new MsgModel(umsg);
             msg.ContentId = content.Id;
-            DB.Messages.Add(msg);
-            await DB.SaveChangesAsync();
+            _db_.Messages.Add(msg);
+            await _db_.SaveChangesAsync();
             Console.ForegroundColor = ConsoleColor.Black;
             Console.BackgroundColor = ConsoleColor.White;
             Console.WriteLine($"{getWhere(umsg)}: {arg.Author.Username}: {arg.Content}");
@@ -474,17 +500,19 @@ namespace DiscordBot.Services
             {
                 HandleAttachment(attch, guildChannel.Guild, umsg.Id);
             }
+            if (dispose)
+                _db_.Dispose();
         }
 
         private async Task Client_MessageUpdated(Cacheable<IMessage, ulong> arg1, SocketMessage arg2, ISocketMessageChannel arg3)
         {
             if (arg2.Author.IsBot || arg2.Author.IsWebhook)
                 return;
-            using var DB = Program.Services.GetRequiredService<LogContext>();
-            var origMsg = await DB.Messages.AsQueryable().FirstOrDefaultAsync(x => x.MessageId == cast(arg1.Id));
+            using var _db_ = DB();
+            var origMsg = await _db_.Messages.AsQueryable().FirstOrDefaultAsync(x => x.MessageId == cast(arg1.Id));
             if (origMsg == null)
                 return; // TODO: add the message in
-            var currentContent = DB.Contents.First(x => x.Id == origMsg.ContentId);
+            var currentContent = _db_.Contents.First(x => x.Id == origMsg.ContentId);
             if (currentContent.Content == arg2.Content)
                 return;
             var newContent = new MsgContent()
@@ -493,10 +521,10 @@ namespace DiscordBot.Services
                 Timestamp = arg2.EditedTimestamp.GetValueOrDefault(DateTimeOffset.Now).DateTime,
                 Message = arg2.Id
             };
-            await DB.Contents.AddAsync(newContent);
-            await DB.SaveChangesAsync();
+            await _db_.Contents.AddAsync(newContent);
+            await _db_.SaveChangesAsync();
             origMsg.ContentId = newContent.Id;
-            await DB.SaveChangesAsync();
+            await _db_.SaveChangesAsync();
         }
 
         bool isLessThan(string id1, ulong id2)
@@ -514,8 +542,8 @@ namespace DiscordBot.Services
 
         public List<MsgContent> GetContents(ulong message)
         {
-            using var DB = Program.Services.GetRequiredService<LogContext>();
-            var t = DB.Contents.AsQueryable().Where(x => x.MessageId == cast(message));
+            using var _db_ = DB();
+            var t = _db_.Contents.AsQueryable().Where(x => x.MessageId == cast(message));
             return t.ToList();
         }
         public MsgContent GetLatestContent(ulong message)
@@ -525,8 +553,8 @@ namespace DiscordBot.Services
 
         public async Task<List<DbMsg>> GetMessagesAsync(ulong guild, ulong channel, ulong before = ulong.MaxValue, int limit = 25)
         {
-            using var DB = Program.Services.GetRequiredService<LogContext>();
-            var query = DB.Messages.AsQueryable().Where(x => x.GuildId == cast(guild) && x.ChannelId == cast(channel));
+            using var _db_ = DB();
+            var query = _db_.Messages.AsQueryable().Where(x => x.GuildId == cast(guild) && x.ChannelId == cast(channel));
             var msgs = query.AsAsyncEnumerable()
                 .Where(x => x.Message < before)
                 .OrderByDescending(x => x.Message)
@@ -537,8 +565,8 @@ namespace DiscordBot.Services
 
         public async Task<DbMsg> GetMessageAsync(ulong messageId)
         {
-            using var DB = Program.Services.GetRequiredService<LogContext>();
-            var model = DB.Messages.AsQueryable().FirstOrDefault(x => x.MessageId == cast(messageId));
+            using var _db_ = DB();
+            var model = _db_.Messages.AsQueryable().FirstOrDefault(x => x.MessageId == cast(messageId));
             if (model == null)
                 return null;
             return new DbMsg(this, model);
@@ -546,7 +574,7 @@ namespace DiscordBot.Services
 
         public async Task<List<ReturnedMsg>> GetCombinedMsgs(ulong guild, ulong channel, ulong before = ulong.MaxValue, int limit = 25)
         {
-            using var DB = Program.Services.GetRequiredService<LogContext>();
+            using var _db_ = DB();
             var fromDb = await GetMessagesAsync(guild, channel, before, limit);
             var total = new List<ReturnedMsg>();
             foreach (var x in fromDb)
@@ -585,7 +613,7 @@ namespace DiscordBot.Services
                             Timestamp = (inDs.EditedTimestamp ?? inDs.Timestamp).DateTime,
                             Content = inDs.Content
                         };
-                        DB.Contents.Add(msgContent);
+                        _db_.Contents.Add(msgContent);
                         changes = true;
 #endif
                     }
@@ -595,7 +623,7 @@ namespace DiscordBot.Services
             {
                 if (!(ds is IUserMessage umsg))
                     continue;
-                if (!DB.Messages.Any(x => x.MessageId == cast(ds.Id)))
+                if (!_db_.Messages.Any(x => x.MessageId == cast(ds.Id)))
                 {
                     total.Add(new DiscordMsg(this, umsg));
 #if !DEBUG
@@ -604,7 +632,7 @@ namespace DiscordBot.Services
                 }
             }
             if (changes)
-                await DB.SaveChangesAsync();
+                await _db_.SaveChangesAsync();
             return total;
         }
 
@@ -620,9 +648,9 @@ namespace DiscordBot.Services
                 Timestamp = DateTime.Now,
                 Name = arg2.Name
             };
-            using var DB = Program.Services.GetRequiredService<LogContext>();
-            DB.Names.Add(stamp);
-            await DB.SaveChangesAsync();
+            using var _db_ = DB();
+            _db_.Names.Add(stamp);
+            await _db_.SaveChangesAsync();
         }
 
         private async System.Threading.Tasks.Task Client_ChannelUpdated(SocketChannel arg1, SocketChannel arg2)
@@ -639,15 +667,15 @@ namespace DiscordBot.Services
                 Timestamp = DateTime.Now,
                 Name = chnl2.Name
             };
-            using var DB = Program.Services.GetRequiredService<LogContext>();
-            DB.Names.Add(stamp);
-            await DB.SaveChangesAsync();
+            using var _db_ = DB();
+            _db_.Names.Add(stamp);
+            await _db_.SaveChangesAsync();
         }
 
         public List<NameTimestamps> GetNamesFor(ulong id)
         {
-            using var DB = Program.Services.GetRequiredService<LogContext>();
-            return DB.Names.AsQueryable().Where(x => x.ObjectId == cast(id)).ToList();
+            using var _db_ = DB();
+            return _db_.Names.AsQueryable().Where(x => x.ObjectId == cast(id)).ToList();
         }
         public string GetNameForAndAt(ulong id, DateTime time)
         {

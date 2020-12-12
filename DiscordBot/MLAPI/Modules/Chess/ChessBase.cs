@@ -115,5 +115,10 @@ namespace DiscordBot.MLAPI.Modules
                 DB.Dispose();
             base.ResponseHalted(ex);
         }
+        public override void AfterExecute()
+        {
+            if (DB != null)
+                DB.Dispose();
+        }
     }
 }

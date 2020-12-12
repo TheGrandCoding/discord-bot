@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -39,6 +40,31 @@ namespace DiscordBot
             }
 
             return existing;
+        }
+
+        public static string GetStackTrace(string sep = "\r\n- ")
+        {
+            var stack = new StackTrace(1, true);
+            var ss = new StringBuilder();
+            ss.Append($"DB, stack:");
+            foreach (var frame in stack.GetFrames())
+            {
+                if (frame.GetFileLineNumber() == 0)
+                    continue;
+                var fName = Path.GetFileName(frame.GetFileName());
+                var caller = "";
+                var method = frame.GetMethod();
+                if (method != null)
+                {
+                    caller = $"{method.DeclaringType?.Name}.{method.Name}";
+                }
+                else
+                {
+                    caller = $"<unknown>";
+                }
+                ss.Append($"\r\n- {caller} #{frame.GetFileLineNumber()}");
+            }
+            return ss.ToString();
         }
 
         public static string Clamp(string str, int length)

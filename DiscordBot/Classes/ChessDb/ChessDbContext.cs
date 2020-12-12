@@ -1,5 +1,7 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Discord;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -8,6 +10,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Dynamic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace DiscordBot.Classes.Chess
@@ -16,6 +19,7 @@ namespace DiscordBot.Classes.Chess
     {
         public ChessDbContext CreateDbContext(string[] args)
         {
+            Program.LogMsg(Program.GetStackTrace(), LogSeverity.Info, $"Chs-DB");
             var builder = new DbContextOptionsBuilder<ChessDbContext>();
             builder.UseSqlServer("Server=(localdb)\\mssqllocaldb;Database=chsData;MultipleActiveResultSets=true");
             builder.EnableSensitiveDataLogging();
@@ -26,10 +30,12 @@ namespace DiscordBot.Classes.Chess
     {
         public ChessDbContext([NotNull] DbContextOptions<ChessDbContext> options) : base(options)
         {
+            Program.LogMsg(Program.GetStackTrace(), LogSeverity.Info, $"Chs-DB");
         }
 
         public ChessDbContext()
         {
+            Program.LogMsg(Program.GetStackTrace(), LogSeverity.Info, $"Chs-DB");
         }
 
         public DbSet<ChessPlayer> Players { get; set; }
@@ -48,6 +54,7 @@ namespace DiscordBot.Classes.Chess
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            Program.LogMsg(Program.GetStackTrace(), LogSeverity.Info, $"Chs-DB");
             modelBuilder.Entity<ChessGame>()
                 .HasIndex(x => new { x.Id, x.WinnerId, x.LoserId });
             modelBuilder.Entity<AppealsHearing>()
@@ -140,6 +147,24 @@ namespace DiscordBot.Classes.Chess
             => AppealsRelations.AsQueryable().Where(x => x.AppealHearingId == id);
 
         #endregion
+
+
+        static Semaphore lck = new Semaphore(1, 1);
+        public static void Lock(Action<ChessDbContext> action)
+        {
+            lck.WaitOne();
+            try
+            {
+                using var db = Program.Services.GetRequiredService<ChessDbContext>();
+                action(db);
+            } catch(Exception ex)
+            {
+                Program.LogMsg("DbLock", ex);
+            } finally
+            {
+                lck.Release();
+            }
+        }
     }
 
     [DebuggerDisplay("{Id} {Name} {Permission}")]
