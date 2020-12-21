@@ -9,7 +9,7 @@ namespace DiscordBot.MLAPI.Modules.Integrations
 {
     public class Integrations : APIBase
     {
-        public Integrations(APIContext context, string path) : base(context, path)
+        public Integrations(APIContext context) : base(context, "interactions")
         {
         }
 
