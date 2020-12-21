@@ -46,6 +46,9 @@ namespace DiscordBot.MLAPI.Modules.Integrations
             try
             {
                 response = GetResponse(ping);
+                var str = Program.Serialise(response);
+                Program.LogMsg($"Responding: {str}");
+                RespondRaw(str);
             } catch(RedirectException)
             {
                 // Failed signature.
@@ -54,10 +57,6 @@ namespace DiscordBot.MLAPI.Modules.Integrations
             catch(Exception ex)
             {
                 Program.LogMsg("Interactions", ex);
-            } finally
-            {
-                var str = Program.Serialise(response);
-                RespondRaw(str);
             }
         }
     }
