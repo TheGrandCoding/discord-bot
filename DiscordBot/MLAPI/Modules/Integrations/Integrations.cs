@@ -17,8 +17,6 @@ namespace DiscordBot.MLAPI.Modules.Integrations
 
         public InteractionResponse GetResponse(Interaction interaction)
         {
-            if(interaction.Type == InteractionType.Ping)
-                return new InteractionResponse(InteractionResponseType.Pong);
             var signature = Context.Request.Headers["X-Signature-Ed25519"];
             signature ??= Context.Request.Headers["X-Signature-Ed25519".ToLower()];
             var timestamp = Context.Request.Headers["X-Signature-Timestamp"];
@@ -35,6 +33,8 @@ namespace DiscordBot.MLAPI.Modules.Integrations
                 throw new RedirectException(null, null);
             }
             Program.LogMsg($"Suceeded verification");
+            if (interaction.Type == InteractionType.Ping)
+                return new InteractionResponse(InteractionResponseType.Pong);
             return new InteractionResponse(InteractionResponseType.ChannelMessage, content: "Hey!");
         }
 
