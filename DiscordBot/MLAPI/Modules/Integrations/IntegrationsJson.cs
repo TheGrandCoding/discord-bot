@@ -102,10 +102,12 @@ namespace DiscordBot.MLAPI.Modules.Integrations
                 Embeds = embed == null ? null : new Embed[1] { embed },
                 AllowedMentions = mentions
             };
+            if (Type == InteractionResponseType.Pong)
+                Data = null;
         }
         [JsonProperty("type")]
         public InteractionResponseType Type { get; }
-        [JsonProperty("data")]
+        [JsonProperty("data", NullValueHandling = NullValueHandling.Ignore)]
         InteractionApplicationCommandCallbackData Data { get; set; }
     }
 

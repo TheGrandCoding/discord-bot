@@ -18,7 +18,7 @@ namespace DiscordBot.MLAPI.Modules.Integrations
         public InteractionResponse GetResponse(Interaction interaction)
         {
             if(interaction.Type == InteractionType.Ping)
-                return new InteractionResponse(InteractionResponseType.Acknowledge);
+                return new InteractionResponse(InteractionResponseType.Pong);
             var signature = Context.Request.Headers["X-Signature-Ed25519"];
             signature ??= Context.Request.Headers["X-Signature-Ed25519".ToLower()];
             var timestamp = Context.Request.Headers["X-Signature-Timestamp"];
