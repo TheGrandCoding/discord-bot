@@ -7,6 +7,8 @@ using System.Text;
 
 namespace DiscordBot.MLAPI.Modules.Integrations
 {
+    [RequireApproval(false)]
+    [RequireAuthentication(false, false)]
     public class Integrations : APIBase
     {
         public Integrations(APIContext context) : base(context, "interactions")
