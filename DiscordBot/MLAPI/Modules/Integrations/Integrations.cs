@@ -1,9 +1,13 @@
-﻿using DiscordBot.MLAPI.Exceptions;
+﻿using Discord;
+using DiscordBot.MLAPI.Exceptions;
 using Newtonsoft.Json.Linq;
 using Sodium;
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace DiscordBot.MLAPI.Modules.Integrations
 {
@@ -25,9 +29,9 @@ namespace DiscordBot.MLAPI.Modules.Integrations
             var message = timestamp + Context.Body;
             var publicKey = Program.Configuration["tokens:publickey"];
             if(!PublicKeyAuth.VerifyDetached(
-                Encoding.UTF8.GetBytes(signature), 
+                Sodium.Utilities.HexToBinary(signature), 
                 Encoding.UTF8.GetBytes(message),
-                Encoding.UTF8.GetBytes(publicKey)))
+                Sodium.Utilities.HexToBinary(publicKey)))
             {
                 Program.LogMsg($"Failed verification.");
                 throw new RedirectException(null, null);
@@ -35,20 +39,66 @@ namespace DiscordBot.MLAPI.Modules.Integrations
             Program.LogMsg($"Suceeded verification");
             if (interaction.Type == InteractionType.Ping)
                 return new InteractionResponse(InteractionResponseType.Pong);
-            return new InteractionResponse(InteractionResponseType.ChannelMessage, content: "Hey!");
+            return new InteractionResponse(InteractionResponseType.Acknowledge);
+        }
+
+        void executeCommand(Interaction interaction)
+        {
+            var context = new InteractionCommandContext(interaction);
+            context.Channel = (IMessageChannel)Program.Client.GetChannel(interaction.ChannelId);
+            context.Guild = Program.Client.GetGuild(interaction.GuildId);
+            context.User = Program.Client.GetUser(interaction.Member.User.Id);
+            context.BotUser = Program.GetUser(context.User);
+
+            var moduleTypes = Assembly.GetAssembly(typeof(InteractionBase)).GetTypes()
+                .Where(x => x == typeof(InteractionBase));
+            MethodInfo method = null;
+            foreach(var module in moduleTypes)
+            {
+                var commands = module.GetMethods()
+                    .Where(x => x.ReturnType == typeof(Task));
+                foreach(var cmd in commands)
+                {
+                    var id = cmd.GetCustomAttribute<IdAttribute>();
+                    if(id != null && id.Id == interaction.Data.Id)
+                    {
+                        Program.LogMsg($"Found cmd: {cmd.Name}");
+                        method = cmd;
+                        break;
+                    }
+                }
+                if (method != null)
+                    break;
+            }
+            if (method == null)
+                return;
+            var obj = Activator.CreateInstance(method.DeclaringType, new object[1] { context });
+            var args = new List<object>();
+            foreach(var option in interaction.Data.Options)
+            {
+                args.Add(option.Value);
+            }
+            Program.LogMsg($"Invoking cmd with {args.Count} args");
+            var expected = method.GetParameters().Count();
+            while (args.Count < expected)
+                args.Add(null);
+            method.Invoke(obj, args.ToArray());
         }
 
         [Method("POST"), Path("/interactions/discord")]
         public void Receive()
         {
             var ping = Program.Deserialise<Interaction>(Context.Body);
-            InteractionResponse response = new InteractionResponse(InteractionResponseType.ChannelMessage, "Command failed to execute");
             try
             {
-                response = GetResponse(ping);
+                var response = GetResponse(ping);
                 var str = Program.Serialise(response);
                 Program.LogMsg($"Responding: {str}");
                 RespondRaw(str);
+                if(response.Type == InteractionResponseType.Acknowledge)
+                {
+                    executeCommand(ping);
+                }
             } catch(RedirectException)
             {
                 // Failed signature.
