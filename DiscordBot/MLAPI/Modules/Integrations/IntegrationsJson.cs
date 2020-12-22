@@ -92,7 +92,8 @@ namespace DiscordBot.MLAPI.Modules.Integrations
     public class InteractionResponse
     {
         public InteractionResponse(InteractionResponseType type,
-            string content = null, bool? tts = null, Embed embed = null, AllowedMentions mentions = null)
+            string content = null, bool? tts = null, Embed embed = null, AllowedMentions mentions = null,
+            InteractionResponseFlags flags = InteractionResponseFlags.None)
         {
             Type = type;
             Data = new InteractionApplicationCommandCallbackData()
@@ -100,7 +101,8 @@ namespace DiscordBot.MLAPI.Modules.Integrations
                 TTS = tts,
                 Content = content,
                 Embeds = embed == null ? null : new Embed[1] { embed },
-                AllowedMentions = mentions
+                AllowedMentions = mentions,
+                Flags = flags
             };
             if (Type == InteractionResponseType.Pong || Data.IsEmpty)
                 Data = null;
@@ -108,10 +110,7 @@ namespace DiscordBot.MLAPI.Modules.Integrations
         [JsonProperty("type")]
         public InteractionResponseType Type { get; }
         [JsonProperty("data", NullValueHandling = NullValueHandling.Ignore)]
-        InteractionApplicationCommandCallbackData Data { get; set; }
-
-        [JsonProperty("flags", DefaultValueHandling = DefaultValueHandling.IgnoreAndPopulate)]
-        public InteractionResponseFlags Flags { get; set; }
+        public InteractionApplicationCommandCallbackData Data { get; set; }
     }
     [Flags]
     public enum InteractionResponseFlags
@@ -140,6 +139,8 @@ namespace DiscordBot.MLAPI.Modules.Integrations
         public Embed[] Embeds { get; set; }
         [JsonProperty("allowed_mentions", NullValueHandling = NullValueHandling.Ignore)]
         public AllowedMentions AllowedMentions { get; set; }
+        [JsonProperty("flags", DefaultValueHandling = DefaultValueHandling.IgnoreAndPopulate)]
+        public InteractionResponseFlags Flags { get; set; }
     }
     public enum ApplicationCommandOptionType
     {
