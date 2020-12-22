@@ -75,7 +75,8 @@ namespace DiscordBot.MLAPI.Modules.Integrations
                 return;
             var obj = Activator.CreateInstance(method.DeclaringType, new object[1] { context });
             var args = new List<object>();
-            foreach(var option in interaction.Data.Options)
+            var options = interaction.Data.Options ?? new ApplicationCommandInteractionDataOption[0];
+            foreach(var option in options)
             {
                 args.Add(option.Value);
             }
