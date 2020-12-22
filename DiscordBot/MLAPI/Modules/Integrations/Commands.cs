@@ -2,6 +2,7 @@
 using Discord.Addons.Interactive;
 using Discord.Commands;
 using DiscordBot.Commands;
+using DiscordBot.Utils;
 using Google.Cloud.Translation.V2;
 using System;
 using System.Collections.Generic;
@@ -39,26 +40,6 @@ namespace DiscordBot.MLAPI.Modules.Integrations
                 .Build());
         }
 
-        string getCode(string incoming)
-        {
-            var constants = typeof(LanguageCodes).GetFields()
-                .Where(x => x.FieldType == typeof(string));
-            var nameToCode = new Dictionary<string, string>();
-            var codeToName = new Dictionary<string, string>();
-            foreach(var constant in constants)
-            {
-                var name = constant.Name;
-                var code = constant.GetValue(null);
-                nameToCode[name.ToLower()] = code as string;
-                codeToName[code as string] = name;
-            }
-            if (nameToCode.TryGetValue(incoming.ToLower(), out var val))
-                return val;
-            if (codeToName.ContainsKey(incoming))
-                return incoming;
-            return null;
-        }
-
         [Id(790929406008098836)]
         [Id(790933585812652042)] // global
         public async Task Translate(string message, string from = null)
@@ -66,7 +47,7 @@ namespace DiscordBot.MLAPI.Modules.Integrations
             string fromLanguage = null;
             if(from != null)
             {
-                fromLanguage = getCode(from);
+                fromLanguage = LanguageCodesUtils.ToCode(from);
                 if(fromLanguage == null)
                 {
                     await ReplyAsync($":x: Language not recognised.", flags: InteractionResponseFlags.Ephemeral);
@@ -76,7 +57,8 @@ namespace DiscordBot.MLAPI.Modules.Integrations
             var client = TranslationClient.Create();
             var response = await client.TranslateTextAsync(message, LanguageCodes.English, fromLanguage);
             var actualFrom = response.DetectedSourceLanguage == null ? fromLanguage : response.DetectedSourceLanguage;
-            await ReplyAsync($"Translated from {actualFrom}:\r\n>>> {response.TranslatedText}", flags: InteractionResponseFlags.Ephemeral);
+            var name = LanguageCodesUtils.ToName(actualFrom);
+            await ReplyAsync($"Translated from {name}:\r\n>>> {response.TranslatedText}", flags: InteractionResponseFlags.Ephemeral);
         }
 
     }

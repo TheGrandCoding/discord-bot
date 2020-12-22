@@ -1,5 +1,6 @@
 ﻿using Discord;
 using Discord.WebSocket;
+using DiscordBot.Utils;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json.Linq;
 using System;
@@ -63,7 +64,7 @@ namespace DiscordBot.Services
                     .AddField("Title", jResponse["title"]?.ToString() ?? $"{response.StatusCode} {response.ReasonPhrase}")
                     .AddField("Detail", detail)
                     .WithColor(Discord.Color.Red)
-                    .WithFooter(arg.Author.Username, arg.Author.GetAvatarUrl() ?? arg.Author.GetDefaultAvatarUrl())
+                    .WithFooter(arg.Author.Username, arg.Author.GetAnyAvatarUrl())
                     .WithUrl(arg.GetJumpUrl())
                     .Build());
                 return;
@@ -79,7 +80,7 @@ namespace DiscordBot.Services
                 .WithFooter(hash)
                 .WithImageUrl(imageUrl)
                 .WithColor(Discord.Color.Green)
-                .WithFooter(arg.Author.Username, arg.Author.GetAvatarUrl() ?? arg.Author.GetDefaultAvatarUrl())
+                .WithFooter(arg.Author.Username, arg.Author.GetAnyAvatarUrl())
                 .WithUrl(imageUrl)
                 .Build());
         }

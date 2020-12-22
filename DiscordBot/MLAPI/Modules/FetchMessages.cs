@@ -5,6 +5,7 @@ using DiscordBot.Classes.HTMLHelpers;
 using DiscordBot.Classes.HTMLHelpers.Objects;
 using DiscordBot.Commands.Modules.MLAPI;
 using DiscordBot.Services;
+using DiscordBot.Utils;
 using EduLinkDLL.API.Models;
 using Markdig.Helpers;
 using Microsoft.Extensions.DependencyInjection;
@@ -716,7 +717,7 @@ namespace DiscordBot.MLAPI.Modules
                 .WithTag("mask", "url(#svg-mask-avatar-status-round-32)");
             var img = new Img(cls: "avatar-VxgULZ")
             {
-                Src = user.GetAvatarUrl() ?? user.GetDefaultAvatarUrl()
+                Src = user.GetAnyAvatarUrl()
             };
             foreignObject.Children.Add(img);
             svg.Children.Add(foreignObject);

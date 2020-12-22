@@ -1,5 +1,6 @@
 ﻿using Discord;
 using Discord.WebSocket;
+using DiscordBot.Utils;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -71,7 +72,7 @@ namespace DiscordBot.Services
             builder.Title = $"VC Updated";
             builder.WithCurrentTimestamp();
             builder.AddField($"Time", DateTime.Now.ToString("HH:mm:ss.fff"));
-            builder.WithAuthor($"{arg1.Username}#{arg1.Discriminator}", arg1.GetAvatarUrl() ?? arg1.GetDefaultAvatarUrl());
+            builder.WithAuthor($"{arg1.Username}#{arg1.Discriminator}", arg1.GetAnyAvatarUrl());
             builder.WithColor(Color.Purple);
             var beforeUsers = arg2.VoiceChannel?.Users.ToList() ?? new List<SocketGuildUser>();
             var afterUsers = arg3.VoiceChannel?.Users.ToList() ?? new List<SocketGuildUser>();
@@ -104,7 +105,7 @@ namespace DiscordBot.Services
                     if(!Monitors.TryGetValue(usr.Id, out var monitor))
                         continue;
                     if (usr.Id != arg1.Id)
-                        builder.WithFooter($"Proxy - {usr.Username}#{usr.Discriminator}", usr.GetAvatarUrl() ?? usr.GetDefaultAvatarUrl());
+                        builder.WithFooter($"Proxy - {usr.Username}#{usr.Discriminator}", usr.GetAnyAvatarUrl());
                     foreach (var _u in monitor.VC)
                     {
                         if (alreadySent.Contains(_u.Id))
