@@ -38,15 +38,24 @@ namespace DiscordBot.MLAPI.Modules.Integrations
         public InteractionCommandContext Context { get; }
         protected async Task<IUserMessage> ReplyAsync(string message = null, bool isTTS = false, Embed embed = null, RequestOptions options = null, AllowedMentions allowedMentions = null)
         {
-            var resp = new InteractionResponse(InteractionResponseType.ChannelMessage, message, isTTS, embed, allowedMentions);
-            var client = Program.Services.GetRequiredService<HttpClient>();
-            var str = Program.Serialise(resp);
-            var content = new StringContent(str);
-            var url = Discord.DiscordConfig.APIUrl + $"/interactions/{Context.Interaction.Id}/{Context.Interaction.Token}/callback";
-            Program.LogMsg($"Attempting to send to {url}: {str}");
-            var thing = await client.PostAsync(url, content);
-            var result = await thing.Content.ReadAsStringAsync();
-            Program.LogMsg($"{thing.StatusCode}, {result}");
+            try
+            {
+                var resp = new InteractionResponse(InteractionResponseType.ChannelMessage, message, isTTS, embed, allowedMentions);
+                var client = Program.Services.GetRequiredService<HttpClient>();
+                var str = Program.Serialise(resp);
+                var content = new StringContent(str, Encoding.UTF8, "application/json");
+                var url = Discord.DiscordConfig.APIUrl + $"interactions/{Context.Interaction.Id}/{Context.Interaction.Token}/callback";
+                Program.LogMsg($"Attempting to send to {url}: {str}");
+                var msg = new HttpRequestMessage(HttpMethod.Post, url);
+                msg.Content = content;
+                var thing = await client.SendAsync(msg);
+                var result = await thing.Content.ReadAsStringAsync();
+                Program.LogMsg($"{thing.StatusCode}, {result}");
+            }
+            catch (Exception ex)
+            {
+                Program.LogMsg("Send", ex);
+            }
             return null;
         }
     }

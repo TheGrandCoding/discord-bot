@@ -102,7 +102,7 @@ namespace DiscordBot.MLAPI.Modules.Integrations
                 Embeds = embed == null ? null : new Embed[1] { embed },
                 AllowedMentions = mentions
             };
-            if (Type == InteractionResponseType.Pong)
+            if (Type == InteractionResponseType.Pong || Data.IsEmpty)
                 Data = null;
         }
         [JsonProperty("type")]
@@ -121,13 +121,14 @@ namespace DiscordBot.MLAPI.Modules.Integrations
     }
     public class InteractionApplicationCommandCallbackData
     {
-        [JsonProperty("tts")]
+        public bool IsEmpty => TTS == null && Content == null && Embeds == null && AllowedMentions == null;
+        [JsonProperty("tts", NullValueHandling = NullValueHandling.Ignore)]
         public bool? TTS { get; set; }
-        [JsonProperty("content")]
+        [JsonProperty("content", NullValueHandling = NullValueHandling.Ignore)]
         public string Content { get; set; }
-        [JsonProperty("embeds")]
+        [JsonProperty("embeds", NullValueHandling = NullValueHandling.Ignore)]
         public Embed[] Embeds { get; set; }
-        [JsonProperty("allowed_mentions")]
+        [JsonProperty("allowed_mentions", NullValueHandling = NullValueHandling.Ignore)]
         public AllowedMentions AllowedMentions { get; set; }
     }
     public enum ApplicationCommandOptionType
