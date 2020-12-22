@@ -84,7 +84,31 @@ namespace DiscordBot.MLAPI.Modules.Integrations
             var expected = method.GetParameters().Count();
             while (args.Count < expected)
                 args.Add(null);
-            method.Invoke(obj, args.ToArray());
+            try
+            {
+                method.Invoke(obj, args.ToArray());
+            }
+            catch (TargetInvocationException outer)
+            {
+                Exception ex = outer.InnerException;
+                try
+                {
+                    RespondRaw(Program.Serialise(
+                        new InteractionResponse(InteractionResponseType.ChannelMessage, "Error: " + ex.Message)));
+                }
+                catch { }
+                Program.LogMsg(ex, "CmdInteraction");
+            }
+            catch (Exception ex)
+            {
+                try
+                {
+                    RespondRaw(Program.Serialise(
+                        new InteractionResponse(InteractionResponseType.ChannelMessage, "Error: " + ex.Message)));
+                }
+                catch { }
+                Program.LogMsg(ex, "ExCmdInt");
+            }
         }
 
         [Method("POST"), Path("/interactions/discord")]

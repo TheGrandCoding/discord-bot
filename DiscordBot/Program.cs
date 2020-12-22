@@ -90,6 +90,8 @@ Changed how permissions worked for bot.
             builder.SetBasePath(BASE_PATH);
             builder.AddJsonFile("_configuration.json");
             Configuration = builder.Build();
+            var other = Path.Combine(BASE_PATH, "google-mlapi.json");
+            Environment.SetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS", other);
             LogLevel = Enum.Parse<LogSeverity>(Configuration["settings:log"], true);
             Prefix = Configuration["prefix"][0];
         }
