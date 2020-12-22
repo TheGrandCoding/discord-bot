@@ -60,6 +60,7 @@ namespace DiscordBot.MLAPI.Modules.Integrations
         }
 
         [Id(790929406008098836)]
+        [Id(790933585812652042)] // global
         public async Task Translate(string message, string from = null)
         {
             string fromLanguage = null;

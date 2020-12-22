@@ -60,6 +60,7 @@ namespace DiscordBot.MLAPI.Modules.Integrations
         }
     }
 
+    [AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
     public class IdAttribute : Attribute
     {
         public ulong Id { get; set; }

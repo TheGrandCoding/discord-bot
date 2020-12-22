@@ -60,8 +60,8 @@ namespace DiscordBot.MLAPI.Modules.Integrations
                     .Where(x => x.ReturnType == typeof(Task));
                 foreach(var cmd in commands)
                 {
-                    var id = cmd.GetCustomAttribute<IdAttribute>();
-                    if(id != null && id.Id == interaction.Data.Id)
+                    var ids = cmd.GetCustomAttributes<IdAttribute>();
+                    if(ids != null && ids.Any(id => id.Id == interaction.Data.Id))
                     {
                         Program.LogMsg($"Found cmd: {cmd.Name}");
                         method = cmd;
