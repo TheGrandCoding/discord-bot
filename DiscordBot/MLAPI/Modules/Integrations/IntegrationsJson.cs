@@ -109,6 +109,15 @@ namespace DiscordBot.MLAPI.Modules.Integrations
         public InteractionResponseType Type { get; }
         [JsonProperty("data", NullValueHandling = NullValueHandling.Ignore)]
         InteractionApplicationCommandCallbackData Data { get; set; }
+
+        [JsonProperty("flags", DefaultValueHandling = DefaultValueHandling.IgnoreAndPopulate)]
+        public InteractionResponseFlags Flags { get; set; }
+    }
+    [Flags]
+    public enum InteractionResponseFlags
+    {
+        None = 0,
+        Ephemeral = 64
     }
 
     public enum InteractionResponseType

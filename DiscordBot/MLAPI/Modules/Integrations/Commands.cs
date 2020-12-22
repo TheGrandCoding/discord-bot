@@ -21,6 +21,12 @@ namespace DiscordBot.MLAPI.Modules.Integrations
             await ReplyAsync(message == null ? "Pong!" : message);
         }
 
+        [Id(790917803087495168)]
+        public async Task Ephemeral(string message = null)
+        {
+            await ReplyAsync(message == null ? "Test ephemeral message" : message, flags: InteractionResponseFlags.Ephemeral);
+        }
+
         [Id(790593912271273995)]
         public async Task Test()
         {

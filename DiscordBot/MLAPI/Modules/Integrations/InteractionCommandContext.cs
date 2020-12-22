@@ -36,11 +36,12 @@ namespace DiscordBot.MLAPI.Modules.Integrations
             Context = context;
         }
         public InteractionCommandContext Context { get; }
-        protected async Task<IUserMessage> ReplyAsync(string message = null, bool isTTS = false, Embed embed = null, RequestOptions options = null, AllowedMentions allowedMentions = null)
+        protected async Task<IUserMessage> ReplyAsync(string message = null, bool isTTS = false, Embed embed = null, AllowedMentions allowedMentions = null, InteractionResponseFlags flags = InteractionResponseFlags.None)
         {
             try
             {
                 var resp = new InteractionResponse(InteractionResponseType.ChannelMessage, message, isTTS, embed, allowedMentions);
+                resp.Flags = flags;
                 var client = Program.Services.GetRequiredService<HttpClient>();
                 var str = Program.Serialise(resp);
                 var content = new StringContent(str, Encoding.UTF8, "application/json");
