@@ -121,6 +121,7 @@ namespace DiscordBot.MLAPI.Modules.Integrations
     }
     public class InteractionApplicationCommandCallbackData
     {
+        [JsonIgnore]
         public bool IsEmpty => TTS == null && Content == null && Embeds == null && AllowedMentions == null;
         [JsonProperty("tts", NullValueHandling = NullValueHandling.Ignore)]
         public bool? TTS { get; set; }
