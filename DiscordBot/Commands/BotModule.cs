@@ -23,7 +23,13 @@ namespace DiscordBot.Commands
                 throw new Exception($"{reason}");
         }
 
-        public async Task<IUserMessage> Success(string message, bool isTTS = false, Embed embed = null)
-            => await ReplyAsync("✅ " + message, isTTS, embed);
+        public RuntimeResult Success(string message = null, bool isTTS = false, Embed embed = null)
+        {
+            if(message != null || embed != null)
+                ReplyAsync("✅ " + message, isTTS, embed).Wait();
+            return new BotResult();
+        }
+        public RuntimeResult Error(string message)
+            => new BotResult(message);
     }
 }

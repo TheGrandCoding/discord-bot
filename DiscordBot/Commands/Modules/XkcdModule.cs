@@ -23,18 +23,18 @@ namespace DiscordBot.Commands.Modules
                 {
                     Service.Channels.Remove(Context.Guild.Id);
                     Service.OnSave();
-                    await Success("Xkcd will no longer be sent to this guild.");
+                    Success("Xkcd will no longer be sent to this guild.");
                 } else
                 {
                     Service.Channels[Context.Guild.Id] = Context.Channel.Id;
                     Service.OnSave();
-                    await Success($"Xkcd is now sent to <#{Context.Channel.Id}> rather than <#{chnl}>");
+                    Success($"Xkcd is now sent to <#{Context.Channel.Id}> rather than <#{chnl}>");
                 }
             } else
             {
                 Service.Channels[Context.Guild.Id] = Context.Channel.Id;
                 Service.OnSave();
-                await Success($"All future xkcd will be sent to <#{Context.Channel.Id}>");
+                Success($"All future xkcd will be sent to <#{Context.Channel.Id}>");
             }
         }
     }

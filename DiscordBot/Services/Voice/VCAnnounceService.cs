@@ -1,6 +1,7 @@
 ﻿using Discord;
 using Discord.Audio;
 using Discord.WebSocket;
+using DiscordBot.Services.Games;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -95,6 +96,8 @@ namespace DiscordBot.Services
         async Task Client_UserVoiceStateUpdated(Discord.WebSocket.SocketUser arg1, Discord.WebSocket.SocketVoiceState arg2, Discord.WebSocket.SocketVoiceState arg3)
         {
             if (arg1.IsBot)
+                return;
+            if (TTTGame.IsTTTVoice(arg2.VoiceChannel) || TTTGame.IsTTTVoice(arg3.VoiceChannel))
                 return;
             var thread = new Thread(handle);
             thread.Start(new passing()

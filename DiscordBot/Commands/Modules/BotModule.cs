@@ -39,7 +39,7 @@ namespace DiscordBot.Commands.Modules
         [RequireOwner]
         public async Task Close(int code = 0)
         {
-            await Success("Closing");
+            Success("Closing");
             Program.Close(code);
         }
 
