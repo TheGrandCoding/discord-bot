@@ -11,9 +11,31 @@ namespace DiscordBot.Services.Games
     public class TTTService : Service
     {
         public List<TTTGame> Games { get; set; } = new List<TTTGame>();
+        public const string RoleName = "TicTacToe";
         public override void OnReady()
         {
             Program.Client.UserVoiceStateUpdated += Client_UserVoiceStateUpdated;
+            Program.Client.ReactionAdded += Client_ReactionAdded;
+        }
+
+        private async Task Client_ReactionAdded(Cacheable<IUserMessage, ulong> arg1, ISocketMessageChannel arg2, SocketReaction arg3)
+        {
+            var game = Games.FirstOrDefault(x => x.Message.Id == arg1.Id);
+            if (game == null)
+                return;
+            var user = game.Guild.GetUser(arg3.UserId);
+            if (user.IsBot)
+                return;
+            if (game.GetPlayer(user) != Position.Empty)
+                return;
+            if (game.Crosses == null)
+                game.Crosses = user;
+            else
+                game.Naughts = user;
+            await game.Message.ModifyAsync(x => x.Embed = game.ToEmbed());
+            var role = game.Guild.Roles.FirstOrDefault(x => x.Name == TTTService.RoleName);
+            await user.AddRoleAsync(role);
+            await game.Message.Channel.SendMessageAsync($"{user.Mention} has joined as {game.GetPlayer(user)}s");
         }
 
         private async Task Client_UserVoiceStateUpdated(SocketUser arg1, SocketVoiceState arg2, SocketVoiceState arg3)
@@ -25,6 +47,8 @@ namespace DiscordBot.Services.Games
             if (!TTTGame.IsTTTVoice(arg3.VoiceChannel))
                 return; // left the channel.
             var game = Games.FirstOrDefault(x => x.Contains(arg1));
+            if (game == null)
+                game = Games.FirstOrDefault(x => x.In(arg3.VoiceChannel.Guild));
             try
             {
                 await Handle(game, user, arg2.VoiceChannel, arg3.VoiceChannel);
@@ -42,23 +66,41 @@ namespace DiscordBot.Services.Games
             if(game.Crosses == null)
             {
                 game.Crosses = user;
-            } else if (game.Naughts == null)
+                await game.Message.Channel.SendMessageAsync($"{user.Mention} has joined as crosses");
+            } else if (game.Naughts == null && (game.GetPlayer(user) == Position.Empty))
             {
                 game.Naughts = user;
+                await game.Message.Channel.SendMessageAsync($"{user.Mention} has joined as naughts");
+            }
+            if(game.Started == false)
+            {
+                await user.SendMessageAsync($"Game has not yet started! Waiting for a naughts to join.");
+                return;
+            }
+            var player = game.GetPlayer(user);
+            if(player != game.Turn)
+            {
+                await user.SendMessageAsync($"It is not your turn!");
+                return;
             }
             var position = int.Parse(gameVc.Name.Split('-')[1]);
-            var player = game.Naughts.Id == user.Id ? Position.Naught : Position.Cross;
+            var coords = game.GetCoords(position);
             if (!game.TryMove(position, player))
             {
                 await user.SendMessageAsync($"That move is not valid.");
                 return;
             }
+            await game.Message.Channel.SendMessageAsync($"{user.Mention} goes [{coords.x}, {coords.y}]");
+            game.Turn = game.Turn == Position.Cross ? Position.Naught : Position.Cross;
             await game.Message.ModifyAsync(x => x.Embed = game.ToEmbed());
             var winner = game.GetWinner();
             if(winner != null)
             {
                 await game.Message.Channel.SendMessageAsync($"{winner.Mention} has won!",
                     allowedMentions: AllowedMentions.None);
+                var role = game.Guild.Roles.FirstOrDefault(x => x.Name == TTTService.RoleName);
+                await game.Naughts.RemoveRoleAsync(role);
+                await game.Crosses.RemoveRoleAsync(role);
                 Games.Remove(game);
             }
 
@@ -76,12 +118,15 @@ namespace DiscordBot.Services.Games
         }
         public SocketGuildUser Naughts { get; set; }
         public SocketGuildUser Crosses { get; set; }
+        public SocketGuild Guild { get; set; }
+        public Position Turn { get; set; } = Position.Cross;
         public IUserMessage Message { get; set; }
         public Position[] Board { get; set; }
         public Dictionary<int, string> Links { get; }
         public int Rows { get; }
         public TTTGame(SocketGuild guild, int rows = 3)
         {
+            Guild = guild;
             Links = new Dictionary<int, string>();
             var channels = guild.VoiceChannels.Where(x => x.Name.StartsWith("ttt-"));
             foreach(var channel in channels)
@@ -97,7 +142,29 @@ namespace DiscordBot.Services.Games
             }
         }
         
-        public bool Contains(IUser user) => Naughts?.Id == user.Id || Crosses?.Id == user.Id || false;
+        public (int x, int y) GetCoords(int position)
+        {
+            var division = position / Rows;
+            return (position - (division * Rows), division);
+        }
+        public int GetPosition(int x, int y)
+        {
+            return x + (y * Rows);
+        }
+
+        public Position GetPlayer(IUser user)
+        {
+            if (Crosses?.Id == user.Id)
+                return Position.Cross;
+            if (Naughts?.Id == user.Id)
+                return Position.Naught;
+            return Position.Empty;
+        }
+        public bool Contains(IUser user) => GetPlayer(user) != Position.Empty;
+        public bool In(IGuild guild)
+        {
+            return Guild.Id == guild.Id;
+        }
         public bool Started => Naughts != null && Crosses != null;
 
         public Position[,] Get2dBoard()
@@ -107,7 +174,7 @@ namespace DiscordBot.Services.Games
             {
                 for (int y = 0; y < Rows; y++)
                 {
-                    board2d[x, y] = Board[x + y];
+                    board2d[x, y] = Board[GetPosition(x, y)];
                 }
             }
             return board2d;
@@ -116,87 +183,53 @@ namespace DiscordBot.Services.Games
         public Position GetWinnerType()
         {
             var board2d = Get2dBoard();
+            List<Position> distinct;
 
-            for(int x = 0; x < Rows; x++)
+            for (int x = 0; x < Rows; x++)
             {
-                Position player = Position.Empty;
-                for(int y = 0; y < Rows; y++)
+                var col = new List<Position>();
+                for (int y = 0; y < Rows; y++)
                 {
                     var pos = board2d[x, y];
-                    if(pos != Position.Empty)
-                    {
-                        if(player == Position.Empty)
-                        {
-                            player = pos;
-                        } else
-                        {
-                            player = Position.Empty;
-                            break;
-                        }
-                    }
+                    col.Add(pos);
                 }
-                if (player != Position.Empty)
-                    return player;
+                distinct = col.Distinct().ToList();
+                if (distinct.Count == 1 && distinct[0] != Position.Empty)
+                    return distinct[0];
             }
 
             for (int y = 0; y < Rows; y++)
             {
-                Position player = Position.Empty;
+                var row = new List<Position>();
                 for (int x = 0; x < Rows; x++)
                 {
                     var pos = board2d[x, y];
-                    if (pos != Position.Empty)
-                    {
-                        if (player == Position.Empty)
-                        {
-                            player = pos;
-                        }
-                        else
-                        {
-                            player = Position.Empty;
-                            break;
-                        }
-                    }
+                    row.Add(pos);
                 }
-                if (player != Position.Empty)
-                    return player;
+                distinct = row.Distinct().ToList();
+                if (distinct.Count == 1 && distinct[0] != Position.Empty)
+                    return distinct[0];
             }
 
-            Position diagonal = Position.Empty;
+            var rightLeft = new List<Position>();
             for(int i = 0; i < Rows; i++)
             {
                 var pos = board2d[i, i];
-                if(pos != Position.Empty)
-                {
-                    if(diagonal == Position.Empty)
-                    {
-                        diagonal = pos;
-                    } else
-                    {
-                        diagonal = Position.Empty;
-                        break;
-                    }
-                }
+                rightLeft.Add(pos);
             }
-            if (diagonal != Position.Empty)
-                return diagonal;
+            distinct = rightLeft.Distinct().ToList();
+            if (distinct.Count == 1 && distinct[0] != Position.Empty)
+                return distinct[0];
+            var leftRight = new List<Position>();
             for (int i = 0; i < Rows; i++)
             {
                 var pos = board2d[Rows - (i+1), i];
-                if (pos != Position.Empty)
-                {
-                    if (diagonal == Position.Empty)
-                    {
-                        diagonal = pos;
-                    }
-                    else
-                    {
-                        diagonal = Position.Empty;
-                        break;
-                    }
-                }
+                leftRight.Add(pos);
             }
-            return diagonal;
+            distinct = leftRight.Distinct().ToList();
+            if (distinct.Count == 1 && distinct[0] != Position.Empty)
+                return distinct[0];
+            return Position.Empty;
         }
 
         public SocketGuildUser GetWinner()
@@ -240,7 +273,7 @@ namespace DiscordBot.Services.Games
         }
         public bool TryMove(int position, Position player)
         {
-            if (position >= Rows)
+            if (position >= Board.Length)
                 return false;
             if (Board[position] != Position.Empty)
                 return false;
@@ -261,7 +294,7 @@ namespace DiscordBot.Services.Games
         {
             var builder = new EmbedBuilder();
             Func<IGuildUser, string> getName = x => x?.Nickname ?? x?.Username ?? "tbd";
-            builder.Title = $"{getName(Naughts)} vs {getName(Crosses)}";
+            builder.Title = $"{getName(Crosses)} vs {getName(Naughts)}";
             var sb = new StringBuilder();
             var board2d = Get2dBoard();
             for(int y = 0; y < Rows; y++)
@@ -269,7 +302,7 @@ namespace DiscordBot.Services.Games
                 var rowSb = new StringBuilder();
                 for(int x = 0; x < Rows; x++)
                 {
-                    var line = getEmbed(board2d[x, y], Links[x + y]);
+                    var line = getEmbed(board2d[x, y], Links[GetPosition(x, y)]);
                     rowSb.Append(line);
                     if (x != Rows - 1)
                         rowSb.Append("⬜");
@@ -287,6 +320,10 @@ namespace DiscordBot.Services.Games
             var winner = GetWinnerType();
             builder.Color = winner == Position.Empty ? Color.Red
                 : winner == Position.Naught ? Color.Orange : Color.Blue;
+            if (Started == false) 
+            {
+                builder.WithFooter($"React below to join as {(Crosses == null ? "Crosses" : "Naughts")}");
+            }
             return builder.Build();
         }
     }
