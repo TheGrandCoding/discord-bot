@@ -1,5 +1,6 @@
 ﻿using Discord;
 using Discord.WebSocket;
+using DiscordBot.Utils;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -26,6 +27,24 @@ namespace DiscordBot.Services.Games
             var user = game.Guild.GetUser(arg3.UserId);
             if (user.IsBot)
                 return;
+            await game.Message.RemoveReactionAsync(arg3.Emote, arg3.UserId);
+            if (arg3.Emote.Name == Emotes.WHITE_CHECK_MARK.Name)
+                await newPlayerTryJoin(user, game);
+            else if (arg3.Emote.Name == Emotes.ARROWS_COUNTERCLOCKWISE.Name)
+                await resendMessage(game);
+        }
+
+
+        async Task resendMessage(TTTGame game)
+        {
+            var channel = game.Message.Channel;
+            var newMsg = await channel.SendMessageAsync(embed: game.ToEmbed());
+            await game.Message.DeleteAsync();
+            game.Message = newMsg;
+        }
+
+        async Task newPlayerTryJoin(SocketGuildUser user, TTTGame game)
+        {
             if (game.GetPlayer(user) != Position.Empty)
                 return;
             if (game.Crosses == null)
@@ -93,10 +112,17 @@ namespace DiscordBot.Services.Games
             await game.Message.Channel.SendMessageAsync($"{user.Mention} goes [{coords.x}, {coords.y}]");
             game.Turn = game.Turn == Position.Cross ? Position.Naught : Position.Cross;
             await game.Message.ModifyAsync(x => x.Embed = game.ToEmbed());
-            var winner = game.GetWinner();
-            if(winner != null)
+            var winner = game.GetWinnerType();
+            if(winner != Position.Empty)
             {
-                await game.Message.Channel.SendMessageAsync($"{winner.Mention} has won!",
+                var msg = "";
+                if (winner == Position.DRAW)
+                    msg = "Game has drawn!";
+                else if (winner == Position.Naught)
+                    msg = $"{game.Naughts.Mention} has won!";
+                else
+                    msg = $"{game.Crosses.Mention} has won!";
+                await game.Message.Channel.SendMessageAsync(msg,
                     allowedMentions: AllowedMentions.None);
                 var role = game.Guild.Roles.FirstOrDefault(x => x.Name == TTTService.RoleName);
                 await game.Naughts.RemoveRoleAsync(role);
@@ -182,6 +208,9 @@ namespace DiscordBot.Services.Games
 
         public Position GetWinnerType()
         {
+            var remain = Board.Count(x => x == Position.Empty);
+            if (remain == 0)
+                return Position.DRAW;
             var board2d = Get2dBoard();
             List<Position> distinct;
 
@@ -230,14 +259,6 @@ namespace DiscordBot.Services.Games
             if (distinct.Count == 1 && distinct[0] != Position.Empty)
                 return distinct[0];
             return Position.Empty;
-        }
-
-        public SocketGuildUser GetWinner()
-        {
-            var type = GetWinnerType();
-            if (type == Position.Empty)
-                return null;
-            return type == Position.Cross ? Crosses : Naughts;
         }
 
         string ToAscii(Position pos)
@@ -317,12 +338,32 @@ namespace DiscordBot.Services.Games
                 }
             }
             builder.Description = sb.ToString();
-            var winner = GetWinnerType();
-            builder.Color = winner == Position.Empty ? Color.Red
-                : winner == Position.Naught ? Color.Orange : Color.Blue;
-            if (Started == false) 
+            if (Started == false)
             {
                 builder.WithFooter($"React below to join as {(Crosses == null ? "Crosses" : "Naughts")}");
+            } else
+            {
+                var winner = GetWinnerType();
+                if (winner == Position.Empty)
+                {
+                    builder.Color = Color.Purple;
+                    builder.WithFooter($"Game ongoing; react {Emotes.ARROWS_COUNTERCLOCKWISE} to resend message");
+                }
+                else if (winner == Position.Naught)
+                {
+                    builder.Color = Color.Orange;
+                    builder.WithFooter($"Game finished; {Naughts.GetName()} won.");
+                }
+                else if (winner == Position.Cross)
+                {
+                    builder.Color = Color.Blue;
+                    builder.WithFooter($"Game finished; {Crosses.GetName()} won.");
+                }
+                else
+                {
+                    builder.Color = Color.Red;
+                    builder.WithFooter($"Game drawn, no winners - both are equally pathetic.");
+                }
             }
             return builder.Build();
         }
@@ -331,6 +372,7 @@ namespace DiscordBot.Services.Games
     {
         Empty,
         Naught,
-        Cross
+        Cross,
+        DRAW
     }
 }

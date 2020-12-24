@@ -14,6 +14,7 @@ namespace DiscordBot.Commands.Modules.Games
         public TTTService Service { get; set; }
 
         [Command("setup")]
+        [RequireUserPermission(ChannelPermission.ManageChannels)]
         public async Task<RuntimeResult> Setup(int count = 3)
         {
             IRole role = Context.Guild.Roles.FirstOrDefault(x => x.Name == TTTService.RoleName);
@@ -59,6 +60,7 @@ namespace DiscordBot.Commands.Modules.Games
             var _ = Task.Run(async () =>
             {
                 await msg.AddReactionAsync(Emotes.WHITE_CHECK_MARK);
+                await msg.AddReactionAsync(Emotes.ARROWS_COUNTERCLOCKWISE);
             });
             var role = Context.Guild.Roles.FirstOrDefault(x => x.Name == TTTService.RoleName);
             var self = Context.User as SocketGuildUser;
