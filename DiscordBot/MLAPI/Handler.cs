@@ -108,7 +108,7 @@ namespace DiscordBot.MLAPI
                 Program.LogMsg($"Loaded {keypair.Value.Count} {keypair.Key} endpoints", source:"API", sev:LogSeverity.Debug);
         }
 
-        static bool findToken(string t, out BotUser user, out AuthToken token)
+        public static bool findToken(string t, out BotUser user, out AuthToken token)
         {
             token = null;
             user = null;

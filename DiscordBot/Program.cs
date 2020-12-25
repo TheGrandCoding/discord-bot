@@ -35,7 +35,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.13.4"; 
+        public const string VERSION = "0.13.5"; 
         public const string CHANGELOG = VERSION + @"
 == Permissions changes
 Changed how permissions worked for bot.
@@ -153,7 +153,12 @@ Changed how permissions worked for bot.
 
         public static async Task MainAsync()
         {
+            Log += consoleLog;
+            Log += fileLog;
+            Log += cacheLogs;
+
             Program.LogMsg($"Starting bot with v{VER_STR}");
+
             Directory.SetCurrentDirectory(BASE_PATH);
             try
             {
@@ -196,7 +201,38 @@ Changed how permissions worked for bot.
             }
         }
 
-        static ConsoleColor getColor(LogSeverity s)
+        public struct LogWithTime
+        {
+            public LogWithTime(LogSeverity severity, string source, string message, Exception exception = null)
+            {
+                Source = source;
+                Severity = severity;
+                Message = message;
+                Exception = exception;
+                When = DateTime.Now;
+            }
+            public string Source { get; set; }
+            public string Message { get; set; }
+            public LogSeverity Severity { get; set; }
+            public Exception Exception { get; set; }
+            public DateTime When { get; set; }
+
+            public static implicit operator LogWithTime(LogMessage msg)
+            {
+                return new LogWithTime(msg.Severity, msg.Source, msg.Message, msg.Exception);
+            }
+        }
+
+        public static Queue<LogWithTime> lastLogs = new Queue<LogWithTime>(25);
+        static void cacheLogs(object sender, LogMessage msg)
+        {
+            lock(_lockObj)
+            {
+                lastLogs.Enqueue(msg);
+            }
+        }
+
+        public static ConsoleColor getColor(LogSeverity s)
         {
             return s switch
             {
@@ -210,7 +246,7 @@ Changed how permissions worked for bot.
             };
         }
 
-        private static object _lockObj = new object();
+        public static object _lockObj = new object();
         static string logFileLocation {  get
             {
                 var directory = Path.Combine(BASE_PATH, "data", "logs");
@@ -218,19 +254,21 @@ Changed how permissions worked for bot.
                     Directory.CreateDirectory(directory);
                 return Path.Combine(directory, DateTime.Now.ToString("yyyy-MM-dd") + ".txt");
             } }
-        static void fileLog(LogMessage msg)
+        static void fileLog(object sender, LogMessage msg)
         {
-            lock(_lockObj)
+            if (msg.Severity < LogLevel)
+                return;
+            lock (_lockObj)
             {
-                string s = formatMsg(msg);
+                string s = FormatLogMessage(msg);
                 File.AppendAllText(logFileLocation, s + "\r\n");
             }
         }
 
-        static string formatMsg(LogMessage msg)
+        public static string FormatLogMessage(LogWithTime msg)
         {
             var sb = new StringBuilder();
-            sb.Append(DateTime.Now.ToString("[HH:mm:ss.fff] "));
+            sb.Append(msg.When.ToString("[HH:mm:ss.fff] "));
             sb.Append($"<{msg.Severity.ToString().PadRight(8)}|{(msg.Source ?? "n/s").PadRight(18)}> ");
             int padLength = sb.Length + 1;
             var s = msg.Exception?.ToString() ?? msg.Message ?? "n/m";
@@ -238,15 +276,18 @@ Changed how permissions worked for bot.
             return sb.ToString();
         }
 
-        public static void LogMsg(LogMessage msg)
+        static void consoleLog(object sender, LogMessage msg)
         {
             var c = Console.ForegroundColor;
             Console.ForegroundColor = getColor(msg.Severity);
-            Console.WriteLine(formatMsg(msg));
+            Console.WriteLine(FormatLogMessage(msg));
             Console.ForegroundColor = c;
-            if (msg.Severity < LogLevel)
-                return;
-            fileLog(msg);
+        }
+
+        public static event EventHandler<LogMessage> Log;
+        public static void LogMsg(LogMessage msg)
+        {
+            Log?.Invoke(null, msg);
         }
 
         public static void LogMsg(Exception ex, string source) => LogMsg(new LogMessage(LogSeverity.Error, source, null, ex));

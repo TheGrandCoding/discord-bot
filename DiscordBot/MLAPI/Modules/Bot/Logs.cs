@@ -21,10 +21,10 @@ namespace DiscordBot.MLAPI.Modules.Bot
         public bool hasPerms;
 
         [RequirePermNode(Perms.Bot.Developer.SeeLatestLog)]
-        [Method("GET"), Path("/bot/logs/today")]
+        [Method("GET"), Path("/bot/logs")]
         public void GetTodaysLog()
         {
-
+            ReplyFile("bot/logs.html", HttpStatusCode.OK);
         }
 
         static string apiLogFolder => Path.Combine(Program.BASE_PATH, "APILogs");
