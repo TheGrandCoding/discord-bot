@@ -69,7 +69,9 @@ namespace DiscordBot
 
         public static string Clamp(string str, int length)
         {
-            return str[0..length];
+            if (str.Length <= length)
+                return str;
+            return str.Substring(0, length);
         }
 
         static SocketGuild m_logging;
