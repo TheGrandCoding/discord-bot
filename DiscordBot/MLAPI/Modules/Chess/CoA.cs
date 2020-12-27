@@ -142,7 +142,9 @@ namespace DiscordBot.MLAPI.Modules
 
         }
 
-        [Method("GET"), PathRegex(@"\/chess\/cases\/(?<n>\d{1,4})(?!\d*\/)")]
+        [Method("GET")]
+        [Path("/chess/cases/{n}")]
+        [Regex("n", @"\d{1,4}(?!\d*\/)")]
         public void ViewHearingInfo(int n)
         {
             var hearing = DB.Appeals.FirstOrDefault(x => x.Id == n);
@@ -268,7 +270,10 @@ namespace DiscordBot.MLAPI.Modules
         }
         #endregion
 
-        [Method("GET"), PathRegex(@"\/chess\/cases\/(?<n>\d{1,4})\/motions\/(?<mn>\d{1,2})(?!\/)")]
+        [Method("GET")]
+        [Path("/chess/cases/{n}/motions/{mn}")]
+        [Regex("n", @"\d{1,4}")]
+        [Regex("mn", @"\d{1,2}(?!\/)")]
         public void ViewMotionInfo(int n, int mn)
         {
             var hearing = DB.Appeals.FirstOrDefault(x => x.Id == n);
@@ -334,7 +339,10 @@ namespace DiscordBot.MLAPI.Modules
                 .Add("newpath", $"cases/{n}/motions/{mn}/files"));
         }
 
-        [Method("GET"), PathRegex(@"\/chess\/cases\/(?<n>\d{1,4})\/exhibits\/(?<ex>\d{1,2})(?!\/)")]
+        [Method("GET")]
+        [Path("/chess/cases/{n}/exhibits/{ex}")]
+        [Regex("n", @"\d{1,4}")]
+        [Regex("ex", @"\d{1,2}(?!\/)")]
         public void ViewExhibitInfo(int n, int ex)
         {
             var hearing = DB.Appeals.FirstOrDefault(x => x.Id == n);
@@ -355,7 +363,10 @@ namespace DiscordBot.MLAPI.Modules
                 .Add("iframe", $"<iframe src='/chess/cases/{n}/exhibit/{ex}'></iframe>"));
         }
 
-        [Method("GET"), PathRegex(@"\/chess\/cases\/(?<n>\d{1,4})\/witnesses\/(?<id>\d{1,3})(?!\/)")]
+        [Method("GET")]
+        [Path("/chess/cases/{n}/witnesses/{id}")]
+        [Regex("n", @"\d{1,4}")]
+        [Regex("id", @"\d{1,3}(?!\/)")]
         public void ViewWitnessInfo(int n, int id)
         {
             var hearing = DB.Appeals.FirstOrDefault(x => x.Id == n);
@@ -428,7 +439,9 @@ namespace DiscordBot.MLAPI.Modules
                 .Add("players", multiSelect));
         }
 
-        [Method("GET"), PathRegex(@"\/chess\/cases\/(?<n>\d{1,4})\/newmotion")]
+        [Method("GET")]
+        [Path("/chess/cases/{n}/newmotion")]
+        [Regex("n", @"\d{1,4}")]
         public void ViewCreateMotion(int n)
         {
             var hearing = DB.Appeals.FirstOrDefault(x => x.Id == n);
@@ -455,7 +468,9 @@ namespace DiscordBot.MLAPI.Modules
                 .Add("types", list));
         }
 
-        [Method("GET"), PathRegex(@"\/chess\/cases\/(?<n>\d{1,4})\/newexhibit")]
+        [Method("GET")]
+        [Path("/chess/cases/{n}/newexhibit")]
+        [Regex("n", @"\d{1,4}")]
         public void ViewCreateExhibit(int n)
         {
             var hearing = DB.Appeals.FirstOrDefault(x => x.Id == n);
@@ -477,7 +492,9 @@ namespace DiscordBot.MLAPI.Modules
             ReplyFile("newexhibit.html", 200, new Replacements(hearing));
         }
 
-        [Method("GET"), PathRegex(@"\/chess\/cases\/(?<n>\d{1,4})\/newwitness")]
+        [Method("GET")]
+        [Path("/chess/cases/{n}/newwitness")]
+        [Regex("n", @"\d{1,4}")]
         public void ViewCreateWitness(int n)
         {
             var hearing = DB.Appeals.FirstOrDefault(x => x.Id == n);
@@ -520,7 +537,9 @@ namespace DiscordBot.MLAPI.Modules
                 .Add("users", players));
         }
 
-        [Method("GET"), PathRegex(@"\/chess\/cases\/(?<n>\d{1,4})\/newruling")]
+        [Method("GET")]
+        [Path("/chess/cases/{n}/newruling")]
+        [Regex("n", @"\d{1,4}")]
         public void ViewCreateRuling(int n)
         {
             var hearing = DB.Appeals.FirstOrDefault(x => x.Id == n);
@@ -615,7 +634,9 @@ namespace DiscordBot.MLAPI.Modules
         }
         #endregion
 
-        [Method("POST"), PathRegex(@"\/chess\/api\/cases\/(?<n>\d{1,4})\/rulings")]
+        [Method("POST")]
+        [Path("/chess/api/cases/{n}/rulings")]
+        [Regex("n", @"\d{1,4}")]
         public void CreateNewRuling(int n, string desc)
         {
             var hearing = DB.Appeals.FirstOrDefault(x => x.Id == n);
@@ -658,7 +679,9 @@ namespace DiscordBot.MLAPI.Modules
             RespondRaw(LoadRedirectFile($"/chess/cases/{hearing.Id}"), System.Net.HttpStatusCode.Redirect);
         }
 
-        [Method("POST"), PathRegex(@"\/chess\/api\/cases\/(?<n>\d{1,4})\/exhibits")]
+        [Method("POST")]
+        [Path("/chess/api/cases/{n}/exhibits")]
+        [Regex("n", @"\d{1,4}")]
         public void CreateNewExhibit(int n, string _ = null)
         {
             var hearing = DB.Appeals.FirstOrDefault(x => x.Id == n);
@@ -703,7 +726,10 @@ namespace DiscordBot.MLAPI.Modules
             RespondRaw(LoadRedirectFile($"/chess/cases/{hearing.Id}/exhibits/{exhibit.AttachmentId}"));
         }
 
-        [Method("POST"), PathRegex(@"\/chess\/api\/cases\/(?<n>\d{1,4})\/motions\/(?<mn>\d{1,2})\/files")]
+        [Method("POST")]
+        [Path("/chess/api/cases/{n}/motions/{mn}/files")]
+        [Regex("n", @"\d{1,4}")]
+        [Regex("mn", @"\d{1,2}")]
         public void AttachFileToMotion(int n, int mn, string notneeded = "") // string is to force body to be parsed, since it isn't until an argument is needed that isn't in query or regex.
         {
             var hearing = DB.Appeals.FirstOrDefault(x => x.Id == n);
@@ -755,7 +781,10 @@ namespace DiscordBot.MLAPI.Modules
             RespondRaw(LoadRedirectFile($"/chess/cases/{hearing.Id}/motions/{motion.Id}"), System.Net.HttpStatusCode.Redirect);
         }
 
-        [Method("PATCH"), PathRegex(@"\/chess\/api\/cases\/(?<n>\d{1,4})\/motions\/(?<mn>\d{1,2})\/holding")]
+        [Method("PATCH")]
+        [Path("/chess/api/cases/{n}/motions/{mn}/holding")]
+        [Regex("n", @"\d{1,4}")]
+        [Regex("mn", @"\d{1,2}")]
         public void SetMotionOutcome(int n, int mn)
         {
             var hearing = DB.Appeals.FirstOrDefault(x => x.Id == n);
@@ -788,7 +817,9 @@ namespace DiscordBot.MLAPI.Modules
             RespondRaw("");
         }
 
-        [Method("POST"), PathRegex(@"\/chess\/api\/cases\/(?<n>\d{1,4})\/motions(?!\/)")]
+        [Method("POST")]
+        [Path(@"/chess/api/cases/{n}/motions")]
+        [Regex(".", @"\/chess\/api\/cases\/\d{1,4}\/motions(?!\/)")]
         public void CreateNewMotion(int n, string types)
         {
             var hearing = DB.Appeals.FirstOrDefault(x => x.Id == n);
@@ -826,7 +857,9 @@ namespace DiscordBot.MLAPI.Modules
             RespondRaw(LoadRedirectFile($"/chess/cases/{n}/motions/{motion.Id}"), System.Net.HttpStatusCode.Redirect);
         }
 
-        [Method("POST"), PathRegex(@"\/chess\/api\/cases\/(?<n>\d{1,4})\/witnesses(?!\/)")]
+        [Method("POST")]
+        [Path("/chess/api/cases/{n}/witnesses")]
+        [Regex(".", @"\/chess\/api\/cases\/\d{1,4}\/witnesses(?!\/)")]
         public void CreateNewWitness(int n, int id)
         {
             var hearing = DB.Appeals.FirstOrDefault(x => x.Id == n);
@@ -866,7 +899,9 @@ namespace DiscordBot.MLAPI.Modules
             RespondRaw(LoadRedirectFile($"/chess/cases/{hearing.Id}/witnesses/{id}"), System.Net.HttpStatusCode.Redirect);
         }
 
-        [Method("PUT"), PathRegex(@"\/chess\/api\/appeal\/(?<n>\d{1,4})")]
+        [Method("PUT")]
+        [Path("/chess/api/appeal/{n}")]
+        [Regex("n", @"\d{1,4}")]
         public void SubmitAppeal(int n)
         {
             var hearing = DB.Appeals.FirstOrDefault(x => x.Id == n);
@@ -937,7 +972,11 @@ namespace DiscordBot.MLAPI.Modules
         }
         bool isPermittedExtension(string ext) => mimeFromExtension(ext) != ext;
 
-        [Method("GET"), PathRegex(@"\/chess\/cases\/(?<cn>\d{1,4})\/motions\/(?<mi>\d{1,2})\/(?<ai>\d{1,2})")]
+        [Method("GET")]
+        [Path("/chess/cases/{cn}/motions/{mi}/{ai}")]
+        [Regex("cn", @"\d{1,4}")]
+        [Regex("mi", @"\d{1,2}")]
+        [Regex("ai", @"\d{1,2}")]
         public void GetFileRaw(int cn, int mi, int ai)
         {
             var hearing = DB.Appeals.FirstOrDefault(x => x.Id == cn);
@@ -974,7 +1013,9 @@ namespace DiscordBot.MLAPI.Modules
             Context.HTTP.Response.Close();
         }
 
-        [Method("GET"), PathRegex(@"\/chess\/cases\/(?<cn>\d{1,4})\/ruling")]
+        [Method("GET")]
+        [Path("/chess/cases/{cn}/ruling")]
+        [Regex("cn", @"\d{1,4}")]
         public void GetRulingRaw(int cn)
         {
             var hearing = DB.Appeals.FirstOrDefault(x => x.Id == cn);
@@ -1006,7 +1047,10 @@ namespace DiscordBot.MLAPI.Modules
             Context.HTTP.Response.Close();
         }
 
-        [Method("GET"), PathRegex(@"\/chess\/cases\/(?<cn>\d{1,4})\/exhibit\/(?<ex>\d{1,2})")]
+        [Method("GET")]
+        [Path("/chess/cases/{cn}/exhibit/{ex}")]
+        [Regex("cn", @"\d{1,4}")]
+        [Regex("ex", @"\d{1,2}")]
         public void GetExhibitRaw(int cn, int ex)
         {
             var hearing = DB.Appeals.FirstOrDefault(x => x.Id == cn);

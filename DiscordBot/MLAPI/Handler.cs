@@ -1,4 +1,5 @@
 ﻿using Discord;
+using Discord.Commands;
 using DiscordBot.Classes;
 using DiscordBot.MLAPI.Exceptions;
 using System;
@@ -68,7 +69,8 @@ namespace DiscordBot.MLAPI
         } 
 
         public static Dictionary<string, List<APIEndpoint>> Endpoints = new Dictionary<string, List<APIEndpoint>>();
-    
+        public static List<APIModule> Modules { get; set; } = new List<APIModule>();
+
         static void buildEndpoints()
         {
             Endpoints = new Dictionary<string, List<APIEndpoint>>();
@@ -77,6 +79,12 @@ namespace DiscordBot.MLAPI
                     select t;
             foreach(var module in q)
             {
+                var mod = new APIModule();
+                mod.Name = module.GetCustomAttribute<NameAttribute>()?.Text ?? module.Name;
+                mod.Summary = module.GetCustomAttribute<SummaryAttribute>()?.Text ?? null;
+                mod.Type = module;
+                foreach (var prec in module.GetCustomAttributes<APIPrecondition>())
+                    mod.Preconditions.Add(prec);
                 var methods = module.GetMethods(BindingFlags.Public | BindingFlags.Instance);
                 foreach(var func in methods)
                 {
@@ -84,11 +92,16 @@ namespace DiscordBot.MLAPI
                     var path = func.GetCustomAttribute<PathAttribute>();
                     if (method == null || path == null)
                         continue;
-                    var api = new APIEndpoint();
-                    api.Method = method.Method.Method;
-                    api.Path = path;
+                    var name = func.GetCustomAttribute<NameAttribute>();
+                    var api = new APIEndpoint(method.Method.Method, path);
+                    var regexs = func.GetCustomAttributes<RegexAttribute>();
+                    foreach (var keypair in regexs)
+                        api.Regexs[keypair.Name] = keypair.Regex;
+                    api.Name = name?.Text ?? func.Name;
+                    api.Summary = func.GetCustomAttribute<SummaryAttribute>()?.Text ?? null;
                     api.Function = func;
-                    api.Module = module;
+                    api.Module = mod;
+                    mod.Endpoints.Add(api);
                     var prec = api.Function.GetCustomAttributes<APIPrecondition>().ToList();
                     api.Preconditions = prec.ToArray();
                     if (Endpoints.ContainsKey(api.Method))
@@ -103,6 +116,7 @@ namespace DiscordBot.MLAPI
                         });
                     }
                 }
+                Modules.Add(mod);
             }
             foreach (var keypair in Endpoints)
                 Program.LogMsg($"Loaded {keypair.Value.Count} {keypair.Key} endpoints", source:"API", sev:LogSeverity.Debug);

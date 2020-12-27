@@ -934,7 +934,11 @@ namespace DiscordBot.MLAPI.Modules
             }
         }
     
-        [Method("GET"), PathRegex(@"\/attachments\/[0-9]{17,18}\/[0-9]{17,18}\/[A-Za-z0-9]+")]
+        [Method("GET")]
+        [Path("/attachments/{channel_id}/{message_id}/{filename}")]
+        [Regex("channel_id", @"[0-9]{17,18}")]
+        [Regex("message_id", @"[0-9]{17,18}")]
+        [Regex("filename", "[A-Za-z0-9]+")]
         public void ProxyImage()
         {
             var client = Program.Services.GetRequiredService<HttpClient>();

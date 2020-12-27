@@ -1,6 +1,8 @@
 ﻿using Discord;
+using DiscordBot.Classes.HTMLHelpers;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Text;
 
 namespace DiscordBot.MLAPI
@@ -10,7 +12,8 @@ namespace DiscordBot.MLAPI
         protected PathAttribute()
         {
         }
-        public string Path { get; protected set; }
+
+        public string Text { get; protected set; }
         /// <summary>
         /// Where the path is prefixed by a /, and does NOT have a trailing /
         /// </summary>
@@ -20,12 +23,25 @@ namespace DiscordBot.MLAPI
                 path = "/" + path;
             if (path.EndsWith("/") && path != "/")
                 Program.LogMsg($"Path invalid: '{path}'", source:"API", sev:LogSeverity.Warning);
-            Path = path;
+            Text = path;
         }
-
-        public virtual bool IsMatch(string query)
+    }
+    [DebuggerDisplay("{Name}={Regex}")]
+    [AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
+    public class RegexAttribute : Attribute
+    {
+        public string Name { get; }
+        public string Regex { get; }
+        public RegexAttribute(string name, string regex)
         {
-            return query == Path;
+            Name = name;
+            Regex = regex;
+            if(regex.StartsWith("(?<"))
+            {
+                var start = $"(?<{name}>";
+                Regex = regex.Substring(start.Length);
+                Regex = regex[..^1];
+            }
         }
     }
 }

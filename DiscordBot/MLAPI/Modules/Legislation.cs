@@ -16,7 +16,9 @@ namespace DiscordBot.MLAPI.Modules
             Service = Program.Services.GetRequiredService<LegislationService>();
         }
 
-        [Method("GET"), PathRegex(@"\/laws\/(?!.*\/.)(?<name>[a-z0-9-]+)", "/laws/<name>")]
+        [Method("GET")]
+        [Path("/laws/{name}")]
+        [Regex(".", @"\/laws\/(?!.*\/.)(?<name>[a-z0-9-]+)")]
         public void SeeLaw(string name, bool raw = false)
         {
             if(!Service.Laws.TryGetValue(name, out var act))

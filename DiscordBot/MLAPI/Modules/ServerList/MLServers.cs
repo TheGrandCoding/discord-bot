@@ -85,7 +85,9 @@ namespace DiscordBot.MLAPI.Modules.ServerList
             return $"<p>Connection IP: <strong>{ip}</strong></p>";
         }
 
-        [Method("GET"), PathRegex(@"\/masterlist\/(?!.*\/.)(?<id>[a-zA-Z0-9-]+)", "/masterlist/<id>")]
+        [Method("GET")]
+        [Path("/masterlist/{id}")]
+        [Regex(".", @"\/masterlist\/(?!.*\/.)(?<id>[a-zA-Z0-9-]+)")]
         public void SeeSpecificServer(Guid id)
         {
             if(!Service.Servers.TryGetValue(id, out var server))
@@ -171,7 +173,9 @@ namespace DiscordBot.MLAPI.Modules.ServerList
             RespondRaw(Program.Serialise(srv), HttpStatusCode.Created);
         }
         
-        [Method("PATCH"), PathRegex(@"\/servers\/(?!.*\/.)(?<id>[a-zA-Z0-9-]+)")]
+        [Method("PATCH")]
+        [Path("/servers/{id}")]
+        [Regex(".", @"\/servers\/(?!.*\/.)(?<id>[a-zA-Z0-9-]+)")]
         public void PatchServer(Guid id, string auth, int? port = 0, string internalIP = null)
         {
             if(!Service.Servers.TryGetValue(id, out var server))
@@ -202,7 +206,9 @@ namespace DiscordBot.MLAPI.Modules.ServerList
             RespondRaw(Program.Serialise(server), HttpStatusCode.OK);
         }
         
-        [Method("POST"), PathRegex(@"\/servers\/(?!.*\/.)(?<id>[a-zA-Z0-9-]+)")]
+        [Method("POST")]
+        [Path("/servers/{id}")]
+        [Regex(".", @"\/servers\/(?!.*\/.)(?<id>[a-zA-Z0-9-]+)")]
         public void ServerInfo(Guid id, string auth)
         {
             if (!Service.Servers.TryGetValue(id, out var server))
@@ -219,7 +225,9 @@ namespace DiscordBot.MLAPI.Modules.ServerList
             RespondRaw("Ok", HttpStatusCode.OK);
         }
 
-        [Method("DELETE"), PathRegex(@"\/servers\/(?!.*\/.)(?<id>[a-zA-Z0-9-]+)")]
+        [Method("DELETE")]
+        [Path("/servers/{id}")]
+        [Regex(".", @"\/servers\/(?!.*\/.)(?<id>[a-zA-Z0-9-]+)")]
         public void DeleteServer(Guid id, string auth)
         {
             if (!Service.Servers.TryGetValue(id, out var server))
@@ -236,7 +244,10 @@ namespace DiscordBot.MLAPI.Modules.ServerList
             RespondRaw($"Removed", HttpStatusCode.NoContent);
         }
         
-        [Method("PUT"), PathRegex(@"\/servers\/(?<id>[a-zA-Z0-9-]+)\/players\/(?!.*\/.)(?<pId>[a-zA-Z0-9]+)")]
+        [Method("PUT")]
+        [Path("/servers/{id}/players{pId}")]
+        [Regex("id", @"[a-zA-Z0-9-]+")]
+        [Regex("pId", @"[a-zA-Z0-9]+")]
         public void AddPlayer(Guid id, string auth, string pId, string name = null, int? score = null, int? latency = null)
         {
             if (!Service.Servers.TryGetValue(id, out Server server) || server.Authentication != auth)
@@ -263,7 +274,10 @@ namespace DiscordBot.MLAPI.Modules.ServerList
             }
         }
         
-        [Method("DELETE"), PathRegex(@"\/servers\/(?<id>[a-zA-Z0-9-]+)\/players\/(?!.*\/.)(?<pId>[a-zA-Z0-9]+)")]
+        [Method("DELETE")]
+        [Path("/servers/{id}/players/{pId}")]
+        [Regex("id", @"[a-zA-Z0-9-]+")]
+        [Regex("pId", @"[a-zA-Z0-9]+")]
         public void DeletePlayer(Guid id, string auth, string pId)
         {
             if (!Service.Servers.TryGetValue(id, out Server server) || server.Authentication != auth)

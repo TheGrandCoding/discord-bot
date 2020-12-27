@@ -77,7 +77,9 @@ namespace DiscordBot.MLAPI.Modules.Voting
             ReplyFile("admin/new.html", 200);
         }
 
-        [Method("GET"), PathRegex(@"\/vote\/admin\/(?<id>[a-z0-9]{24})")]
+        [Method("GET")]
+        [Path("/vote/admin/{id}")]
+        [Regex("id", @"[a-z0-9]{24}")]
         public void ViewCategories(string id)
         {
             if(!ObjectId.TryParse(id, out var eId))
@@ -276,7 +278,9 @@ namespace DiscordBot.MLAPI.Modules.Voting
             RespondRaw(LoadRedirectFile($"/vote/admin/{election.Id}"), System.Net.HttpStatusCode.Redirect);
         }
 
-        [Method("POST"), PathRegex(@"\/vote\/api\/admin\/(?<id>[a-z0-9]{24})\/categories")]
+        [Method("POST")]
+        [Path("/vote/api/admin/{id}/categories")]
+        [Regex("id", @"[a-z0-9]{24}")]
         public void AddOrAmendCategory(string id, int number, string prompt)
         {
             if(!ObjectId.TryParse(id, out var eId))

@@ -10,6 +10,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Web;
 
 namespace DiscordBot.MLAPI
@@ -119,14 +120,12 @@ namespace DiscordBot.MLAPI
 
         string getFromNamedRegex(string key)
         {
-            if(Endpoint.Path is PathRegex rgx)
+            var rgx = new Regex(Endpoint.GetRegexPattern());
+            var keys = rgx.GetGroupNames();
+            if(keys.Contains(key))
             {
-                var keys = rgx.Regex.GetGroupNames();
-                if(keys.Contains(key))
-                {
-                    var val = rgx.RgxMatch.Groups[key];
-                    return val.Value;
-                }
+                var val = rgx.Match(Request.Url.AbsolutePath).Groups[key];
+                return val.Value;
             }
             return null;
         }

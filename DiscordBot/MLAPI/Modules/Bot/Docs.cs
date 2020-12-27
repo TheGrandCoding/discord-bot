@@ -1,10 +1,17 @@
-﻿using Discord.Commands;
+﻿using Discord;
+using Discord.Commands;
 using DiscordBot.Classes;
+using DiscordBot.Classes.HTMLHelpers;
+using DiscordBot.Classes.HTMLHelpers.Objects;
+using DiscordBot.Commands;
 using DiscordBot.Services.BuiltIn;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 
 namespace DiscordBot.MLAPI.Modules
@@ -13,15 +20,21 @@ namespace DiscordBot.MLAPI.Modules
     {
         public Docs(APIContext c) : base(c, "bot")
         {
+            Sidebar = SidebarType.None;
+            InjectObjects = new List<HTMLBase>();
         }
-        private string msgBox(string type, string message)
+        private Div msgBox(string type, string message)
         {
-            return $"<div class='msgBox {type}'>" +
-                $"<p>{message}</p>" +
-                $"</div>";
+            return new Div(cls: "alert-box " + type)
+            {
+                Children =
+                {
+                    new RawObject($"<blockquote>{message}</blockquote>")
+                }
+            };
         }
-        private string info(string message) => msgBox("info", message);
-        private string warn(string message) => msgBox("warn", message);
+        private Div info(string message) => msgBox("info", message);
+        private Div warn(string message) => msgBox("warn", message);
 
         string CurrentLook { get; set; }
 
@@ -35,51 +48,14 @@ namespace DiscordBot.MLAPI.Modules
             return text;
         }
 
-        string getSidebarCommands()
-        {
-            string text = "";
-            text += "<ol>";
-            foreach(var mod in Program.Commands.Modules)
-            {
-                text += getListInfo(mod, 0);
-            }
-            return text + "</ol>";
-        }
-
-        string getSidebarAPI()
-        {
-            string text = "<ol>";
-
-            var modules = new Dictionary<string, Type>();
-            foreach(var list in Handler.Endpoints.Values)
-            {
-                foreach(var cmd in list)
-                {
-                    modules.TryAdd(cmd.Module.Name, cmd.Module);
-                }
-            }
-
-            foreach(var keypair in modules)
-            {
-                string url = keypair.Key;
-                var mod = keypair.Value;
-                text += $"<li class='level-0'>" +
-                    $"{aLink("/docs/api/" + url, mod.Name)}" +
-                    $"</li>";
-            }
-
-            return text + "</ol>";
-        }
-
-        Replacements rep()
+        Replacements rep(string cmd, string api)
         {
             return new Replacements()
-                .Add("commands", getSidebarCommands())
-                .Add("modules", getSidebarAPI());
+                .Add("sideContent", getSidebar(cmd, api));
         }
 
         string span(string cls, string content) => $"<span class='{cls}'>{content}</span>";
-        string getInfo(ParameterInfo param)
+        string getInfo(Discord.Commands.ParameterInfo param)
         {
             string text = " ";
             text += param.IsOptional ? span("paramo", "[") : span("paramr", "&lt;");
@@ -134,62 +110,372 @@ namespace DiscordBot.MLAPI.Modules
             }
             return text;
         }
-        string getInfo(ModuleInfo module)
+        string[] listPerms(ChannelPermission? channel, GuildPermission? guild)
         {
-            string text = $"<h1>{module.Name}</h1>";
-            text += getInfoBoxes(module);
-            var groups = module.Aliases.Where(x => !string.IsNullOrWhiteSpace(x));
-            if (groups.Count() > 0)
+            var ls = new List<string>();
+            var flags = new List<ulong>();
+            if(channel != null)
             {
-                text += $"<p>Prefixes: ";
-                foreach (var x in groups)
-                    text += $"<code>{Program.Prefix}{x}</code>";
-                text += "</p>";
-            }
-            if(module.Preconditions.Count > 0)
-            {
-                text += $"<p>Preconditions that apply for every command: <ol>";
-                var grouped = module.Preconditions.GroupBy(x => x.Group);
-                bool key = grouped.Count() > 1;
-                foreach(var grouping in grouped)
+                var a = new ChannelPermissions((ulong)channel);
+                foreach (var x in a.ToList())
                 {
-                    foreach(var item in grouping)
+                    ls.Add(x.ToString());
+                    flags.Add((ulong)x);
+                }
+            }
+            if(guild != null)
+            {
+                var b = new GuildPermissions((ulong)guild);
+                foreach (var x in b.ToList())
+                    if(!flags.Contains((ulong)x))
+                        ls.Add(x.ToString());
+            }
+            return ls.ToArray();
+        }
+        UnorderedList htmlListPerms(ChannelPermission? channel, GuildPermission? guild)
+        {
+            var perms = listPerms(channel, guild);
+            var ul = new UnorderedList();
+            foreach (var x in perms)
+                ul.AddItem(x);
+            return ul;
+        }
+        
+        
+        #region Common
+
+        public static string escapeForUrl(string text)
+            => text == null
+            ? null
+            : Uri.EscapeUriString(text.ToLower()
+                .Replace("/", "-")
+                .Replace(" ", "-")
+                .Replace(".", "_"));
+        string unescapeFromUrl(string text)
+            => text == null
+            ? null
+            : Uri.UnescapeDataString(text)
+                .Replace("_", ".")
+                .Replace("-", " ");
+
+        public static HTMLBase linkHeader(int order, string text, string id = null, string cls = null)
+        {
+            id ??= escapeForUrl(text);
+            var html = new Header(order, id, cls);
+            if (order == 1)
+                html.ClassList.Add("h1-E4giPK");
+            else if (order == 2)
+                html.ClassList.Add("h2-2MZoq3");
+            else if (order == 3)
+                html.ClassList.Add("h3-1nY9uO");
+            else if (order == 6)
+                html.ClassList.Add("h6-3ZuB-g");
+            html.Children.Add(new RawObject(text));
+            var anchor = new Anchor("#" + id, "", cls: "anchor-3Z-8Bb hyperlink");
+            anchor.Children.Add(new Div().WithTag("name", id));
+            html.Children.Add(anchor);
+            return html;
+        }
+        Span docParagraph()
+        {
+            return new Span(cls: "paragraph-mttuxw");
+        }
+
+        HTMLBase getSidebar(string cmdSelected, string apiSelected)
+        {
+            var wrapper = new Div(cls: "wrapper-36iaZw");
+            var scrollerWrap = new Div(cls: "scrollerWrap-2lJEkd scrollerWrapper-2xG8VZ scrollerThemed-2oenus themeGhost-28MSn0");
+            wrapper.Children.Add(scrollerWrap);
+
+            var scroller = new Div(cls: "scroller-2FKFPG scroller-2y6PPh");
+            scrollerWrap.Children.Add(scroller);
+
+            var wrapperInner = new Div(cls: "wrapperInner-2p1_wN wrapperInner-2HPIEA");
+            scroller.Children.Add(wrapperInner);
+
+            var content = new Div(cls: "content-32JuGj wrapper-30VLTo");
+            wrapperInner.Children.Add(content);
+
+            var subNavigation = new Div(cls: "section-X9hK_F flush-27Pr3U subNavigation-2ZLDNC");
+            content.Children.Add(subNavigation);
+
+            subNavigation.Children.Add(getSidebarCommands(cmdSelected));
+            subNavigation.Children.Add(getSidebarAPI(apiSelected));
+
+            return wrapper;
+        }
+
+        Div explainPreconditions(PreconditionAttribute attribute, bool module)
+        {
+            string summary;
+            string type = module ? "This module " : "This command ";
+            if (attribute is RequireContextAttribute rca)
+                summary = $"must be executed in a {rca.Contexts}";
+            else if (attribute is RequireUserPermissionAttribute rupa)
+                summary = $"must be executed by a user who has the following permission:<br/>" +
+                    htmlListPerms(rupa.ChannelPermission, rupa.GuildPermission);
+            else if (attribute is RequireOwnerAttribute)
+                summary = $"must be executed by the Owner of the bot";
+            else if (attribute is RequireBotPermissionAttribute rbpa)
+                summary = $"requires the bot's account to have the following permissions:<br/>" +
+                    htmlListPerms(rbpa.ChannelPermission, rbpa.GuildPermission);
+            else if (attribute is RequirePermission rp)
+                summary = $"must be executed by a user who has the <code>{rp.Node}</code> permission";
+            else
+                summary = attribute.GetType().Name.Replace("Attribute", "");
+            return warn(type + summary);
+        }
+        Div explainPreconditions(APIPrecondition attribute, bool module)
+        {
+            string summary;
+            string type = module ? "This module " : "This command ";
+            summary = attribute.GetType().Name.Replace("Attribute", "");
+            return warn(type + summary);
+        }
+
+        #endregion
+
+        #region Commands
+
+        Div getSidebarCommands(string selected)
+        {
+            var section = new Div(cls: "section-X9hK_F");
+
+            section.Children.Add(new Paragraph("commands", cls:
+                "heading-10iJKV marginBottom8-1wldKw small-29zrCQ size12-DS9Pyp" +
+                " height16-3r2Q2W primary200-1Ayq8L weightSemiBold-tctXJ7 uppercase-1K74Lz"));
+
+            var list = new UnorderedList(cls: "mainList-otExiM");
+            section.Children.Add(list);
+
+            foreach(var module in Program.Commands.Modules.OrderBy(x => x.Name))
+            {
+                var href = $"/docs/commands/{escapeForUrl(module.Name)}";
+                var anchor = new Anchor(href,
+                        text: module.Name,
+                        cls: "navLink-1Neui4 navLinkSmall-34Tbhm");
+                list.Children.Add(new ListItem(null)
+                {
+                    Children =
                     {
-                        text += "<li>";
-                        if (key) text += $"<strong>{grouping.Key}</strong> ";
-                        text += $"{item.GetType().Name}</li>";
+                        anchor
+                    }
+                });
+                if(escapeForUrl(module.Name) == selected)
+                {
+                    anchor.ClassList.Add("activeLink-22b0_I");
+                    var spy = new Div(cls: "ScrollSpy");
+                    list.Children.Add(spy);
+                    foreach(var x in module.Commands)
+                    {
+                        list.Children.Add(new Anchor($"{href}#{escapeForUrl(x.Name)}", x.Name,
+                            cls: "anchor-3Z-8Bb subLink-3M1J2_"));
                     }
                 }
-                text += "</ol>";
             }
-            foreach (var cmd in module.Commands)
-                text += getInfo(cmd);
-            return text;
+
+            return section;
         }
+
+        Div cmdGetMain(ModuleInfo module)
+        {
+            var main = new Div(cls: "markdown-11q6EU");
+            if(module == null)
+            {
+                main.Children.Add(msgBox("error", "There is no module by that name."));
+                return main;
+            }
+            main.Children.Add(linkHeader(1, module.Name));
+            if (module.Summary != null)
+                main.Children.Add(docParagraph().WithRawText(module.Summary));
+            foreach(var precondition in module.Preconditions)
+            {
+                main.Children.Add(explainPreconditions(precondition, true));
+            }
+
+            foreach(var x in module.Commands)
+            {
+                var req = new HttpReqUrl(x.Aliases.First(), x.Name);
+                foreach (var param in x.Parameters)
+                    req.AddParam(param);
+                main.Children.Add(req.ToHtml());
+                if(x.Summary != null)
+                    main.Children.Add(docParagraph().WithRawText(x.Summary));
+                foreach(var pre in x.Preconditions)
+                {
+                    main.Children.Add(explainPreconditions(pre, false));
+                }
+            }
+            return main;
+        }
+
+        #endregion
+
+        #region API
+        Div getSidebarAPI(string selected)
+        {
+            var section = new Div(cls: "section-X9hK_F");
+
+            section.Children.Add(new Paragraph("API routes", cls:
+                "heading-10iJKV marginBottom8-1wldKw small-29zrCQ size12-DS9Pyp" +
+                " height16-3r2Q2W primary200-1Ayq8L weightSemiBold-tctXJ7 uppercase-1K74Lz"));
+
+            var list = new UnorderedList(cls: "mainList-otExiM");
+            section.Children.Add(list);
+
+            var modules = new Dictionary<string, List<APIEndpoint>>();
+            foreach (var ep in Handler.Endpoints.Values)
+            {
+                foreach (var cmd in ep)
+                {
+                    var name = cmd.Module.Name;
+                    if (modules.TryGetValue(name, out var epLs))
+                        epLs.Add(cmd);
+                    else
+                        modules[name] = new List<APIEndpoint>() { cmd };
+                }
+            }
+
+            foreach (var keypair in modules)
+            {
+                var href = $"/docs/api/{escapeForUrl(keypair.Key)}";
+                list.Children.Add(new ListItem(null)
+                {
+                    Children =
+                    {
+                        new Anchor(href,
+                        text: keypair.Key,
+                        cls: "navLink-1Neui4 navLinkSmall-34Tbhm")
+                    }
+                });
+                if (keypair.Key.Equals(selected, StringComparison.InvariantCultureIgnoreCase))
+                {
+                    var spy = new Div(cls: "ScrollSpy");
+                    list.Children.Add(spy);
+                    foreach (var cmd in keypair.Value)
+                    {
+                        var name = cmd.Name;
+                        list.Children.Add(new Anchor($"{href}#{escapeForUrl(name)}", name,
+                            cls: "anchor-3Z-8Bb subLink-3M1J2_"));
+                    }
+                }
+            }
+
+            return section;
+        }
+
+        Div apiGetMain(APIModule module)
+        {
+            var main = new Div(cls: "markdown-11q6EU");
+            if (module == null)
+            {
+                main.Children.Add(msgBox("error", "There is no module by that name."));
+                return main;
+            }
+            main.Children.Add(linkHeader(1, module.Name));
+            if (module.Summary != null)
+                main.Children.Add(docParagraph().WithRawText(module.Summary));
+            foreach (var precondition in module.Preconditions)
+            {
+                main.Children.Add(explainPreconditions(precondition, true));
+            }
+
+            foreach (var x in module.Endpoints)
+            {
+                var req = new HttpReqUrl(x.Method, x.Name);
+                main.Children.Add(req.ToHtml());
+                if (x.Summary != null)
+                    main.Children.Add(docParagraph().WithRawText(x.Summary));
+                foreach (var pre in x.Preconditions)
+                {
+                    main.Children.Add(explainPreconditions(pre, false));
+                }
+            }
+            return main;
+        }
+
+        #endregion
 
         [Method("GET"), Path("/docs")]
         public void Base()
         {
-            ReplyFile("docs.html", 200, rep()
-                .Add("content", "<strong>Please select an item on the left!</strong>"));
+            ReplyFile("docs.html", 200, rep(null, null)
+                .Add("mainContent", "<strong>Please select an item on the left!</strong>"));
         }
 
-        [Method("GET"), PathRegex(@"\/docs\/cmd\/(?<name>[\S\._]+)")]
+        [Method("GET"), Path(@"/docs/commands/{name}")]
+        [Regex("name", @"[\S\._]+")]
         public void CommandItem(string name)
         {
             CurrentLook = name;
-            var item = Program.Commands.Modules.FirstOrDefault(x => x.Name == name.Replace(".", " "));
-            ReplyFile("docs.html", 200, rep()
-                .Add("content", getInfo(item)));
+            var item = Program.Commands.Modules.FirstOrDefault(x => escapeForUrl(x.Name) == name);
+            ReplyFile("docs.html", 200, rep(name, null)
+                .Add("mainContent", cmdGetMain(item)));
         }
 
-        [Method("GET"), PathRegex(@"\/docs\/api\/(?<name>[\S\._]+)")]
+        [Method("GET"), Path("/docs/api/{name}")]
+        [Regex("name", @"[\S\._]+")]
         public void APIItem(string name)
         {
             CurrentLook = name;
-            ReplyFile("docs.html", 200, rep()
-                .Add("content", new DocBoxAttribute("error", "API Documentation not yet implemented").HTML()));
+
+            ReplyFile("docs.html", 200, rep(null, name)
+                .Add("mainContent", msgBox("error", "API Documentation not yet implemented")));
         }
 
+    }
+
+    class HttpReqUrl
+    {
+        Div html;
+        Span url;
+        public HttpReqUrl(string method, string name, string id = null)
+        {
+            html = new Div(cls: "http-req");
+            html.Children.Add(Docs.linkHeader(2, name, id, "http-req-title"));
+            html.Children.Add(new Span(cls: "http-req-verb").WithRawText(method));
+            url = new Span(cls: "http-req-url");
+            html.Children.Add(url);
+        }
+        public HttpReqUrl AddPath(string text)
+        {
+            url.Children.Add(new Span().WithRawText(text));
+            return this;
+        }
+        public HttpReqUrl AddVariable(string name, string link = "#")
+        {
+            url.Children.Add(new Span()
+            {
+                Children =
+                {
+                    new Anchor(link, "", "{" + name + "}", cls: "http-req-variable")
+                }
+            });
+            return this;
+        }
+        public HttpReqUrl AddParam(Discord.Commands.ParameterInfo param, string link = "#")
+        {
+            var span = new Span();
+            var anchor = new Anchor(link, "", cls: "http-req-variable");
+            span.Children.Add(anchor);
+            anchor.Children.Add(new RawObject("{"));
+            anchor.Children.Add(new Span()
+            {
+                RawText = Program.GetTypeName(param.Type),
+                Style = "color: red"
+            });
+            anchor.Children.Add(new Span().WithRawText(" " + param.Name));
+            if(param.IsOptional)
+            {
+                anchor.Children.Add(new Span().WithRawText($" = {(param.DefaultValue ?? "null")}")
+                    .WithTag("style", "color: blue"));
+            }
+            anchor.Children.Add(new RawObject("}"));
+            span.Children.Add(new RawObject(" "));
+            url.Children.Add(span);
+            return this;
+        }
+        public override string ToString() => html?.ToString() ?? "";
+        public HTMLBase ToHtml() => html;
     }
 }

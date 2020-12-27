@@ -24,7 +24,7 @@ namespace DiscordBot.Classes.Converters
             if(value is ErrorItem err)
             {
                 var jobj = new JObject();
-                jobj["path"] = err.endpoint?.Path?.Path ?? "*";
+                jobj["path"] = err.endpoint?.GetNicePath() ?? "*";
                 jobj["reason"] = err.reason;
                 jobj.WriteTo(writer);
             }

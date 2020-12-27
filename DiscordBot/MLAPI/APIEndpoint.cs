@@ -3,20 +3,75 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace DiscordBot.MLAPI
 {
     public class APIEndpoint
     {
+        public APIEndpoint(string method, PathAttribute path)
+        {
+            Method = method;
+            m_path = path;
+            IsRegex = path.Text.Contains("{");
+        }
         public string Method { get; set; }
-        public PathAttribute Path { get; set; }
+        public string Name { get; set; }
+        public string Summary { get; set; }
+        public Dictionary<string, string> Regexs { get; set; } = new Dictionary<string, string>();
         public MethodInfo Function { get; set; }
         public APIPrecondition[] Preconditions { get; set; }
-        public Type Module { get; set; }
+        public APIModule Module { get; set; }
+        public bool IsRegex { get; }
+
+        private PathAttribute m_path;
+        string getGroupConstruct(string name, string pattern)
+        {
+            return $"(?<{name}>{pattern})";
+        }
+        public string GetRegexPattern()
+        {
+            if (Regexs.TryGetValue(".", out var path))
+                return path;
+            if (!IsRegex)
+                return GetNicePath();
+            var sb = new StringBuilder();
+            var slices = m_path.Text.Split('/');
+            foreach(var x in slices)
+            {
+                if (x == "")
+                    continue;
+                sb.Append(@"\/");
+                if(x.StartsWith("{"))
+                {
+                    var name = x[1..^1];
+                    var pattern = Regexs[name];
+                    var group = getGroupConstruct(name, pattern);
+                    sb.Append(group);
+                } else
+                {
+                    sb.Append(x);
+                }
+            }
+            if (sb.Length == 0)
+                sb.Append(@"\/");
+            return sb.ToString();
+        }
+        public string GetNicePath() => m_path.Text;
+
+        public bool IsMatch(string path, out Match match)
+        {
+            match = null;
+            if (!IsRegex)
+                return GetNicePath() == path;
+            var rgx = new Regex(GetRegexPattern());
+            match = rgx.Match(path);
+            return match?.Success ?? false;
+        }
 
         public string fullInfo()
         {
-            string str = $"{Method} {Path.Path}";
+            string str = $"{Method} {m_path.Text}";
             string suffix = "";
             var paras = Function.GetParameters();
             if (paras.Length > 0)
@@ -61,7 +116,7 @@ namespace DiscordBot.MLAPI
             });
             div.Children.Add(new Span(cls: "docsPath")
             {
-                RawText = Path.Path
+                RawText = m_path.Text
             });
             var paramTable = new Table(cls: "docsTable");
             paramTable.Children.Add(new TableRow()
@@ -87,7 +142,7 @@ namespace DiscordBot.MLAPI
 
         public override string ToString()
         {
-            return $"{Method} {Path.Path}";
+            return $"{Method} {m_path.Text}";
         }
     }
 }

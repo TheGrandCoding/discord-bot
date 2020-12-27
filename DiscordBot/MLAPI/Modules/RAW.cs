@@ -45,22 +45,19 @@ namespace DiscordBot.RESTAPI.Functions.HTML
             return new FileInfo(filename).LastWriteTimeUtc.ToString("yyyyMMdd-HH:mm:ss");
         }
 
-        [Method("GET"), PathRegex(@"(\/|\\)_(\/|\\)((js|css|img)(\/|\\)[a-zA-Z0-9\/.-]*.\.(js|css|png|jpeg))")]
+
+        [Method("GET")]
+        [Path(@"/_/{bracket}/{filePath}")]
+        [Regex("bracket", "(js|css|img|assets)")]
+        [Regex("filePath", @"[a-zA-Z0-9\/.-]*.\.(js|css|png|jpeg|svg|woff)")]
         [RequireAuthentication(false)]
         [RequireServerName(null)]
         [RequireApproval(false)]
-        public void BackgroundWork()
+        public void BackgroundWork(string bracket, string filePath)
         {
-            if(Context.Endpoint == null || !(Context.Endpoint.Path is PathRegex pR))
+            if(Context.Endpoint == null)
             {
                 RespondRaw("Failed internal settings", HttpStatusCode.InternalServerError);
-                return;
-            }
-            var regex = new System.Text.RegularExpressions.Regex(pR.Path);
-            var match = regex.Match(Context.HTTP.Request.Url.AbsolutePath);
-            if(!match.Success)
-            {
-                RespondRaw("Failed to identify request resource.", HttpStatusCode.BadRequest);
                 return;
             }
             if(Context.HTTP.Request.Url.AbsolutePath.Contains(".."))
@@ -68,15 +65,21 @@ namespace DiscordBot.RESTAPI.Functions.HTML
                 RespondRaw("Forbidden", HttpStatusCode.BadRequest);
                 return;
             }
-            var filePath = match.Groups[3].Value;
-            var fileExtension = match.Groups[6].Value;
+            var fileExtension = Path.GetExtension(filePath);
+            if (fileExtension.StartsWith("."))
+                fileExtension = fileExtension[1..];
             var mimeType = getMimeType(fileExtension);
-            var fullPath = Path.Combine(Program.BASE_PATH, "HTTP", "_", filePath);
+            var fullPath = Path.Combine(Program.BASE_PATH, "HTTP", "_", bracket, filePath);
             var lastMod = getLastModified(fullPath);
             var priorMod = Context.Request.Headers["If-None-Match"];
             if(lastMod == priorMod)
             {
                 RespondRaw("", HttpStatusCode.NotModified);
+                return;
+            }
+            if(!File.Exists(fullPath))
+            {
+                RespondRaw("Unknown item.", 404);
                 return;
             }
             Context.HTTP.Response.Headers["ETag"] = lastMod;
@@ -102,6 +105,10 @@ namespace DiscordBot.RESTAPI.Functions.HTML
                 return "text/javascript";
             if (extension == "css")
                 return "text/css";
+            if (extension == "svg")
+                return "image/svg+xml";
+            if (extension == "woff")
+                return "application/font-woff";
             return "image/" + extension;
         }
 

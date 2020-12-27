@@ -174,7 +174,9 @@ namespace DiscordBot.MLAPI.Modules.Bot
             return table;
         }
     
-        [Method("GET"), PathRegex(@"\/bot\/logs\/api\/(?<file>20(19|20|21)-[0-9]{1,2}-[0-9]{1,2})", "/bot/logs/api/yyyy-MM-dd")]
+        [Method("GET")]
+        [Path(@"/bot/logs/api/{file}")]
+        [Regex("file", "20(19|20|21)-[0-9]{1,2}-[0-9]{1,2}")]
         public void ApiLog(string file)
         {
             if (file.Contains('/') || file.Contains('.'))
@@ -220,7 +222,9 @@ namespace DiscordBot.MLAPI.Modules.Bot
             return null;
         }
 
-        [Method("GET"), PathRegex(@"/bot/logs/api/(?!.*\/.)(?<id>[a-zA-Z0-9-]+)", "/bot/logs/api/guid")]
+        [Method("GET")]
+        [Path(@"/bot/logs/api/{id}")]
+        [Regex(".", @"/bot/logs/api/(?!.*\/.)(?<id>[a-zA-Z0-9-]+)")]
         public void ApiLogSpecific(Guid id)
         {
             var logEntry = getLogEntry(id);

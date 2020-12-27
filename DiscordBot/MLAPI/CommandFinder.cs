@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net;
 using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace DiscordBot.MLAPI
 {
@@ -24,7 +25,12 @@ namespace DiscordBot.MLAPI
         }
         public bool Search()
         {
-            var match = methodCmds.Where(x => x.Path.IsMatch(Request.Url.AbsolutePath)).ToList();
+            var match = new Dictionary<APIEndpoint, Match>();
+            foreach(var method in methodCmds)
+            {
+                if(method.IsMatch(Request.Url.AbsolutePath, out var mtch))
+                    match[method] = mtch;
+            }
             if (match.Count == 0)
             {
                 Errors.Add(new ParseResult(null).WithError("No endpoint matched the given path"));
@@ -35,7 +41,7 @@ namespace DiscordBot.MLAPI
                 List<ParseResult> all = new List<ParseResult>();
                 foreach (var cmd in match)
                 {
-                    all.Add(kowalski_analysis(cmd));
+                    all.Add(kowalski_analysis(cmd.Key, cmd.Value));
                 }
                 context.Endpoint = null;
                 var success = all.Where(x => x.Valid).ToList();
@@ -62,11 +68,11 @@ namespace DiscordBot.MLAPI
             }
         }
 
-        ParseResult kowalski_analysis(APIEndpoint cmd)
+        ParseResult kowalski_analysis(APIEndpoint cmd, Match rgxMatch)
         {
             context.Endpoint = cmd; // temporary for PathRegex
             int weight = 0;
-            var cnt = System.Activator.CreateInstance(cmd.Module, context);
+            var cnt = System.Activator.CreateInstance(cmd.Module.Type, context);
             var commandBase = (APIBase)cnt;
             var preconditions = new List<APIPrecondition>();
             var final = new ParseResult(cmd);
@@ -162,6 +168,12 @@ namespace DiscordBot.MLAPI
             var paramaters = cmd.Function.GetParameters();
             foreach (var param in paramaters)
             {
+                if(cmd.Regexs.TryGetValue(param.Name, out var pattern))
+                {
+                    var match = rgxMatch.Groups[param.Name];
+                    args.Add(match.Value);
+                    continue;
+                }
                 var value = context.GetQuery(param.Name);
                 if (value == null && param.IsOptional == false)
                     return final.WithError($"No argument specified for required item {param.Name}");
