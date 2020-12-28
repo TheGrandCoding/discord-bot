@@ -128,7 +128,7 @@ namespace DiscordBot.MLAPI.Modules
         [Path("/proxy/{url}")]
         [Regex("url", ".+")]
         [RequireNoExcessQuery(false)]
-        public void ProxyGetWebsite()
+        public void ProxyGetWebsite(string url)
         {
             var str = Context.HTTP.Request.Url.PathAndQuery.Substring("proxy/".Length + 1);
             if(!(str.StartsWith("https://") || str.StartsWith("http://")))
@@ -144,7 +144,7 @@ namespace DiscordBot.MLAPI.Modules
         [Path("/proxy/{url}")]
         [Regex("url", ".+")]
         [RequireNoExcessQuery(false)]
-        public void ProxyPostWebsite()
+        public void ProxyPostWebsite(string url)
         {
             var str = Context.HTTP.Request.Url.PathAndQuery.Substring("proxy/".Length + 1);
             if (!(str.StartsWith("https://") || str.StartsWith("http://")))

@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
+using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -149,5 +150,27 @@ namespace DiscordBot.MLAPI
             }
         }
         public virtual void AfterExecute() { }
+
+        protected string RelativeLink(MethodInfo method, params object[] args)
+            => Handler.RelativeLink(method, args);
+        protected string RelativeLink(Action method, params object[] args)
+            => RelativeLink(method.Method, args);
+        protected string RelativeLink<T>(Action<T> method, params object[] args)
+            => RelativeLink(method.Method, args);
+        protected string RelativeLink<T1, T2>(Action<T1, T2> method, params object[] args)
+            => RelativeLink(method.Method, args);
+        protected string RelativeLink<T1, T2, T3>(Action<T1, T2, T3> method, params object[] args)
+            => RelativeLink(method.Method, args);
+        protected string RelativeLink<T1, T2, T3, T4>(Action<T1, T2, T3, T4> method, params object[] args)
+            => RelativeLink(method.Method, args);
+
+        protected string RelativeLink<T>(Func<T> method, params object[] args)
+            => RelativeLink(method.Method, args);
+        protected string RelativeLink<T1, T2>(Func<T1, T2> method, params object[] args)
+            => RelativeLink(method.Method, args);
+        protected string RelativeLink<T1, T2, T3>(Func<T1, T2, T3> method, params object[] args)
+            => RelativeLink(method.Method, args);
+        protected string RelativeLink<T1, T2, T3, T4>(Func<T1, T2, T3, T4> method, params object[] args)
+            => RelativeLink(method.Method, args);
     }
 }

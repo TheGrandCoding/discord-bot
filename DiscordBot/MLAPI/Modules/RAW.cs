@@ -1,4 +1,5 @@
-﻿using DiscordBot.Classes;
+﻿using Discord.Commands;
+using DiscordBot.Classes;
 using DiscordBot.MLAPI;
 using Newtonsoft.Json.Linq;
 using System;
@@ -53,7 +54,7 @@ namespace DiscordBot.RESTAPI.Functions.HTML
         [RequireAuthentication(false)]
         [RequireServerName(null)]
         [RequireApproval(false)]
-        public void BackgroundWork(string bracket, string filePath)
+        public void BackgroundWork([Summary("Folder of item")]string bracket, string filePath)
         {
             if(Context.Endpoint == null)
             {

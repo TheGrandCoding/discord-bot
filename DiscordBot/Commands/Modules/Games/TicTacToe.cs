@@ -9,12 +9,14 @@ using System.Threading.Tasks;
 namespace DiscordBot.Commands.Modules.Games
 {
     [Group("ttt")]
+    [Name("TicTacToe")]
     public class TicTacToe : BotModule
     {
         public TTTService Service { get; set; }
 
         [Command("setup")]
         [RequireUserPermission(ChannelPermission.ManageChannels)]
+        [Summary("Creates the nessecary channels and roles to play tictactoe of the given board size")]
         public async Task<RuntimeResult> Setup(int count = 3)
         {
             IRole role = Context.Guild.Roles.FirstOrDefault(x => x.Name == TTTService.RoleName);
@@ -49,6 +51,8 @@ namespace DiscordBot.Commands.Modules.Games
         }
 
         [Command("start")]
+        [Summary("Starts a game of tictactoe, of the optional given row size, " +
+            "optionally providing the other user who starts as Crosses")]
         public async Task<RuntimeResult> Game(int rows = 3, SocketGuildUser other = null)
         {
             if (Service.Games.Any(x => x.Contains(Context.User)))

@@ -13,6 +13,7 @@ using System.Linq;
 using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using WebSocketSharp;
 
 namespace DiscordBot.MLAPI.Modules
 {
@@ -158,7 +159,7 @@ namespace DiscordBot.MLAPI.Modules
                 .Replace("_", ".")
                 .Replace("-", " ");
 
-        public static HTMLBase linkHeader(int order, string text, string id = null, string cls = null)
+        public static HTMLBase linkHeader(int order, string text, string id = null, string cls = null, string linkText = null)
         {
             id ??= escapeForUrl(text);
             var html = new Header(order, id, cls);
@@ -170,7 +171,10 @@ namespace DiscordBot.MLAPI.Modules
                 html.ClassList.Add("h3-1nY9uO");
             else if (order == 6)
                 html.ClassList.Add("h6-3ZuB-g");
-            html.Children.Add(new RawObject(text));
+            if (linkText != null)
+                html.Children.Add(new Anchor(linkText, text));
+            else
+                html.Children.Add(new RawObject(text));
             var anchor = new Anchor("#" + id, "", cls: "anchor-3Z-8Bb hyperlink");
             anchor.Children.Add(new Div().WithTag("name", id));
             html.Children.Add(anchor);
@@ -260,6 +264,10 @@ namespace DiscordBot.MLAPI.Modules
                 summary = $"requires all of the following permissions:</br>" + listWithCode(rpn.Nodes);
             else if (attribute is RequireVerifiedAccount rva)
                 summary = rva._require ? "must be executed by a verified account" : "requires no verification";
+            else if (attribute is RequireUser ru)
+                summary = $"must be executed by {(Program.GetUserOrDefault(ru._user)?.Name ?? $"a specific user, of ID {ru._user}")}";
+            else if (attribute is RequireOwner)
+                summary = $"must be executed by the developer of this bot";
             else
                 summary = attribute.GetType().Name.Replace("Attribute", "");
             return warn(type + summary);
@@ -371,17 +379,19 @@ namespace DiscordBot.MLAPI.Modules
             foreach (var keypair in modules)
             {
                 var href = $"/docs/api/{escapeForUrl(keypair.Key)}";
+                var anchor = new Anchor(href,
+                        text: keypair.Key,
+                        cls: "navLink-1Neui4 navLinkSmall-34Tbhm");
                 list.Children.Add(new ListItem(null)
                 {
                     Children =
                     {
-                        new Anchor(href,
-                        text: keypair.Key,
-                        cls: "navLink-1Neui4 navLinkSmall-34Tbhm")
+                        anchor
                     }
                 });
-                if (keypair.Key.Equals(selected, StringComparison.InvariantCultureIgnoreCase))
+                if (escapeForUrl(keypair.Key) == selected)
                 {
+                    anchor.ClassList.Add("activeLink-22b0_I");
                     var spy = new Div(cls: "ScrollSpy");
                     list.Children.Add(spy);
                     foreach (var cmd in keypair.Value)
@@ -394,6 +404,15 @@ namespace DiscordBot.MLAPI.Modules
             }
 
             return section;
+        }
+
+        string getRegexPattern(System.Reflection.ParameterInfo info)
+        {
+            var attr = info.GetCustomAttribute<RegexAttribute>();
+            if (attr != null)
+                return attr.Regex;
+            var attrs = info.Member.GetCustomAttributes<RegexAttribute>();
+            return attrs.FirstOrDefault(x => x.Name == info.Name)?.Regex;
         }
 
         Table getTableOfParams(System.Reflection.ParameterInfo[] parameters)
@@ -412,7 +431,13 @@ namespace DiscordBot.MLAPI.Modules
             {
                 var typeName = Program.GetTypeName(p.ParameterType, out var isNullable);
                 var typeText = (isNullable ? "?" : "") + typeName;
-                var summary = p.GetCustomAttribute<SummaryAttribute>()?.Text ?? "none";
+                var summary = p.GetCustomAttribute<SummaryAttribute>()?.Text;
+                var regex = getRegexPattern(p);
+                if (regex != null)
+                    summary = summary == null ? $"Must match regex: <code>{regex}</code>"
+                        : summary + $"<hr/>Must match regex: <code>{regex}</code>";
+                if (string.IsNullOrWhiteSpace(summary))
+                    summary = "None";
                 table.Children.Add(new TableRow()
                 {
                     Children =
@@ -444,10 +469,11 @@ namespace DiscordBot.MLAPI.Modules
 
             foreach (var x in module.Endpoints)
             {
-                var req = new HttpReqUrl(x.Method, x.Name);
+                var paramaters = x.Function.GetParameters();
+                var link = Handler.RelativeLink(x.Function, paramaters.Select(x => x.Name).ToArray());
+                var req = new HttpReqUrl(x.Method, x.Name, link: link);
                 var path = x.GetNicePath().Split('/', StringSplitOptions.RemoveEmptyEntries);
                 var pathParams = new List<string>();
-                var paramaters = x.Function.GetParameters();
                 foreach(var section in path)
                 {
                     req.AddPath("/");
@@ -509,6 +535,13 @@ namespace DiscordBot.MLAPI.Modules
                         main.Children.Add(getTableOfParams(nonPathParams));
                     }
                 }
+                if (pathParams.Count > 0)
+                {
+                    main.Children.Add(linkHeader(6, "Path Params", escapeForUrl(x.Name) + "-path-params"));
+                    main.Children.Add(getTableOfParams(paramaters.Where(x => pathParams.Contains(x.Name)).ToArray()));
+                }
+                if (x.Regexs.TryGetValue(".", out var pattern))
+                    main.Children.Add(docParagraph().WithRawText($"Request URI must match pattern: <code>{pattern}</code>"));
                 if (x.Summary != null)
                     main.Children.Add(docParagraph().WithRawText(x.Summary));
                 foreach (var pre in x.Preconditions)
@@ -522,6 +555,7 @@ namespace DiscordBot.MLAPI.Modules
         #endregion
 
         [Method("GET"), Path("/docs")]
+        [Name("View documentation")]
         public void Base()
         {
             ReplyFile("docs.html", 200, rep(null, null)
@@ -530,6 +564,7 @@ namespace DiscordBot.MLAPI.Modules
 
         [Method("GET"), Path(@"/docs/commands/{name}")]
         [Regex("name", @"[\S\._]+")]
+        [Name("View Command Module")]
         public void CommandItem(string name)
         {
             CurrentLook = name;
@@ -540,6 +575,7 @@ namespace DiscordBot.MLAPI.Modules
 
         [Method("GET"), Path("/docs/api/{name}")]
         [Regex("name", @"[\S\._]+")]
+        [Name("View API Module")]
         public void APIItem(string name)
         {
             CurrentLook = name;
@@ -554,10 +590,10 @@ namespace DiscordBot.MLAPI.Modules
     {
         Div html;
         Span url;
-        public HttpReqUrl(string method, string name, string id = null)
+        public HttpReqUrl(string method, string name, string id = null, string link = null)
         {
             html = new Div(cls: "http-req");
-            html.Children.Add(Docs.linkHeader(2, name, id, "http-req-title"));
+            html.Children.Add(Docs.linkHeader(2, name, id, "http-req-title", linkText: link));
             html.Children.Add(new Span(cls: "http-req-verb").WithRawText(method));
             url = new Span(cls: "http-req-url");
             html.Children.Add(url);

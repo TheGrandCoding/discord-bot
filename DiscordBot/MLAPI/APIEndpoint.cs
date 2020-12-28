@@ -1,4 +1,5 @@
 ﻿using DiscordBot.Classes.HTMLHelpers.Objects;
+using DiscordBot.Utils;
 using System;
 using System.Collections.Generic;
 using System.Reflection;
@@ -58,6 +59,27 @@ namespace DiscordBot.MLAPI
             return sb.ToString();
         }
         public string GetNicePath() => m_path.Text;
+        public string GetFormattablePath()
+        {
+            var paras = Function.GetParameters();
+            var path = m_path.Text;
+            int i = 0;
+            var http = new UrlBuilder(path);
+            foreach(var pra in paras)
+            {
+                var bef = "{" + pra.Name + "}";
+                var text = "{" + i.ToString() + "}";
+                if(http.Base.Contains(bef))
+                {
+                    http.Base = http.Base.Replace("{" + pra.Name + "}", text);
+                } else
+                {
+                    http.Add(pra.Name, text, escape: false);
+                }
+                i++;
+            }
+            return http;
+        }
 
         public bool IsMatch(string path, out Match match)
         {

@@ -17,9 +17,12 @@ namespace DiscordBot.Utils
             Base = domainAndPath;
             args = new Dictionary<string, string>();
         }
-        public UrlBuilder Add(string name, string value)
+        public UrlBuilder Add(string name, string value, bool escape = true)
         {
-            args[Uri.EscapeDataString(name)] = Uri.EscapeDataString(value);
+            if (escape)
+                args[Uri.EscapeDataString(name)] = Uri.EscapeDataString(value);
+            else
+                args[name] = value;
             return this;
         }
         public string this[string key]

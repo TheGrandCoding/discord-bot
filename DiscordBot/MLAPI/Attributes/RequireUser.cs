@@ -7,7 +7,7 @@ namespace DiscordBot.MLAPI
 {
     public class RequireUser : APIPrecondition
     {
-        private readonly ulong _user;
+        public readonly ulong _user;
         public RequireUser(ulong id)
         {
             _user = id;
