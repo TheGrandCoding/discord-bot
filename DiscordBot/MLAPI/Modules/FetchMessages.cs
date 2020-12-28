@@ -939,7 +939,7 @@ namespace DiscordBot.MLAPI.Modules
         [Regex("channel_id", @"[0-9]{17,18}")]
         [Regex("message_id", @"[0-9]{17,18}")]
         [Regex("filename", "[A-Za-z0-9]+")]
-        public void ProxyImage()
+        public void ProxyImage(ulong channel_id, ulong message_id, string filename)
         {
             var client = Program.Services.GetRequiredService<HttpClient>();
             var stream = client.GetStreamAsync($"https://cdn.discordapp.com{Context.Path}").Result;

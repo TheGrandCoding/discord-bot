@@ -8,7 +8,7 @@ namespace DiscordBot.MLAPI
 {
     public class RequireVerifiedAccount : APIPrecondition
     {
-        private readonly bool _require;
+        public readonly bool _require;
         public override bool CanChildOverride(APIPrecondition child)
         {
             return true;

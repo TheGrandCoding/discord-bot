@@ -381,6 +381,15 @@ namespace DiscordBot
             }
         }
     
+        public static bool IsNullable(Type type, out Type underlying)
+        {
+            underlying = null;
+            var isNullable = type.IsGenericType &&
+                type.GetGenericTypeDefinition() == typeof(Nullable<>);
+            if(isNullable)
+                underlying = Nullable.GetUnderlyingType(type);
+            return isNullable;
+        }
         public static string GetTypeName(Type type, bool specifyEnumName = false)
         {
             if (type == typeof(int))
@@ -392,6 +401,11 @@ namespace DiscordBot
             if (type.FullName.StartsWith("System"))
                 return type.FullName["System.".Length..].ToLower();
             return type.FullName;
+        }
+        public static string GetTypeName(Type type, out bool isNullable, bool specifyEnum = false)
+        {
+            isNullable = IsNullable(type, out var nl);
+            return GetTypeName(nl ?? type, specifyEnum);
         }
     }
 }

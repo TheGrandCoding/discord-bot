@@ -8,7 +8,7 @@ namespace DiscordBot.MLAPI
 {
     public class RequireApprovalAttribute : APIPrecondition
     {
-        private readonly bool _require;
+        public readonly bool _require;
         public RequireApprovalAttribute(bool require = true)
         {
             _require = require;

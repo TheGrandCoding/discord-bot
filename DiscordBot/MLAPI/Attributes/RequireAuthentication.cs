@@ -8,8 +8,8 @@ namespace DiscordBot.MLAPI
 {
     public class RequireAuthentication : APIPrecondition
     {
-        private readonly bool _auth;
-        private readonly bool _valid;
+        public readonly bool _auth;
+        public readonly bool _valid;
         public RequireAuthentication(bool requireAuth = true, bool requireValid = true)
         {
             _auth = requireAuth;

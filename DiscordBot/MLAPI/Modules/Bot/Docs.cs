@@ -225,11 +225,43 @@ namespace DiscordBot.MLAPI.Modules
                 summary = attribute.GetType().Name.Replace("Attribute", "");
             return warn(type + summary);
         }
+        string explainAuthentication(RequireAuthentication ra)
+        {
+            // This module must be executed by 
+            if (!ra._auth)
+                return "does not require authentication";
+            var s = "must be executed by an authenticated session";
+            if (ra._valid)
+                return s + ", and that authenticated account must have a validly linked email address";
+            return s;
+        }
+        UnorderedList listWithCode(string[] arr)
+        {
+            var ul = new UnorderedList();
+            foreach (var x in arr)
+                ul.AddItem($"<code>{x}</code>");
+            return ul;
+        }
         Div explainPreconditions(APIPrecondition attribute, bool module)
         {
             string summary;
             string type = module ? "This module " : "This command ";
-            summary = attribute.GetType().Name.Replace("Attribute", "");
+            if (attribute is RequireChess rc)
+                summary = $"must be executed by Chess user with <code>{rc._perm}</code> permission";
+            else if (attribute is RequireAuthentication ra)
+                summary = explainAuthentication(ra);
+            else if (attribute is RequireApprovalAttribute raa)
+                summary = raa._require ? "must be executed by a user who has been approved to use this website" : "does not need any approval";
+            else if (attribute is RequireServerName rsn)
+                summary = $"must be performed on the <code>{rsn.Domain}</code> domain";
+            else if (attribute is RequireValidHTTPAgent rvh)
+                summary = $"must send a User-Agent containing one of:<br/>" + listWithCode(rvh.ValidAgents);
+            else if (attribute is RequirePermNode rpn)
+                summary = $"requires all of the following permissions:</br>" + listWithCode(rpn.Nodes);
+            else if (attribute is RequireVerifiedAccount rva)
+                summary = rva._require ? "must be executed by a verified account" : "requires no verification";
+            else
+                summary = attribute.GetType().Name.Replace("Attribute", "");
             return warn(type + summary);
         }
 
@@ -364,6 +396,36 @@ namespace DiscordBot.MLAPI.Modules
             return section;
         }
 
+        Table getTableOfParams(System.Reflection.ParameterInfo[] parameters)
+        {
+            var table = new Table();
+            table.Children.Add(new TableRow()
+            {
+                Children =
+                {
+                    new TableHeader("Field").WithTag("scope", "col"),
+                    new TableHeader("Type").WithTag("scope", "col"),
+                    new TableHeader("Description").WithTag("scope", "col"),
+                }
+            });
+            foreach (var p in parameters)
+            {
+                var typeName = Program.GetTypeName(p.ParameterType, out var isNullable);
+                var typeText = (isNullable ? "?" : "") + typeName;
+                var summary = p.GetCustomAttribute<SummaryAttribute>()?.Text ?? "none";
+                table.Children.Add(new TableRow()
+                {
+                    Children =
+                    {
+                        new TableData(p.Name + (p.IsOptional ? "?" : "")),
+                        new TableData(typeText),
+                        new TableData(summary)
+                    }
+                });
+            }
+            return table;
+        }
+
         Div apiGetMain(APIModule module)
         {
             var main = new Div(cls: "markdown-11q6EU");
@@ -383,7 +445,70 @@ namespace DiscordBot.MLAPI.Modules
             foreach (var x in module.Endpoints)
             {
                 var req = new HttpReqUrl(x.Method, x.Name);
-                main.Children.Add(req.ToHtml());
+                var path = x.GetNicePath().Split('/', StringSplitOptions.RemoveEmptyEntries);
+                var pathParams = new List<string>();
+                var paramaters = x.Function.GetParameters();
+                foreach(var section in path)
+                {
+                    req.AddPath("/");
+                    if(section.StartsWith("{"))
+                    {
+                        var name = section[1..^1];
+                        var p = paramaters.FirstOrDefault(x => x.Name == name);
+                        pathParams.Add(name);
+                        req.AddParam(p, withSpace: false);
+                    } else
+                    {
+                        req.AddPath(section);
+                    }
+                }
+                var nonPathParams = paramaters.Where(x => pathParams.Contains(x.Name) == false)
+                    .ToArray();
+                if(x.Method != "POST")
+                {
+                    bool addedFirst = false;
+                    foreach(var prm in nonPathParams)
+                    {
+                        var chr = addedFirst ? "&" : "?";
+                        addedFirst = true;
+                        req.AddPath($"{chr}");
+
+                        var anchor = new Anchor("#", "");
+                        anchor.Children.Add(new RawObject("{"));
+                        var spn = new Span()
+                        {
+                            RawText = Uri.EscapeUriString(prm.Name),
+                            Style = "color: yellow"
+                        };
+                        anchor.Children.Add(spn);
+                        if (prm.IsOptional)
+                        {
+                            anchor.Children.Add(new RawObject(" = "));
+                            anchor.Children.Add(new Span()
+                            {
+                                Style = "color: blue",
+                                RawText = $"{(prm.DefaultValue ?? "null")}"
+                            });
+                        }
+                        anchor.Children.Add(new RawObject("}"));
+                        req.Add(anchor);
+                    }
+                    main.Children.Add(req.ToHtml());
+                    if(nonPathParams.Length > 0)
+                    {
+                        main.Children.Add(linkHeader(6, "Query Params", escapeForUrl(x.Name) + "-query-params"));
+                        main.Children.Add(getTableOfParams(nonPathParams));
+                    }
+                }
+                else
+                {
+                    main.Children.Add(req.ToHtml());
+                    if(nonPathParams.Length > 0)
+                    {
+                        main.Children.Add(linkHeader(6, "POST Params", escapeForUrl(x.Name) + "-post-params"));
+                        main.Children.Add(getTableOfParams(nonPathParams));
+                    }
+                }
                 if (x.Summary != null)
                     main.Children.Add(docParagraph().WithRawText(x.Summary));
                 foreach (var pre in x.Preconditions)
@@ -418,9 +543,9 @@ namespace DiscordBot.MLAPI.Modules
         public void APIItem(string name)
         {
             CurrentLook = name;
-
+            var module = Handler.Modules.FirstOrDefault(x => escapeForUrl(x.Name) == name);
             ReplyFile("docs.html", 200, rep(null, name)
-                .Add("mainContent", msgBox("error", "API Documentation not yet implemented")));
+                .Add("mainContent", apiGetMain(module)));
         }
 
     }
@@ -442,18 +567,34 @@ namespace DiscordBot.MLAPI.Modules
             url.Children.Add(new Span().WithRawText(text));
             return this;
         }
+        public HttpReqUrl Add(HTMLBase spn)
+        {
+            url.Children.Add(spn);
+            return this;
+        }
         public HttpReqUrl AddVariable(string name, string link = "#")
         {
             url.Children.Add(new Span()
             {
                 Children =
                 {
-                    new Anchor(link, "", "{" + name + "}", cls: "http-req-variable")
+                    new Anchor(link, "{" + name + "}", cls: "http-req-variable")
                 }
             });
             return this;
         }
-        public HttpReqUrl AddParam(Discord.Commands.ParameterInfo param, string link = "#")
+        public HttpReqUrl AddRawVariable(string text, string link = "#")
+        {
+            url.Children.Add(new Span()
+            {
+                Children =
+                {
+                    new Anchor(link, text, cls: "http-req-variable")
+                }
+            });
+            return this;
+        }
+        public HttpReqUrl AddParam(Discord.Commands.ParameterInfo param, string link = "#", bool withSpace = true)
         {
             var span = new Span();
             var anchor = new Anchor(link, "", cls: "http-req-variable");
@@ -461,7 +602,7 @@ namespace DiscordBot.MLAPI.Modules
             anchor.Children.Add(new RawObject("{"));
             anchor.Children.Add(new Span()
             {
-                RawText = Program.GetTypeName(param.Type),
+                RawText = Program.GetTypeName(param.Type, out var _),
                 Style = "color: red"
             });
             anchor.Children.Add(new Span().WithRawText(" " + param.Name));
@@ -471,7 +612,31 @@ namespace DiscordBot.MLAPI.Modules
                     .WithTag("style", "color: blue"));
             }
             anchor.Children.Add(new RawObject("}"));
-            span.Children.Add(new RawObject(" "));
+            if(withSpace)
+                span.Children.Add(new RawObject(" "));
+            url.Children.Add(span);
+            return this;
+        }
+        public HttpReqUrl AddParam(System.Reflection.ParameterInfo param, string link = "#", bool withSpace = true)
+        {
+            var span = new Span();
+            var anchor = new Anchor(link, "", cls: "http-req-variable");
+            span.Children.Add(anchor);
+            anchor.Children.Add(new RawObject("{"));
+            anchor.Children.Add(new Span()
+            {
+                RawText = Program.GetTypeName(param.ParameterType, out var _),
+                Style = "color: red"
+            });
+            anchor.Children.Add(new Span().WithRawText(" " + param.Name));
+            if (param.IsOptional)
+            {
+                anchor.Children.Add(new Span().WithRawText($" = {(param.DefaultValue ?? "null")}")
+                    .WithTag("style", "color: blue"));
+            }
+            anchor.Children.Add(new RawObject("}"));
+            if(withSpace)
+                span.Children.Add(new RawObject(" "));
             url.Children.Add(span);
             return this;
         }

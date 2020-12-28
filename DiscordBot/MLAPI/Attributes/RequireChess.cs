@@ -12,7 +12,7 @@ namespace DiscordBot.MLAPI
 {
     public class RequireChess : APIPrecondition
     {
-        ChessPerm _perm;
+        public readonly ChessPerm _perm;
         /// <summary>
         /// If true, will directly equate user's permission and expect an exact match to _perm
         /// <para>
