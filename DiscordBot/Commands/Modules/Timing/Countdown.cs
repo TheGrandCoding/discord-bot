@@ -10,6 +10,7 @@ namespace DiscordBot.Commands.Modules.Timing
 {
     [Name("Countdown Module")]
     [Summary("Commands to count down to a specific date")]
+    [Group("countdown")]
     public class CountdownModule : BotModule
     {
         public CountdownService Service { get; set; }
@@ -31,7 +32,7 @@ namespace DiscordBot.Commands.Modules.Timing
             return date.ToString("yyyy/MM/dd hh:mm:ss");
         }
 
-        [Command("countdown")]
+        [Command("list")]
         [Summary("Lists all current countdowns")]
         public async Task List()
         {
@@ -48,7 +49,7 @@ namespace DiscordBot.Commands.Modules.Timing
             await ReplyAsync(embed: embed.Build());
         }
 
-        [Command("countdown")]
+        [Command("on"), Alias("date")]
         [Summary("Counts down to the specified date, then sends the message")]
         public async Task CountTo(DateTime date, [Remainder]string message)
         {
@@ -67,7 +68,7 @@ namespace DiscordBot.Commands.Modules.Timing
             });
             Success("Created countdown successfully.");
         }
-        [Command("countdown")]
+        [Command("after"), Alias("duration", "time")]
         [Summary("Counts down after the specified duration has passed, then sends the message")]
         public async Task CountTo(TimeSpan time, [Remainder]string message)
         {
