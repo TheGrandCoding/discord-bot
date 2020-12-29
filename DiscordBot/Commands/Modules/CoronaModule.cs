@@ -6,6 +6,7 @@ using DiscordBot.Classes;
 using DiscordBot.Classes.CoronAPI;
 using DiscordBot.Commands;
 using DiscordBot.Services;
+using DiscordBot.Utils;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json.Linq;
 using System;
@@ -80,23 +81,23 @@ namespace DiscordBot.Commands.Modules
         }
     
         [Command("isolate"), Alias("self-isolate")]
-        [Summary("Marks you as self-isolation")]
-        public async Task<RuntimeResult> Isolate(int days = 14)
+        [Summary("Marks you as self-isolating")]
+        public async Task<RuntimeResult> Isolate(int days = CoronaService.IsolationPeriod)
         {
-            if (days < 10)
-                return new BotResult("Isolation period cannot be less than 10 days.");
+            if (days < (CoronaService.IsolationPeriod / 2))
+                return new BotResult($"Isolation period cannot be less than {CoronaService.IsolationPeriod / 2} days.");
             var usr = Context.User as SocketGuildUser;
             if (usr.Nickname != null && usr.Nickname.StartsWith(Emotes.MICROBE.Name))
                 return new BotResult("You are already self-isolating");
             var expire = DateTime.Now.AddDays(days);
-            Service.Isolation[Context.User.Id] = expire;
-            await usr.ModifyAsync(x => x.Nickname = $"{Emotes.MICROBE}{(usr.Nickname ?? usr.Username)}");
+            Service.Isolation[Context.User.Id] = expire.ToLastSecond();
             Service.OnSave();
-            return new BotResult();
+            Service.OnDailyTick();
+            return Success($"Marked you as isolating until {expire:dd/MM/yy hh:mm:ss}");
         }
 
         [Command("isolate"), Alias("self-isolate")]
-        [Summary("Marks you as self-isolation")]
+        [Summary("Marks a user as self-isolating")]
         [RequireUserPermission(GuildPermission.ManageNicknames)]
         public async Task<RuntimeResult> Isolate(BotUser user, int days = 14)
         {
@@ -113,10 +114,10 @@ namespace DiscordBot.Commands.Modules
             if (usr.Nickname != null && usr.Nickname.StartsWith(Emotes.MICROBE.Name))
                 return new BotResult("They are already self-isolating");
             var expire = DateTime.Now.AddDays(days);
-            Service.Isolation[usr.Id] = expire;
-            await usr.ModifyAsync(x => x.Nickname = $"{Emotes.MICROBE}{(usr.Nickname ?? usr.Username)}");
+            Service.Isolation[usr.Id] = expire.ToLastSecond();
             Service.OnSave();
-            return new BotResult();
+            Service.OnDailyTick();
+            return Success($"Marked that user as isolating until {expire:dd/MM/yy hh:mm:ss}");
         }
     }
 }

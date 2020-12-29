@@ -2,7 +2,9 @@
 using Discord.WebSocket;
 using DiscordBot.Classes.CoronAPI;
 using DiscordBot.Services.BuiltIn;
+using DiscordBot.Utils;
 using Microsoft.Extensions.DependencyInjection;
+using MongoDB.Bson;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
@@ -20,6 +22,7 @@ namespace DiscordBot.Services
     public class CoronaService : SavedService
     {
         public const string URL = @"https://corona-api.com/countries/";
+        public const int IsolationPeriod = 10;
 
         public Dictionary<string, List<DateTime>> AverageUpdateTimes = new Dictionary<string, List<DateTime>>();
         public Dictionary<ulong, DateTime> Isolation = new Dictionary<ulong, DateTime>();
@@ -145,23 +148,49 @@ namespace DiscordBot.Services
             return builder;
         }
 
+        string getPrefix(int daysRemain)
+        {
+            if (daysRemain <= 0)
+                return null;
+            var perc = daysRemain / (double)IsolationPeriod;
+            if (perc > 0.8)
+                return Emotes.MICROBE.Name.Repeat(5);
+            if (perc > 0.6)
+                return Emotes.MICROBE.Name.Repeat(4);
+            if (perc > 0.4)
+                return Emotes.MICROBE.Name.Repeat(3);
+            if (perc > 0.2)
+                return Emotes.MICROBE.Name.Repeat(2);
+            return Emotes.MICROBE.Name.Repeat(1);
+        }
+
+        string getTrueNickname(string name)
+        {
+            return name.Replace(Emotes.MICROBE.Name, "");
+        }
+
         async Task checkIsolationNicknames()
         {
             var ls = new List<ulong>();
             foreach(var keypair in Isolation)
             {
-                if(keypair.Value < DateTime.Now)
+                var end = keypair.Value.ToLastSecond();
+                foreach(var guild in Program.Client.Guilds)
                 {
-                    ls.Add(keypair.Key);
-                    foreach(var guild in Program.Client.Guilds)
+                    var usr = guild.GetUser(keypair.Key);
+                    if (usr == null)
+                        continue;
+                    var daysRemain = end - DateTime.Now;
+                    var prefix = getPrefix((int)Math.Round(daysRemain.TotalDays));
+                    var thing = getTrueNickname(usr.Nickname ?? usr.Username);
+                    if (prefix == null)
                     {
-                        var usr = guild.GetUser(keypair.Key);
-                        if (usr == null)
-                            continue;
-                        var text = Emotes.MICROBE.Name;
-                        if (usr.Nickname == null || usr.Nickname.StartsWith(text) == false)
-                            continue;
-                        await usr.ModifyAsync(x => x.Nickname = usr.Nickname.Substring(text.Length));
+                        await usr.ModifyAsync(x => x.Nickname = thing);
+                        ls.Add(keypair.Key);
+                    }
+                    else
+                    {
+                        await usr.ModifyAsync(x => x.Nickname = prefix + thing);
                     }
                 }
             }
