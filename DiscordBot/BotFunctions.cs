@@ -240,17 +240,23 @@ namespace DiscordBot
         
         static void appendN(StringBuilder b, int n, string sing, string plural = null)
         {
-            plural = plural ?? sing + "s";
+            if(plural == null)
+            {
+                if (sing.Length == 1)
+                    plural = sing;
+                else
+                    plural = (plural ?? sing) + "s";
+            }
             if (n > 0)
                 b.Append($"{n} {(n > 1 ? plural : sing)} ");
         }
         public static string FormatTimeSpan(TimeSpan ts, bool shortForm = false, bool includeMs = false)
         {
             var builder = new StringBuilder();
-            appendN(builder, ts.Days, "day");
-            appendN(builder, ts.Hours, shortForm ? "hr" : "hour");
-            appendN(builder, ts.Minutes, shortForm ? "min" : "minute");
-            appendN(builder, ts.Seconds, shortForm ? "sec" : "second");
+            appendN(builder, ts.Days, shortForm ? "d" : "day");
+            appendN(builder, ts.Hours, shortForm ? "h" : "hour");
+            appendN(builder, ts.Minutes, shortForm ? "m" : "minute");
+            appendN(builder, ts.Seconds, shortForm ? "s" : "second");
             if(includeMs)
                 appendN(builder, ts.Milliseconds, shortForm ? "ms" : "milisecond", shortForm ? "ms" : null);
             return builder.ToString();
