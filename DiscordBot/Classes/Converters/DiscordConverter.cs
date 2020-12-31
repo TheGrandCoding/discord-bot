@@ -32,7 +32,9 @@ namespace DiscordBot.Classes
                 || objectType == typeof(IGuild)
                 || objectType == typeof(SocketGuild)
                 || objectType == typeof(IGuildUser)
-                || objectType == typeof(SocketGuildUser);
+                || objectType == typeof(SocketGuildUser)
+                || objectType == typeof(SocketUser)
+                || objectType == typeof(IUser);
         }
 
         public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
@@ -47,6 +49,8 @@ namespace DiscordBot.Classes
                 return guild;
             if (objectType == typeof(SocketGuildUser) || objectType == typeof(IGuildUser))
                 return guild.GetUser(id);
+            if (objectType == typeof(SocketUser) || objectType == typeof(IUser))
+                return guild != null ? guild.GetUser(id) : Program.Client.GetUser(id);
             if (objectType == typeof(SocketTextChannel) || objectType == typeof(ITextChannel))
                 return (ITextChannel)guild.GetTextChannel(id) ?? new NullTextChannel(id, gid);
             if (objectType == typeof(SocketCategoryChannel) || objectType == typeof(ICategoryChannel))
