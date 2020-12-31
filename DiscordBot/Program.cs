@@ -19,6 +19,7 @@ using Newtonsoft.Json.Linq;
 using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
 using Pomelo.EntityFrameworkCore.MySql.Storage;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -35,7 +36,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.13.9"; 
+        public const string VERSION = "0.13.10"; 
         public const string CHANGELOG = VERSION + @"
 == Permissions changes
 Changed how permissions worked for bot.
@@ -223,13 +224,12 @@ Changed how permissions worked for bot.
             }
         }
 
-        public static Queue<LogWithTime> lastLogs = new Queue<LogWithTime>(25);
+        public static ConcurrentQueue<LogWithTime> lastLogs = new ConcurrentQueue<LogWithTime>();
         static void cacheLogs(object sender, LogMessage msg)
         {
-            lock(_lockObj)
-            {
-                lastLogs.Enqueue(msg);
-            }
+            lastLogs.Enqueue(msg);
+            if (lastLogs.Count > 100)
+                lastLogs.TryDequeue(out _);
         }
 
         public static ConsoleColor getColor(LogSeverity s)
