@@ -176,7 +176,7 @@ namespace DiscordBot.Services
             {
                 var end = keypair.Value.ToLastSecond();
                 var bUser = Program.GetUserOrDefault(keypair.Key);
-                var notify = bUser?.Options.WhenNotifyIsolation ?? Classes.IsolationNotify.Never;
+                var notify = bUser?.Options.WhenToNotifyIsolation ?? Classes.IsolationNotify.Never;
                 foreach(var guild in Program.Client.Guilds)
                 {
                     var usr = guild.GetUser(keypair.Key);
