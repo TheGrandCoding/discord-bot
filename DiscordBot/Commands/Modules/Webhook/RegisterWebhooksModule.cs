@@ -13,7 +13,7 @@ namespace DiscordBot.Commands.Modules.Webhook
     [Name("Webhooks")]
     [RequireUserPermission(Discord.ChannelPermission.ManageMessages)]
     [Group("webhooks"), Alias("webhook")]
-    public class RegisterWebhooksModule : BotModule
+    public class RegisterWebhooksModule : BotBase
     {
         public SonarrWebhooksService SonarrService { get; set; }
 

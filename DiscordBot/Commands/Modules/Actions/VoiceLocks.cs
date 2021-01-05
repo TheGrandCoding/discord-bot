@@ -13,7 +13,7 @@ namespace DiscordBot.Commands.Modules.Actions
 {
     [RequireService(typeof(VCLockService))]
     [Name("VC Locking")]
-    public class VoiceLocks : BotModule
+    public class VoiceLocks : BotBase
     {
         public VCLockService Locker { get; set; }
 

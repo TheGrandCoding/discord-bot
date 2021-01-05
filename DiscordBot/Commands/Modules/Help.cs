@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 namespace DiscordBot.Commands.Modules
 {
     [Name("Help Module")]
-    public class Help : BotModule
+    public class Help : BotBase
     {
         public CommandService cmdService { get; set; }
         public IServiceProvider services { get; set; }

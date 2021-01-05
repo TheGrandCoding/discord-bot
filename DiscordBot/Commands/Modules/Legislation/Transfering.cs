@@ -14,7 +14,7 @@ namespace DiscordBot.Commands.Modules.Legislation
     [Group("law")]
     [RequireOwner]
     [Name("Legislation ExportImport")]
-    public class Transfering : BotModule
+    public class Transfering : BotBase
     {
         public LegislationService Service { get; set; }
 

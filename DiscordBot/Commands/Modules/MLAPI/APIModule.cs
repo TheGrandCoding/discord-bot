@@ -14,7 +14,7 @@ namespace DiscordBot.Commands.Modules.MLAPI
 {
     [Group("mlapi")]
     [Name("API Module")]
-    public class APIModule : BotModule
+    public class APIModule : BotBase
     {
         [Command("password")]
         [Alias("pwd", "pass")]

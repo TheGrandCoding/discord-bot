@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 namespace DiscordBot.Commands.Modules
 {
     [Group("monitor")]
-    public class MonitorModule : BotModule
+    public class MonitorModule : BotBase
     {
         public MonitorService Service { get; set; }
         [Command("vc")]

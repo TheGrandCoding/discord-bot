@@ -10,7 +10,7 @@ namespace DiscordBot.Commands.Modules.Games
 {
     [Group("ttt")]
     [Name("TicTacToe")]
-    public class TicTacToe : BotModule
+    public class TicTacToe : BotBase
     {
         public TTTService Service { get; set; }
 

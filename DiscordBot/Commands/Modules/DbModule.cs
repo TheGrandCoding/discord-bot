@@ -14,7 +14,7 @@ namespace DiscordBot.Commands.Modules
 {
     [Group("db")]
     [RequireOwner]
-    public class DbModule : BotModule
+    public class DbModule : BotBase
     {
         static long cast(ulong s) 
         {

@@ -16,7 +16,7 @@ namespace DiscordBot.Commands.Modules
     [Group("roles")]
     [Name("Reaction Roles")]
     [RequireUserPermission(GuildPermission.ManageRoles)]
-    public class ReactionRoles : BotModule
+    public class ReactionRoles : BotBase
     {
         public RolesService Service { get; set; }
 

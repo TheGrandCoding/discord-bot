@@ -14,7 +14,7 @@ namespace DiscordBot.Commands.Modules.EduLink
 {
     [Group("edulink")]
     [Name("EduLink One")]
-    public class EduSetupModule : BotModule
+    public class EduSetupModule : BotBase
     {
         public EduLinkService Service { get; set; }
         [Command("setup")]

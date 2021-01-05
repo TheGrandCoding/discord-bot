@@ -11,7 +11,7 @@ namespace DiscordBot.Commands.Modules.Timing
     [Name("Countdown Module")]
     [Summary("Commands to count down to a specific date")]
     [Group("countdown")]
-    public class CountdownModule : BotModule
+    public class CountdownModule : BotBase
     {
         public CountdownService Service { get; set; }
 

@@ -15,7 +15,7 @@ namespace DiscordBot.Commands.Modules
 {
     [Group("perms")]
     [Name("Bot Permissions Module")]
-    public class PermsModule : BotModule
+    public class PermsModule : BotBase
     {
         public PermissionsService Service { get; set; }
         [Command("list")]

@@ -14,7 +14,7 @@ namespace DiscordBot.Commands.Modules.Legislation
 {
     [Group("draft")]
     [Name("Drafting Legislation Commands")]
-    public class Creation : BotModule
+    public class Creation : BotBase
     {
         struct SaveInfo
         {

@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 namespace DiscordBot.Commands.Modules
 {
     [Name("Xkcd")]
-    public class XkcdModule : BotModule
+    public class XkcdModule : BotBase
     {
         public XkcdService Service { get; set; }
         [Command("xkcd")]

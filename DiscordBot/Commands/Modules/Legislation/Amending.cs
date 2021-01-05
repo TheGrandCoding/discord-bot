@@ -19,7 +19,7 @@ namespace DiscordBot.Commands.Modules.Legislation
 {
     [Group("amend")]
     [Name("Legislation Amending")]
-    public class Amending : BotModule
+    public class Amending : BotBase
     {
         public Act Act;
         public AmendmentGroup Group;

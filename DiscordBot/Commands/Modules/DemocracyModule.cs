@@ -14,7 +14,7 @@ namespace DiscordBot.Commands.Modules
 {
     [Group("vote")]
     [Name("Democracy")]
-    public class DemocracyModule : BotModule
+    public class DemocracyModule : BotBase
     {
         public DemocracyService Service { get; set; }
 

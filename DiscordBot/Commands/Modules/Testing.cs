@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 namespace DiscordBot.Commands.Modules
 {
     [Summary("Testing Commands")]
-    public class Testing : BotModule
+    public class Testing : BotBase
     {
         public ReactionService React { get; set; }
 

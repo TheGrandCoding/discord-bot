@@ -17,7 +17,7 @@ namespace DiscordBot.Commands.Modules
     [Name("Rules Module")]
     [RequireUserPermission(Discord.GuildPermission.ManageGuild)]
     [RequireContext(ContextType.Guild)]
-    public class RulesModule : BotModule
+    public class RulesModule : BotBase
     {
         public RulesService Service { get; set; }
 

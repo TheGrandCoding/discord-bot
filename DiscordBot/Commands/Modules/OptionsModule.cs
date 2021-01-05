@@ -12,7 +12,7 @@ namespace DiscordBot.Commands.Modules
 {
     [Group("options")]
     [Name("Bot User Options")]
-    public class OptionsModule : BotModule
+    public class OptionsModule : BotBase
     {
         [Command("view")]
         [Alias("list", "see")]

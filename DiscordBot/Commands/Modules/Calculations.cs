@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 namespace DiscordBot.Commands.Modules
 {
     [Name("Calculator")]
-    public class Calculations : BotModule
+    public class Calculations : BotBase
     {
         public TeXFormatter Service { get; set; }
         [Command("calculate")]

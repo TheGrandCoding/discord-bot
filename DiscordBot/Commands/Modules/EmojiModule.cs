@@ -12,7 +12,7 @@ namespace DiscordBot.Commands.Modules
     [Name("Role-locked Emojis")]
     [RequireContext(ContextType.Guild)]
     [Group("emoji"), Alias("emote")]
-    public class EmojiModule : BotModule
+    public class EmojiModule : BotBase
     {
         [Command("list")]
         [Summary("Lists all role-locked emojis")]

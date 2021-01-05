@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 namespace DiscordBot.Commands.Modules.Actions
 {
     [Group("vc")]
-    public class VCAnnounce : BotModule
+    public class VCAnnounce : BotBase
     {
         public VCAnnounceService Service { get; set; }
         [Command("join")]

@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace DiscordBot.Commands.Modules
 {
-    public class ToggleAdminModule : BotModule
+    public class ToggleAdminModule : BotBase
     {
         async Task<RuntimeResult> toggle(SocketGuildUser user)
         {

@@ -11,7 +11,7 @@ namespace DiscordBot.Commands.Modules.MLAPI
     [Name("Master List")]
     [RequireOwner]
     [Group("masterlist"), Alias("ml")]
-    public class ServerListModule : BotModule
+    public class ServerListModule : BotBase
     {
         public MLService Service { get; set; }
 

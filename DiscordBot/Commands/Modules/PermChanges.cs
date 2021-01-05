@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 namespace DiscordBot.Commands.Modules
 {
     [Group("event")]
-    public class PermChanges : BotModule
+    public class PermChanges : BotBase
     {
         public PermSituationService Service { get; set; }
 

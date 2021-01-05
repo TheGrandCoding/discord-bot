@@ -17,7 +17,7 @@ namespace DiscordBot.Commands.Modules
 {
     [Group("bot")]
     [Name("Bot Commands")]
-    public sealed class BotCmdModule : BotModule
+    public sealed class BotCmdModule : BotBase
     {
         List<char> allowed_chars;
         public BotCmdModule()

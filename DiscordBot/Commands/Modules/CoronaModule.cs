@@ -22,7 +22,7 @@ namespace DiscordBot.Commands.Modules
     [Name("COVID-19")]
     [Group("covid")]
     [RequireContext(ContextType.Guild)]
-    public class CoronaModule : BotModule
+    public class CoronaModule : BotBase
     {
         public CoronaService Service { get; set; }
 

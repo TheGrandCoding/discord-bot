@@ -10,7 +10,7 @@ namespace DiscordBot.Commands.Modules
 {
     [Name("Translations")]
     [Group("translate")]
-    public class TranslationsModule : BotModule
+    public class TranslationsModule : BotBase
     {
         public TranslationService Service { get; set; }
         [Command("watch")]

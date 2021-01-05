@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 
 namespace DiscordBot.Commands
 {
-    public abstract class BotModule : InteractiveBase<BotCommandContext>
+    public abstract class BotBase : InteractiveBase<BotCommandContext>
     {
 
         static CmdDisableService cmdDisableService { get; set; }

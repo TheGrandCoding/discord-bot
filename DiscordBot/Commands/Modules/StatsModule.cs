@@ -13,7 +13,7 @@ namespace DiscordBot.Commands.Modules
 {
     [Name("Message Stats")]
     [Group("stats")]
-    public class StatsModule : BotModule
+    public class StatsModule : BotBase
     {
         public static Dictionary<ulong, CancellationTokenSource> Tokens = new Dictionary<ulong, CancellationTokenSource>();
         [Command("run")]
