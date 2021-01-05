@@ -14,11 +14,20 @@ namespace DiscordBot.Classes
             {
                 return new BotUserOptions()
                 {
-                    PairedVoiceChannels = CreateChannelForVoice.Never
+                    PairedVoiceChannels = CreateChannelForVoice.WhenMuted
                 };
             } }
 
         public CreateChannelForVoice PairedVoiceChannels { get; set; }
+        public IsolationNotify WhenToNotifyIsolation { get; set; } = IsolationNotify.End;
+    }
+
+    [Flags]
+    public enum IsolationNotify
+    {
+        Never = 0b00,
+        Daily = 0b01,
+        End   = 0b11
     }
 
     public enum CreateChannelForVoice

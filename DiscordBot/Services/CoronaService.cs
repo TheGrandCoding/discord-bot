@@ -22,7 +22,7 @@ namespace DiscordBot.Services
     public class CoronaService : SavedService
     {
         public const string URL = @"https://corona-api.com/countries/";
-        public const int IsolationPeriod = 10;
+        public const int IsolationPeriod = 10 * 24;
 
         public Dictionary<string, List<DateTime>> AverageUpdateTimes = new Dictionary<string, List<DateTime>>();
         public Dictionary<ulong, DateTime> Isolation = new Dictionary<ulong, DateTime>();
@@ -148,11 +148,11 @@ namespace DiscordBot.Services
             return builder;
         }
 
-        string getPrefix(int daysRemain)
+        string getPrefix(int hoursRemain)
         {
-            if (daysRemain <= 0)
+            if (hoursRemain <= 0)
                 return null;
-            var perc = daysRemain / (double)IsolationPeriod;
+            var perc = hoursRemain / (double)IsolationPeriod;
             if (perc > 0.8)
                 return Emotes.MICROBE.Name.Repeat(5);
             if (perc > 0.6)
@@ -175,22 +175,36 @@ namespace DiscordBot.Services
             foreach(var keypair in Isolation)
             {
                 var end = keypair.Value.ToLastSecond();
+                var bUser = Program.GetUserOrDefault(keypair.Key);
+                var notify = bUser?.Options.WhenNotifyIsolation ?? Classes.IsolationNotify.Never;
                 foreach(var guild in Program.Client.Guilds)
                 {
                     var usr = guild.GetUser(keypair.Key);
                     if (usr == null)
                         continue;
-                    var daysRemain = end - DateTime.Now;
-                    var prefix = getPrefix((int)Math.Round(daysRemain.TotalDays));
+                    var diffRemain = end - DateTime.Now;
+                    int hoursRemain = (int)Math.Round(diffRemain.TotalHours);
+                    var prefix = getPrefix(hoursRemain);
                     var thing = getTrueNickname(usr.Nickname ?? usr.Username);
                     if (prefix == null)
                     {
                         await usr.ModifyAsync(x => x.Nickname = thing);
                         ls.Add(keypair.Key);
+                        if (notify.HasFlag(Classes.IsolationNotify.End))
+                            await usr.SendMessageAsync(embed: new EmbedBuilder()
+                                .WithTitle($"COVID Isolation Ended")
+                                .WithDescription($"Your isolation period has ended.")
+                                .Build());
                     }
                     else
                     {
                         await usr.ModifyAsync(x => x.Nickname = prefix + thing);
+                        if (notify.HasFlag(Classes.IsolationNotify.Daily))
+                            await usr.SendMessageAsync(embed: new EmbedBuilder()
+                                .WithTitle($"COVID Isolation Update")
+                                .WithDescription($"You have {hoursRemain} hours of your isolation period remaining.")
+                                .AddField("End Date", end.ToString("yyyy/MM/dd hh:mm:ss"))
+                                .Build());
                     }
                 }
             }
