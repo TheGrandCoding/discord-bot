@@ -177,14 +177,15 @@ namespace DiscordBot.Services
                 var end = keypair.Value.ToLastSecond();
                 var bUser = Program.GetUserOrDefault(keypair.Key);
                 var notify = bUser?.Options.WhenToNotifyIsolation ?? Classes.IsolationNotify.Never;
+                var diffRemain = end - DateTime.Now;
+                int hoursRemain = (int)Math.Round(diffRemain.TotalHours);
+                Program.LogMsg($"{bUser.Name} has {hoursRemain} hours left of their isolation", LogSeverity.Info, "Corona");
+                var prefix = getPrefix(hoursRemain);
                 foreach(var guild in Program.Client.Guilds)
                 {
                     var usr = guild.GetUser(keypair.Key);
                     if (usr == null)
                         continue;
-                    var diffRemain = end - DateTime.Now;
-                    int hoursRemain = (int)Math.Round(diffRemain.TotalHours);
-                    var prefix = getPrefix(hoursRemain);
                     var thing = getTrueNickname(usr.Nickname ?? usr.Username);
                     if (prefix == null)
                     {

@@ -13,7 +13,7 @@ namespace DiscordBot.MLAPI.Modules.Bot
 {
     public class Logs : APIBase
     {
-        public Logs(APIContext c) : base(c, "/") 
+        public Logs(APIContext c) : base(c, "bot") 
         {
             hasPerms = PermChecker.HasPerm(Context, Perms.Bot.Developer.SeeAPILogs);
         }
@@ -24,7 +24,7 @@ namespace DiscordBot.MLAPI.Modules.Bot
         [Method("GET"), Path("/bot/logs")]
         public void GetTodaysLog()
         {
-            ReplyFile("bot/logs.html", HttpStatusCode.OK);
+            ReplyFile("logs.html", HttpStatusCode.OK);
         }
 
         static string apiLogFolder => Path.Combine(Program.BASE_PATH, "APILogs");
