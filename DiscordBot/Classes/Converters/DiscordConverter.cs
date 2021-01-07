@@ -39,6 +39,8 @@ namespace DiscordBot.Classes
 
         public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
         {
+            if (reader.Value == null)
+                return null;
             string thing = (string)reader.Value;
             var split = thing.Split('.');
             var gid = ulong.Parse(split[0]);
