@@ -193,7 +193,8 @@ namespace DiscordBot.Services
                     var thing = getTrueNickname(usr.Nickname ?? usr.Username);
                     if (prefix == null)
                     {
-                        await usr.ModifyAsync(x => x.Nickname = thing);
+                        if(usr.Hierarchy < guild.CurrentUser.Hierarchy)
+                            await usr.ModifyAsync(x => x.Nickname = thing);
                         ls.Add(keypair.Key);
                         if (notify.HasFlag(Classes.IsolationNotify.End))
                             await usr.SendMessageAsync(embed: new EmbedBuilder()
@@ -203,7 +204,8 @@ namespace DiscordBot.Services
                     }
                     else
                     {
-                        await usr.ModifyAsync(x => x.Nickname = prefix + thing);
+                        if (usr.Hierarchy < guild.CurrentUser.Hierarchy)
+                            await usr.ModifyAsync(x => x.Nickname = prefix + thing);
                         if (notify.HasFlag(Classes.IsolationNotify.Daily))
                             await usr.SendMessageAsync(embed: new EmbedBuilder()
                                 .WithTitle($"COVID Isolation Update")
