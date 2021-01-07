@@ -69,6 +69,10 @@ namespace DiscordBot.Services
         {
             checkIsolationNicknames().Wait();
         }
+        public override void OnLoaded()
+        {
+            OnDailyTick();
+        }
 
         void handleTimeout()
         {

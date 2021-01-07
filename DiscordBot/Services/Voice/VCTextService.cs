@@ -57,14 +57,18 @@ namespace DiscordBot.Services
                 return;
             if (user.IsBot)
                 return;
-            if (!hasEnabledPairing(user, arg2.IsSelfMuted || arg3.IsSelfMuted))
-                return;
+            bool shouldHaveChnl = hasEnabledPairing(user, arg2.IsSelfMuted || arg3.IsSelfMuted);
             if (arg3.VoiceChannel == null)
                 await UserLeftVc(user, arg2);
             else if (arg2.VoiceChannel == null)
                 await UserJoinedVc(user, arg3);
             else if (arg2.VoiceChannel.Id != arg3.VoiceChannel.Id)
                 await UserMovedVc(user, arg2, arg3);
+        }
+
+        async Task JoinSyncPerms()
+        {
+
         }
 
         OverwritePermissions perms(bool manage)
@@ -117,9 +121,12 @@ namespace DiscordBot.Services
             if(Pairings.TryGetValue(voice, out var txtId))
             {
                 var pairings = voice.Users.Count(x => x.Id != user.Id && hasEnabledPairing(x, state.IsSelfMuted));
-                if (pairings > 0)
-                    return;
                 var text = voice.Guild.GetTextChannel(txtId);
+                if (pairings > 0)
+                {
+                    await text.RemovePermissionOverwriteAsync(user);
+                    return;
+                }
                 await text.DeleteAsync();
                 Pairings.Remove(voice);
                 OnSave();
