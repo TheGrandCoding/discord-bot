@@ -3,6 +3,7 @@ using Discord.WebSocket;
 using DiscordBot.Classes;
 using DiscordBot.Classes.Attributes;
 using DiscordBot.Services.Games;
+using DiscordBot.Utils;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -57,18 +58,12 @@ namespace DiscordBot.Services
                 return;
             if (user.IsBot)
                 return;
-            bool shouldHaveChnl = hasEnabledPairing(user, arg2.IsSelfMuted || arg3.IsSelfMuted);
             if (arg3.VoiceChannel == null)
                 await UserLeftVc(user, arg2);
             else if (arg2.VoiceChannel == null)
                 await UserJoinedVc(user, arg3);
             else if (arg2.VoiceChannel.Id != arg3.VoiceChannel.Id)
                 await UserMovedVc(user, arg2, arg3);
-        }
-
-        async Task JoinSyncPerms()
-        {
-
         }
 
         OverwritePermissions perms(bool manage)
@@ -114,6 +109,13 @@ namespace DiscordBot.Services
             if (text == null)
                 return;
             await text.AddPermissionOverwriteAsync(user, perms(manage));
+            if (!manage)
+                await text.SendMessageAsync(embed: new EmbedBuilder()
+                    .WithTitle("User Joined Paired VC")
+                    .WithDescription($"{user.GetName()} has joined the paired VC;" +
+                    $"They have been granted permission to access this channel.")
+                    .WithAuthor(user)
+                    .Build());
         }
         async Task UserLeftVc(SocketGuildUser user, SocketVoiceState state)
         {
@@ -122,11 +124,27 @@ namespace DiscordBot.Services
             {
                 var pairings = voice.Users.Count(x => x.Id != user.Id && hasEnabledPairing(x, state.IsSelfMuted));
                 var text = voice.Guild.GetTextChannel(txtId);
-                if (pairings > 0)
+                var embed = new EmbedBuilder();
+                embed.Title = $"User Left Paired VC";
+                embed.Description = $"{user.GetName()} has left {voice.Name}, with {voice.Users.Count} remaining\r\n" +
+                    $"Their permission to access this channel has been removed.";
+                int hasEnabledPair = 0;
+                foreach(var usr in voice.Users)
+                {
+                    if (usr.Id == user.Id)
+                        continue;
+                    var b = hasEnabledPairing(usr, usr.IsSelfMuted);
+                    embed.AddField(usr.GetName(), b.ToString());
+                    if (b)
+                        hasEnabledPair++;
+                }
+                if (hasEnabledPair > 0)
                 {
                     await text.RemovePermissionOverwriteAsync(user);
+                    await text.SendMessageAsync(embed: embed.Build());
                     return;
                 }
+                await Program.AppInfo.Owner.SendMessageAsync(embed: embed.Build());
                 await text.DeleteAsync();
                 Pairings.Remove(voice);
                 OnSave();
@@ -165,8 +183,9 @@ namespace DiscordBot.Services
 
         async Task catchup()
         {
+            var shouldSave = false;
             var toRemove = new List<SocketVoiceChannel>();
-            foreach(var keypair in Pairings)
+            foreach (var keypair in Pairings)
             {
                 var voice = keypair.Key;
                 var txt = voice.Guild.GetTextChannel(keypair.Value);
@@ -194,8 +213,33 @@ namespace DiscordBot.Services
             }
             foreach (var vc in toRemove)
                 Pairings.Remove(vc);
-            if (toRemove.Count > 0)
+            shouldSave = toRemove.Count > 0;
+            foreach(var g in Program.Client.Guilds)
+            {
+                var existing = await catchupVCs(g);
+                shouldSave = shouldSave || existing;
+            }
+            if (shouldSave)
                 OnSave();
+        }
+
+        async Task<bool> catchupVCs(SocketGuild guild)
+        {
+            var doneAny = false;
+            foreach(var vc in guild.VoiceChannels)
+            {
+                if (Pairings.TryGetValue(vc, out _))
+                    continue;
+                var createdDueTo = vc.Users.FirstOrDefault(x => hasEnabledPairing(x, x.IsSelfMuted));
+                if (createdDueTo == null)
+                    continue;
+                doneAny = true;
+                await UserJoinedVc(createdDueTo, createdDueTo.VoiceState.Value);
+                foreach (var other in vc.Users)
+                    if (other.Id != createdDueTo.Id)
+                        await UserJoinedVc(other, other.VoiceState.Value);
+            }
+            return doneAny;
         }
     }
 }
