@@ -7,6 +7,7 @@ using WebSocketSharp;
 
 namespace DiscordBot.MLAPI
 {
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = true)]
     public class RequireServerName : APIPrecondition
     {
         public string Domain

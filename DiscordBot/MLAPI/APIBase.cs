@@ -14,7 +14,8 @@ namespace DiscordBot.MLAPI
     [RequireAuthentication]
     [RequireApproval]
 #if LINUX
-    [RequireServerName("ml-api." + Handler.LocalAPIDomain)]
+    [RequireServerName("ml-api." + Handler.LocalAPIDomain, OR = "domain")]
+    [RequireServerName("ml-api.ms", OR = "domain")]
 #else
     [RequireServerName("localhost")]
 #endif

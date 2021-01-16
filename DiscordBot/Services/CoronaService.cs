@@ -185,6 +185,23 @@ namespace DiscordBot.Services
                 int hoursRemain = (int)Math.Round(diffRemain.TotalHours);
                 Program.LogMsg($"{bUser.Name} has {hoursRemain} hours left of their isolation", LogSeverity.Info, "Corona");
                 var prefix = getPrefix(hoursRemain);
+                var anyValid = bUser.FirstValidUser;
+                if(prefix == null)
+                {
+                    if (notify.HasFlag(Classes.IsolationNotify.End))
+                        await anyValid?.SendMessageAsync(embed: new EmbedBuilder()
+                            .WithTitle($"COVID Isolation Ended")
+                            .WithDescription($"Your isolation period has ended.")
+                            .Build());
+                } else
+                {
+                    if (notify.HasFlag(Classes.IsolationNotify.Daily))
+                        await anyValid?.SendMessageAsync(embed: new EmbedBuilder()
+                            .WithTitle($"COVID Isolation Update")
+                            .WithDescription($"You have {hoursRemain} hours of your isolation period remaining.")
+                            .AddField("End Date", end.ToString("yyyy/MM/dd hh:mm:ss"))
+                            .Build());
+                }
                 foreach(var guild in Program.Client.Guilds)
                 {
                     var usr = guild.GetUser(keypair.Key);
@@ -196,22 +213,11 @@ namespace DiscordBot.Services
                         if(usr.Hierarchy < guild.CurrentUser.Hierarchy)
                             await usr.ModifyAsync(x => x.Nickname = thing);
                         ls.Add(keypair.Key);
-                        if (notify.HasFlag(Classes.IsolationNotify.End))
-                            await usr.SendMessageAsync(embed: new EmbedBuilder()
-                                .WithTitle($"COVID Isolation Ended")
-                                .WithDescription($"Your isolation period has ended.")
-                                .Build());
                     }
                     else
                     {
                         if (usr.Hierarchy < guild.CurrentUser.Hierarchy)
                             await usr.ModifyAsync(x => x.Nickname = prefix + thing);
-                        if (notify.HasFlag(Classes.IsolationNotify.Daily))
-                            await usr.SendMessageAsync(embed: new EmbedBuilder()
-                                .WithTitle($"COVID Isolation Update")
-                                .WithDescription($"You have {hoursRemain} hours of your isolation period remaining.")
-                                .AddField("End Date", end.ToString("yyyy/MM/dd hh:mm:ss"))
-                                .Build());
                     }
                 }
             }

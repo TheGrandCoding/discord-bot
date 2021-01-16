@@ -128,6 +128,7 @@ namespace DiscordBot.Services
                 embed.Title = $"User Left Paired VC";
                 embed.Description = $"{user.GetName()} has left {voice.Name}, with {voice.Users.Count} remaining\r\n" +
                     $"Their permission to access this channel has been removed.";
+                embed.WithAuthor(user);
                 int hasEnabledPair = 0;
                 foreach(var usr in voice.Users)
                 {
@@ -213,12 +214,15 @@ namespace DiscordBot.Services
             }
             foreach (var vc in toRemove)
                 Pairings.Remove(vc);
+
             shouldSave = toRemove.Count > 0;
+#if !DEBUG
             foreach(var g in Program.Client.Guilds)
             {
                 var existing = await catchupVCs(g);
                 shouldSave = shouldSave || existing;
             }
+#endif
             if (shouldSave)
                 OnSave();
         }
