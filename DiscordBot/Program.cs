@@ -10,6 +10,7 @@ using DiscordBot.MLAPI;
 using DiscordBot.Permissions;
 using DiscordBot.Services;
 using DiscordBot.TypeReaders;
+using DiscordBot.Utils;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -36,7 +37,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.13.16"; 
+        public const string VERSION = "0.13.17"; 
         public const string CHANGELOG = VERSION + @"
 == Permissions changes
 Changed how permissions worked for bot.
@@ -337,9 +338,10 @@ Changed how permissions worked for bot.
                     });
 #endif
             }, ServiceLifetime.Transient);
-            var http = new HttpClient();
+            var http = new Utils.BotHttpClient();
             http.DefaultRequestHeaders.Add("User-Agent", $"dsMLAPI-v{VER_STR}");
             coll.AddSingleton(typeof(HttpClient), http);
+            coll.AddSingleton(typeof(BotHttpClient), http);
             foreach(var service in ReflectiveEnumerator.GetEnumerableOfType<Service>(null))
                 coll.AddSingleton(service.GetType());
             return coll.BuildServiceProvider();

@@ -193,7 +193,9 @@ namespace DiscordBot.Services
                             .WithTitle($"COVID Isolation Ended")
                             .WithDescription($"Your isolation period has ended.")
                             .Build());
-                } else
+                    ls.Add(keypair.Key);
+                }
+                else
                 {
                     if (notify.HasFlag(Classes.IsolationNotify.Daily))
                         await anyValid?.SendMessageAsync(embed: new EmbedBuilder()
@@ -212,7 +214,6 @@ namespace DiscordBot.Services
                     {
                         if(usr.Hierarchy < guild.CurrentUser.Hierarchy)
                             await usr.ModifyAsync(x => x.Nickname = thing);
-                        ls.Add(keypair.Key);
                     }
                     else
                     {
@@ -222,6 +223,8 @@ namespace DiscordBot.Services
                 }
             }
             foreach (var x in ls) Isolation.Remove(x);
+            if (ls.Count > 0)
+                OnSave();
         }
 
         void threadWork()

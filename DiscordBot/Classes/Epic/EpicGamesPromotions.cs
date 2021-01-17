@@ -7,17 +7,22 @@ using System.Text;
 
 namespace DiscordBot.Classes.Epic
 {
-    public class FreeGamesPromotions
+    public class EpicGamesPromotions
     {
+        [JsonProperty("data")]
+        public EpicData Data { get; set; }
 
+        [JsonProperty("extensions")]
+        public JObject Extensions { get; set; }
     }
     public class EpicData
     {
-
+        public EpicCatalog Catalog { get; set; }
     }
     public class EpicCatalog
     {
-
+        [JsonProperty("searchStore")]
+        public EpicSearchStore SearchStore { get; set; }
     }
     public class EpicSearchStore
     {
@@ -95,7 +100,8 @@ namespace DiscordBot.Classes.Epic
         Thumbnail,
         DieselStoreFrontWide,
         DieselStoreFrontTall,
-        CodeRedemption_340x440
+        CodeRedemption_340x440,
+        VaultClosed
     }
     [DebuggerDisplay("{Name}")]
     public class EpicSeller
@@ -158,15 +164,23 @@ namespace DiscordBot.Classes.Epic
         [JsonProperty("currencyCode")]
         public string CurrencyCode { get; set; }
 
+        [JsonProperty("currencyInfo")]
+        public EpicCurrencyInfo CurrencyInfo { get; set; }
+
         [JsonProperty("fmtPrice")]
         public EpicFormattedPrice FormattedPrice { get; set; }
     }
     public class EpicFormattedPrice 
     {
         [JsonProperty("discountPrice")]
-        public int DiscountPrice { get; set; }
+        public string DiscountPrice { get; set; }
 
         [JsonProperty("originalPrice")]
-        public int OriginalPrice { get; set; }
+        public string OriginalPrice { get; set; }
+    }
+    public class EpicCurrencyInfo
+    {
+        [JsonProperty("decimals")]
+        public int Decimals { get; set; }
     }
 }
