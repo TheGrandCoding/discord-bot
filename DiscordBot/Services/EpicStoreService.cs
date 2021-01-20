@@ -124,7 +124,7 @@ namespace DiscordBot.Services
             builder.Timestamp = thing.EffectiveDate;
             builder.Title = $"Free Game Next Thursday";
             builder.Description = $"**{thing.Title}** will be free on Thursday.\r\n" +
-                $"{thing.Description ?? "This game has no description."}"
+                $"{thing.Description ?? "This game has no description."}";
             var uri = thing.KeyImages.FirstOrDefault(x => x.Type == EpicImageType.OfferImageWide)?.Url;
             uri ??= thing.KeyImages.FirstOrDefault()?.Url;
             builder.ImageUrl = uri?.ToString();
