@@ -107,7 +107,8 @@ namespace DiscordBot.Services
             var builder = new EmbedBuilder();
             builder.Timestamp = thing.EffectiveDate;
             builder.Title = $"Free Game Today";
-            builder.Description = $"**{thing.Title}** will be free from {thing.EffectiveDate:HH:mm:ss} today.";
+            builder.Description = $"**{thing.Title}** will be free from {thing.EffectiveDate:HH:mm:ss} today.\r\n" +
+                $"{thing.Description ?? "This game has no description."}";
             var uri = thing.KeyImages.FirstOrDefault(x => x.Type == EpicImageType.OfferImageWide)?.Url;
             uri ??= thing.KeyImages.FirstOrDefault()?.Url;
             builder.ImageUrl = uri?.ToString();
@@ -122,7 +123,8 @@ namespace DiscordBot.Services
             var builder = new EmbedBuilder();
             builder.Timestamp = thing.EffectiveDate;
             builder.Title = $"Free Game Next Thursday";
-            builder.Description = $"**{thing.Title}** will be free on Thursday.";
+            builder.Description = $"**{thing.Title}** will be free on Thursday.\r\n" +
+                $"{thing.Description ?? "This game has no description."}"
             var uri = thing.KeyImages.FirstOrDefault(x => x.Type == EpicImageType.OfferImageWide)?.Url;
             uri ??= thing.KeyImages.FirstOrDefault()?.Url;
             builder.ImageUrl = uri?.ToString();
