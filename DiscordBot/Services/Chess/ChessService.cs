@@ -352,7 +352,7 @@ namespace DiscordBot.Services
                 return Enumerable
                     .Range(1, dayDifference)
                     .Select(x => timeSecond.AddDays(x))
-                    .Count(x => x.DayOfWeek == DayOfWeek.Friday && !Holidays[x.Year].Contains(x.DayOfYear));
+                    .Count(x => x.DayOfWeek == DayOfWeek.Friday && !IsHoliday(x));
             }
             else if (first == second)
             {
@@ -731,19 +731,13 @@ namespace DiscordBot.Services
             }
         }
 
-        void setQuarantine()
+        public bool IsHoliday(DateTime date)
         {
-            var day = new DateTime(2020, 03, 27);
-            var afterNow = DateTime.Now.AddDays(30);
-            do
-            {
-                if(!Holidays[day.Year].Contains(day.DayOfYear))
-                {
-                    // recognise issue with looping through it, but memory issues if the bot keeps calling this function.
-                    Holidays[day.Year].Add(day.DayOfYear);
-                }
-                day = day.AddDays(1);
-            } while (day < afterNow);
+            if (Holidays.TryGetValue(date.Year, out var ls))
+                if (ls.Contains(date.DayOfYear))
+                    return true;
+            var quarantineBegins = new DateTime(2020, 03, 27);
+            return date > quarantineBegins;
         }
 
         public void setElectedArbiter(ChessDbContext db)
@@ -819,8 +813,6 @@ namespace DiscordBot.Services
             int i = 0;
             Program.LogMsg($"OnDailyTick: {i++:00}", LogSeverity.Warning, "ChessService");
             using var db = DB();
-            Program.LogMsg($"OnDailyTick: {i++:00}", LogSeverity.Warning, "ChessService");
-            setQuarantine();
             Program.LogMsg($"OnDailyTick: {i++:00}", LogSeverity.Warning, "ChessService");
             SetBuiltInRoles(db);
             Program.LogMsg($"OnDailyTick: {i++:00}", LogSeverity.Warning, "ChessService");

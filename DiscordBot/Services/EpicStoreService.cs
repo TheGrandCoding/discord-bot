@@ -18,6 +18,8 @@ namespace DiscordBot.Services
             "freeGamesPromotions?locale=en-US&country=GB&allowCountries=GB";
         public Dictionary<ulong, ulong> Channels { get; set; } = new Dictionary<ulong, ulong>();
         public Dictionary<string, DateTime> Games { get; set; } = new Dictionary<string, DateTime>();
+        public string GetUrl(EpicStoreElement game)
+            => $"https://www.epicgames.com/store/en-US/product/{(game.ProductSlug)}/home";
         public override string GenerateSave()
         {
             var sv = new EpicSave();
@@ -76,12 +78,17 @@ namespace DiscordBot.Services
 
         public override void OnDailyTick()
         {
-            if (Program.DailyValidateFailed())
-                return;
-            if (DateTime.Now.DayOfWeek == DayOfWeek.Thursday)
-                ThursdaySale(GetPromotions());
-            if (DateTime.Now.DayOfWeek == DayOfWeek.Friday)
-                FridayNewGame(GetPromotions());
+            if (DateTime.Now.DayOfWeek == DayOfWeek.Thursday
+                || DateTime.Now.DayOfWeek == DayOfWeek.Friday)
+            {
+                if (Program.DailyValidateFailed())
+                    return;
+                var games = GetPromotions();
+                if(DateTime.Now.DayOfWeek == DayOfWeek.Thursday)
+                    CurrentSale(games);
+                if(DateTime.Now.DayOfWeek == DayOfWeek.Friday || DateTime.Now.Hour >= 16)
+                    NextSale(games);
+            }
         }
 
         string getPricePrefix(string code)
@@ -100,13 +107,14 @@ namespace DiscordBot.Services
             return getPricePrefix(price.CurrencyCode) + currency.ToString("F");
         }
 
-        public void ThursdaySale(EpicGamesPromotions response)
+        public void CurrentSale(EpicGamesPromotions response)
         {
             var games = response.Data.Catalog.SearchStore.Elements;
             var thing = games.FirstOrDefault(x => x.EffectiveDate.DayOfYear == DateTime.Now.DayOfYear);
             var builder = new EmbedBuilder();
             builder.Timestamp = thing.EffectiveDate;
             builder.Title = $"Free Game Today";
+            builder.Url = GetUrl(thing);
             builder.Description = $"**{thing.Title}** will be free from {thing.EffectiveDate:HH:mm:ss} today.\r\n" +
                 $"{thing.Description ?? "This game has no description."}";
             var uri = thing.KeyImages.FirstOrDefault(x => x.Type == EpicImageType.OfferImageWide)?.Url;
@@ -116,13 +124,14 @@ namespace DiscordBot.Services
             builder.AddField($"Original Price", FormatPrice(totalPrice, totalPrice.OriginalPrice));
             Send(builder).Wait();
         }
-        public void FridayNewGame(EpicGamesPromotions response)
+        public void NextSale(EpicGamesPromotions response)
         {
             var games = response.Data.Catalog.SearchStore.Elements.OrderBy(x => x.EffectiveDate);
             var thing = games.ElementAt(1);
             var builder = new EmbedBuilder();
             builder.Timestamp = thing.EffectiveDate;
             builder.Title = $"Free Game Next Thursday";
+            builder.Url = GetUrl(thing);
             builder.Description = $"**{thing.Title}** will be free on Thursday.\r\n" +
                 $"{thing.Description ?? "This game has no description."}";
             var uri = thing.KeyImages.FirstOrDefault(x => x.Type == EpicImageType.OfferImageWide)?.Url;

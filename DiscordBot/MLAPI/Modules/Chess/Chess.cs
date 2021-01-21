@@ -11,6 +11,7 @@ using DiscordBot.Services;
 using DiscordBot.Utils;
 using Markdig.Extensions.SelfPipeline;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.Extensions.DependencyInjection;
 using MongoDB.Bson.Serialization;
 using Newtonsoft.Json.Linq;
@@ -770,11 +771,8 @@ namespace DiscordBot.MLAPI.Modules
             DateTime start = ChessS.GetFridayOfThisWeek();
             do
             {
-                if (ChessS.Holidays.TryGetValue(start.Year, out var ls) && ls.Contains(start.DayOfYear))
-                {
-                }
-                else
-                {
+                if (!ChessS.IsHoliday(start))
+                { 
                     dates.Add(start);
                 }
                 start = start.AddDays(-7);

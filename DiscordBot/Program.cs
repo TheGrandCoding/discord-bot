@@ -4,6 +4,7 @@ using Discord.Commands;
 using Discord.Rest;
 using Discord.WebSocket;
 using DiscordBot.Classes;
+using DiscordBot.Classes.Attributes;
 using DiscordBot.Classes.Calculator;
 using DiscordBot.Classes.Chess;
 using DiscordBot.MLAPI;
@@ -475,10 +476,10 @@ Changed how permissions worked for bot.
             var method = frame.GetMethod();
             var parent = method.DeclaringType.ReflectedType ?? method.DeclaringType;
             string name = $"{parent.Name}:{method.Name}";
-            bool val = true;
+            bool val = false;
             if(states.TryGetValue(name, out int v))
             {
-                val = v != DateTime.Now.DayOfYear;
+                val = v == DateTime.Now.DayOfYear;
             }
             states[name] = DateTime.Now.DayOfYear;
             return val;
