@@ -251,6 +251,7 @@ namespace DiscordBot.Services
         public string Mention => throw new NotImplementedException();
         public IActivity Activity => throw new NotImplementedException();
         public UserStatus Status => throw new NotImplementedException();
+        public UserProperties? PublicFlags => throw new NotImplementedException();
         public IImmutableSet<ClientType> ActiveClients => throw new NotImplementedException();
 
         public IImmutableList<IActivity> Activities => throw new NotImplementedException();

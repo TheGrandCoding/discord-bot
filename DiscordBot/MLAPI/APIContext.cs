@@ -95,7 +95,7 @@ namespace DiscordBot.MLAPI
             {
                 paramaters[x.Name] = x.Data;
             }
-            Files = parsed.Files;
+            Files = parsed.Files.ToList();
         }
 
         Dictionary<string, string> paramaters = null;

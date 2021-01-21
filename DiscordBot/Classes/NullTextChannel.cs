@@ -138,18 +138,6 @@ namespace DiscordBot.Classes
         {
             throw new NotImplementedException();
         }
-        public Task<IUserMessage> SendFileAsync(string filePath, string text = null, bool isTTS = false, Embed embed = null, RequestOptions options = null, bool isSpoiler = false, AllowedMentions allowedMentions = null)
-        {
-            throw new NotImplementedException();
-        }
-        public Task<IUserMessage> SendFileAsync(Stream stream, string filename, string text = null, bool isTTS = false, Embed embed = null, RequestOptions options = null, bool isSpoiler = false, AllowedMentions allowedMentions = null)
-        {
-            throw new NotImplementedException();
-        }
-        public Task<IUserMessage> SendMessageAsync(string text = null, bool isTTS = false, Embed embed = null, RequestOptions options = null, AllowedMentions allowedMentions = null)
-        {
-            throw new NotImplementedException();
-        }
         public Task SyncPermissionsAsync(RequestOptions options = null)
         {
             throw new NotImplementedException();
@@ -163,6 +151,18 @@ namespace DiscordBot.Classes
             throw new NotImplementedException();
         }
         IAsyncEnumerable<IReadOnlyCollection<IUser>> IChannel.GetUsersAsync(CacheMode mode, RequestOptions options)
+        {
+            throw new NotImplementedException();
+        }
+        public Task<IUserMessage> SendMessageAsync(string text = null, bool isTTS = false, Embed embed = null, RequestOptions options = null, AllowedMentions allowedMentions = null, MessageReference messageReference = null)
+        {
+            throw new NotImplementedException();
+        }
+        public Task<IUserMessage> SendFileAsync(string filePath, string text = null, bool isTTS = false, Embed embed = null, RequestOptions options = null, bool isSpoiler = false, AllowedMentions allowedMentions = null, MessageReference messageReference = null)
+        {
+            throw new NotImplementedException();
+        }
+        public Task<IUserMessage> SendFileAsync(Stream stream, string filename, string text = null, bool isTTS = false, Embed embed = null, RequestOptions options = null, bool isSpoiler = false, AllowedMentions allowedMentions = null, MessageReference messageReference = null)
         {
             throw new NotImplementedException();
         }

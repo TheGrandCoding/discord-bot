@@ -44,6 +44,7 @@ namespace DiscordBot.Utils
 
             public IImmutableSet<ClientType> ActiveClients { get; set; }
             public IImmutableList<IActivity> Activities { get; set; }
+            public UserProperties? PublicFlags { get; set; }
 
             public string GetAvatarUrl(ImageFormat format = ImageFormat.Auto, ushort size = 128)
                 => Discord.CDN.GetUserAvatarUrl(Id, AvatarId, size, format);
