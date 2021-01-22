@@ -226,18 +226,66 @@ namespace DiscordBot
                     return "th";
             }
         }
-    
+
+
+        static List<char> _braille;
         public static string ToBase64(string utf)
         {
             var bytes = Encoding.UTF8.GetBytes(utf);
             return Convert.ToBase64String(bytes);
         }
-        public static string ToUTF8(string b64)
+        public static string FromBase64(string b64)
         {
             var bytes = Convert.FromBase64String(b64);
             return Encoding.UTF8.GetString(bytes);
         }
-        
+        public static string ToHex(string utf)
+        {
+            var bytes = Encoding.UTF8.GetBytes(ToBase64(utf));
+            return string.Join("", bytes.Select(x => x.ToString("X")));
+        }
+        public static string FromHex(string hex)
+        {
+            var bytes = new List<byte>();
+            for(int i = 0; i < hex.Length - 1; i += 2)
+            {
+                var hexChar = hex.Substring(i, 2);
+                var b = byte.Parse(hexChar, System.Globalization.NumberStyles.HexNumber);
+                bytes.Add(b);
+            }
+            var b64 = Encoding.UTF8.GetString(bytes.ToArray());
+            return FromBase64(b64);
+        }
+        public static string ToEncoded(string utf8)
+            => substitute(ToHex(utf8), true);
+        public static string FromEncoded(string encoded)
+        {
+            var hex = substitute(encoded, false);
+            return FromHex(hex);
+        }
+
+        static string substitute(string message, bool convert = true)
+        {
+            var result = new StringBuilder();
+            var index = 0;
+            if(convert)
+            {
+                for (int i = 0; i < message.Length - 1; i += 2)
+                {
+                    result.Append(_braille[int.Parse(message.Substring(i, 2), System.Globalization.NumberStyles.HexNumber)]);
+                }
+            } else
+            {
+                foreach(var chr in message)
+                {
+                    index = _braille.IndexOf(chr);
+                    result.Append($"0{index:X}"[^2..]);
+                }
+            }
+            return result.ToString();
+        }
+
+
         static void appendN(StringBuilder b, int n, string sing, string plural = null)
         {
             if(plural == null)

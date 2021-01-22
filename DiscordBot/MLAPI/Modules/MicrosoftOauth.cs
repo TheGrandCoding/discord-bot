@@ -131,7 +131,7 @@ namespace DiscordBot.MLAPI.Modules
                 return;
             }
             var stateSplit = state.Split('.');
-            var scopes = new MSScopeOptions(Program.ToUTF8(stateSplit[1]).Split(' '));
+            var scopes = new MSScopeOptions(Program.FromBase64(stateSplit[1]).Split(' '));
             if(stateSplit[0] != Context.User.Id.ToString())
             {
                 RespondRaw("State mismatch", 400);

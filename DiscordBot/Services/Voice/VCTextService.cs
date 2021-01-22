@@ -112,7 +112,7 @@ namespace DiscordBot.Services
             if (!manage)
                 await text.SendMessageAsync(embed: new EmbedBuilder()
                     .WithTitle("User Joined Paired VC")
-                    .WithDescription($"{user.GetName()} has joined the paired VC;" +
+                    .WithDescription($"{user.GetName()} has joined the paired VC.\r\n" +
                     $"They have been granted permission to access this channel.")
                     .WithAuthor(user)
                     .Build());
@@ -130,15 +130,17 @@ namespace DiscordBot.Services
                     $"Their permission to access this channel has been removed.";
                 embed.WithAuthor(user);
                 int hasEnabledPair = 0;
+                var debug = new List<string>();
                 foreach(var usr in voice.Users)
                 {
                     if (usr.Id == user.Id)
                         continue;
                     var b = hasEnabledPairing(usr, usr.IsSelfMuted);
-                    embed.AddField(usr.GetName(), b.ToString());
+                    debug.Add($"{usr.GetName()}:{b:0}");
                     if (b)
                         hasEnabledPair++;
                 }
+                embed.WithFooter(Program.ToEncoded(string.Join(",", debug)));
                 if (hasEnabledPair > 0)
                 {
                     await text.RemovePermissionOverwriteAsync(user);
