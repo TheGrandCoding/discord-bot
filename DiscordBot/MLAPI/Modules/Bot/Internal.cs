@@ -63,8 +63,10 @@ namespace DiscordBot.MLAPI.Modules.Bot
         [RequireApproval(false)]
         public void GithubWebhook()
         {
+            Program.LogMsg($"Notified of possible build, checking authorization...");
             string value = Context.HTTP.Request.Headers["Authorization"];
             var bytes = Convert.FromBase64String(value.Split(' ')[1]);
+            Program.LogMsg($"{bytes.Length} bytes of password.");
             var combined = Encoding.UTF8.GetString(bytes);
             var password = combined.Split(':')[1];
             if(password == Program.Configuration["tokens:github:internal"])
@@ -73,6 +75,7 @@ namespace DiscordBot.MLAPI.Modules.Bot
                 RestartBot();
             } else
             {
+                Program.LogMsg($"Authorization mismatched, provided: '{password}'");
                 RespondRaw("Failed.", 400);
             }
         }
