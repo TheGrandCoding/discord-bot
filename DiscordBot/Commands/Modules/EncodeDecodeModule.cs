@@ -12,14 +12,14 @@ namespace DiscordBot.Commands.Modules
         [Summary("Encodes the provided message into a special format.")]
         public async Task Encode([Remainder]string encode)
         {
-            await ReplyAsync($"```\r\n{encode}\r\n```");
+            await ReplyAsync($"```\r\n{Program.ToEncoded(encode)}\r\n```");
         }
 
         [Command("decode")]
         [Summary("Decodes the provided message from the special format.")]
         public async Task Decode([Remainder]string message)
         {
-            await ReplyAsync($">>> {message}");
+            await ReplyAsync($">>> {Program.FromEncoded(message)}");
         }
     }
 }
