@@ -13,6 +13,8 @@ namespace DiscordBot.Services
     public class MonitorService : SavedService
     {
         public Dictionary<ulong, Monitor> Monitors { get; set; }
+        public Dictionary<ulong, DateTime> LastAction { get; set; } = new Dictionary<ulong, DateTime>();
+
         public override string GenerateSave()
         {
             return Program.Serialise(Monitors);
@@ -47,8 +49,9 @@ namespace DiscordBot.Services
             var builder = new EmbedBuilder();
             builder.Title = $"User Updated";
             builder.WithCurrentTimestamp();
-            builder.AddField($"Time", DateTime.Now.ToString("HH:mm:ss.fff"));
+            builder.AddField($"Time", DateTime.Now.ToString("HH:mm:ss.fff"), true);
             builder.WithAuthor(arg1);
+            builder.WithColor(Color.Purple);
             var calc = new ChangeCalculator(arg1, arg2);
             var changes = calc.GetChangesReflection();
             foreach(var change in changes)
@@ -72,22 +75,31 @@ namespace DiscordBot.Services
             builder.Title = $"VC Updated";
             builder.WithCurrentTimestamp();
             builder.AddField($"Time", DateTime.Now.ToString("HH:mm:ss.fff"));
+            var last = LastAction.GetValueOrDefault(arg1.Id, DateTime.MinValue);
+            if (last != DateTime.MinValue)
+            {
+                var diff = DateTime.Now - last;
+                builder.AddField($"Duration", Program.FormatTimeSpan(diff, true), true);
+            }
+            LastAction[arg1.Id] = DateTime.Now;
             builder.WithAuthor($"{arg1.Username}#{arg1.Discriminator}", arg1.GetAnyAvatarUrl());
-            builder.WithColor(Color.Purple);
             var beforeUsers = arg2.VoiceChannel?.Users.ToList() ?? new List<SocketGuildUser>();
             var afterUsers = arg3.VoiceChannel?.Users.ToList() ?? new List<SocketGuildUser>();
             if (arg3.VoiceChannel == null)
             {
-                builder.Description = $"Left {arg2.VoiceChannel.Name}";
+                builder.Description = $"{arg1.Username} left {arg2.VoiceChannel.Name}";
                 beforeUsers.Add((SocketGuildUser)arg1);
+                builder.WithColor(Color.Blue);
             }
             else if (arg2.VoiceChannel == null)
             {
-                builder.Description = $"Join {arg3.VoiceChannel.Name}";
+                builder.Description = $"{arg1.Username} joined {arg3.VoiceChannel.Name}";
+                builder.WithColor(Color.Green);
             }
             else if (arg2.VoiceChannel.Id != arg3.VoiceChannel.Id)
             {
-                builder.Description = $"Moved from {arg2.VoiceChannel.Name} to {arg3.VoiceChannel.Name}";
+                builder.Description = $"{arg1.Username} moved from {arg2.VoiceChannel.Name} to {arg3.VoiceChannel.Name}";
+                builder.WithColor(Color.Teal);
             }
             if (string.IsNullOrWhiteSpace(builder.Description))
                 return;
