@@ -74,7 +74,7 @@ namespace DiscordBot.Services
             var builder = new EmbedBuilder();
             builder.Title = $"VC Updated";
             builder.WithCurrentTimestamp();
-            builder.AddField($"Time", DateTime.Now.ToString("HH:mm:ss.fff"));
+            builder.AddField($"Time", DateTime.Now.ToString("HH:mm:ss.fff"), true);
             var last = LastAction.GetValueOrDefault(arg1.Id, DateTime.MinValue);
             if (last != DateTime.MinValue)
             {

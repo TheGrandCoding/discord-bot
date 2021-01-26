@@ -295,8 +295,9 @@ namespace DiscordBot
                 else
                     plural = (plural ?? sing) + "s";
             }
+            var spc = sing == plural ? "" : " ";
             if (n > 0)
-                b.Append($"{n} {(n > 1 ? plural : sing)} ");
+                b.Append($"{n}{spc}{(n > 1 ? plural : sing)}{spc}");
         }
         public static string FormatTimeSpan(TimeSpan ts, bool shortForm = false, bool includeMs = false)
         {

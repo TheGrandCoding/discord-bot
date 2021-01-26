@@ -19,7 +19,7 @@ namespace DiscordBot.Commands.Modules
         [Summary("Decodes the provided message from the special format.")]
         public async Task Decode([Remainder]string message)
         {
-            await ReplyAsync($">>> {Program.FromEncoded(message)}");
+            await ReplyAsync($"```\r\n{Program.FromEncoded(message)}\r\n```");
         }
     }
 }
