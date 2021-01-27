@@ -1,5 +1,6 @@
 ﻿using Discord;
 using Discord.WebSocket;
+using DiscordBot.Utils;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -126,11 +127,11 @@ namespace DiscordBot.Classes
         public UserStatus Status => ((IUser)FirstValidUser).Status;
         public string GetAvatarUrl(ImageFormat format = ImageFormat.Auto, ushort size = 128)
         {
-            return ((IUser)FirstValidUser).GetAvatarUrl(format, size);
+            return ((IUser)FirstValidUser)?.GetAvatarUrl(format, size) ?? GetDefaultAvatarUrl();
         }
         public string GetDefaultAvatarUrl()
         {
-            return ((IUser)FirstValidUser).GetDefaultAvatarUrl();
+            return CDN.GetDefaultUserAvatarUrl(DiscriminatorValue);
         }
         public Task<IDMChannel> GetOrCreateDMChannelAsync(RequestOptions options = null)
         {

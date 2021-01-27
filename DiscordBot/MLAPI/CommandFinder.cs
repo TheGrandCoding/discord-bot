@@ -168,13 +168,15 @@ namespace DiscordBot.MLAPI
             var paramaters = cmd.Function.GetParameters();
             foreach (var param in paramaters)
             {
+                string value = null;
                 if(cmd.Regexs.TryGetValue(param.Name, out var pattern))
                 {
                     var match = rgxMatch.Groups[param.Name];
-                    args.Add(match.Value);
-                    continue;
+                    value = match.Value;
+                } else
+                {
+                    value = context.GetQuery(param.Name);
                 }
-                var value = context.GetQuery(param.Name);
                 if (value == null && param.IsOptional == false)
                     return final.WithError($"No argument specified for required item {param.Name}");
                 if (value == null)

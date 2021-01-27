@@ -267,7 +267,7 @@ namespace DiscordBot.Services.EduLink
             foreach(var student in students)
             {
                 var client = s.Clients.GetValueOrDefault(student.Id);
-                string done = client == null ? "" : Homeworks[client].Status == "Submitted" ? "✅" : "";
+                string done = client == null ? "" : Homeworks.GetValueOrDefault(client)?.Status == "Submitted" ? "✅" : "";
                 dueFor += $"- {student.Name} {done}\n";
             }
             if (!string.IsNullOrWhiteSpace(dueFor))

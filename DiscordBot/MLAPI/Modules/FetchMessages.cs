@@ -203,7 +203,7 @@ namespace DiscordBot.MLAPI.Modules
             return chnlContent;
         }
 
-        string getRGBFromColor(Color clr, string a = "")
+        static string getRGBFromColor(Color clr, string a = "")
         {
             return $"rgb({clr.R}, {clr.G}, {clr.B}{(string.IsNullOrWhiteSpace(a) ? "" : ", " + a)})";
         }
@@ -259,7 +259,7 @@ namespace DiscordBot.MLAPI.Modules
         #region Message HTML
 
         static string[] imageExtensions = new string[] { "jpeg", "jpg", "png" };
-        bool isImage(string x)
+        static bool isImage(string x)
         {
             foreach (var ext in imageExtensions)
                 if (x.ToLower().EndsWith(ext))
@@ -267,7 +267,7 @@ namespace DiscordBot.MLAPI.Modules
             return false;
         }
 
-        HTMLBase getMsgAttachments(ReturnedMsg message)
+        static HTMLBase getMsgAttachments(ReturnedMsg message, bool doProxy)
         {
             var split = message.Attachments.Split(',').Where(x => isImage(x)).ToList();
             if (split.Count == 0)
@@ -280,7 +280,7 @@ namespace DiscordBot.MLAPI.Modules
                 anchor.Style = "min-height: 50px; width: 100%;";
                 var img = new DiscordBot.Classes.HTMLHelpers.Objects.Img();
                 img.Style = "position: relative; max-height: 300px; max-width: 90%; width: auto;";
-                if(Context.IsBehindFirewall)
+                if(doProxy)
                 {
                     var uri = new Uri(image);
                     img.Src = $"{Handler.LocalAPIUrl}{uri.PathAndQuery}";
@@ -294,7 +294,7 @@ namespace DiscordBot.MLAPI.Modules
             return container;
         }
 
-        string parseMarkdown(SocketGuild guild, string content, out bool mentioned, bool redact = false)
+        static string parseMarkdown(IGuild guild, string content, ulong contextUser, out bool mentioned, bool redact = false)
         {
             mentioned = false;
             string basic = content;
@@ -324,11 +324,11 @@ namespace DiscordBot.MLAPI.Modules
                 var userId = ulong.Parse(match.Groups[1].Value);
                 if (done.Contains(userId))
                     continue;
-                if (userId == Context.User.Id)
+                if (userId == contextUser)
                     mentioned = true;
                 done.Add(userId);
                 string display = "@unkown-user";
-                var user = guild.GetUser(userId);
+                var user = guild.GetUserAsync(userId).Result;
                 if (user != null)
                 {
                     display = $"@{user.Nickname ?? user.Username}";
@@ -396,12 +396,13 @@ namespace DiscordBot.MLAPI.Modules
             #endregion
 
             #region Markdown Replacement
+            basic = Markdig.Markdown.ToHtml(basic).Replace("<p>", "").Replace("</p>", "");
             // Skip for now.
             #endregion
             return basic;
         }
 
-        HTMLBase getEmbed(SocketGuild guild, IEmbed embed)
+        static HTMLBase getEmbed(IGuild guild, IEmbed embed, ulong contextUser)
         {
             var embedContainer = new Div(cls: "embedWrapper-lXpS3L embedFull-2tM8-- embed-IeVjo6 markup-2BOw-j");
             embedContainer.Style = $"border-color: {getRGBFromColor(embed.Color ?? Color.Default)};";
@@ -414,7 +415,7 @@ namespace DiscordBot.MLAPI.Modules
             }
             if(!string.IsNullOrWhiteSpace(embed.Description))
             {
-                var descMrkd = parseMarkdown(guild, embed.Description, out _);
+                var descMrkd = parseMarkdown(guild, embed.Description, contextUser, out _);
                 grid.Children.Add(new Div(cls: "embedDescription-1Cuq9a embedMargin-UO5XwE").WithRawText(descMrkd));
             }
             if(embed.Fields.Length > 0)
@@ -465,7 +466,7 @@ namespace DiscordBot.MLAPI.Modules
                         embedField.Style = $"grid-column: {getGrid(i, length)}";
                         embedField.Children.Add(new Div(cls: "embedFieldName-NFrena").WithRawText(field.Name));
                         embedField.Children.Add(new Div(cls: "embedFieldValue-nELq2s")
-                            .WithRawText(parseMarkdown(guild, field.Value, out _)));
+                            .WithRawText(parseMarkdown(guild, field.Value, contextUser, out _)));
                         fields.Children.Add(embedField);
                     }
                 }
@@ -494,7 +495,7 @@ namespace DiscordBot.MLAPI.Modules
             return embedContainer;
         }
 
-        string getGrid(int rowNumber, int total)
+        static string getGrid(int rowNumber, int total)
         {
             if (total == 1)
                 return "1 / 13";
@@ -507,14 +508,14 @@ namespace DiscordBot.MLAPI.Modules
             return "9 / 13";
         }
 
-        HTMLBase getMsgContent(SocketGuild guild, ReturnedMsg m, out bool mentioned)
+        static HTMLBase getMsgContent(IGuild guild, ReturnedMsg m, ulong contextUser, bool shouldRedactDeleted, out bool mentioned)
         {
             var div = new Div(cls: "markup-2BOw-j messageContent-2qWWxC");
-            var basic = parseMarkdown(guild, m.Content, out mentioned, m.IsDeleted && canViewAllChannels == false);
+            var basic = parseMarkdown(guild, m.Content, contextUser, out mentioned, shouldRedactDeleted);
             return div.WithRawText(basic);
         }
 
-        HTMLBase getMessageHeader(ReturnedMsg msg, string authorName, string roleColor)
+        static HTMLBase getMessageHeader(ReturnedMsg msg, string authorName, string roleColor)
         {
             var h2 = new H2(cls: "header-23xsNx");
             h2.Children.Add(new Span(cls: "latin24CompactTimeStamp-2V7XIQ timestamp-3ZCmNB timestampVisibleOnHover-2bQeI4")
@@ -546,7 +547,7 @@ namespace DiscordBot.MLAPI.Modules
             return h2;
         }
 
-        HTMLBase getMessage(ReturnedMsg msg, SocketGuild guild, string authorName, string roleColor)
+        public static HTMLBase getMessage(ReturnedMsg msg, IGuild guild, string authorName, string roleColor, ulong contextUser, bool shouldRedact, bool doProxy)
         {
             var messageDiv = new Div(id: msg.Id.ToString(), cls: "message-2qnXI6 groupStart-23k01U wrapper-2a6GCs compact-T3H92H zalgo-jN1Ica");
             messageDiv.WithTag("role", "group")
@@ -559,7 +560,7 @@ namespace DiscordBot.MLAPI.Modules
             bool mentioned = false;
             try
             {
-                contentsDiv.Children.Add(getMsgContent(guild, msg, out mentioned));
+                contentsDiv.Children.Add(getMsgContent(guild, msg, contextUser, shouldRedact, out mentioned));
             }
             catch (Exception ex)
             {
@@ -570,7 +571,7 @@ namespace DiscordBot.MLAPI.Modules
                 Program.LogMsg($"{msg.Timestamp == null}");
                 throw;
             }
-            var attachments = getMsgAttachments(msg);
+            var attachments = getMsgAttachments(msg, doProxy);
             if (attachments != null)
                 contentsDiv.Children.Add(attachments);
             messageDiv.Children.Add(contentsDiv);
@@ -583,7 +584,7 @@ namespace DiscordBot.MLAPI.Modules
                 messageDiv.Children.Add(containerDiv);
                 foreach(var embed in msg.Embeds)
                 {
-                    containerDiv.Children.Add(getEmbed(guild, embed));
+                    containerDiv.Children.Add(getEmbed(guild, embed, contextUser));
                 }
             }
 
@@ -648,7 +649,9 @@ namespace DiscordBot.MLAPI.Modules
                     authorName = "unknown";
                     roleColor = getRoleColor(null);
                 }
-                var mDiv = getMessage(msg, guild, authorName, roleColor);
+                var mDiv = getMessage(msg, guild, authorName, roleColor, 
+                    Context.User.Id, msg.IsDeleted && canViewAllChannels == false, 
+                    Context.IsBehindFirewall);
                 main.Children.Add(mDiv);
             }
             if (before != ulong.MaxValue)
