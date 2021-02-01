@@ -3,7 +3,9 @@ using DiscordBot.Classes.HTMLHelpers;
 using DiscordBot.Classes.HTMLHelpers.Objects;
 using DiscordBot.Classes.Legislation;
 using DiscordBot.Classes.Legislation.Amending;
+#if WINDOWS
 using DiscordBot.Services.Acts;
+#endif
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -123,7 +125,10 @@ namespace DiscordBot.Services
                 act.Register(null);
                 Laws[act.PathName] = act;
             }
-
+#if WINDOWS
+            var a = ConstitutionAct.GetAct();
+            Laws[a.PathName] = a;
+#endif
         }
     }
 }
