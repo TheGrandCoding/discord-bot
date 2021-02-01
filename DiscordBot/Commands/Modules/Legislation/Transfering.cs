@@ -26,9 +26,24 @@ namespace DiscordBot.Commands.Modules.Legislation
                 await ReplyAsync("No such law exists; available: \r\n" + string.Join("\r\n", Service.Laws.Keys));
                 return;
             }
-            var lawPath = Path.Combine(LegislationService.StorageFolder, law.PathName + ".json");
+            Service.SaveAct(law);
+            var lawPath = Service.GetActPath(law);
             await Context.Channel.SendFileAsync(lawPath);
         }
+
+        [Command("remove")]
+        public async Task Remove(string name)
+        {
+            if (!Service.Laws.TryGetValue(name, out var law))
+            {
+                await ReplyAsync("No such law exists; available: \r\n" + string.Join("\r\n", Service.Laws.Keys));
+                return;
+            }
+            await Export(name);
+            Service.RemoveAct(name);
+        }
+
+
 
         [Command("import")]
         public async Task Import()

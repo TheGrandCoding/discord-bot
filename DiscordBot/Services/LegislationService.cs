@@ -3,6 +3,7 @@ using DiscordBot.Classes.HTMLHelpers;
 using DiscordBot.Classes.HTMLHelpers.Objects;
 using DiscordBot.Classes.Legislation;
 using DiscordBot.Classes.Legislation.Amending;
+using DiscordBot.Services.Acts;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -18,12 +19,24 @@ namespace DiscordBot.Services
 
         public Dictionary<string, Act> Laws { get; set; }
 
+        public string GetActPath(string pathName)
+        {
+            return Path.Combine(StorageFolder, pathName + ".json");
+        }
+        public string GetActPath(Act act)
+        {
+            return GetActPath(act.PathName);
+        }
+
         public void SaveAct(string pathName) => SaveAct(Laws[pathName]);
 
         public void SaveAct(Act act)
         {
             var content = JsonConvert.SerializeObject(act, new BotUserConverter());
-            var path = Path.Combine(StorageFolder, $"{act.PathName}.json");
+            var path = GetActPath(act.PathName);
+            var fileInfo = new FileInfo(path);
+            if (fileInfo.Directory.Exists == false)
+                fileInfo.Directory.Create();
             File.WriteAllText(path, content);
         }
 
@@ -32,7 +45,7 @@ namespace DiscordBot.Services
         public void RemoveAct(string name)
         {
             Laws.Remove(name);
-            var path = Path.Combine(StorageFolder, $"{name}.json");
+            var path = GetActPath(name);
             File.Delete(path);
         } 
 
@@ -77,7 +90,7 @@ namespace DiscordBot.Services
                         .WithStyle("https://www.legislation.gov.uk/styles/primarylegislation.css")
                         .WithMeta(Meta.Charset("UTF-8"))
                         .WithOpenGraph(title: $"{act.ShortTitle}",
-                                       description: act.Title)
+                                       description: act.LongTitle)
                         .WithTitle(act.ShortTitle),
                     new PageBody()
                     {
@@ -99,21 +112,16 @@ namespace DiscordBot.Services
             if (!Directory.Exists(StorageFolder))
                 Directory.CreateDirectory(StorageFolder);
             Laws = Laws ?? new Dictionary<string, Act>();
-            var files = Directory.GetFiles(StorageFolder);
-            foreach(var fileName in files)
+            var walk = Directory.GetFiles(StorageFolder, "*.json", SearchOption.AllDirectories);
+            foreach(var fileName in walk)
             {
                 var fileInfo = new FileInfo(fileName);
-                if(fileInfo.Extension == ".json")
-                {
-                    var content = File.ReadAllText(fileInfo.FullName);
-                    var act = JsonConvert.DeserializeObject<Act>(content, new BotUserConverter());
-                    if(act.Draft == false && act.EnactedDate.HasValue == false)
-                    {
-                        act.EnactedDate = DateTime.Now;
-                    }
-                    act.Register(null);
-                    Laws[act.PathName] = act;
-                }
+                var content = File.ReadAllText(fileInfo.FullName);
+                var act = JsonConvert.DeserializeObject<Act>(content, new BotUserConverter());
+                if(act.Draft == false && act.EnactedDate.HasValue == false)
+                    act.EnactedDate = DateTime.Now;
+                act.Register(null);
+                Laws[act.PathName] = act;
             }
 
         }

@@ -1,7 +1,9 @@
-﻿using DiscordBot.Services;
+﻿using DiscordBot.Classes.HTMLHelpers.Objects;
+using DiscordBot.Services;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Text;
 
@@ -18,12 +20,33 @@ namespace DiscordBot.MLAPI.Modules
 
         [Method("GET")]
         [Path("/laws/{name}")]
-        [Regex(".", @"\/laws\/(?!.*\/.)(?<name>[a-z0-9-]+)")]
-        public void SeeLaw(string name, bool raw = false)
+        [Regex(".", @"\/laws\/(?<path>[a-z0-9-\/]+)")]
+        public void SeeLaw(string path, bool raw = false)
         {
-            if(!Service.Laws.TryGetValue(name, out var act))
+            if(!Service.Laws.TryGetValue(path, out var act))
             {
-                HTTPError(HttpStatusCode.NotFound, "", "No law by that path name");
+                var anyBegin = Service.Laws.Keys.Where(x => x.StartsWith(path)).ToList();
+                if(anyBegin.Count > 0)
+                {
+                    var table = new Table();
+                    table.WithHeaderColumn("Short Title");
+                    table.WithHeaderColumn("Long Title");
+                    table.WithHeaderColumn("Enacted");
+                    foreach (var x in anyBegin)
+                    {
+                        var _a = Service.Laws[x];
+                        table.WithRow(
+                                new Anchor($"/laws/{x}", _a.ShortTitle),
+                                _a.LongTitle,
+                                _a.EnactedDate.HasValue ? _a.EnactedDate.Value.ToLongDateString() : "Not yet enacted"
+                            );
+                    }
+                    RespondRaw($"<!DOCTYPE html><html><head></head><body>{table}</body></html>", 200);
+                }
+                else
+                {
+                    HTTPError(HttpStatusCode.NotFound, "", "No law by that path name");
+                }
                 return;
             }
             var page = LegislationService.PageForAct(act, raw);

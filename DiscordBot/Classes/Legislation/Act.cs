@@ -34,7 +34,7 @@ namespace DiscordBot.Classes.Legislation
 
         public Act(string title)
         {
-            Title = title;
+            LongTitle = title;
             Children = new List<Section>();
             AmendmentReferences = new Dictionary<int, AmendmentGroup>();
         }
@@ -45,7 +45,7 @@ namespace DiscordBot.Classes.Legislation
         /// The long title for this Act
         /// </summary>
         [JsonProperty("t")]
-        public string Title { get; set; }
+        public string LongTitle { get; set; }
         [JsonProperty("pn")]
         public string PathName { get; set; }
         /// <summary>
@@ -74,7 +74,7 @@ namespace DiscordBot.Classes.Legislation
                 {
                     new H1(cls: "LegTitle") {RawText = ShortTitle},
                     new H1(cls: "LegNo") {RawText = PathName},
-                    new HTMLHelpers.Objects.Paragraph(Title, cls: "LegLongTitle"),
+                    new HTMLHelpers.Objects.Paragraph(LongTitle, cls: "LegLongTitle"),
                     new HTMLHelpers.Objects.Paragraph(
                         //EnactedDate.HasValue
                         //? $"[{string.Format("{0:dddd dd}{1} {0:MMMM yyyy}", EnactedDate, Program.GetDaySuffix(EnactedDate.Value.Day))}]"

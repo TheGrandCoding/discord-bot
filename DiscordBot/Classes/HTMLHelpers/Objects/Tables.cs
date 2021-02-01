@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace DiscordBot.Classes.HTMLHelpers.Objects
@@ -7,6 +8,49 @@ namespace DiscordBot.Classes.HTMLHelpers.Objects
     public class Table : DOMBase
     {
         public Table(string id = null, string cls = null) : base("table", id, cls) { }
+
+        public TableRow HeaderRow
+        {
+            get
+            {
+                return (TableRow)this.Children.FirstOrDefault(x => x.Tag == "tr");
+            }
+        }
+
+        public Table WithHeaderColumn(string text)
+            => WithHeaderColumn(new RawObject(text));
+        public Table WithHeaderColumn(HTMLBase html)
+        {
+            if (HeaderRow == null)
+                this.Children.Add(new TableRow());
+            HeaderRow.Children.Add(new TableHeader(null)
+            {
+                Children = { html }
+            });
+            return this;
+        }
+
+        public Table WithRow(params string[] cells)
+            => WithRow(cells.Select(x => new RawObject(x)).ToArray());
+        public Table WithRow(params object[] cells)
+        {
+            var ls = new List<HTMLBase>();
+            foreach(var x in cells)
+            {
+                if (x is string y)
+                    ls.Add(new RawObject(y));
+                ls.Add(x as HTMLBase);
+            }
+            return WithRow(ls.ToArray());
+        }
+        public Table WithRow(params HTMLBase[] cells)
+        {
+            var row = new TableRow();
+            foreach (var x in cells)
+                row.Children.Add(new TableData(null) { Children = { x } });
+            Children.Add(row);
+            return this;
+        }
     }
 
     public class TableElement : DOMBase

@@ -32,7 +32,7 @@ namespace DiscordBot.Commands.Modules.Legislation
         Embed embedAct()
         {
             return new EmbedBuilder()
-                .WithTitle(Act.Title)
+                .WithTitle(Act.LongTitle)
                 .WithUrl($"{Handler.LocalAPIUrl}/laws/{Act.PathName}")
                 .WithDescription($"{Act.ShortTitle}, {Act.Children.Count} sections:\r\n" +
                     string.Join(", ", Act.Children.Select(x => x.Number)))
@@ -133,7 +133,7 @@ namespace DiscordBot.Commands.Modules.Legislation
             var longTitle = await GetResponse("Please provide the long title for the law");
             Act = new Act(longTitle)
             {
-                Title = longTitle,
+                LongTitle = longTitle,
                 ShortTitle = shortTitle,
                 Draft = true,
                 PathName = path,
