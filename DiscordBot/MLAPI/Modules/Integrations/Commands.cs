@@ -78,8 +78,7 @@ namespace DiscordBot.MLAPI.Modules.Integrations
             await message.DeleteAsync();
         }
 
-        [Id(806096572546023474)]
-        public async Task Move(ulong message, ulong channel)
+        /*public async Task Move(ulong message, ulong channel)
         {
             var from = Context.Channel;
             var to = Program.Client.GetChannel(channel) as ITextChannel;
@@ -96,11 +95,16 @@ namespace DiscordBot.MLAPI.Modules.Integrations
             }
             await AcknowledgeAsync();
             await Move(umsg, to);
-        }
+        }*/
 
         [Id(806096572546023474)]
         public async Task MoveBatch(int count, ulong channel)
         {
+            if(count > 25)
+            {
+                await ErrorAsync("Cannot move that many messages");
+                return;
+            }
             var from = Context.Channel;
             var to = Program.Client.GetChannel(channel) as ITextChannel;
             var _m = await from.GetMessagesAsync(count).FlattenAsync();
