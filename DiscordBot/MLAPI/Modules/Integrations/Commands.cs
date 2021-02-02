@@ -98,7 +98,7 @@ namespace DiscordBot.MLAPI.Modules.Integrations
         }*/
 
         [Id(806096572546023474)]
-        public async Task MoveBatch(int count, ulong channel)
+        public async Task MoveBatch(long count, ulong channel)
         {
             if(count > 25)
             {
