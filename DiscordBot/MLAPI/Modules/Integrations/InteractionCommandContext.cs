@@ -64,9 +64,9 @@ namespace DiscordBot.MLAPI.Modules.Integrations
         protected async Task ErrorAsync(string message)
             => await ReplyAsync($":x: {message}", flags: InteractionResponseFlags.Ephemeral);
 
-        protected async Task AcknowledgeAsync()
+        protected async Task AcknowledgeAsync(bool withSource = false)
         {
-            await Reply(new InteractionResponse(InteractionResponseType.Acknowledge));
+            await Reply(new InteractionResponse(withSource ? InteractionResponseType.ACKWithSource : InteractionResponseType.Acknowledge));
         }
     }
 

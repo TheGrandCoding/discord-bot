@@ -97,6 +97,7 @@ namespace DiscordBot.MLAPI.Modules.Integrations
             await Move(umsg, to);
         }*/
 
+
         [Id(806096572546023474)]
         public async Task MoveBatch(long count, ulong channel)
         {
@@ -105,9 +106,18 @@ namespace DiscordBot.MLAPI.Modules.Integrations
                 await ErrorAsync("Cannot move that many messages");
                 return;
             }
-            var from = Context.Channel;
+            var user = Context.User as IGuildUser;
+            var from = Context.Channel as ITextChannel;
             var to = Program.Client.GetChannel(channel) as ITextChannel;
-            var _m = await from.GetMessagesAsync(count).FlattenAsync();
+            var fromPerms = user.GetPermissions(from);
+            var toPerms = user.GetPermissions(to);
+            if(!(fromPerms.ManageMessages && toPerms.ManageMessages))
+            {
+                await ErrorAsync("You do not have permission to move messages between those channels");
+                return;
+            }
+            var _m = await from.GetMessagesAsync((int)count).FlattenAsync();
+            await AcknowledgeAsync(true);
             foreach(var msg in _m.OrderBy(x => x.CreatedAt))
             {
                 if(msg is IUserMessage umsg)
