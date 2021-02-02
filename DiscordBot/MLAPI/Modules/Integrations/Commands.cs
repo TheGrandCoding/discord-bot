@@ -110,7 +110,7 @@ namespace DiscordBot.MLAPI.Modules.Integrations
                 await ErrorAsync("Cannot move that many messages");
                 return;
             }
-            var user = Context.User as IGuildUser;
+            var user = await Context.Guild.GetUserAsync(Context.User.Id);
             Program.LogMsg($"Invoked by {user.Username}");
             var from = Context.Channel as ITextChannel;
             Program.LogMsg($"Invoked in {from.Name}");
