@@ -88,7 +88,7 @@ namespace DiscordBot.MLAPI.Modules.Integrations
                 message.Content,
                 false,
                 embeds,
-                message.Author.Username,
+                (message.Author as IGuildUser).Nickname ?? message.Author.Username,
                 message.Author.GetAnyAvatarUrl()
                 );
             await message.DeleteAsync();
