@@ -1,5 +1,7 @@
 ﻿using Discord;
 using Discord.Webhook;
+using DiscordBot.Services.BuiltIn;
+using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -61,13 +63,8 @@ namespace DiscordBot.Classes.Rules
             {
                 if(_webhook == null)
                 {
-                    var whs = AppealChannel.GetWebhooksAsync().Result;
-                    var wb = whs.FirstOrDefault(x => x.Creator.Id == Program.Client.CurrentUser.Id);
-                    if(wb == null)
-                    {
-                        wb = AppealChannel.CreateWebhookAsync("mlapi-appeal").Result;
-                    }
-                    _webhook = new DiscordWebhookClient(wb);
+                    var srv = Program.Services.GetRequiredService<WebhookService>();
+                    _webhook = srv.GetWebhookClientAsync(AppealChannel).Result;
                 }
                 return _webhook;
             } }

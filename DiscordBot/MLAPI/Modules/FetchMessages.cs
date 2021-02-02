@@ -5,6 +5,7 @@ using DiscordBot.Classes.HTMLHelpers;
 using DiscordBot.Classes.HTMLHelpers.Objects;
 using DiscordBot.Commands.Modules.MLAPI;
 using DiscordBot.Services;
+using DiscordBot.Services.BuiltIn;
 using DiscordBot.Utils;
 using EduLinkDLL.API.Models;
 using Markdig.Helpers;
@@ -31,8 +32,10 @@ namespace DiscordBot.MLAPI.Modules
         {
             canViewAllChannels = Program.AppInfo.Owner.Id == c.User?.Id;
             DB = Program.Services.GetRequiredService<MsgService>();
+            Webhooks = Program.Services.GetRequiredService<WebhookService>();
         }
         
+        public WebhookService Webhooks { get; }
         
         bool hasAccessTo(SocketTextChannel c)
         {
@@ -94,12 +97,6 @@ namespace DiscordBot.MLAPI.Modules
             if (canViewAllChannels)
                 return true;
             return c.GetUser(Context.User.Id) != null;
-        }
-
-        RestWebhook getOrCreateWebhook(SocketTextChannel c)
-        {
-            var hooks = c.GetWebhooksAsync().Result;
-            return hooks.FirstOrDefault(x => x.Name == "mlapi-vpn") ?? c.CreateWebhookAsync("mlapi-vpn").Result;
         }
 
         string getGuilds()
@@ -925,8 +922,7 @@ namespace DiscordBot.MLAPI.Modules
             }
             try
             {
-                var hook = getOrCreateWebhook(chnl);
-                Discord.Webhook.DiscordWebhookClient vv = new Discord.Webhook.DiscordWebhookClient(hook);
+                var vv = Webhooks.GetWebhookClientAsync(chnl).Result;
                 vv.SendMessageAsync(TEXT, username: (Self.Nickname ?? Self.Username), avatarUrl: Self.GetAvatarUrl());
                 RespondRaw("");
             }

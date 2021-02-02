@@ -1,5 +1,6 @@
 ﻿using Discord;
 using DiscordBot.MLAPI.Exceptions;
+using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json.Linq;
 using Sodium;
 using System;
@@ -18,6 +19,7 @@ namespace DiscordBot.MLAPI.Modules.Integrations
         public Integrations(APIContext context) : base(context, "interactions")
         {
         }
+
 
         public bool isValidSignature(Interaction interaction)
         {

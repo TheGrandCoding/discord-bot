@@ -2,8 +2,10 @@
 using Discord.Addons.Interactive;
 using Discord.Commands;
 using DiscordBot.Commands;
+using DiscordBot.Services.BuiltIn;
 using DiscordBot.Utils;
 using Google.Cloud.Translation.V2;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,7 +18,9 @@ namespace DiscordBot.MLAPI.Modules.Integrations
     {
         public Commands(InteractionCommandContext context) : base(context)
         {
+            Webhooks = Program.Services.GetRequiredService<WebhookService>();
         }
+        public WebhookService Webhooks { get; }
 
         [Id(790595185910087722)]
         public async Task Ping(string message = null)
@@ -61,5 +65,52 @@ namespace DiscordBot.MLAPI.Modules.Integrations
             await ReplyAsync($"Translated from {name}:\r\n>>> {response.TranslatedText}", flags: InteractionResponseFlags.Ephemeral);
         }
 
+        public async Task Move(IUserMessage message, ITextChannel to)
+        {
+            var webhook = await Webhooks.GetWebhookClientAsync(to);
+            await webhook.SendMessageAsync(
+                message.Content,
+                false,
+                message.Embeds.Select(x => x as Embed),
+                message.Author.Username,
+                message.Author.GetAnyAvatarUrl()
+                );
+            await message.DeleteAsync();
+        }
+
+        [Id(806096572546023474)]
+        public async Task Move(ulong message, ulong channel)
+        {
+            var from = Context.Channel;
+            var to = Program.Client.GetChannel(channel) as ITextChannel;
+            var msg = await from.GetMessageAsync(message);
+            if(msg == null)
+            {
+                await ErrorAsync("Message was not found");
+                return;
+            }
+            if(!(msg is IUserMessage umsg))
+            {
+                await ErrorAsync("Cannot move those types of messages");
+                return;
+            }
+            await AcknowledgeAsync();
+            await Move(umsg, to);
+        }
+
+        [Id(806096572546023474)]
+        public async Task MoveBatch(int count, ulong channel)
+        {
+            var from = Context.Channel;
+            var to = Program.Client.GetChannel(channel) as ITextChannel;
+            var _m = await from.GetMessagesAsync(count).FlattenAsync();
+            foreach(var msg in _m.OrderBy(x => x.CreatedAt))
+            {
+                if(msg is IUserMessage umsg)
+                {
+                    await Move(umsg, to);
+                }
+            }
+        }
     }
 }
