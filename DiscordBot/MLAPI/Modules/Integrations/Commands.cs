@@ -68,10 +68,26 @@ namespace DiscordBot.MLAPI.Modules.Integrations
         public async Task Move(IUserMessage message, ITextChannel to)
         {
             var webhook = await Webhooks.GetWebhookClientAsync(to);
+            var embeds = new List<Embed>();
+            if (message.Embeds != null)
+                foreach (var em in message.Embeds)
+                    embeds.Add((Embed)em);
+            if(message.Attachments != null)
+            {
+                foreach(var x in message.Attachments)
+                {
+                    embeds.Add(new EmbedBuilder()
+                        .WithTitle(x.Filename)
+                        .WithUrl(x.Url)
+                        .WithImageUrl(x.Url)
+                        .WithFooter("Note: This file link may not work.")
+                        .Build());
+                }
+            }
             await webhook.SendMessageAsync(
                 message.Content,
                 false,
-                message.Embeds == null ? null : message.Embeds.Select(x => x as Embed),
+                embeds,
                 message.Author.Username,
                 message.Author.GetAnyAvatarUrl()
                 );
