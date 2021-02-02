@@ -82,7 +82,7 @@ namespace DiscordBot.MLAPI.Modules.Integrations
             foreach (var param in paramaters)
             {
                 var option = options.FirstOrDefault(x => x.Name == param.Name);
-                object value = option.Value;
+                object value = option?.Value ?? null;
                 Program.LogMsg($"For {param.Name}: {value.GetType().Name} {value}", LogSeverity.Verbose);
                 if (value == null && param.IsOptional == false)
                     throw new InvalidOperationException($"No argument specified for required item {param.Name}");

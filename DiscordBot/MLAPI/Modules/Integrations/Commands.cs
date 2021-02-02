@@ -46,12 +46,12 @@ namespace DiscordBot.MLAPI.Modules.Integrations
 
         [Id(790929406008098836)]
         [Id(790933585812652042)] // global
-        public async Task Translate(string message, string from = null)
+        public async Task Translate(string message, string language = null)
         {
             string fromLanguage = null;
-            if(from != null)
+            if(language != null)
             {
-                fromLanguage = LanguageCodesUtils.ToCode(from);
+                fromLanguage = LanguageCodesUtils.ToCode(language);
                 if(fromLanguage == null)
                 {
                     await ReplyAsync($":x: Language not recognised.", flags: InteractionResponseFlags.Ephemeral);
@@ -99,9 +99,9 @@ namespace DiscordBot.MLAPI.Modules.Integrations
 
 
         [Id(806096572546023474)]
-        public async Task MoveBatch(int count, ulong channel)
+        public async Task MoveBatch(int amount, ulong channel)
         {
-            if(count > 25)
+            if(amount > 25)
             {
                 await ErrorAsync("Cannot move that many messages");
                 return;
@@ -116,7 +116,7 @@ namespace DiscordBot.MLAPI.Modules.Integrations
                 await ErrorAsync("You do not have permission to move messages between those channels");
                 return;
             }
-            var _m = await from.GetMessagesAsync((int)count).FlattenAsync();
+            var _m = await from.GetMessagesAsync((int)amount).FlattenAsync();
             await AcknowledgeAsync(true);
             foreach(var msg in _m.OrderBy(x => x.CreatedAt))
             {
