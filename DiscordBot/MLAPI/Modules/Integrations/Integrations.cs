@@ -76,16 +76,40 @@ namespace DiscordBot.MLAPI.Modules.Integrations
             if (method == null)
                 return;
             var obj = Activator.CreateInstance(method.DeclaringType, new object[1] { context });
-            var args = new List<object>();
             var options = interaction.Data.Options ?? new ApplicationCommandInteractionDataOption[0];
-            foreach(var option in options)
+            var args = new List<object>();
+            var paramaters = method.GetParameters();
+            foreach (var param in paramaters)
             {
-                args.Add(option.Value);
+                var option = options.FirstOrDefault(x => x.Name == param.Name);
+                object value = option.Value;
+                Program.LogMsg($"For {param.Name}: {value.GetType().Name} {value}", LogSeverity.Verbose);
+                if (value == null && param.IsOptional == false)
+                    throw new InvalidOperationException($"No argument specified for required item {param.Name}");
+                if (value == null)
+                {
+                    Program.LogMsg($"For {param.Name}: Adding default value", LogSeverity.Verbose);
+                    args.Add(param.DefaultValue);
+                    continue;
+                }
+                if(param.ParameterType == value.GetType())
+                {
+                    Program.LogMsg($"For {param.Name}: Types match", LogSeverity.Verbose);
+                    args.Add(value);
+                } else
+                {
+                    var typeResult = Program.AttemptParseInput($"{value}", param.ParameterType);
+                    if (typeResult.IsSuccess)
+                    {
+                        args.Add(typeResult.BestMatch);
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException($"Could not parse value for {param.Name} as {param.ParameterType.Name}: {typeResult.ErrorReason}");
+                    }
+                }
             }
             Program.LogMsg($"Invoking cmd with {args.Count} args");
-            var expected = method.GetParameters().Count();
-            while (args.Count < expected)
-                args.Add(null);
             try
             {
                 method.Invoke(obj, args.ToArray());
@@ -132,7 +156,16 @@ namespace DiscordBot.MLAPI.Modules.Integrations
                 }
                 if(ping.Type == InteractionType.ApplicationCommand)
                 {
-                    executeCommand(ping);
+                    try
+                    {
+                        executeCommand(ping);
+                    }
+                    catch (Exception ex)
+                    {
+                        RespondRaw(Program.Serialise(
+                        new InteractionResponse(InteractionResponseType.ChannelMessage, "Error: " + ex.Message)));
+                        Program.LogMsg("EXecute", ex);
+                    }
                 }
             }
             catch(Exception ex)
