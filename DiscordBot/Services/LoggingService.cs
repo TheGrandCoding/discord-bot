@@ -27,26 +27,18 @@ namespace DiscordBot.Services
             _auditLogLock.WaitOne();
             try
             {
-                var log = await guild.GetAuditLogsAsync(limit: 10, actionType: ActionType.MessageDeleted);
-
-                var lowestTime = Time.Second * 15d;
-                var lowestUser = message.Author;
-                foreach(var x in log)
+                var log = await guild.GetAuditLogsAsync(limit: 15, actionType: ActionType.MessageDeleted);
+                var correctChannel = log.Where(x =>
                 {
                     var data = x.Data as MessageDeleteAuditLogData;
-                    Program.LogMsg($"{x.CreatedAt:yyyy/MM/dd hh:mm:ss}: {x.User.Username} deleted {data.MessageCount} in {data.ChannelId} (want: {message.ChannelId})");
-                    if (data.ChannelId != message.ChannelId)
-                        continue;
-                    var diff = deletedAt - x.CreatedAt.DateTime;
-                    Program.LogMsg($"Difference: {diff.TotalMilliseconds}");
-                    if(Math.Abs(diff.TotalMilliseconds) < lowestTime)
-                    {
-                        lowestTime = diff.TotalMilliseconds;
-                        lowestUser = x.User;
-                    }
-                }
-
-                return lowestUser as IGuildUser;
+                    return data.ChannelId == message.ChannelId && data.Target.Id == message.Author.Id;
+                });
+                var ordered = correctChannel
+                    .OrderBy(x => Math.Abs((x.CreatedAt - deletedAt).TotalMilliseconds));
+                var first = ordered.FirstOrDefault();
+                if (first == null)
+                    return null;
+                return guild.GetUserAsync(first.User.Id).Result;
             } finally
             {
                 _auditLogLock.Release();
@@ -262,7 +254,7 @@ namespace DiscordBot.Services
                 return;
             Thread.Sleep(5000);
             var who = GetDeleter(data.guild, data.deleted, data.when).Result;
-            string value = who == null ? "could not fetch" : $"{DiscordBot.Utils.UserUtils.GetName(who)} - {who.Id}";
+            string value = who == null ? "self-delete or could not fetch" : $"{who.Id}\r\n{who.Mention}";
             var built = data.builder
                 .AddField("Deleted By", value, true)
                 .Build();
