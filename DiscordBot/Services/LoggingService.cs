@@ -258,9 +258,11 @@ namespace DiscordBot.Services
         {
             if (!(o is messageData data))
                 return;
+            Thread.Sleep(5000);
             var who = GetDeleter(data.guild, data.deleted, data.when).Result;
+            string value = who == null ? "could not fetch" : $"{DiscordBot.Utils.UserUtils.GetName(who)} - {who.Id}";
             var built = data.builder
-                .AddField("Deleted By", $"{DiscordBot.Utils.UserUtils.GetName(who)} - {who.Id}")
+                .AddField("Deleted By", who, true)
                 .Build();
             data.log.ModifyAsync(x => x.Embed = built).Wait();
         }
