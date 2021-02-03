@@ -20,6 +20,37 @@ namespace DiscordBot.Services
 
         Dictionary<ulong, guildSave> GuildMap { get; set; } = new Dictionary<ulong, guildSave>();
 
+        Semaphore _auditLogLock = new Semaphore(1, 1);
+        
+        public async Task<IGuildUser> GetDeleter(IGuild guild, DbMsg message, DateTime deletedAt)
+        {
+            _auditLogLock.WaitOne();
+            try
+            {
+                var log = await guild.GetAuditLogsAsync(limit: 10, actionType: ActionType.MessageDeleted);
+
+                var lowestTime = Time.Second * 15d;
+                var lowestUser = message.Author;
+                foreach(var x in log)
+                {
+                    var data = x.Data as MessageDeleteAuditLogData;
+                    if (data.ChannelId != message.ChannelId)
+                        continue;
+                    var diff = deletedAt - x.CreatedAt.DateTime;
+                    if(diff.TotalSeconds < lowestTime)
+                    {
+                        lowestTime = diff.TotalMilliseconds;
+                        lowestUser = x.User;
+                    }
+                }
+
+                return lowestUser as IGuildUser;
+            } finally
+            {
+                _auditLogLock.Release();
+            }
+        }
+
         public override string GenerateSave()
         {
             var sv = new logSave()
@@ -38,11 +69,6 @@ namespace DiscordBot.Services
             if(lg.guildId.HasValue)
             {
                 LogGuild = Program.Client.GetGuild(lg.guildId.Value);
-                foreach(var guild in Program.Client.Guilds)
-                {
-                    if (guild.Name == "Logging Guild" && guild.Id != LogGuild.Id)
-                        guild.DeleteAsync().Wait();
-                }
             } else
             {
                 LogGuild = Program.Client.Guilds.FirstOrDefault(x => x.Name == "Logging Guild");
@@ -190,6 +216,7 @@ namespace DiscordBot.Services
         #region Messages
         private async Task Client_MessageDeleted(Cacheable<IMessage, ulong> arg1, ISocketMessageChannel arg2)
         {
+            var when = DateTime.Now;
             if (!(arg2 is ITextChannel txt))
                 return;
             var service = Program.Services.GetRequiredService<MsgService>();
@@ -204,9 +231,38 @@ namespace DiscordBot.Services
             builder.AddField("Channel", $"{txt.Mention}", true);
             builder.AddField("Author", $"{dbMsg.Author.Id}\r\n<@{dbMsg.Author.Id}>", true);
             builder.AddField("Original Sent", SnowflakeUtils.FromSnowflake(arg1.Id).ToString("dd/MM/yy HH:mm:ss.fff"), true);
-            await SendLog(txt.Guild, "messages", builder, arg1.Id);
+            var message = await SendLog(txt.Guild, "messages", builder, arg1.Id);
             if (isDirty)
                 OnSave();
+            var data = new messageData()
+            {
+                deleted = dbMsg,
+                guild = txt.Guild,
+                builder = builder,
+                log = message,
+                when = when
+            };
+            new Thread(threadCheckDeleter).Start(data);
+        }
+
+        struct messageData
+        {
+            public DbMsg deleted;
+            public IGuild guild;
+            public EmbedBuilder builder;
+            public IUserMessage log;
+            public DateTime when;
+        }
+
+        void threadCheckDeleter(object o)
+        {
+            if (!(o is messageData data))
+                return;
+            var who = GetDeleter(data.guild, data.deleted, data.when).Result;
+            var built = data.builder
+                .AddField("Deleted By", $"{DiscordBot.Utils.UserUtils.GetName(who)} - {who.Id}")
+                .Build();
+            data.log.ModifyAsync(x => x.Embed = built).Wait();
         }
 
 

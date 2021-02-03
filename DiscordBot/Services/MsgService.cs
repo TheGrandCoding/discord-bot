@@ -231,7 +231,12 @@ namespace DiscordBot.Services
             }
             Attachments = model.Attachments;
             Embeds = new List<IEmbed>();
+            ChannelId = model.Channel;
+            Channel = Program.Client.GetChannel(ChannelId);
         }
+
+        public SocketChannel Channel { get; }
+        public ulong ChannelId { get; }
     }
 
     public class DbUser : IUser
