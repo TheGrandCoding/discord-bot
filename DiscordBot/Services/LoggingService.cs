@@ -34,10 +34,12 @@ namespace DiscordBot.Services
                 foreach(var x in log)
                 {
                     var data = x.Data as MessageDeleteAuditLogData;
+                    Program.LogMsg($"{x.CreatedAt:yyyy/MM/dd hh:mm:ss}: {x.User.Username} deleted {data.MessageCount} in {data.ChannelId} (want: {message.ChannelId})");
                     if (data.ChannelId != message.ChannelId)
                         continue;
                     var diff = deletedAt - x.CreatedAt.DateTime;
-                    if(diff.TotalSeconds < lowestTime)
+                    Program.LogMsg($"Difference: {diff.TotalMilliseconds}");
+                    if(Math.Abs(diff.TotalMilliseconds) < lowestTime)
                     {
                         lowestTime = diff.TotalMilliseconds;
                         lowestUser = x.User;
@@ -262,7 +264,7 @@ namespace DiscordBot.Services
             var who = GetDeleter(data.guild, data.deleted, data.when).Result;
             string value = who == null ? "could not fetch" : $"{DiscordBot.Utils.UserUtils.GetName(who)} - {who.Id}";
             var built = data.builder
-                .AddField("Deleted By", who, true)
+                .AddField("Deleted By", value, true)
                 .Build();
             data.log.ModifyAsync(x => x.Embed = built).Wait();
         }
