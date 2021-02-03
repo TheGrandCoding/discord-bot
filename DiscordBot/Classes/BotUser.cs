@@ -159,5 +159,34 @@ namespace DiscordBot.Classes
 
         [JsonProperty("edu", NullValueHandling = NullValueHandling.Ignore)]
         public int? EdulinkId { get; set; }
+
+        SavedReason _reason = new SavedReason(null);
+
+        [JsonIgnore]
+        public string Reason
+        {
+            get
+            {
+                if (_reason.Reason == null || _reason.Expired)
+                    return null;
+                return _reason.Reason;
+            }
+            set
+            {
+                _reason = new SavedReason(value);
+            }
+        }
+    }
+
+    public struct SavedReason
+    {
+        public SavedReason(string reason)
+        {
+            Reason = reason;
+            Set = DateTime.Now.AddMinutes(-1);
+        }
+        public string Reason { get; }
+        public DateTime Set { get; }
+        public bool Expired => Set.AddMinutes(15) < DateTime.Now;
     }
 }

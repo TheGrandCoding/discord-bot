@@ -1,6 +1,7 @@
 ﻿using Discord;
 using Discord.Rest;
 using Discord.WebSocket;
+using DiscordBot.Classes;
 using DiscordBot.Classes.Attributes;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
@@ -168,7 +169,7 @@ namespace DiscordBot.Services
             {
                 if(GuildMap.TryGetValue(guild.Id, out var guildSave))
                 {
-                    if (guildSave.Actions.TryGetValue(action, out var txt) && txt != null)
+                    if (guildSave.Actions.TryGetValue(action, out var txt) && txt != null && !(txt is NullTextChannel))
                         return txt;
                 }
                 var category = await GetCategory(guild);
