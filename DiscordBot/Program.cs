@@ -89,7 +89,20 @@ Changed how permissions worked for bot.
     "⡗⡘⡙⡚⡛⡜⡝⡞⡟⡠⡡⡢⡣⡤⡥⡦⡧⡨⡩⡪⡫⡬⡭⡮⡯⡰⡱⡲⡳⡴⡵⡶⡷⡸⡹⡺⡻⡼⡽⡾⡿⢀⢁⢂⢃⢄⢅⢆⢇⢈⢉⢊⢋⢌⢍⢎⢏⢐⢑⢒⢓⢔⢕⢖⢗⢘⢙⢚⢛⢜⢝⢞⢟⢠⢡⢢⢣⢤⢥⢦⢧⢨⢩⢪⢫⢬⢭" +
     "⢮⢯⢰⢱⢲⢳⢴⢵⢶⢷⢸⢹⢺⢻⢼⢽⢾⢿⣀⣁⣂⣃⣄⣅⣆⣇⣈⣉⣊⣋⣌⣍⣎⣏⣐⣑⣒⣓⣔⣕⣖⣗⣘⣙⣚⣛⣜⣝⣞⣟⣠⣡⣢⣣⣤⣥⣦⣧⣨⣩⣪⣫⣬⣭⣮⣯⣰⣱⣲⣳⣴⣵⣶⣷⣸⣹⣺⣻⣼⣽⣾⣿")
                 _braille.Add(chr);
+            doStuff().GetAwaiter().GetResult();
+            return;
             Program.MainAsync().GetAwaiter().GetResult();
+        }
+
+        static async Task doStuff()
+        {
+            var qbit = new qBitApi.qBittorrentClient(new Uri("http://192.168.1.3:8080"));
+            qbit.Log += async (qBitApi.LogMessage message) =>
+            {
+                Console.WriteLine(message.ToString());
+            };
+            await qbit.LoginAsync("admin", "adminadmin");
+            var info = await qbit.GetBuildInfoAsync();
         }
 
         static void buildConfig()
