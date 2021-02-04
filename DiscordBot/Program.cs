@@ -89,38 +89,7 @@ Changed how permissions worked for bot.
     "⡗⡘⡙⡚⡛⡜⡝⡞⡟⡠⡡⡢⡣⡤⡥⡦⡧⡨⡩⡪⡫⡬⡭⡮⡯⡰⡱⡲⡳⡴⡵⡶⡷⡸⡹⡺⡻⡼⡽⡾⡿⢀⢁⢂⢃⢄⢅⢆⢇⢈⢉⢊⢋⢌⢍⢎⢏⢐⢑⢒⢓⢔⢕⢖⢗⢘⢙⢚⢛⢜⢝⢞⢟⢠⢡⢢⢣⢤⢥⢦⢧⢨⢩⢪⢫⢬⢭" +
     "⢮⢯⢰⢱⢲⢳⢴⢵⢶⢷⢸⢹⢺⢻⢼⢽⢾⢿⣀⣁⣂⣃⣄⣅⣆⣇⣈⣉⣊⣋⣌⣍⣎⣏⣐⣑⣒⣓⣔⣕⣖⣗⣘⣙⣚⣛⣜⣝⣞⣟⣠⣡⣢⣣⣤⣥⣦⣧⣨⣩⣪⣫⣬⣭⣮⣯⣰⣱⣲⣳⣴⣵⣶⣷⣸⣹⣺⣻⣼⣽⣾⣿")
                 _braille.Add(chr);
-            doStuff().GetAwaiter().GetResult();
-            return;
             Program.MainAsync().GetAwaiter().GetResult();
-        }
-
-        static async Task doStuff()
-        {
-            var qbit = new qBitApi.qBittorrentClient(new Uri("http://localhost:8080"));
-            qbit.Log += async (qBitApi.LogMessage message) =>
-            {
-                Console.WriteLine(message.ToString());
-            };
-            await qbit.LoginAsync("admin", "adminadmin");
-            var info = await qbit.GetBuildInfoAsync();
-            foreach(var x in await qbit.GetTorrentListAsync())
-            {
-                Console.WriteLine($"{x.Hash}: {x.Name} {x.State} {x.Progress}");
-            }
-            var sync = await qbit.GetSyncClient();
-            sync.TorrentUpdated += async x =>
-            {
-                Console.WriteLine($">> {x.Hash}: {x.Name} {x.State} {x.Progress}");
-            };
-            sync.TorrentRemoved += async x =>
-            {
-                Console.WriteLine($"-- {x}");
-            };
-            sync.StartSync();
-            Console.WriteLine($"Syncing has started.");
-
-            await Task.Delay(15000);
-            Console.WriteLine("Closing.");
         }
 
         static void buildConfig()
