@@ -3,8 +3,11 @@ using qBitApi.Logging;
 using qBitApi.REST;
 using qBitApi.REST.Entities;
 using System;
+using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -21,11 +24,12 @@ namespace qBitApi
         public event Func<Task> LoggedOut { add { _loggedOutEvent.Add(value); } remove { _loggedOutEvent.Remove(value); } }
         private readonly AsyncEvent<Func<Task>> _loggedOutEvent = new AsyncEvent<Func<Task>>();
 
-        private CancellationToken cancellationToken;
         private readonly SemaphoreSlim _stateLock;
         private bool _isFirstLogin, _isDisposed;
+        private CancellationTokenSource _cancelToken;
 
-        private qBitApiClient ApiClient;
+        internal qBitApiClient ApiClient;
+        private SyncClient SyncClient;
         internal readonly Logger _restLogger;
         internal LogManager LogManager { get; }
 
@@ -43,6 +47,7 @@ namespace qBitApi
             _restLogger = LogManager.CreateLogger("Rest");
             _stateLock = new SemaphoreSlim(1, 1);
             _isFirstLogin = false;
+            _cancelToken = new CancellationTokenSource();
         }
 
         internal virtual void Dispose(bool disposing)
@@ -53,6 +58,7 @@ namespace qBitApi
                 {
                     ApiClient?.Dispose();
                     _stateLock?.Dispose();
+                    _cancelToken?.Dispose();
                 }
                 _isDisposed = true;
             }
@@ -138,6 +144,88 @@ namespace qBitApi
             var model = await ApiClient.GetBuildInfoAsync().ConfigureAwait(false);
             return BuildInfo.Create(model);
         }
+        #endregion
+
+        #region Torrent Management
+        public async Task<IReadOnlyCollection<Torrent>> GetTorrentListAsync(
+            TorrentState? filter = null,
+            string category = null,
+            string sort = null,
+            bool? reverse = null,
+            int? limit = null,
+            int? offset = null,
+            params string[] hashes)
+        {
+            var models = await ApiClient.GetTorrentList(filter, category, sort, reverse, limit, offset, hashes).ConfigureAwait(false);
+            return models.Select(x => Torrent.Create(x)).ToImmutableArray();
+        }
+        #endregion
+
+        #region Sync
+        private async Task<API.SyncInfo> GetSyncInfo(int rid)
+        {
+            return await ApiClient.GetSync(rid).ConfigureAwait(false);
+        }
+
+        public async Task<SyncClient> GetSyncClient()
+        {
+            if(SyncClient == null)
+            {
+                SyncClient = new SyncClient(this);
+            }
+            return SyncClient;
+        }
+        #endregion
+
+        #region Torrent Management
+        public async Task<IReadOnlyCollection<TorrentFile>> GetTorrentContents(string hash)
+        {
+            var files = await ApiClient.GetTorrentContents(hash).ConfigureAwait(false);
+            return files.Select(x => TorrentFile.Create(x)).ToArray();
+        }
+
+        /// <summary>
+        /// Pauses torrents
+        /// </summary>
+        /// <param name="hashes">Hashes of torrents to pause, or empty to pause all torrents</param>
+        public async Task PauseTorrents(params string[] hashes)
+        {
+            await ApiClient.PauseTorrents(hashes).ConfigureAwait(false);
+        }
+
+        public async Task ResumeTorrents(params string[] hashes)
+        {
+            await ApiClient.ResumeTorrents(hashes).ConfigureAwait(false);
+        }
+
+        public async Task DeleteTorrents(bool deleteFiles, params string[] hashes)
+        {
+            await ApiClient.DeleteTorrents(hashes, deleteFiles).ConfigureAwait(false);
+        }
+
+        public async Task RecheckTorrents(params string[] hashes)
+        {
+            await ApiClient.RecheckTorrents(hashes).ConfigureAwait(false);
+        }
+
+        public async Task AddNewTorrent(Action<qBitApi.API.PostNewTorrent> action)
+        {
+            var pnt = new API.PostNewTorrent();
+            action(pnt);
+            if ((pnt.Urls == null || pnt.Urls.Length == 0) && string.IsNullOrWhiteSpace(pnt.TorrentFilePath))
+                throw new InvalidOperationException("One of Urls and TorrentFilePath is required");
+            foreach(var url in (pnt.Urls ?? new string[0]))
+            {
+                Preconditions.NotNullOrWhitespace(url, nameof(url));
+                if(!url.StartsWith("magnet:"))
+                {
+                    if (!Uri.TryCreate(url, UriKind.Absolute, out _))
+                        throw new ArgumentException("Url not valid");
+                }
+            }
+            await ApiClient.AddNewTorrent(pnt).ConfigureAwait(false);
+        }
+
         #endregion
     }
 }

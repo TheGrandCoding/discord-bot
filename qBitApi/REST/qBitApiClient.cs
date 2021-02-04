@@ -187,9 +187,9 @@ namespace qBitApi.REST
             var request = new JsonRestRequest(RestClient, method, endpoint, json, options);
             await SendInternalAsync(request).ConfigureAwait(false);
         }
-        public async Task SendMultipartAsync(string method, string endpoint, IReadOnlyDictionary<string, object> multipartArgs, RequestOptions options)
+        public async Task SendMultipartAsync(string method, string endpoint, IReadOnlyDictionary<string, object> multipartArgs, RequestOptions options = null)
         {
-            var request = new MultipartRestRequest(RestClient, method, endpoint, multipartArgs, options);
+            var request = new MultipartRestRequest(RestClient, method, endpoint, multipartArgs, options ?? RequestOptions.Default);
             await SendInternalAsync(request).ConfigureAwait(false);
         }
         public async Task<TResponse> SendAsync<TResponse>(string method, string endpoint, RequestOptions options = null)
@@ -303,6 +303,14 @@ namespace qBitApi.REST
             return await SendAsync<string>("GET", "app/defaultSavePath").ConfigureAwait(false);
         }
         #endregion
+
+        #region Sync
+        public async Task<SyncInfo> GetSync(int rid = 0)
+        {
+            return await SendAsync<SyncInfo>("GET", $"sync/maindata?rid={rid}").ConfigureAwait(false);
+        }
+        #endregion
+
         #region Torrent Management
         public async Task<ListTorrentInfo[]> GetTorrentList(
             TorrentState? filter = null,
@@ -330,7 +338,75 @@ namespace qBitApi.REST
                 url["hashes"] = string.Join("|", hashes);
             return await SendAsync<ListTorrentInfo[]>("GET", url.ToString()).ConfigureAwait(false);
         }
+        
+        public async Task<TorrentFile[]> GetTorrentContents(string hash)
+        {
+            return await SendAsync<TorrentFile[]>("GET", $"torrents/files?hash={hash}").ConfigureAwait(false);
+        }
+
+        public async Task PauseTorrents(string[] hashes)
+        {
+            var hash = hashes.Length == 0 ? "all" : string.Join("|", hashes);
+            await SendAsync("POST", $"torrents/pause?hashes={hash}");
+        }
+
+        public async Task ResumeTorrents(string[] hashes)
+        {
+            var hash = hashes.Length == 0 ? "all" : string.Join("|", hashes);
+            await SendAsync("POST", $"torrents/resume?hashes={hash}");
+        }
+
+        public async Task DeleteTorrents(string[] hashes, bool deleteFiles)
+        {
+            var hash = hashes.Length == 0 ? "all" : string.Join("|", hashes);
+            await SendAsync("POST", $"torrents/delete?hashes={hash}&deleteFiles={deleteFiles}");
+        }
+
+        public async Task RecheckTorrents(string[] hashes)
+        {
+            var hash = hashes.Length == 0 ? "all" : string.Join("|", hashes);
+            await SendAsync("POST", $"torrents/recheck?hashes={hash}");
+        }
+
+        public async Task AddNewTorrent(PostNewTorrent torrent)
+        {
+            var dict = new Dictionary<string, object>();
+            if ((torrent.Urls ?? new string[0]).Length > 0)
+                dict["urls"] = string.Join("\r\n", torrent.Urls);
+            if(!string.IsNullOrWhiteSpace(torrent.TorrentFilePath))
+            {
+                var fileInfo = new FileInfo(torrent.TorrentFilePath);
+                var stream = fileInfo.OpenRead();
+                dict["torrents"] = new MultipartFile(stream, fileInfo.Name);
+            }
+            if (torrent.SavePath.IsSpecified)
+                dict["savepath"] = torrent.SavePath.Value;
+            if (torrent.Cookie.IsSpecified)
+                dict["cookie"] = torrent.Cookie.Value;
+            if (torrent.Category.IsSpecified)
+                dict["category"] = torrent.Category.Value;
+            if (torrent.Tags.IsSpecified)
+                dict["tags"] = string.Join(",", torrent.Tags.Value);
+            if (torrent.SkipCheck.IsSpecified)
+                dict["skip_checking"] = torrent.SkipCheck.Value;
+            if (torrent.Paused.IsSpecified)
+                dict["paused"] = torrent.Paused.Value;
+            if (torrent.RootFolder.IsSpecified)
+                dict["root_folder"] = torrent.RootFolder.Value;
+            if (torrent.Rename.IsSpecified)
+                dict["rename"] = torrent.Rename.Value;
+            if (torrent.UploadLimit.IsSpecified)
+                dict["upLimit"] = torrent.UploadLimit.Value;
+            if (torrent.DownloadLimit.IsSpecified)
+                dict["dlLimit"] = torrent.DownloadLimit.Value;
+            if (torrent.Automatic.IsSpecified)
+                dict["autoTMM"] = torrent.Automatic.Value;
+            await SendMultipartAsync("POST", "torrents/add", dict);
+        }
+
         #endregion
+
+
 
         #region Helpers
 

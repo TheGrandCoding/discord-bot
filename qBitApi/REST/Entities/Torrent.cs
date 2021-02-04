@@ -136,7 +136,7 @@ namespace qBitApi.REST.Entities
             SequentialDownload = model.seq_dl.GetValueOrDefault(SequentialDownload);
             Size = model.size.GetValueOrDefault(Size);
             if (model.state.IsSpecified)
-                State = Enum.Parse<TorrentState>(model.state.Value);
+                State = Enum.Parse<TorrentState>(model.state.Value, true);
             SuperSeeding = model.super_seeding.GetValueOrDefault(SuperSeeding);
             if (model.tags.IsSpecified)
                 Tags = model.tags.Value.Split(",").ToImmutableArray();
@@ -148,6 +148,13 @@ namespace qBitApi.REST.Entities
             Uploaded = model.uploaded.GetValueOrDefault(Uploaded);
             UploadedSession = model.uploaded_session.GetValueOrDefault(UploadedSession);
             UploadSpeed = model.upspeed.GetValueOrDefault(UploadSpeed);
+        }
+    
+        internal static Torrent Create(Model model)
+        {
+            var t = new Torrent();
+            t.Update(model);
+            return t;
         }
     }
 }
