@@ -58,7 +58,12 @@ namespace DiscordBot.Commands.Modules.Games
             if (Service.Games.Any(x => x.Contains(Context.User)))
                 return Error("You are already playing a game.");
             if (Context.Guild.VoiceChannels.Count(x => x.Name.StartsWith("ttt-")) != (rows * rows))
-                return Error($"Not enough voice channels, requires {rows * rows}; use `{Program.Prefix}ttt setup {rows}`");
+            {
+                var existing = Service.Games.Any(x => x.Message.Channel.Id == Context.Channel.Id);
+                if(existing)
+                    return Error($"There is already a game occuring in this channel.");
+                await ReplyAsync("As VCs have not been setup, you must use text messages to indicate where you wish to go. Eg, `A1` as top left");
+            }
             var game = new TTTGame(Context.Guild, rows);
             var msg = await ReplyAsync(embed: game.ToEmbed());
             var _ = Task.Run(async () =>

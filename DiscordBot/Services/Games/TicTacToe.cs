@@ -17,6 +17,34 @@ namespace DiscordBot.Services.Games
         {
             Program.Client.UserVoiceStateUpdated += Client_UserVoiceStateUpdated;
             Program.Client.ReactionAdded += Client_ReactionAdded;
+            Program.Client.MessageReceived += Client_MessageReceived;
+        }
+
+        int getCoord(string s)
+        {
+            switch (s.ToLower()) 
+            {
+                case "1":
+                case "a": return 1;
+                case "2":
+                case "b": return 2;
+                case "3":
+                case "c": return 3;
+                default: return -1;
+            }
+        }
+
+        private async Task Client_MessageReceived(SocketMessage arg)
+        {
+            if (arg.Content.Length != 2)
+                return;
+            (int x, int y) = (getCoord(arg.Content.Substring(0, 1)), getCoord(arg.Content.Substring(1, 1)));
+            if (x == -1 || y == -1)
+                return;
+            var selected = Games.FirstOrDefault(x => x.Message.Channel.Id == arg.Channel.Id);
+            if (selected == null)
+                return;
+            await Handle(selected, arg.Author as SocketGuildUser, (x, y));
         }
 
         private async Task Client_ReactionAdded(Cacheable<IUserMessage, ulong> arg1, ISocketMessageChannel arg2, SocketReaction arg3)
@@ -82,29 +110,35 @@ namespace DiscordBot.Services.Games
 
         async Task Handle(TTTGame game, SocketGuildUser user, SocketVoiceChannel before, SocketVoiceChannel gameVc)
         {
-            if(game.Crosses == null)
+            var position = int.Parse(gameVc.Name.Split('-')[1]);
+            var coords = game.GetCoords(position);
+            await Handle(game, user, coords);
+        }
+
+        async Task Handle(TTTGame game, SocketGuildUser user, (int x, int y) coords)
+        {
+            if (game.Crosses == null)
             {
                 game.Crosses = user;
                 await game.Message.Channel.SendMessageAsync($"{user.Mention} has joined as crosses");
-            } else if (game.Naughts == null && (game.GetPlayer(user) == Position.Empty))
+            }
+            else if (game.Naughts == null && (game.GetPlayer(user) == Position.Empty))
             {
                 game.Naughts = user;
                 await game.Message.Channel.SendMessageAsync($"{user.Mention} has joined as naughts");
             }
-            if(game.Started == false)
+            if (game.Started == false)
             {
                 await user.SendMessageAsync($"Game has not yet started! Waiting for a naughts to join.");
                 return;
             }
             var player = game.GetPlayer(user);
-            if(player != game.Turn)
+            if (player != game.Turn)
             {
                 await user.SendMessageAsync($"It is not your turn!");
                 return;
             }
-            var position = int.Parse(gameVc.Name.Split('-')[1]);
-            var coords = game.GetCoords(position);
-            if (!game.TryMove(position, player))
+            if (!game.TryMove(game.GetPosition(coords.x, coords.y), player))
             {
                 await user.SendMessageAsync($"That move is not valid.");
                 return;
@@ -113,7 +147,7 @@ namespace DiscordBot.Services.Games
             game.Turn = game.Turn == Position.Cross ? Position.Naught : Position.Cross;
             await game.Message.ModifyAsync(x => x.Embed = game.ToEmbed());
             var winner = game.GetWinnerType();
-            if(winner != Position.Empty)
+            if (winner != Position.Empty)
             {
                 var msg = "";
                 if (winner == Position.DRAW)
@@ -131,7 +165,6 @@ namespace DiscordBot.Services.Games
             }
 
         }
-
     }
 
     public class TTTGame
