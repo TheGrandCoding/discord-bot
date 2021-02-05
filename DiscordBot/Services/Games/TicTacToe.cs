@@ -25,11 +25,11 @@ namespace DiscordBot.Services.Games
             switch (s.ToLower()) 
             {
                 case "1":
-                case "a": return 1;
+                case "a": return 0;
                 case "2":
-                case "b": return 2;
+                case "b": return 1;
                 case "3":
-                case "c": return 3;
+                case "c": return 2;
                 default: return -1;
             }
         }
