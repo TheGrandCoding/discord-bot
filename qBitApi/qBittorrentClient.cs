@@ -35,10 +35,10 @@ namespace qBitApi
 
         public LoginState LoginState { get; private set; }
 
-        public qBittorrentClient(Uri host, string userAgent = "qbit-api-core", RetryMode retry = RetryMode.AlwaysRetry)
+        public qBittorrentClient(Uri host, string userAgent = "qbit-api-core", RetryMode retry = RetryMode.AlwaysRetry, LogSeverity minimum = LogSeverity.Info)
         {
             Preconditions.NotNull(host, nameof(host));
-            LogManager = new LogManager(LogSeverity.Debug);
+            LogManager = new LogManager(minimum);
             ApiClient = new qBitApiClient(userAgent, retry);
             ApiClient.SetBaseUrl(Path.Combine(host.AbsoluteUri, $"api/v{qBitApiConfig.APIVersion}"));
             LogManager.Message += async msg => await _logEvent.InvokeAsync(msg).ConfigureAwait(false);
