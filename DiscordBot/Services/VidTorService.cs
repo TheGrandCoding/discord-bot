@@ -103,6 +103,7 @@ namespace DiscordBot.Services
                     change = true;
                     // Finished downloading, so we need to move it.
                     var from = arg.ContentPath; // single-file, so path to file itself
+                    from = from.Replace("/data/", "/mnt/drive");
                     var folder = Path.Combine(Program.BASE_PATH, "lessons", exists.Lesson);
                     if (!Directory.Exists(folder))
                         Directory.CreateDirectory(folder);
