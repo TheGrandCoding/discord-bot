@@ -178,7 +178,7 @@ namespace qBitApi
             {
                 if (disposing)
                 {
-                    _cancelToken?.Dispose();
+                    StopSync();
                 }
                 disposedValue = true;
             }

@@ -192,6 +192,12 @@ namespace qBitApi.REST
             var request = new MultipartRestRequest(RestClient, method, endpoint, multipartArgs, options ?? RequestOptions.Default);
             await SendInternalAsync(request).ConfigureAwait(false);
         }
+        public async Task SendFormAsync(string method, string endpoint, IReadOnlyDictionary<string, object> formArgs, RequestOptions options = null)
+        {
+            var request = new FormRestRequest(RestClient, method, endpoint, formArgs, options);
+            await SendInternalAsync(request).ConfigureAwait(false);
+        }
+
         public async Task<TResponse> SendAsync<TResponse>(string method, string endpoint, RequestOptions options = null)
         {
             options ??= RequestOptions.Default;
@@ -207,6 +213,11 @@ namespace qBitApi.REST
         public async Task<TResponse> SendMultipartAsync<TResponse>(string method, string endpoint, IReadOnlyDictionary<string, object> multipartArgs, RequestOptions options)
         {
             var request = new MultipartRestRequest(RestClient, method, endpoint, multipartArgs, options);
+            return Deserialize<TResponse>(await SendInternalAsync(request).ConfigureAwait(false));
+        }
+        public async Task<TResponse> SendFormAsync<TResponse>(string method, string endpoint, IReadOnlyDictionary<string, object> formArgs, RequestOptions options = null)
+        {
+            var request = new FormRestRequest(RestClient, method, endpoint, formArgs, options);
             return Deserialize<TResponse>(await SendInternalAsync(request).ConfigureAwait(false));
         }
 
@@ -347,25 +358,30 @@ namespace qBitApi.REST
         public async Task PauseTorrents(string[] hashes)
         {
             var hash = hashes.Length == 0 ? "all" : string.Join("|", hashes);
-            await SendAsync("POST", $"torrents/pause?hashes={hash}");
+            await SendFormAsync("POST", "torrents/pause", new DictBuilder()
+                .With("hashes", hash).Build());
         }
 
         public async Task ResumeTorrents(string[] hashes)
         {
             var hash = hashes.Length == 0 ? "all" : string.Join("|", hashes);
-            await SendAsync("POST", $"torrents/resume?hashes={hash}");
+            await SendFormAsync("POST", "torrents/resume", new DictBuilder()
+                .With("hashes", hash).Build());
         }
 
         public async Task DeleteTorrents(string[] hashes, bool deleteFiles)
         {
             var hash = hashes.Length == 0 ? "all" : string.Join("|", hashes);
-            await SendAsync("POST", $"torrents/delete?hashes={hash}&deleteFiles={deleteFiles}");
+            await SendFormAsync("POST", "torrents/delete",
+                new DictBuilder()
+                .With("hashes", hash).With("deleteFiles", deleteFiles).Build());
         }
 
         public async Task RecheckTorrents(string[] hashes)
         {
             var hash = hashes.Length == 0 ? "all" : string.Join("|", hashes);
-            await SendAsync("POST", $"torrents/recheck?hashes={hash}");
+            await SendFormAsync("POST", $"torrents/recheck", new DictBuilder()
+                .With("hashes", hash).Build());
         }
 
         public async Task AddNewTorrent(PostNewTorrent torrent)

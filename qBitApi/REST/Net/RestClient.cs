@@ -130,6 +130,28 @@ namespace qBitApi.REST.Net
             }
         }
 
+        public async Task<RestResponse> SendFormAsync(string method, string endpoint, IReadOnlyDictionary<string, object> formParams, CancellationToken cancelToken, bool headerOnly)
+        {
+            string uri = Path.Combine(_baseUrl, endpoint);
+            using (var request = new HttpRequestMessage(GetMethod(method), uri))
+            {
+                var dict = new Dictionary<string, string>();
+                foreach (var p in formParams)
+                {
+                    switch (p.Value)
+                    {
+                        case string stringValue: { dict.Add(p.Key, stringValue); continue; }
+                        case int intValue: { dict.Add(p.Key, $"{intValue}"); continue; }
+                        case bool boolValue: { dict.Add(p.Key, boolValue ? "true" : "false"); continue; }
+                        default: throw new InvalidOperationException($"Unsupported param type \"{p.Value.GetType().Name}\".");
+                    }
+                }
+                request.Content = new FormUrlEncodedContent(dict);
+                var result = await SendInternalAsync(request, cancelToken, headerOnly).ConfigureAwait(false);
+                return result;
+            }
+        }
+
         private async Task<RestResponse> SendInternalAsync(HttpRequestMessage request, CancellationToken cancelToken, bool headerOnly)
         {
             using (var cancelTokenSource = CancellationTokenSource.CreateLinkedTokenSource(_cancelToken, cancelToken))

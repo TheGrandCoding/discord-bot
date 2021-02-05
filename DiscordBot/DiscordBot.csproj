@@ -35,6 +35,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="BencodeNET" Version="4.0.0" />
     <PackageReference Include="CheAle14.EduLinkDLL" Version="0.0.4-alpha05" />
     <PackageReference Include="Discord.Addons.Interactive" Version="2.3.0-dev-20201028.4-00001" />
     <PackageReference Include="Discord.Net" Version="2.3.0-dev-20210121.1" />

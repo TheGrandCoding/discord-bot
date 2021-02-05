@@ -59,6 +59,7 @@ namespace qBitApi
                     ApiClient?.Dispose();
                     _stateLock?.Dispose();
                     _cancelToken?.Dispose();
+                    SyncClient?.Dispose();
                 }
                 _isDisposed = true;
             }

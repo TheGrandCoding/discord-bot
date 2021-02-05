@@ -101,7 +101,8 @@ namespace DiscordBot.Classes.Epic
         DieselStoreFrontWide,
         DieselStoreFrontTall,
         CodeRedemption_340x440,
-        VaultClosed
+        VaultClosed,
+        DieselGameBoxLogo
     }
     [DebuggerDisplay("{Name}")]
     public class EpicSeller
