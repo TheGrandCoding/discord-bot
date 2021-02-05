@@ -18,7 +18,7 @@ namespace qBitApi.REST.Net
 
         internal RestRequest(RestClient client, string method, string endpoint, RequestOptions options)
         {
-            Preconditions.NotNull(options, nameof(options));
+            options ??= RequestOptions.Default;
 
             Client = client;
             Method = method;

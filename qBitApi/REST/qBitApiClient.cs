@@ -194,7 +194,7 @@ namespace qBitApi.REST
         }
         public async Task SendFormAsync(string method, string endpoint, IReadOnlyDictionary<string, object> formArgs, RequestOptions options = null)
         {
-            var request = new FormRestRequest(RestClient, method, endpoint, formArgs, options);
+            var request = new FormRestRequest(RestClient, method, endpoint, formArgs, options ?? RequestOptions.Default);
             await SendInternalAsync(request).ConfigureAwait(false);
         }
 
