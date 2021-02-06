@@ -79,7 +79,10 @@ namespace DiscordBot.Services
             if (last != DateTime.MinValue)
             {
                 var diff = DateTime.Now - last;
-                builder.AddField($"Duration", Program.FormatTimeSpan(diff, true), true);
+                var d = Program.FormatTimeSpan(diff, true);
+                if (string.IsNullOrWhiteSpace(d))
+                    d = "0s";
+                builder.AddField($"Duration", d, true);
             }
             LastAction[arg1.Id] = DateTime.Now;
             builder.WithAuthor($"{arg1.Username}#{arg1.Discriminator}", arg1.GetAnyAvatarUrl());
