@@ -1,0 +1,69 @@
+{
+  "chess": {
+    "channels": {
+      "discussion": "<ulong>"
+    },
+    "chief": {
+      "id": "<ulong>",
+      "name": "<string>"
+    }
+  },
+  "domains": {
+    "speedtest": "<string>"
+  },
+  "guilds": {
+    "chess": "<ulong>",
+    "edulink": "<ulong>",
+    "logging": "<ulong>"
+  },
+  "ms_auth": {
+    "client_id": "<string>",
+    "client_secret": "<string>",
+    "name": "<string>",
+    "tenant_id": "<string>"
+  },
+  "prefix": "<string>",
+  "settings": {
+    "admin": "<ulong>",
+    "log": "<Critical|Error|Warning|Info|Verbose|Debug>"
+  },
+  "tokens": {
+    "appSecret": "<string>",
+    "atlas": {
+      "password": "<string>"
+    },
+    "aws": {
+      "access": "<string>",
+      "secret": "<string>"
+    },
+    "db": "<string>",
+    "discord": "<string>",
+    "download": "<string>",
+    "email": "<string>",
+    "github": {
+      "internal": "<string>"
+    },
+    "internal-bot": "<string>",
+    "jellyfin": "<string>",
+    "mw-name": "<string>",
+    "mw-pwd": "<string>",
+    "padlock": "<int>",
+    "publickey": "<string>",
+    "qbit": "<string>",
+    "reddit": {
+      "access": "<string>",
+      "id": "<string>",
+      "pw": "<string>",
+      "refresh": "<string>",
+      "secret": "<string>",
+      "un": "<string>"
+    },
+    "tgc-github": "<string>"
+  },
+  "urls": {
+    "download": "<uri>"
+  },
+  "vote": {
+    "adminEmail": "<string>"
+  }
+}
