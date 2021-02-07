@@ -45,6 +45,10 @@ namespace DiscordBot.Services.Games
             if (selected == null)
                 return;
             await Handle(selected, arg.Author as SocketGuildUser, (x, y));
+            try
+            {
+                await arg.DeleteAsync();
+            } catch { }
         }
 
         private async Task Client_ReactionAdded(Cacheable<IUserMessage, ulong> arg1, ISocketMessageChannel arg2, SocketReaction arg3)
@@ -69,6 +73,7 @@ namespace DiscordBot.Services.Games
             var newMsg = await channel.SendMessageAsync(embed: game.ToEmbed());
             await game.Message.DeleteAsync();
             game.Message = newMsg;
+            var _ = Task.Run(game.AddReactions);
         }
 
         async Task newPlayerTryJoin(SocketGuildUser user, TTTGame game)
@@ -117,15 +122,9 @@ namespace DiscordBot.Services.Games
 
         async Task Handle(TTTGame game, SocketGuildUser user, (int x, int y) coords)
         {
-            if (game.Crosses == null)
+            if (game.Crosses == null || game.Naughts == null)
             {
-                game.Crosses = user;
-                await game.Message.Channel.SendMessageAsync($"{user.Mention} has joined as crosses");
-            }
-            else if (game.Naughts == null && (game.GetPlayer(user) == Position.Empty))
-            {
-                game.Naughts = user;
-                await game.Message.Channel.SendMessageAsync($"{user.Mention} has joined as naughts");
+                await newPlayerTryJoin(user, game);
             }
             if (game.Started == false)
             {
@@ -209,6 +208,14 @@ namespace DiscordBot.Services.Games
         public int GetPosition(int x, int y)
         {
             return x + (y * Rows);
+        }
+        public async Task AddReactions()
+        {
+            if (Naughts == null || Crosses == null)
+                await Message.AddReactionAsync(Emotes.WHITE_CHECK_MARK);
+            else
+                await Message.RemoveAllReactionsForEmoteAsync(Emotes.WHITE_CHECK_MARK);
+            await Message.AddReactionAsync(Emotes.ARROWS_COUNTERCLOCKWISE);
         }
 
         public Position GetPlayer(IUser user)

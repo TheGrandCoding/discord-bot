@@ -10,6 +10,7 @@ namespace DiscordBot.Commands.Modules.Games
 {
     [Group("ttt")]
     [Name("TicTacToe")]
+    [RequireContext(ContextType.Guild)]
     public class TicTacToe : BotBase
     {
         public TTTService Service { get; set; }
@@ -66,19 +67,27 @@ namespace DiscordBot.Commands.Modules.Games
             }
             var game = new TTTGame(Context.Guild, rows);
             var msg = await ReplyAsync(embed: game.ToEmbed());
-            var _ = Task.Run(async () =>
-            {
-                await msg.AddReactionAsync(Emotes.WHITE_CHECK_MARK);
-                await msg.AddReactionAsync(Emotes.ARROWS_COUNTERCLOCKWISE);
-            });
+            game.Message = msg;
+            var _ = Task.Run(game.AddReactions);
             var role = Context.Guild.Roles.FirstOrDefault(x => x.Name == TTTService.RoleName);
             var self = Context.User as SocketGuildUser;
             await self.AddRoleAsync(role);
             if (other != null)
                 await other.AddRoleAsync(role);
-            game.Message = msg;
             Service.Games.Add(game);
             return Success();
+        }
+    
+        [Command("stop")]
+        [Summary("Stops the game happening in the current channel")]
+        public async Task<RuntimeResult> Stop()
+        {
+            var inChannel = Service.Games.FirstOrDefault(x => x.Message.Channel.Id == Context.Channel.Id);
+            if (inChannel == null)
+                return Error("No game is currently happening in this channel");
+            Service.Games.Remove(inChannel);
+            await inChannel.Message.DeleteAsync();
+            return Success("Game removed.");
         }
     }
 }
