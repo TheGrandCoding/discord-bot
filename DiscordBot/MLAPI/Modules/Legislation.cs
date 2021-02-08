@@ -10,7 +10,7 @@ using System.Text;
 namespace DiscordBot.MLAPI.Modules
 {
     [RequireVerifiedAccount]
-    public class Legislation : APIBase
+    public class Legislation : AuthedAPIBase
     {
         public LegislationService Service { get; set; }
         public Legislation(APIContext context) : base(context, "laws") 

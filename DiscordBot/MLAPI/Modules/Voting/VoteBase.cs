@@ -11,8 +11,6 @@ using System.Text;
 
 namespace DiscordBot.MLAPI.Modules.Voting
 {
-    [RequireAuthentication(false, false)]
-    [RequireVerifiedAccount(false)]
     public class VoteBase : APIBase
     {
         public VoteBase(APIContext c) : base(c, "vote")

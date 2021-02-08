@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace DiscordBot.MLAPI.Exceptions
+namespace DiscordBot.MLAPI
 {
     public class MustLoginException : RedirectException
     {

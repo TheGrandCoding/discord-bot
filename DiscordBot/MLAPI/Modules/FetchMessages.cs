@@ -21,8 +21,7 @@ using System.Text.RegularExpressions;
 
 namespace DiscordBot.MLAPI.Modules
 {
-    [RequireAuthentication]
-    public class VPN : APIBase
+    public class VPN : AuthedAPIBase
     {
         public MsgService DB { get; set; }
         const string urlName = "vpn";

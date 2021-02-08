@@ -10,7 +10,7 @@ using System.Text;
 namespace DiscordBot.MLAPI.Modules
 {
     [RequireAuthentication(false)]
-    public class TestThing : APIBase
+    public class TestThing : AuthedAPIBase
     {
         public TestThing(APIContext c) : base(c, "_other") { }
 

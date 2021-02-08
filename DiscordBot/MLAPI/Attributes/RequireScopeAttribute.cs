@@ -23,11 +23,11 @@ namespace DiscordBot.MLAPI
         public override PreconditionResult Check(APIContext context)
         {
             if (context.Token == null)
-                return PreconditionResult.FromError("Not logged in");
+                throw new MustLoginException();
             var _scope = Scope;
             if(string.IsNullOrWhiteSpace(_scope))
             {
-                var path = context.Path.Split("/");
+                var path = context.Path.Split("/", StringSplitOptions.RemoveEmptyEntries);
                 _scope = "html." + string.Join(".", path);
             }
             foreach(var scope in context.Token.Scopes)

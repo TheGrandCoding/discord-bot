@@ -6,7 +6,7 @@ using System.Text;
 
 namespace DiscordBot.MLAPI.Modules
 {
-    public class TimeTracker : APIBase
+    public class TimeTracker : AuthedAPIBase
     {
         public TimeTracker(APIContext context) : base(context, "tracker")
         {
@@ -20,6 +20,7 @@ namespace DiscordBot.MLAPI.Modules
             {
                 existing = new AuthToken(AuthToken.TimeToken, 12, "html.tracker", "html.tracker.*");
                 Context.User.Tokens.Add(existing);
+                Program.Save();
             }
             RespondRaw(existing.Value);
         }

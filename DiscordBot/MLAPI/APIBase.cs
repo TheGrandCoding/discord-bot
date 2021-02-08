@@ -11,15 +11,12 @@ using System.Text.RegularExpressions;
 
 namespace DiscordBot.MLAPI
 {
-    [RequireAuthentication]
-    [RequireApproval]
 #if LINUX
     [RequireServerName("ml-api." + Handler.LocalAPIDomain, OR = "domain")]
     [RequireServerName("ml-api.ms", OR = "domain")]
 #else
     [RequireServerName("localhost")]
 #endif
-    [RequireScope(null)] // scope is determined per-request.
     public class APIBase
     {
         public APIBase(APIContext context, string path)
@@ -176,8 +173,13 @@ namespace DiscordBot.MLAPI
             => RelativeLink(method.Method, args);
     }
 
+    [RequireScope(null)] // scope is determined per-request.
+    [RequireApproval]
+    [RequireAuthentication]
     public class AuthedAPIBase : APIBase
     {
-
+        public AuthedAPIBase(APIContext context, string path) : base(context, path)
+        {
+        }
     }
 }

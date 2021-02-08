@@ -14,8 +14,6 @@ using System.Threading.Tasks;
 
 namespace DiscordBot.MLAPI.Modules.ServerList
 {
-    [RequireAuthentication(false)]
-    [RequireApproval(false)]
     public class MLServers : APIBase
     {
         public MLServers(APIContext c) : base(c, "masterlist")

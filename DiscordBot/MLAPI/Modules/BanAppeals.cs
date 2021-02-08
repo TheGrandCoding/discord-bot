@@ -9,7 +9,7 @@ using System.Text;
 
 namespace DiscordBot.MLAPI.Modules
 {
-    public class BanAppeals : APIBase
+    public class BanAppeals : AuthedAPIBase
     {
         public BanAppeals(APIContext context) : base(context, "appeals")
         {

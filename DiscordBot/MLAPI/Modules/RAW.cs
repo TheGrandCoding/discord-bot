@@ -26,8 +26,6 @@ namespace DiscordBot.RESTAPI.Functions.HTML
         }
 
         [Path("/"), Method("GET")]
-        [RequireAuthentication(false)]
-        [RequireApproval(false)]
         public void BaseHTML()
         {
             if(Context.User == null)
@@ -52,9 +50,7 @@ namespace DiscordBot.RESTAPI.Functions.HTML
         [Path(@"/_/{bracket}/{filePath}")]
         [Regex("bracket", "(js|css|img|assets)")]
         [Regex("filePath", @"[a-zA-Z0-9\/.-]*.\.(js|css|png|jpeg|svg|woff)")]
-        [RequireAuthentication(false)]
         [RequireServerName(null)]
-        [RequireApproval(false)]
         public void BackgroundWork([Summary("Folder of item")]string bracket, string filePath)
         {
             if(Context.Endpoint == null)
@@ -140,12 +136,29 @@ namespace DiscordBot.RESTAPI.Functions.HTML
                 Program.Save();
         }
 
+        [Method("GET"), Path("/authed/user")]
+        [RequireAuthentication(false, false)]
+        [RequireApproval(false)]
+        [RequireScope("html.?")]
+        public void GetUser()
+        {
+            JToken obj;
+            if (Context.User == null)
+            {
+                obj = JValue.CreateNull();
+            } else
+            {
+                obj = new JObject();
+                obj["id"] = Context.User.Id.ToString();
+                obj["name"] = Context.User.Name;
+            }
+            RespondRaw(obj.ToString(), HttpStatusCode.OK);
+        }
+
         static Dictionary<string, bool> sent = new Dictionary<string, bool>();
         [Method("GET")]
         [Path("/whitelist")]
-        [RequireAuthentication(false)]
         [RequireServerName(null)]
-        [RequireApproval(false)]
         public void WhitelistLessons()
         {
             if (!sent.ContainsKey(Context.IP))

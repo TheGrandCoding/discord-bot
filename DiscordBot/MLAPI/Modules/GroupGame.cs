@@ -4,7 +4,7 @@ using System.Text;
 
 namespace DiscordBot.MLAPI.Modules
 {
-    public class GroupGame : APIBase
+    public class GroupGame : AuthedAPIBase
     {
         public GroupGame(APIContext context) : base(context, "")
         {

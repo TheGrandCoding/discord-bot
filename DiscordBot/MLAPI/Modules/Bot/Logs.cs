@@ -11,7 +11,7 @@ using System.Net.Http;
 
 namespace DiscordBot.MLAPI.Modules.Bot
 {
-    public class Logs : APIBase
+    public class Logs : AuthedAPIBase
     {
         public Logs(APIContext c) : base(c, "bot") 
         {

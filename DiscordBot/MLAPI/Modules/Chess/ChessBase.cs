@@ -9,7 +9,7 @@ using System.Text;
 
 namespace DiscordBot.MLAPI.Modules
 {
-    public abstract class ChessBase : APIBase
+    public abstract class ChessBase : AuthedAPIBase
     {
         public ChessBase(APIContext c, string path) : base(c, path)
         {

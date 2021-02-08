@@ -6,6 +6,7 @@ using HttpMultipartParser;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -22,6 +23,7 @@ namespace DiscordBot.MLAPI
         public string Path => Request.Url.AbsolutePath;
         public string Query => Request.Url.Query;
         public string Method => Request.HttpMethod;
+        public IReadOnlyDictionary<string, string> Headers { get; }
 
         static PermissionsService pService;
 
@@ -156,6 +158,13 @@ namespace DiscordBot.MLAPI
         public APIContext(HttpListenerContext c)
         {
             HTTP = c;
+            var dict = new Dictionary<string, string>();
+            foreach(string key in c.Request.Headers.Keys)
+            {
+                var value = c.Request.Headers[key];
+                dict[key] = value;
+            }
+            Headers = dict.ToImmutableDictionary();
         }
 
         public BotUser User { get; set; }

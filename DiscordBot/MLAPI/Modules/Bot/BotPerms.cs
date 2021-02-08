@@ -11,7 +11,7 @@ using static DiscordBot.Perms;
 
 namespace DiscordBot.MLAPI.Modules
 {
-    public class BotPerms : APIBase
+    public class BotPerms : AuthedAPIBase
     {
         public PermissionsService Service { get; set; }
         public BotPerms(APIContext c) : base(c, "bot") 

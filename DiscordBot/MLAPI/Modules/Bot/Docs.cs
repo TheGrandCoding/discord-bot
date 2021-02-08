@@ -17,7 +17,7 @@ using WebSocketSharp;
 
 namespace DiscordBot.MLAPI.Modules
 {
-    public class Docs : APIBase
+    public class Docs : AuthedAPIBase
     {
         public Docs(APIContext c) : base(c, "bot")
         {

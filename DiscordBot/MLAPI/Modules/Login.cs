@@ -14,7 +14,6 @@ using System.Threading.Tasks;
 
 namespace DiscordBot.MLAPI.Modules
 {
-    [RequireApproval(false)]
     public class Login : APIBase
     {
         public OauthCallbackService Callback { get; set; }
@@ -69,7 +68,6 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("GET"), Path("/login")]
-        [RequireAuthentication(false)]
         public void LoginBase()
         {
             if(Context.User != null)
@@ -86,7 +84,6 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("GET"), Path("/logout")]
-        [RequireAuthentication(false)] // we can just redirect.
         public void Logout(string back = "/")
         {
             Context.HTTP.Response.Headers["Location"] = back;
@@ -97,7 +94,6 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("GET"), Path("/login/discord")]
-        [RequireAuthentication(false)]
         public void RedirectToDiscord(string redirect = "/")
         {
             var state = Callback.Register(handleLogin, Context.User);
@@ -113,7 +109,6 @@ namespace DiscordBot.MLAPI.Modules
         // We expect this data to be sent in form-data-encoded or wahtever form in the content/body
         // rather than in the Query string
         // the APIContext has the means to parse both, and CommandFinder uses both.
-        [RequireAuthentication(false)]
         public void LoginPassword(string identifier, string password)
         {
             if(Context.User != null)
@@ -148,6 +143,7 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("GET"), Path("/login/approval")]
+        [RequireAuthentication]
         public void ApprovalPage()
         {
             if(!Context.User.IsApproved.HasValue)
@@ -222,7 +218,6 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("GET"), Path("/oauth2/discord")]
-        [RequireAuthentication(false)]
         public void OauthLogin(string code, string state)
         {
             if(!Callback.Invoke(Context, state))
@@ -232,7 +227,6 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("GET"), Path("/oauth2/misc")]
-        [RequireAuthentication(false)]
         public void OauthMisc(string state)
         {
             if (!Callback.Invoke(Context, state))
@@ -242,6 +236,7 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("GET"), Path("/login/setpassword")]
+        [RequireAuthentication]
         public void SeePswdPage()
         {
             ReplyFile("pwd.html", HttpStatusCode.OK, new Replacements()
@@ -251,6 +246,7 @@ namespace DiscordBot.MLAPI.Modules
         }
     
         [Method("POST"), Path("/login/setpassword")]
+        [RequireAuthentication]
         public void SetLoginPswd(string pwd)
         {
             if (pwd.Length < 8 || pwd.Length > 32)

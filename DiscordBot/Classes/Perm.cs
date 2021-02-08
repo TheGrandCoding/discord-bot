@@ -68,12 +68,15 @@ namespace DiscordBot.Classes
                 return false;
             inherited = false;
             var hasSplit = has.Split('.');
-            var wantedSplit = has.Split('.');
+            var wantedSplit = seeking.Split('.');
             for (int i = 0; i < hasSplit.Length && i < wantedSplit.Length; i++)
             {
                 if (hasSplit[i] == "*")
                 {
                     inherited = true;
+                    return true;
+                } else if (wantedSplit[i] == "?")
+                {
                     return true;
                 }
                 else if (hasSplit[i] != wantedSplit[i])

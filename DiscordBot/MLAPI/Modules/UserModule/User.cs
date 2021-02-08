@@ -8,7 +8,7 @@ using System.Text;
 
 namespace DiscordBot.MLAPI.Modules.UserModule
 {
-    public class User : APIBase
+    public class User : AuthedAPIBase
     {
         public User(APIContext c) : base(c, "user") { }
 

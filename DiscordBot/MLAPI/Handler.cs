@@ -187,6 +187,27 @@ namespace DiscordBot.MLAPI
                         req.Response.Close();
                         continue;
                     }
+                    if(context.Headers.TryGetValue("Origin", out var origin))
+                    {
+                        if (origin != LocalAPIUrl && context.Path.StartsWith("/authed"))
+                        {
+                            foreach (string key in req.Request.Headers.Keys)
+                            {
+                                var val = req.Request.Headers[key];
+                                if (key.StartsWith("Access-Control-"))
+                                {
+                                    req.Response.AddHeader(key.Replace("Request", "Allow"), val);
+                                }
+                            }
+                            req.Response.AddHeader("Access-Control-Allow-Origin", "*");
+                            if(context.Method == "OPTIONS")
+                            {
+                                req.Response.StatusCode = 200;
+                                req.Response.Close();
+                                continue;
+                            }
+                        }
+                    }
                     if (!isValidConnection(req.Request.LocalEndPoint))
                     {
                         Program.LogMsg($"Invalid REST connection: {req.Request.LocalEndPoint}: {req.Request.QueryString}", source:"RESTHandler", sev:LogSeverity.Warning);

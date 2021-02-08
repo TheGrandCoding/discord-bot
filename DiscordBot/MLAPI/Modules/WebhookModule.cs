@@ -8,8 +8,6 @@ using System.Text;
 
 namespace DiscordBot.MLAPI.Modules
 {
-    [RequireApproval(false)]
-    [RequireAuthentication(false)]
     public class WebhookModule : APIBase
     {
         public WebhookModule(APIContext context) : base(context, "webhooks")

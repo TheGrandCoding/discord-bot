@@ -45,7 +45,6 @@ namespace DiscordBot.MLAPI.Modules
 
         [Method("GET"), Path("/")]
         [RequireServerName("c:speedtest")]
-        [RequireAuthentication(false)]
         public void Base()
         {
             var WEEKLY = new Table();
