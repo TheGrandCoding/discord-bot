@@ -91,7 +91,7 @@ namespace DiscordBot.Services
                         Program.LogMsg(ex, "VidTorService");
                     }
                 }
-                OnSave(InternalGenerateSave());
+                DirectSave(InternalGenerateSave());
             } finally { _lock.Release(); }
         }
 
@@ -153,7 +153,7 @@ namespace DiscordBot.Services
                     catch { }
                 }
                 if(change)
-                    OnSave(InternalGenerateSave());
+                    DirectSave(InternalGenerateSave());
             } finally { _lock.Release(); }
         }
 

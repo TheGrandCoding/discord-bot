@@ -25,10 +25,10 @@ namespace DiscordBot.Services
         public override void OnSave()
         {
             var content = GenerateSave();
-            OnSave(content);
+            DirectSave(content);
         }
 
-        public void OnSave(string content)
+        public void DirectSave(string content)
         {
             if (string.IsNullOrWhiteSpace(content))
                 return; // refuse to save dat.
