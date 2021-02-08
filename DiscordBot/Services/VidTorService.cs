@@ -13,7 +13,7 @@ namespace DiscordBot.Services
 {
     public class VidTorService : SavedService
     {
-        public const string NamePattern = @"(\d{4})-(\d{2})-(\d{2})_P([1-6])";
+        public const string NamePattern = @"(\d{4})-(\d{2})-(\d{2})_([PM])([1-6])";
         public const string LessonPattern = @"1[23][ABC][A-Z][a-z][123]";
         public List<TorrentInfo> Tracking { get; set; }
         public qBittorrentClient Client { get; private set; }
@@ -42,10 +42,18 @@ namespace DiscordBot.Services
             };
             Task.Run(async () =>
             {
-                await Client.LoginAsync("admin", Program.Configuration["tokens:qbit"] ?? "adminadmin");
-                var qVersion = await Client.GetApplicationVersionAsync();
-                var apiVersion = await Client.GetWebApiVersion();
-                Program.LogMsg($"Running {qVersion} with API {apiVersion}", Discord.LogSeverity.Info, "VidTorqBit");
+                try
+                {
+                    await Client.LoginAsync("admin", Program.Configuration["tokens:qbit"] ?? "adminadmin");
+                    var qVersion = await Client.GetApplicationVersionAsync();
+                    var apiVersion = await Client.GetWebApiVersion();
+                    Program.LogMsg($"Running {qVersion} with API {apiVersion}", Discord.LogSeverity.Info, "VidTorqBit");
+                }
+                catch (Exception ex)
+                {
+                    Program.LogMsg(ex, "VidTorqBit");
+                    this.HasFailed = true;
+                }
             }).Wait();
         }
         public override void OnLoaded()
