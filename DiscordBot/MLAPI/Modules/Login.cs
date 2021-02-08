@@ -166,10 +166,10 @@ namespace DiscordBot.MLAPI.Modules
         public static void SetLoginSession(APIContext context, BotUser user)
         {
             // password valid, we need to log them in.
-            var session = user.Tokens.FirstOrDefault(x => x.Name == AuthToken.SessionToken);
+            var session = user.Tokens.FirstOrDefault(x => x.Name == AuthToken.HttpFullAccess);
             if (session == null)
             {
-                session = new AuthToken(AuthToken.SessionToken, 32);
+                session = new AuthToken(AuthToken.HttpFullAccess, 32);
                 user.Tokens.Add(session);
             }
             // to prevent logging out any other devices, we'll maintain the same token value.
@@ -264,7 +264,7 @@ namespace DiscordBot.MLAPI.Modules
                 return;
             }
             Context.User.MLAPIPassword = pwd;
-            Context.User.Tokens.RemoveAll(x => x.Name == AuthToken.SessionToken);
+            Context.User.Tokens.RemoveAll(x => x.Name == AuthToken.HttpFullAccess);
             SetLoginSession(Context, Context.User);
             Program.Save();
             Context.HTTP.Response.Headers["Location"] = "/";

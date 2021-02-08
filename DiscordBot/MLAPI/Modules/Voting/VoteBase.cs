@@ -40,7 +40,7 @@ namespace DiscordBot.MLAPI.Modules.Voting
                     Username = null
                 });
                 Program.Users.Add(bUser);
-                var auth = new AuthToken(AuthToken.SessionToken, 24);
+                var auth = new AuthToken(AuthToken.HttpFullAccess, 24);
                 bUser.Tokens.Add(auth);
                 Context.HTTP.Response.AppendCookie(new System.Net.Cookie(AuthToken.SessionToken, auth.Value)
                 {

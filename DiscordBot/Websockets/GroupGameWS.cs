@@ -1,6 +1,7 @@
 ﻿using Discord;
 using Discord.WebSocket;
 using DiscordBot.Classes;
+using DiscordBot.MLAPI;
 using DiscordBot.Services;
 using Microsoft.Extensions.DependencyInjection;
 using System;
@@ -87,19 +88,12 @@ namespace DiscordBot.Websockets
 
         protected override void OnOpen()
         {
-            var auth = Context.CookieCollection[AuthToken.SessionToken]?.Value;
-            auth ??= Context.QueryString[AuthToken.SessionToken];
-            if(string.IsNullOrWhiteSpace(auth))
+            if (!Handler.findToken(Context.CookieCollection[AuthToken.SessionToken].Value, out var bUser, out _))
             {
-                Context.WebSocket.Close(CloseStatusCode.UnsupportedData, "You must login first.");
+                Context.WebSocket.Close(CloseStatusCode.Normal, "Authentication failed.");
                 return;
             }
-            BotUser = Program.Users.FirstOrDefault(x => x.Tokens.Any(x => x.Name == AuthToken.SessionToken && x.Value == auth));
-            if(BotUser == null)
-            {
-                Context.WebSocket.Close(CloseStatusCode.Normal, "You must login first.");
-                return;
-            }
+            BotUser = bUser;
             Service ??= Program.Services.GetRequiredService<GroupMuteService>();
             foreach(var guild in Program.Client.Guilds)
             {

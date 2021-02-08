@@ -2,6 +2,7 @@
 using DiscordBot.Classes.Chess;
 using DiscordBot.Classes.Chess.Online;
 using DiscordBot.Classes.Chess.TimedOnline;
+using DiscordBot.MLAPI;
 using DiscordBot.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json.Linq;
@@ -31,8 +32,11 @@ namespace DiscordBot.Websockets
             using var db = Program.Services.GetRequiredService<ChessDbContext>();
             try
             {
-                var auth = Context.CookieCollection[AuthToken.SessionToken];
-                var bUser = Program.Users.FirstOrDefault(x => x.Tokens.Any(y => y.Name == AuthToken.SessionToken && y.Value == auth.Value));
+                if (!Handler.findToken(Context.CookieCollection[AuthToken.SessionToken].Value, out var bUser, out _))
+                {
+                    Context.WebSocket.Close(CloseStatusCode.Normal, "Authentication failed.");
+                    return;
+                }
                 Player = db.Players.FirstOrDefault(x => x.DiscordAccount == ChessService.cast(bUser.Id));
             } catch 
             {

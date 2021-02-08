@@ -19,6 +19,7 @@ namespace DiscordBot.MLAPI
 #else
     [RequireServerName("localhost")]
 #endif
+    [RequireScope(null)] // scope is determined per-request.
     public class APIBase
     {
         public APIBase(APIContext context, string path)
@@ -173,5 +174,10 @@ namespace DiscordBot.MLAPI
             => RelativeLink(method.Method, args);
         protected string RelativeLink<T1, T2, T3, T4>(Func<T1, T2, T3, T4> method, params object[] args)
             => RelativeLink(method.Method, args);
+    }
+
+    public class AuthedAPIBase : APIBase
+    {
+
     }
 }

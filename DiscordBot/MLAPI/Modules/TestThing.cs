@@ -54,10 +54,10 @@ namespace DiscordBot.MLAPI.Modules
                     });
                     Program.Users.Add(bUser);
                 }
-                var token = bUser.Tokens.FirstOrDefault(x => x.Name == AuthToken.SessionToken);
+                var token = bUser.Tokens.FirstOrDefault(x => x.Name == AuthToken.HttpFullAccess);
                 if(token == null)
                 {
-                    token = new AuthToken(AuthToken.SessionToken, 24);
+                    token = new AuthToken(AuthToken.HttpFullAccess, 24);
                     bUser.Tokens.Add(token);
                 }
                 Context.HTTP.Response.AppendCookie(new Cookie(AuthToken.SessionToken, token.Value, "/")

@@ -1,6 +1,7 @@
 ﻿using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using static DiscordBot.Program;
 
@@ -13,11 +14,20 @@ namespace DiscordBot.Classes
         /// </summary>
         public const string LoginPassword = "htmlbypasspwd";
         /// <summary>
-        /// Token used to identify a unique session
+        /// Name of authentication cookie/token
         /// </summary>
         public const string SessionToken = "session";
 
+        /// <summary>
+        /// Name of token used for online sessions
+        /// </summary>
+        public const string HttpFullAccess = "httpaccess";
+
+        public const string TimeToken = "timetracker";
+
         public string Name { get; set; }
+
+        public List<string> Scopes { get; set; }
 
         [JsonProperty("Value")]
         string _value;
@@ -33,14 +43,23 @@ namespace DiscordBot.Classes
         }
 
         [JsonConstructor]
-        public AuthToken(string name, string value)
+        public AuthToken(string name, string value, List<string> scopes = null)
         {
             Name = name;
             _value = value;
+            Scopes = scopes ?? new List<string>();
+            if (Name == SessionToken)
+            {
+                if(Scopes.Count == 0)
+                {
+                    Name = HttpFullAccess;
+                    Scopes.Add("html.*");
+                }
+            }
         }
 
         const int defaultLength = 12;
-        public AuthToken(string name, int length = defaultLength) : this(name, Generate(length))
+        public AuthToken(string name, int length = defaultLength, params string[] scopes) : this(name, Generate(length), scopes.ToList())
         {
         }
 

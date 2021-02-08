@@ -24,7 +24,7 @@ namespace DiscordBot.MLAPI
             if (!_require)
                 return PreconditionResult.FromSuccess();
             if (context.User == null)
-                throw new RedirectException("/login", "Requires login");
+                throw new MustLoginException();
             if (context.User.IsApproved != true)
                 throw new RedirectException("/login/approval", "User requires manual approval");
             return PreconditionResult.FromSuccess();

@@ -78,10 +78,10 @@ namespace DiscordBot.Services
 
         string getSession(BotUser user)
         {
-            var existing = user.Tokens.FirstOrDefault(x => x.Name == AuthToken.SessionToken);
+            var existing = user.Tokens.FirstOrDefault(x => x.Name == AuthToken.HttpFullAccess);
             if(existing == null)
             {
-                existing = new AuthToken(AuthToken.SessionToken, 32);
+                existing = new AuthToken(AuthToken.HttpFullAccess, 32);
                 user.Tokens.Add(existing);
             }
             return existing.Value;

@@ -72,7 +72,7 @@ namespace DiscordBot.Classes
                     }
                     tkn.SetHashValue(value);
                 }
-                Tokens.FirstOrDefault(x => x.Name == AuthToken.SessionToken)?.Regenerate();
+                Tokens.FirstOrDefault(x => x.Name == AuthToken.HttpFullAccess)?.Regenerate();
             }
         }
 

@@ -58,29 +58,35 @@ namespace DiscordBot.Classes
                 Type = PermType.Grant;
             }
         }
-    
-        public bool isMatch(NodeInfo seeking, out bool inherited)
+
+        public static bool IsMatch(string has, string seeking, out bool inherited)
         {
             inherited = false;
-            if (this.Node == seeking.Node)
+            if (has == seeking)
                 return true;
-            if (this.Node == Perms.All)
+            if (has == Perms.All)
                 return false;
             inherited = false;
-            var hasSplit = this.Node.Split('.');
-            var wantedSplit = seeking.Node.Split('.');
+            var hasSplit = has.Split('.');
+            var wantedSplit = has.Split('.');
             for (int i = 0; i < hasSplit.Length && i < wantedSplit.Length; i++)
             {
                 if (hasSplit[i] == "*")
                 {
                     inherited = true;
                     return true;
-                } else if (hasSplit[i] != wantedSplit[i])
+                }
+                else if (hasSplit[i] != wantedSplit[i])
                 {
                     return false;
                 }
             }
             return false;
+        }
+    
+        public bool isMatch(NodeInfo seeking, out bool inherited)
+        {
+            return IsMatch(this.Node, seeking.Node, out inherited);
         }
     }
 
