@@ -1,4 +1,5 @@
-﻿using Discord.Commands;
+﻿using Discord;
+using Discord.Commands;
 using DiscordBot.Classes;
 using DiscordBot.MLAPI;
 using Newtonsoft.Json.Linq;
@@ -138,5 +139,36 @@ namespace DiscordBot.RESTAPI.Functions.HTML
             if (change)
                 Program.Save();
         }
+
+        static Dictionary<string, bool> sent = new Dictionary<string, bool>();
+        [Method("GET")]
+        [Path("/whitelist")]
+        [RequireAuthentication(false)]
+        [RequireServerName(null)]
+        [RequireApproval(false)]
+        public void WhitelistLessons()
+        {
+            if (!sent.ContainsKey(Context.IP))
+            {
+                sent[Context.IP] = true;
+                var usr = Program.AppInfo.Owner;
+                var embed = new EmbedBuilder();
+                embed.Title = "Lesson Whitelist";
+                embed.Description = "Attempt to access lesson path by an unwhitelisted user.";
+                if(Context.User != null)
+                    embed.AddField("Authed User", Context.User.Name);
+                foreach(string header in Context.Request.Headers.Keys)
+                {
+                    var value = Context.Request.Headers[header];
+                    embed.AddField(header, Program.Clamp(value, 256));
+                    if (embed.Fields.Count >= 25)
+                        break;
+                }
+                usr.SendMessageAsync(embed: embed.Build());
+            }
+            ReplyFile("_whitelist.html", HttpStatusCode.OK);
+        }
+    
+    
     }
 }

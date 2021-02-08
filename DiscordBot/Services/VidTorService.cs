@@ -15,23 +15,31 @@ namespace DiscordBot.Services
     {
         public const string NamePattern = @"(\d{4})-(\d{2})-(\d{2})_([PM])([1-6])";
         public const string LessonPattern = @"1[23][ABC][A-Z][a-z][123]";
+        public static string BasePath = Path.Combine(Program.BASE_PATH, "lessons");
         public List<TorrentInfo> Tracking { get; set; }
         public qBittorrentClient Client { get; private set; }
         public SyncClient Sync { get; private set; }
         public SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
+
 
         public override string GenerateSave()
         {
             _lock.Wait();
             try
             {
-                return Program.Serialise(Tracking, Newtonsoft.Json.TypeNameHandling.None, new BotUserConverter());
+                return InternalGenerateSave();
             }
             finally
             {
                 _lock.Release();
             }
         }
+        
+        private string InternalGenerateSave()
+        {
+            return Program.Serialise(Tracking, Newtonsoft.Json.TypeNameHandling.None, new BotUserConverter());
+        }
+
         public override void OnReady()
         {
             Client = new qBittorrentClient(new Uri("http://localhost:8080"));
@@ -83,6 +91,7 @@ namespace DiscordBot.Services
                         Program.LogMsg(ex, "VidTorService");
                     }
                 }
+                OnSave(InternalGenerateSave());
             } finally { _lock.Release(); }
         }
 
@@ -99,20 +108,20 @@ namespace DiscordBot.Services
                     return;
                 if (exists.Hash == null)
                 {
+                    Program.LogMsg($"Setting {exists.Name} hash to {arg.Hash} | {Tracking.Count}");
                     change = true;
                     exists.Hash = arg.Hash;
                     try
                     {
                         await exists.UploadedBy.FirstValidUser.SendMessageAsync($"Torrent for {exists.Lesson} has been picked up and is being downloaded.");
                     } catch { }
-                }
-                if(arg.Progress == 1)
+                } else if(arg.Progress == 1)
                 {
                     change = true;
                     // Finished downloading, so we need to move it.
                     var from = arg.ContentPath; // single-file, so path to file itself
                     from = from.Replace("/data/", "/mnt/drive/");
-                    var folder = Path.Combine(Program.BASE_PATH, "lessons", exists.Lesson);
+                    var folder = Path.Combine(BasePath, exists.Lesson);
                     if (!Directory.Exists(folder))
                         Directory.CreateDirectory(folder);
                     var to = Path.Combine(folder, Path.GetFileName(from));
@@ -135,10 +144,17 @@ namespace DiscordBot.Services
                         await exists.UploadedBy.FirstValidUser.SendMessageAsync($"Torrent for {exists.Lesson} has been downloaded and should now be available.");
                     }
                     catch { }
+                } else
+                {
+                    try
+                    {
+                        await exists.UploadedBy.FirstValidUser.SendMessageAsync($"Torrent for {exists.Lesson} is {(arg.Progress * 100):00.0}% downloaded");
+                    }
+                    catch { }
                 }
+                if(change)
+                    OnSave(InternalGenerateSave());
             } finally { _lock.Release(); }
-            if (change)
-                OnSave();
         }
 
         public override void OnClose()
@@ -168,8 +184,6 @@ namespace DiscordBot.Services
                 x.Category = "lessons";
             });
         }
-    
-    
     
     }
 

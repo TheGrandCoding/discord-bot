@@ -25,6 +25,11 @@ namespace DiscordBot.Services
         public override void OnSave()
         {
             var content = GenerateSave();
+            OnSave(content);
+        }
+
+        public void OnSave(string content)
+        {
             if (string.IsNullOrWhiteSpace(content))
                 return; // refuse to save dat.
             if (!Directory.Exists(SaveFolder))

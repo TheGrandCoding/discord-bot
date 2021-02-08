@@ -78,6 +78,37 @@ namespace DiscordBot.Commands.Modules
             return Success("Torrent has been sent to download client. You will receive messages as it progresses.");
         }
 
+        [Command("whitelist")]
+        [RequireOwner]
+        public async Task Whitelist(IPAddress address)
+        {
+            var ht = Path.Combine(VidTorService.BasePath, ".htaccess");
+            try
+            {
+                var existing = File.ReadAllLines(ht);
+                int l = 0;
+                foreach(var line in existing)
+                {
+                    l++;
+                    if(line.StartsWith("Require ip"))
+                    {
+                        if(line.Contains(address.ToString()))
+                        {
+                            await ReplyAsync($"That IP is already whitelisted on line {l:00}, you'll need to manually remove it");
+                            return;
+                        }
+                    }
+                }
+            } catch(FileNotFoundException)
+            {
+                string text = "ErrorDocument 403 https://ml-api.uk.ms/whitelist" + Environment.NewLine;
+                text += "Require ip 192.168.1 192.168.0" + Environment.NewLine;
+                File.WriteAllText(ht, text);
+            }
+            File.AppendAllText(ht, "Require ip " + address.ToString() + Environment.NewLine);
+            await ReplyAsync("Added to whitelist.");
+        }
+
         async Task<(string, string)> CheckValidLessonName(Torrent torrent)
         {
             if(torrent.Comment != null)
