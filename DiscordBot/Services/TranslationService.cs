@@ -35,6 +35,12 @@ namespace DiscordBot.Services
             }
             if (string.IsNullOrWhiteSpace(arg.Content))
                 return;
+            if(arg.Content.StartsWith("!"))
+            {
+                var a = await arg.Channel.GetUserAsync(235088799074484224);
+                if (a != null)
+                    return;
+            }
             var client = TranslationClient.Create();
             var response = await client.TranslateTextAsync(arg.Content, LanguageCodes.English);
             if(response.DetectedSourceLanguage != LanguageCodes.English)
