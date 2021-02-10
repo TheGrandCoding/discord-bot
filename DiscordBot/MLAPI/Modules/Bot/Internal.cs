@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 namespace DiscordBot.MLAPI.Modules.Bot
 {
     
-    public class Internal : AuthedAPIBase
+    public class Internal : APIBase
     {
         public Internal(APIContext c) : base(c, "/") { }
 
