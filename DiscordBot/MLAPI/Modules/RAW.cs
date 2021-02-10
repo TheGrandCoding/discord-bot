@@ -136,25 +136,6 @@ namespace DiscordBot.RESTAPI.Functions.HTML
                 Program.Save();
         }
 
-        [Method("GET"), Path("/authed/user")]
-        [RequireAuthentication(false, false)]
-        [RequireApproval(false)]
-        [RequireScope("html.?")]
-        public void GetUser()
-        {
-            JToken obj;
-            if (Context.User == null)
-            {
-                obj = JValue.CreateNull();
-            } else
-            {
-                obj = new JObject();
-                obj["id"] = Context.User.Id.ToString();
-                obj["name"] = Context.User.Name;
-            }
-            RespondRaw(obj.ToString(), HttpStatusCode.OK);
-        }
-
         static Dictionary<string, bool> sent = new Dictionary<string, bool>();
         [Method("GET")]
         [Path("/whitelist")]

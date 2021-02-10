@@ -8,6 +8,7 @@ using DiscordBot.Classes.Attributes;
 using DiscordBot.Classes.Calculator;
 using DiscordBot.Classes.Chess;
 using DiscordBot.MLAPI;
+using DiscordBot.MLAPI.Modules.TimeTracking;
 using DiscordBot.Permissions;
 using DiscordBot.Services;
 using DiscordBot.TypeReaders;
@@ -38,7 +39,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.14.2"; 
+        public const string VERSION = "0.14.3"; 
         public const string CHANGELOG = VERSION + @"
 == Permissions changes
 Changed how permissions worked for bot.
@@ -344,6 +345,19 @@ Changed how permissions worked for bot.
                     });
 #endif
             }, ServiceLifetime.Transient);
+            coll.AddDbContext<TimeTrackDb>(options =>
+            {
+#if WINDOWS
+                options.UseSqlServer(getDbString("watch"));
+                options.EnableSensitiveDataLogging();
+#else
+                options.UseMySql(getDbString("watch"), 
+                    new MariaDbServerVersion(new Version(10, 3, 25)), mysqlOptions =>
+                    {
+                        mysqlOptions.CharSet(CharSet.Utf8Mb4);
+                    });
+#endif
+            }, ServiceLifetime.Singleton);
             var http = new Utils.BotHttpClient();
             http.DefaultRequestHeaders.Add("User-Agent", $"dsMLAPI-v{VER_STR}");
             coll.AddSingleton(typeof(HttpClient), http);
