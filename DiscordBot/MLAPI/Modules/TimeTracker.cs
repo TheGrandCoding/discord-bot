@@ -131,7 +131,7 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
                 obj["id"] = Context.User.Id.ToString();
                 obj["name"] = Context.User.Name;
                 var intervalThings = new JObject();
-                intervalThings["get"] = 5_000;
+                intervalThings["get"] = 10_000;
                 intervalThings["set"] = 15_000;
                 obj["interval"] = intervalThings;
             }
