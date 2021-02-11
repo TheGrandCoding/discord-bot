@@ -166,7 +166,7 @@ namespace DiscordBot.Services
         {
             var info = new TorrentInfo();
             action(info);
-            var randomName = AuthToken.Generate(32);
+            info.Name = AuthToken.Generate(32);
             _lock.Wait();
             try
             {
@@ -179,7 +179,7 @@ namespace DiscordBot.Services
             await Client.AddNewTorrent(x =>
             {
                 x.TorrentFilePath = temp;
-                x.Rename = randomName;
+                x.Rename = info.Name;
                 x.Tags = new string[] { info.Lesson, $"{info.UploadedBy.Id}" };
                 x.Category = "lessons";
             });
