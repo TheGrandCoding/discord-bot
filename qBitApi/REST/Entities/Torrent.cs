@@ -12,7 +12,7 @@ namespace qBitApi.REST.Entities
         /// <summary>
         /// Torrent hash
         /// </summary>
-        public string Hash { get; private set; }
+        public string Hash { get; internal set; }
         public string Name { get; private set; }
 
         /// <summary>

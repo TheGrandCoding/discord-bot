@@ -103,6 +103,7 @@ namespace qBitApi
                         {
                             await _logger.WarningAsync($"[{_rid}] Tracking new torrent '{keypair.Key}'").ConfigureAwait(false);
                             torrent = Torrent.Create(keypair.Value);
+                            torrent.Hash = keypair.Key;
                             _torrents[keypair.Key] = torrent;
                         }
                         await _torrentUpdated.InvokeAsync(torrent);
