@@ -22,6 +22,8 @@ namespace DiscordBot.MLAPI
 
         public override PreconditionResult Check(APIContext context)
         {
+            if (_scope == "*")
+                return PreconditionResult.FromSuccess();
             if (context.Token == null)
                 throw new MustLoginException();
             var _scope = Scope;

@@ -130,6 +130,10 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
                 obj = new JObject();
                 obj["id"] = Context.User.Id.ToString();
                 obj["name"] = Context.User.Name;
+                var intervalThings = new JObject();
+                intervalThings["get"] = 5_000;
+                intervalThings["set"] = 15_000;
+                obj["interval"] = intervalThings;
             }
             RespondRaw(obj.ToString(), HttpStatusCode.OK);
         }
@@ -155,13 +159,21 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
             foreach(JProperty token in jobj.Children())
             {
                 var val = token.Value.ToObject<double>();
-                Console.Write($"{token.Name} = {val:00.00}");
                 DB.Add(Context.User.Id, token.Name, val);
             }
             DB.SaveChanges();
             RespondRaw("OK", HttpStatusCode.Created);
         }
 
+        [Method("POST"), Path("/api/tracker/log")]
+        [RequireAuthentication(false)]
+        [RequireApproval(false)]
+        [RequireScope("*")]
+        public void Log()
+        {
+            var jobj = JObject.Parse(Context.Body);
+            Program.LogMsg(jobj["message"].ToObject<string>(), Discord.LogSeverity.Info, "TimeTracker");
+        }
 
     }
 }
