@@ -335,7 +335,7 @@ namespace DiscordBot.MLAPI
                 return "";
             };
 
-            if(!context.Path.Contains("/_/"))
+            if(!(context.Path.Contains("/_/") || context.Path.StartsWith("/api/tracker/")))
                 logger.Write();
 
             List<APIEndpoint> endpoints;
