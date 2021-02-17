@@ -5,6 +5,7 @@ using DiscordBot.Classes.HTMLHelpers;
 using DiscordBot.Classes.HTMLHelpers.Objects;
 using DiscordBot.Commands;
 using DiscordBot.Services.BuiltIn;
+using DiscordBot.Utils;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using System;
@@ -209,7 +210,7 @@ namespace DiscordBot.MLAPI.Modules
             return wrapper;
         }
 
-        Div explainPreconditions(PreconditionAttribute attribute, bool module)
+        Div explainPrecondition(PreconditionAttribute attribute, bool module)
         {
             string summary;
             string type = module ? "This module " : "This command ";
@@ -229,6 +230,47 @@ namespace DiscordBot.MLAPI.Modules
                 summary = attribute.GetType().Name.Replace("Attribute", "");
             return warn(type + summary);
         }
+
+        Div explainPreconditions(bool module, params PreconditionAttribute[] attributes)
+        {
+            if (attributes.Length == 0)
+                return new Div();
+            if (attributes.Length == 1)
+                return explainPrecondition(attributes[0], module);
+            var orGroups = new Dictionary<string, List<PreconditionAttribute>>();
+            var andGroups = new Dictionary<string, List<PreconditionAttribute>>();
+            foreach (var x in attributes)
+            {
+                if (string.IsNullOrWhiteSpace(x.Group))
+                {
+                    andGroups.AddInner("", x);
+                }
+                else
+                {
+                    orGroups.AddInner(x.Group, x);
+                }
+            }
+            var div = new Div();
+            foreach (var or in orGroups)
+            {
+                var orDiv = info("Any of the following must be satisfied:");
+                foreach (var x in or.Value)
+                    orDiv.Children.Add(explainPrecondition(x, module));
+                div.Children.Add(orDiv);
+            }
+            foreach (var and in andGroups)
+            {
+                var andDiv = info("All of the following apply:");
+                foreach (var x in and.Value)
+                    andDiv.Children.Add(explainPrecondition(x, module));
+                div.Children.Add(andDiv);
+            }
+            if (div.Children.Count == 1)
+                return div.Children[0] as Div;
+            return div;
+        }
+
+
         string explainAuthentication(RequireAuthentication ra)
         {
             // This module must be executed by 
@@ -246,33 +288,7 @@ namespace DiscordBot.MLAPI.Modules
                 ul.AddItem($"<code>{x}</code>");
             return ul;
         }
-        Div explainPreconditions(APIPrecondition attribute, bool module)
-        {
-            string summary;
-            string type = module ? "This module " : "This command ";
-            if (attribute is RequireChess rc)
-                summary = $"must be executed by Chess user with <code>{rc._perm}</code> permission";
-            else if (attribute is RequireAuthentication ra)
-                summary = explainAuthentication(ra);
-            else if (attribute is RequireApprovalAttribute raa)
-                summary = raa._require ? "must be executed by a user who has been approved to use this website" : "does not need any approval";
-            else if (attribute is RequireServerName rsn)
-                summary = $"must be performed on the <code>{rsn.Domain}</code> domain";
-            else if (attribute is RequireValidHTTPAgent rvh)
-                summary = $"must send a User-Agent containing one of:<br/>" + listWithCode(rvh.ValidAgents);
-            else if (attribute is RequirePermNode rpn)
-                summary = $"requires all of the following permissions:</br>" + listWithCode(rpn.Nodes);
-            else if (attribute is RequireVerifiedAccount rva)
-                summary = rva._require ? "must be executed by a verified account" : "requires no verification";
-            else if (attribute is RequireUser ru)
-                summary = $"must be executed by {(Program.GetUserOrDefault(ru._user)?.Name ?? $"a specific user, of ID {ru._user}")}";
-            else if (attribute is RequireOwner)
-                summary = $"must be executed by the developer of this bot";
-            else
-                summary = attribute.GetType().Name.Replace("Attribute", "");
-            return warn(type + summary);
-        }
-
+        
         #endregion
 
         #region Commands
@@ -328,10 +344,8 @@ namespace DiscordBot.MLAPI.Modules
             main.Children.Add(linkHeader(1, module.Name));
             if (module.Summary != null)
                 main.Children.Add(docParagraph().WithRawText(module.Summary));
-            foreach(var precondition in module.Preconditions)
-            {
-                main.Children.Add(explainPreconditions(precondition, true));
-            }
+            if (module.Preconditions.Count > 0)
+                main.Children.Add(explainPreconditions(true, module.Preconditions.ToArray()));
 
             foreach(var x in module.Commands)
             {
@@ -341,10 +355,8 @@ namespace DiscordBot.MLAPI.Modules
                 main.Children.Add(req.ToHtml());
                 if(x.Summary != null)
                     main.Children.Add(docParagraph().WithRawText(x.Summary));
-                foreach(var pre in x.Preconditions)
-                {
-                    main.Children.Add(explainPreconditions(pre, false));
-                }
+                if (x.Preconditions.Count > 0)
+                    main.Children.Add(explainPreconditions(false, x.Preconditions.ToArray()));
             }
             return main;
         }
@@ -352,6 +364,74 @@ namespace DiscordBot.MLAPI.Modules
         #endregion
 
         #region API
+        Div explainPrecondition(APIPrecondition attribute, bool module)
+        {
+            string summary;
+            string type = module ? "This module " : "This command ";
+            if (attribute is RequireChess rc)
+                summary = $"must be executed by Chess user with <code>{rc._perm}</code> permission";
+            else if (attribute is RequireAuthentication ra)
+                summary = explainAuthentication(ra);
+            else if (attribute is RequireApprovalAttribute raa)
+                summary = raa._require ? "must be executed by a user who has been approved to use this website" : "does not need any approval";
+            else if (attribute is RequireServerName rsn)
+                summary = $"must be performed on the <code>{rsn.Domain}</code> domain";
+            else if (attribute is RequireValidHTTPAgent rvh)
+                summary = $"must send a User-Agent containing one of:<br/>" + listWithCode(rvh.ValidAgents);
+            else if (attribute is RequirePermNode rpn)
+                summary = $"requires all of the following permissions:</br>" + listWithCode(rpn.Nodes);
+            else if (attribute is RequireVerifiedAccount rva)
+                summary = rva._require ? "must be executed by a verified account" : "requires no verification";
+            else if (attribute is RequireUser ru)
+                summary = $"must be executed by {(Program.GetUserOrDefault(ru._user)?.Name ?? $"a specific user, of ID {ru._user}")}";
+            else if (attribute is RequireOwner)
+                summary = $"must be executed by the developer of this bot";
+            else if (attribute is RequireScopeAttribute rs)
+                return new Div();
+            else
+                summary = attribute.GetType().Name.Replace("Attribute", "");
+            return warn(type + summary);
+        }
+        Div explainPreconditions(bool module, params APIPrecondition[] attributes)
+        {
+            if (attributes.Length == 0)
+                return new Div();
+            if (attributes.Length == 1)
+                return explainPrecondition(attributes[0], module);
+            var orGroups = new Dictionary<string, List<APIPrecondition>>();
+            var andGroups = new Dictionary<string, List<APIPrecondition>>();
+            foreach(var x in attributes)
+            {
+                if (string.IsNullOrWhiteSpace(x.OR))
+                {
+                    andGroups.AddInner(x.AND, x);
+                } else
+                {
+                    orGroups.AddInner(x.OR, x);
+                    if (!string.IsNullOrWhiteSpace(x.AND))
+                        andGroups.AddInner(x.AND, x);
+                }
+            }
+            var div = new Div();
+            foreach (var or in orGroups)
+            {
+                var orDiv = info("Any of the following must be satisfied:");
+                foreach (var x in or.Value)
+                    orDiv.Children.Add(explainPrecondition(x, module));
+                div.Children.Add(orDiv);
+            }
+            foreach (var and in andGroups)
+            {
+                var andDiv = info("All of the following apply:");
+                foreach (var x in and.Value)
+                    andDiv.Children.Add(explainPrecondition(x, module));
+                div.Children.Add(andDiv);
+            }
+            if (div.Children.Count == 1)
+                return div.Children[0] as Div;
+            return div;
+        }
+
         Div getSidebarAPI(string selected)
         {
             var section = new Div(cls: "section-X9hK_F");
@@ -462,10 +542,8 @@ namespace DiscordBot.MLAPI.Modules
             main.Children.Add(linkHeader(1, module.Name));
             if (module.Summary != null)
                 main.Children.Add(docParagraph().WithRawText(module.Summary));
-            foreach (var precondition in module.Preconditions)
-            {
-                main.Children.Add(explainPreconditions(precondition, true));
-            }
+            if (module.Preconditions.Count > 0)
+                main.Children.Add(explainPreconditions(true, module.Preconditions.ToArray()));
 
             foreach (var x in module.Endpoints)
             {
@@ -544,10 +622,8 @@ namespace DiscordBot.MLAPI.Modules
                     main.Children.Add(docParagraph().WithRawText($"Request URI must match pattern: <code>{pattern}</code>"));
                 if (x.Summary != null)
                     main.Children.Add(docParagraph().WithRawText(x.Summary));
-                foreach (var pre in x.Preconditions)
-                {
-                    main.Children.Add(explainPreconditions(pre, false));
-                }
+                if (x.Preconditions.Length > 0)
+                    main.Children.Add(explainPreconditions(false, x.Preconditions));
             }
             return main;
         }
