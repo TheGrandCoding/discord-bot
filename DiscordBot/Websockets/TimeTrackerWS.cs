@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.Net.Http;
 using System.Text;
 using WebSocketSharp;
 using WebSocketSharp.Server;
@@ -76,6 +77,28 @@ namespace DiscordBot.Websockets
                 }
                 DB.SaveChanges();
                 Send(packet.ReplyWith(JValue.FromObject("OK")));
+            } else if(packet.Id == TTPacketId.GetVersion)
+            {
+                string version = TimeTrackDb.ExtensionVersion.GetValueOrDefault(null);
+                if(version == null)
+                {
+                    var client = Program.Services.GetRequiredService<HttpClient>();
+                    var r = client.GetAsync("https://api.github.com/repos/CheAle14/time-tracker/releases/latest").Result;
+                    if (r.IsSuccessStatusCode)
+                    {
+                        jobj = Newtonsoft.Json.Linq.JObject.Parse(r.Content.ReadAsStringAsync().Result);
+                        var s = jobj["tag_name"].ToObject<string>();
+                        if (s.StartsWith("v"))
+                            s = s[1..];
+                        TimeTrackDb.ExtensionVersion.Value = s;
+                    }
+                    else
+                    {
+                        TimeTrackDb.ExtensionVersion.Value = "0.0";
+                    }
+                    version = TimeTrackDb.ExtensionVersion.Value;
+                }
+                Send(packet.ReplyWith(JValue.FromObject(version)));
             }
         }
     }
@@ -95,5 +118,6 @@ namespace DiscordBot.Websockets
     {
         GetTimes,
         SetTimes,
+        GetVersion
     }
 }

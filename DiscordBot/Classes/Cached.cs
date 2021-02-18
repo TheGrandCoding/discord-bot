@@ -2,7 +2,7 @@
 
 namespace DiscordBot.Classes
 {
-    public struct Cached<T>
+    public class Cached<T>
     {
         public Cached(T value, int minuteExpires = 15)
         {

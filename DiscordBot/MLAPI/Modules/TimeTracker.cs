@@ -29,6 +29,8 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
         {
         }
 
+        public static Cached<string> ExtensionVersion { get; set; } = new Cached<string>(null, 180);
+
         public DbSet<VideoData> WatchTimes { get; set; }
 
         public void Add(ulong user, string id, double time)
@@ -100,8 +102,6 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
             DB = Program.Services.GetRequiredService<TimeTrackDb>();
         }
 
-        static Cached<string> Version = new Cached<string>(null, 180);
-
         public TimeTrackDb DB { get; }
 
         [Method("GET"), Path("/tracker")]
@@ -144,9 +144,9 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
         [Method("GET"), Path("/api/tracker/latestVersion")]
         public void LatestVersion()
         {
-            if(Version.Expired == false && Version.Value != null)
+            if(TimeTrackDb.ExtensionVersion.Expired == false && TimeTrackDb.ExtensionVersion.Value != null)
             {
-                RespondRaw(Version.Value, HttpStatusCode.OK);
+                RespondRaw(TimeTrackDb.ExtensionVersion.Value, HttpStatusCode.OK);
                 return;
             }
             var client = Program.Services.GetRequiredService<HttpClient>();
@@ -157,13 +157,13 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
                 var s = jobj["tag_name"].ToObject<string>();
                 if (s.StartsWith("v"))
                     s = s[1..];
-                Version.Value = s; 
+                TimeTrackDb.ExtensionVersion.Value = s; 
             }
             else
             {
-                Version.Value = "0.0";
+                TimeTrackDb.ExtensionVersion.Value = "0.0";
             }
-            RespondRaw(Version.Value, HttpStatusCode.OK);
+            RespondRaw(TimeTrackDb.ExtensionVersion.Value, HttpStatusCode.OK);
         }
 
         [Method("GET"), Path("/api/tracker/times")]
