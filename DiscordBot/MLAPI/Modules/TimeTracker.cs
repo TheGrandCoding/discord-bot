@@ -141,7 +141,7 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
             RespondRaw(obj.ToString(), HttpStatusCode.OK);
         }
 
-        [Method("GET"), Path("/api/latestVersion")]
+        [Method("GET"), Path("/api/tracker/latestVersion")]
         public void LatestVersion()
         {
             if(Version.Expired == false && Version.Value != null)
@@ -154,7 +154,10 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
             if (r.IsSuccessStatusCode)
             {
                 var jobj = Newtonsoft.Json.Linq.JObject.Parse(r.Content.ReadAsStringAsync().Result);
-                Version.Value = jobj["tag_name"].ToObject<string>();
+                var s = jobj["tag_name"].ToObject<string>();
+                if (s.StartsWith("v"))
+                    s = s[1..];
+                Version.Value = s; 
             }
             else
             {
