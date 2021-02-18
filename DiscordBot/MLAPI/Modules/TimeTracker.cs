@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Text;
 
 namespace DiscordBot.MLAPI.Modules.TimeTracking
@@ -99,6 +100,8 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
             DB = Program.Services.GetRequiredService<TimeTrackDb>();
         }
 
+        static Cached<string> Version = new Cached<string>(null, 180);
+
         public TimeTrackDb DB { get; }
 
         [Method("GET"), Path("/tracker")]
@@ -136,6 +139,28 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
                 obj["interval"] = intervalThings;
             }
             RespondRaw(obj.ToString(), HttpStatusCode.OK);
+        }
+
+        [Method("GET"), Path("/api/latestVersion")]
+        public void LatestVersion()
+        {
+            if(Version.Expired == false && Version.Value != null)
+            {
+                RespondRaw(Version.Value, HttpStatusCode.OK);
+                return;
+            }
+            var client = Program.Services.GetRequiredService<HttpClient>();
+            var r = client.GetAsync("https://api.github.com/repos/CheAle14/time-tracker/releases/latest").Result;
+            if (r.IsSuccessStatusCode)
+            {
+                var jobj = Newtonsoft.Json.Linq.JObject.Parse(r.Content.ReadAsStringAsync().Result);
+                Version.Value = jobj["tag_name"].ToObject<string>();
+            }
+            else
+            {
+                Version.Value = "0.0";
+            }
+            RespondRaw(Version.Value, HttpStatusCode.OK);
         }
 
         [Method("GET"), Path("/api/tracker/times")]
