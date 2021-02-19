@@ -3,6 +3,7 @@ using Discord.Rest;
 using Discord.WebSocket;
 using DiscordBot.Classes;
 using DiscordBot.Classes.Attributes;
+using DiscordBot.Utils;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using System;
@@ -15,6 +16,7 @@ using System.Threading.Tasks;
 namespace DiscordBot.Services
 {
     [RequireService(typeof(MsgService))]
+    [AlwaysSync]
     public class LoggingService : SavedService
     {
         public IGuild LogGuild { get; set; }
@@ -82,6 +84,7 @@ namespace DiscordBot.Services
             Program.Client.MessageDeleted += Client_MessageDeleted;
             Program.Client.MessageUpdated += Client_MessageUpdated;
             Program.Client.UserJoined += Client_UserJoined;
+            Program.Client.UserVoiceStateUpdated += Client_UserVoiceStateUpdated;
         }
 
         public override void OnDailyTick()
@@ -225,7 +228,7 @@ namespace DiscordBot.Services
                 .WithDescription(content?.Content ?? "[unknown last content]");
             builder.AddField("Channel", $"{txt.Mention}", true);
             builder.AddField("Author", $"{dbMsg.Author.Id}\r\n<@{dbMsg.Author.Id}>", true);
-            builder.AddField("Original Sent", SnowflakeUtils.FromSnowflake(arg1.Id).ToString("dd/MM/yy HH:mm:ss.fff"), true);
+            builder.AddField("Original Sent", Discord.SnowflakeUtils.FromSnowflake(arg1.Id).ToString("dd/MM/yy HH:mm:ss.fff"), true);
             var message = await SendLog(txt.Guild, "messages", builder, arg1.Id);
             if (isDirty)
                 OnSave();
@@ -285,10 +288,58 @@ namespace DiscordBot.Services
             builder.AddField("Channel", txt.Mention, true);
             builder.AddField("Author", $"{arg2.Author.Id}\r\n<@{arg2.Author.Id}>", true);
             builder.AddField("Link", arg2.GetJumpUrl(), true);
-            builder.AddField("Original Sent", SnowflakeUtils.FromSnowflake(arg2.Id).ToString("dd/MM/yy HH:mm:ss.fff"), true);
+            builder.AddField("Original Sent", Discord.SnowflakeUtils.FromSnowflake(arg2.Id).ToString("dd/MM/yy HH:mm:ss.fff"), true);
             await SendLog(txt.Guild, "messages", builder, arg1.Id);
             if (isDirty)
                 OnSave();
+        }
+
+        #endregion
+
+        #region Voice
+
+        public Dictionary<ulong, DateTime> LastAction { get; set; } = new Dictionary<ulong, DateTime>();
+        private async Task Client_UserVoiceStateUpdated(SocketUser arg1, SocketVoiceState arg2, SocketVoiceState arg3)
+        {
+            if (arg1.IsBot)
+                return;
+            var builder = new EmbedBuilder();
+            builder.Title = $"VC Updated";
+            builder.WithCurrentTimestamp();
+            builder.AddField($"Time", DateTime.Now.ToString("HH:mm:ss.fff"), true);
+            var last = LastAction.GetValueOrDefault(arg1.Id, DateTime.MinValue);
+            if (last != DateTime.MinValue)
+            {
+                var diff = DateTime.Now - last;
+                var d = Program.FormatTimeSpan(diff, true);
+                if (string.IsNullOrWhiteSpace(d))
+                    d = "0s";
+                builder.AddField($"Duration", d, true);
+            }
+            LastAction[arg1.Id] = DateTime.Now;
+            builder.WithAuthor($"{arg1.Username}#{arg1.Discriminator}", arg1.GetAnyAvatarUrl());
+            var beforeUsers = arg2.VoiceChannel?.Users.ToList() ?? new List<SocketGuildUser>();
+            var afterUsers = arg3.VoiceChannel?.Users.ToList() ?? new List<SocketGuildUser>();
+            if (arg3.VoiceChannel == null)
+            {
+                builder.Description = $"{arg1.Username} left {arg2.VoiceChannel.Name}";
+                beforeUsers.Add((SocketGuildUser)arg1);
+                builder.WithColor(Color.Blue);
+            }
+            else if (arg2.VoiceChannel == null)
+            {
+                builder.Description = $"{arg1.Username} joined {arg3.VoiceChannel.Name}";
+                builder.WithColor(Color.Green);
+            }
+            else if (arg2.VoiceChannel.Id != arg3.VoiceChannel.Id)
+            {
+                builder.Description = $"{arg1.Username} moved from {arg2.VoiceChannel.Name} to {arg3.VoiceChannel.Name}";
+                builder.WithColor(Color.Teal);
+            }
+            if (string.IsNullOrWhiteSpace(builder.Description))
+                return;
+            builder.AddField("Users", $"{afterUsers.Count}", true);
+            await SendLog((arg2.VoiceChannel ?? arg3.VoiceChannel).Guild, "voice", builder, arg1.Id);
         }
 
         #endregion

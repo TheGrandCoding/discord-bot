@@ -149,9 +149,16 @@ Changed how permissions worked for bot.
             // Release shouldn't be downloading the files.. from itself
             return;
 #endif
-            if (!ShouldDownload)
-                return;
-            var savedServices = services.Where(x => x is SavedService);
+            List<Service> savedServices;
+            if (ShouldDownload)
+            {
+                savedServices = services.Where(x => x is SavedService).ToList();
+            } else
+            {
+                savedServices = services.Where(x => x is SavedService 
+                    && x.GetType().GetCustomAttribute<AlwaysSyncAttribute>() != null)
+                    .ToList();
+            }
             var files = savedServices.Select(x => ((SavedService)x).SaveFile).ToList();
             files.Add(saveName);
             foreach(var x in files)
