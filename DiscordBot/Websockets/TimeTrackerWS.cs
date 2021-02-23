@@ -6,8 +6,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Text;
+using System.Threading;
 using WebSocketSharp;
 using WebSocketSharp.Server;
 
@@ -15,8 +17,46 @@ namespace DiscordBot.Websockets
 {
     public class TimeTrackerWS : WebSocketBehavior
     {
+        public const int DefaultGetInterval = 15_000;
+        public const int DefaultSetInterval = 30_000;
+
         public BotUser User { get; set; }
         public TimeTrackDb DB { get; private set; }
+        public Cached<bool> WatchingVideo { get; private set; }
+
+        public int GetInterval = 0;
+        public int SetInterval = 0;
+
+        public void SendAllUserRatelimits()
+        {
+            var sameClient = Sessions.Sessions.Cast<TimeTrackerWS>().Where(x => x.User?.Id == User.Id).ToList();
+            var numWatching = sameClient.Count(x => x.WatchingVideo.GetValueOrDefault(false));
+            if (numWatching <= 0)
+                numWatching = 1;
+            var toGet = (DefaultGetInterval * numWatching) + (1000 * Sessions.Count - 1);
+            var toSet = (DefaultSetInterval * numWatching) + (1000 * Sessions.Count - 1);
+            foreach (var client in sameClient)
+                client.SendRatelimits(toSet, toGet);
+        }
+
+        public void SendRatelimits(int toSet, int toGet)
+        {
+            var jobj = new JObject();
+            if(GetInterval != toGet)
+            {
+                jobj["get"] = toGet;
+                GetInterval = toGet;
+            } 
+            if(SetInterval != toSet)
+            {
+                jobj["set"] = toSet;
+                SetInterval = toSet;
+            }
+            if(jobj.Count > 0)
+            {
+                Send(new TTPacket(TTPacketId.DirectRatelimit, jobj));
+            }
+        }
 
         string _ip = null;
         public string IP
@@ -48,6 +88,8 @@ namespace DiscordBot.Websockets
             }
             User = usr;
             DB = Program.Services.GetRequiredService<TimeTrackDb>();
+            WatchingVideo = new Cached<bool>(false, 2);
+            SendAllUserRatelimits();
         }
 
         protected override void OnMessage(MessageEventArgs e)
@@ -77,6 +119,8 @@ namespace DiscordBot.Websockets
                 }
                 DB.SaveChanges();
                 Send(packet.ReplyWith(JValue.FromObject("OK")));
+                WatchingVideo.Value = true;
+                SendAllUserRatelimits();
             } else if(packet.Id == TTPacketId.GetVersion)
             {
                 string version = TimeTrackDb.ExtensionVersion.GetValueOrDefault(null);
@@ -118,6 +162,7 @@ namespace DiscordBot.Websockets
     {
         GetTimes,
         SetTimes,
-        GetVersion
+        GetVersion,
+        DirectRatelimit
     }
 }
