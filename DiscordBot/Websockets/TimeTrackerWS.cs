@@ -27,14 +27,14 @@ namespace DiscordBot.Websockets
         public int GetInterval = 0;
         public int SetInterval = 0;
 
-        public void SendAllUserRatelimits()
+        public void SendAllClientRatelimits()
         {
             var sameClient = Sessions.Sessions.Cast<TimeTrackerWS>().Where(x => x.User?.Id == User.Id).ToList();
             var numWatching = sameClient.Count(x => x.WatchingVideo.GetValueOrDefault(false));
             if (numWatching <= 0)
                 numWatching = 1;
-            var toGet = (DefaultGetInterval * numWatching) + (1000 * Sessions.Count - 1);
-            var toSet = (DefaultSetInterval * numWatching) + (1000 * Sessions.Count - 1);
+            var toGet = (DefaultGetInterval * numWatching) + (1000 * (Sessions.Count - 1));
+            var toSet = (DefaultSetInterval * numWatching) + (1000 * (Sessions.Count - 1));
             foreach (var client in sameClient)
                 client.SendRatelimits(toSet, toGet);
         }
@@ -89,7 +89,7 @@ namespace DiscordBot.Websockets
             User = usr;
             DB = Program.Services.GetRequiredService<TimeTrackDb>();
             WatchingVideo = new Cached<bool>(false, 2);
-            SendAllUserRatelimits();
+            SendAllClientRatelimits();
         }
 
         protected override void OnMessage(MessageEventArgs e)
@@ -120,7 +120,7 @@ namespace DiscordBot.Websockets
                 DB.SaveChanges();
                 Send(packet.ReplyWith(JValue.FromObject("OK")));
                 WatchingVideo.Value = true;
-                SendAllUserRatelimits();
+                SendAllClientRatelimits();
             } else if(packet.Id == TTPacketId.GetVersion)
             {
                 string version = TimeTrackDb.ExtensionVersion.GetValueOrDefault(null);
