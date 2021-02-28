@@ -214,6 +214,7 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
         [RequireScope("*")]
         public void VersionUpdate()
         {
+            RespondRaw("Thanks");
             var version = TimeTrackDb.GetExtensionVersion(true); // causes cache to be ignored, fetches new version
             if(WSService.Server.WebSocketServices.TryGetServiceHost("/time-tracker", out var host))
             {
