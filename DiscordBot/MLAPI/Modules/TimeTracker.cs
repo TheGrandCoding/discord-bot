@@ -1,4 +1,6 @@
 ﻿using DiscordBot.Classes;
+using DiscordBot.Services;
+using DiscordBot.Websockets;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.DependencyInjection;
@@ -29,7 +31,29 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
         {
         }
 
-        public static Cached<string> ExtensionVersion { get; set; } = new Cached<string>(null, 180);
+        private static Cached<string> ExtensionVersion { get; set; } = new Cached<string>(null, 180);
+
+        public static string GetExtensionVersion(bool bypassCache = false)
+        {
+            if(bypassCache || ExtensionVersion.GetValueOrDefault(null) == null)
+            {
+                var client = Program.Services.GetRequiredService<HttpClient>();
+                var r = client.GetAsync("https://api.github.com/repos/CheAle14/time-tracker/releases/latest").Result;
+                if (r.IsSuccessStatusCode)
+                {
+                    var jobj = Newtonsoft.Json.Linq.JObject.Parse(r.Content.ReadAsStringAsync().Result);
+                    var s = jobj["tag_name"].ToObject<string>();
+                    if (s.StartsWith("v"))
+                        s = s[1..];
+                    TimeTrackDb.ExtensionVersion.Value = s;
+                }
+                else
+                {
+                    TimeTrackDb.ExtensionVersion.Value = "0.0";
+                }
+            }
+            return ExtensionVersion.Value;
+        }
 
         public DbSet<VideoData> WatchTimes { get; set; }
 
@@ -144,26 +168,7 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
         [Method("GET"), Path("/api/tracker/latestVersion")]
         public void LatestVersion()
         {
-            if(TimeTrackDb.ExtensionVersion.Expired == false && TimeTrackDb.ExtensionVersion.Value != null)
-            {
-                RespondRaw(TimeTrackDb.ExtensionVersion.Value, HttpStatusCode.OK);
-                return;
-            }
-            var client = Program.Services.GetRequiredService<HttpClient>();
-            var r = client.GetAsync("https://api.github.com/repos/CheAle14/time-tracker/releases/latest").Result;
-            if (r.IsSuccessStatusCode)
-            {
-                var jobj = Newtonsoft.Json.Linq.JObject.Parse(r.Content.ReadAsStringAsync().Result);
-                var s = jobj["tag_name"].ToObject<string>();
-                if (s.StartsWith("v"))
-                    s = s[1..];
-                TimeTrackDb.ExtensionVersion.Value = s; 
-            }
-            else
-            {
-                TimeTrackDb.ExtensionVersion.Value = "0.0";
-            }
-            RespondRaw(TimeTrackDb.ExtensionVersion.Value, HttpStatusCode.OK);
+            RespondRaw(TimeTrackDb.GetExtensionVersion(), HttpStatusCode.OK);
         }
 
         [Method("GET"), Path("/api/tracker/times")]
@@ -203,5 +208,17 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
             Program.LogMsg(jobj["message"].ToObject<string>(), Discord.LogSeverity.Info, "TimeTracker");
         }
 
+        [Method("POST"), Path("/tracker/webhook")]
+        [RequireAuthentication(false)]
+        [RequireApproval(false)]
+        [RequireScope("*")]
+        public void VersionUpdate()
+        {
+            var version = TimeTrackDb.GetExtensionVersion(true); // causes cache to be ignored, fetches new version
+            if(WSService.Server.WebSocketServices.TryGetServiceHost("/time-tracker", out var host))
+            {
+                TimeTrackerWS.BroadcastUpdate(version, host.Sessions);
+            }
+        }
     }
 }

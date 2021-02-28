@@ -20,6 +20,13 @@ namespace DiscordBot.Websockets
         public const int DefaultGetInterval = 15_000;
         public const int DefaultSetInterval = 30_000;
 
+        public static void BroadcastUpdate(string version, WebSocketSessionManager host)
+        {
+            host.Broadcast(new TTPacket(TTPacketId.SendVersion, JToken.FromObject(version))
+                .ToString()
+                );
+        }
+
         public BotUser User { get; set; }
         public TimeTrackDb DB { get; private set; }
         public Cached<bool> WatchingVideo { get; private set; }
@@ -123,26 +130,20 @@ namespace DiscordBot.Websockets
                 SendAllClientRatelimits();
             } else if(packet.Id == TTPacketId.GetVersion)
             {
-                string version = TimeTrackDb.ExtensionVersion.GetValueOrDefault(null);
-                if(version == null)
-                {
-                    var client = Program.Services.GetRequiredService<HttpClient>();
-                    var r = client.GetAsync("https://api.github.com/repos/CheAle14/time-tracker/releases/latest").Result;
-                    if (r.IsSuccessStatusCode)
-                    {
-                        jobj = Newtonsoft.Json.Linq.JObject.Parse(r.Content.ReadAsStringAsync().Result);
-                        var s = jobj["tag_name"].ToObject<string>();
-                        if (s.StartsWith("v"))
-                            s = s[1..];
-                        TimeTrackDb.ExtensionVersion.Value = s;
-                    }
-                    else
-                    {
-                        TimeTrackDb.ExtensionVersion.Value = "0.0";
-                    }
-                    version = TimeTrackDb.ExtensionVersion.Value;
-                }
+                string version = TimeTrackDb.GetExtensionVersion();
                 Send(packet.ReplyWith(JValue.FromObject(version)));
+            } else if (packet.Id == TTPacketId.GetLatest)
+            {
+                jobj = new JObject();
+                var videos = DB.WatchTimes.AsQueryable().OrderByDescending(x => x.LastUpdated).Take(5).ToList();
+                foreach(var vid in videos)
+                {
+                    var vidObj = new JObject();
+                    vidObj["saved"] = (int)vid.WatchedTime;
+                    vidObj["when"] = new DateTimeOffset(vid.LastUpdated).ToUnixTimeMilliseconds();
+                    jobj[vid.VideoId] = vidObj;
+                }
+                Send(packet.ReplyWith(jobj));
             }
         }
     }
@@ -163,6 +164,9 @@ namespace DiscordBot.Websockets
         GetTimes,
         SetTimes,
         GetVersion,
-        DirectRatelimit
+        SendVersion,
+        DirectRatelimit,
+        GetLatest,
+        SendLatest
     }
 }
