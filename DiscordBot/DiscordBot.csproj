@@ -39,6 +39,7 @@
     <PackageReference Include="CheAle14.EduLinkDLL" Version="0.0.4-alpha05" />
     <PackageReference Include="Discord.Addons.Interactive" Version="2.3.0-dev-20201028.4-00001" />
     <PackageReference Include="Discord.Net" Version="2.3.0-dev-20210121.1" />
+    <PackageReference Include="Google.Apis.YouTube.v3" Version="1.50.0.2238" />
     <PackageReference Include="Google.Cloud.Translation.V2" Version="2.0.0" />
     <PackageReference Include="Html2Markdown" Version="4.0.0.427" />
     <PackageReference Include="HttpMultipartParser" Version="5.0.0" />

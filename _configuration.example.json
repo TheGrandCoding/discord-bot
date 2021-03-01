@@ -41,7 +41,10 @@
     "download": "<string>",
     "email": "<string>",
     "github": {
-      "internal": "<string>"
+      "internal": "<string>",
+      "tracker": {
+        "webhook": "<string>"
+      }
     },
     "internal-bot": "<string>",
     "jellyfin": "<string>",
@@ -58,7 +61,8 @@
       "secret": "<string>",
       "un": "<string>"
     },
-    "tgc-github": "<string>"
+    "tgc-github": "<string>",
+    "youtubeApi": "<string>"
   },
   "urls": {
     "download": "<uri>"

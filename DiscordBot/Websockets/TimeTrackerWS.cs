@@ -136,11 +136,18 @@ namespace DiscordBot.Websockets
             {
                 jobj = new JObject();
                 var videos = DB.WatchTimes.AsQueryable().OrderByDescending(x => x.LastUpdated).Take(5).ToList();
+                var ids = videos.Select(x => x.VideoId).ToArray();
+                var videoInfo = TimeTrackDb.GetVideoInformation(ids);
                 foreach(var vid in videos)
                 {
                     var vidObj = new JObject();
                     vidObj["saved"] = (int)vid.WatchedTime;
                     vidObj["when"] = new DateTimeOffset(vid.LastUpdated).ToUnixTimeMilliseconds();
+                    if(videoInfo.TryGetValue(vid.VideoId, out var info))
+                    {
+                        vidObj["title"] = info.Snippet.Title;
+                        vidObj["author"] = info.Snippet.ChannelTitle;
+                    }
                     jobj[vid.VideoId] = vidObj;
                 }
                 Send(packet.ReplyWith(jobj));

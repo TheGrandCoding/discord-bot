@@ -1,6 +1,8 @@
 ﻿using DiscordBot.Classes;
 using DiscordBot.Services;
 using DiscordBot.Websockets;
+using Google.Apis.YouTube.v3;
+using Google.Apis.YouTube.v3.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.DependencyInjection;
@@ -32,6 +34,37 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
         }
 
         private static Cached<string> ExtensionVersion { get; set; } = new Cached<string>(null, 180);
+        private static CacheDictionary<string, Video> VideoInfo { get; set; } = new CacheDictionary<string, Video>(1440);
+
+        public static void SetExtVersion(string version)
+        {
+            ExtensionVersion.Value = version;
+        }
+
+        public static Dictionary<string, Video> GetVideoInformation(params string[] videoIds)
+        {
+            var toRequest = new List<string>();
+            var dict = new Dictionary<string, Video>();
+            foreach(var id in videoIds)
+            {
+                if (VideoInfo.TryGetValue(id, out var v))
+                    dict[id] = v;
+                else
+                    toRequest.Add(id);
+            }
+            if (toRequest.Count == 0)
+                return dict;
+            var client = Program.Services.GetRequiredService<YouTubeService>();
+            var request = client.Videos.List("snippet");
+            request.Id = new Google.Apis.Util.Repeatable<string>(toRequest);
+            var response = request.Execute();
+            foreach(var videos in response.Items)
+            {
+                dict[videos.Id] = videos;
+                VideoInfo[videos.Id] = videos;
+            }
+            return dict;
+        }
 
         public static string GetExtensionVersion(bool bypassCache = false)
         {
@@ -198,27 +231,20 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
             RespondRaw("OK", HttpStatusCode.Created);
         }
 
-        [Method("POST"), Path("/api/tracker/log")]
-        [RequireAuthentication(false)]
-        [RequireApproval(false)]
-        [RequireScope("*")]
-        public void Log()
-        {
-            var jobj = JObject.Parse(Context.Body);
-            Program.LogMsg(jobj["message"].ToObject<string>(), Discord.LogSeverity.Info, "TimeTracker");
-        }
-
         [Method("POST"), Path("/tracker/webhook")]
         [RequireAuthentication(false)]
         [RequireApproval(false)]
         [RequireScope("*")]
+        [RequireGithubSignatureValid("tracker:webhook")]
         public void VersionUpdate()
         {
             RespondRaw("Thanks");
-            var version = TimeTrackDb.GetExtensionVersion(true); // causes cache to be ignored, fetches new version
+            var jobj = JObject.Parse(Context.Body);
+            var release = jobj["release"]["tag_name"].ToObject<string>().Substring(1);
+            TimeTrackDb.SetExtVersion(release);
             if(WSService.Server.WebSocketServices.TryGetServiceHost("/time-tracker", out var host))
             {
-                TimeTrackerWS.BroadcastUpdate(version, host.Sessions);
+                TimeTrackerWS.BroadcastUpdate(release, host.Sessions);
             }
         }
     }

@@ -13,6 +13,7 @@ using DiscordBot.Permissions;
 using DiscordBot.Services;
 using DiscordBot.TypeReaders;
 using DiscordBot.Utils;
+using Google.Apis.YouTube.v3;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -39,7 +40,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.14.9"; 
+        public const string VERSION = "0.14.10"; 
         public const string CHANGELOG = VERSION + @"
 == Permissions changes
 Changed how permissions worked for bot.
@@ -365,6 +366,12 @@ Changed how permissions worked for bot.
                     });
 #endif
             }, ServiceLifetime.Singleton);
+            var yClient = new Google.Apis.YouTube.v3.YouTubeService(new Google.Apis.Services.BaseClientService.Initializer()
+            {
+                ApiKey = Program.Configuration["tokens:youtubeApi"],
+                ApplicationName = "mlapiBot",
+            });
+            coll.AddSingleton<YouTubeService>(yClient);
             var http = new Utils.BotHttpClient();
             http.DefaultRequestHeaders.Add("User-Agent", $"dsMLAPI-v{VER_STR}");
             coll.AddSingleton(typeof(HttpClient), http);
