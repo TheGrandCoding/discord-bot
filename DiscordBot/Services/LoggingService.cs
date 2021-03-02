@@ -28,7 +28,7 @@ namespace DiscordBot.Services
         
         public async Task<Dictionary<string, int>> GetDeleter(IGuild guild, DbMsg message, DateTime deletedAt, Func<IUser, string> formatter)
         {
-            var confidenceDictionary = new Dictionary<string, int>();
+            var weightDictionary = new Dictionary<string, int>();
             _auditLogLock.WaitOne();
             try
             {
@@ -44,29 +44,18 @@ namespace DiscordBot.Services
                 {
                     var usr = guild.GetUserAsync(thing.User.Id).Result;
                     var diff = DateTime.UtcNow - thing.CreatedAt.UtcDateTime;
-                    var perc = 100 - (int)diff.TotalMinutes;
-                    if(perc >= 0)
-                        confidenceDictionary[formatter(usr)] = perc;
+                    var weight = 100 - (int)diff.TotalMinutes;
+                    if(weight >= 0)
+                        weightDictionary[formatter(usr)] = weight;
                 }
-                if (confidenceDictionary.Count == 0)
-                {
-                    int split;
-                    if(disconnected.GetValueOrDefault(false))
-                    {
-                        split = 50;
-                    } else
-                    {
-                        split = 98;
-                    }
-                    confidenceDictionary[formatter(message.Author)] = split / 2;
-                    confidenceDictionary["any bot"] = split / 2;
-                    confidenceDictionary["failed to fetch"] = 100 - split;
-                }
+                weightDictionary[formatter(message.Author)] = 2;
+                weightDictionary["any bot"] = 1;
+                weightDictionary["failed to fetch"] = disconnected.GetValueOrDefault(false) ? 25 : 0;
             } finally
             {
                 _auditLogLock.Release();
             }
-            return confidenceDictionary;
+            return weightDictionary;
         }
 
         public override string GenerateSave()
@@ -283,10 +272,14 @@ namespace DiscordBot.Services
                 return;
             Thread.Sleep(5000);
             var who = GetDeleter(data.guild, data.deleted, data.when, x => $"{x.Id} {x.Mention}").Result;
+            var total = who.Values.Sum();
             string value = "";
             foreach(var keypair in who)
             {
-                value += keypair.Key + ": " + $"{keypair.Value}%\r\n";
+                if (keypair.Value <= 0)
+                    continue;
+                var perc = keypair.Value / (double)total;
+                value += keypair.Key + ": " + $"{perc}%\r\n";
             }
             var built = data.builder
                 .AddField("Potential Causes", value, true)
