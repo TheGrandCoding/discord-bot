@@ -22,11 +22,13 @@ namespace DiscordBot.Services
         public IGuild LogGuild { get; set; }
 
         Dictionary<ulong, guildSave> GuildMap { get; set; } = new Dictionary<ulong, guildSave>();
+        Cached<bool> disconnected = new Cached<bool>(false, 15);
 
         Semaphore _auditLogLock = new Semaphore(1, 1);
         
-        public async Task<IGuildUser> GetDeleter(IGuild guild, DbMsg message, DateTime deletedAt)
+        public async Task<Dictionary<string, int>> GetDeleter(IGuild guild, DbMsg message, DateTime deletedAt, Func<IUser, string> formatter)
         {
+            var confidenceDictionary = new Dictionary<string, int>();
             _auditLogLock.WaitOne();
             try
             {
@@ -38,14 +40,33 @@ namespace DiscordBot.Services
                 });
                 var ordered = correctChannel
                     .OrderBy(x => Math.Abs((x.CreatedAt - deletedAt).TotalMilliseconds));
-                var first = ordered.FirstOrDefault();
-                if (first == null)
-                    return null;
-                return guild.GetUserAsync(first.User.Id).Result;
+                foreach(var thing in ordered)
+                {
+                    var usr = guild.GetUserAsync(thing.User.Id).Result;
+                    var diff = DateTime.UtcNow - thing.CreatedAt.UtcDateTime;
+                    var perc = 100 - (int)diff.TotalMinutes;
+                    if(perc >= 0)
+                        confidenceDictionary[formatter(usr)] = perc;
+                }
+                if (confidenceDictionary.Count == 0)
+                {
+                    int split;
+                    if(disconnected.GetValueOrDefault(false))
+                    {
+                        split = 50;
+                    } else
+                    {
+                        split = 98;
+                    }
+                    confidenceDictionary[formatter(message.Author)] = split / 2;
+                    confidenceDictionary["any bot"] = split / 2;
+                    confidenceDictionary["failed to fetch"] = 100 - split;
+                }
             } finally
             {
                 _auditLogLock.Release();
             }
+            return confidenceDictionary;
         }
 
         public override string GenerateSave()
@@ -85,6 +106,10 @@ namespace DiscordBot.Services
             Program.Client.MessageUpdated += Client_MessageUpdated;
             Program.Client.UserJoined += Client_UserJoined;
             Program.Client.UserVoiceStateUpdated += Client_UserVoiceStateUpdated;
+            Program.Client.Disconnected += async x =>
+            {
+                disconnected.Value = true;
+            };
         }
 
         public override void OnDailyTick()
@@ -257,10 +282,14 @@ namespace DiscordBot.Services
             if (!(o is messageData data))
                 return;
             Thread.Sleep(5000);
-            var who = GetDeleter(data.guild, data.deleted, data.when).Result;
-            string value = who == null ? "self-delete or could not fetch" : $"{who.Id}\r\n{who.Mention}";
+            var who = GetDeleter(data.guild, data.deleted, data.when, x => $"{x.Id} {x.Mention}").Result;
+            string value = "";
+            foreach(var keypair in who)
+            {
+                value += keypair.Key + ": " + $"{keypair.Value}%\r\n";
+            }
             var built = data.builder
-                .AddField("Deleted By", value, true)
+                .AddField("Potential Causes", value, true)
                 .Build();
             data.log.ModifyAsync(x => x.Embed = built).Wait();
         }
