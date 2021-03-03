@@ -40,7 +40,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.14.12"; 
+        public const string VERSION = "0.14.13"; 
         public const string CHANGELOG = VERSION + @"
 == Permissions changes
 Changed how permissions worked for bot.
@@ -50,6 +50,7 @@ Changed how permissions worked for bot.
         public static ServiceProvider Services { get; set; }
         public static CommandService Commands { get; set; }
         public static char Prefix { get; set; }
+        private static CancellationTokenSource endToken;
 
         public static RestApplication AppInfo { get; set; }
         public static LogSeverity LogLevel { get; set; } = LogSeverity.Verbose; // set through config: "settings:log"
@@ -91,8 +92,24 @@ Changed how permissions worked for bot.
     "⡗⡘⡙⡚⡛⡜⡝⡞⡟⡠⡡⡢⡣⡤⡥⡦⡧⡨⡩⡪⡫⡬⡭⡮⡯⡰⡱⡲⡳⡴⡵⡶⡷⡸⡹⡺⡻⡼⡽⡾⡿⢀⢁⢂⢃⢄⢅⢆⢇⢈⢉⢊⢋⢌⢍⢎⢏⢐⢑⢒⢓⢔⢕⢖⢗⢘⢙⢚⢛⢜⢝⢞⢟⢠⢡⢢⢣⢤⢥⢦⢧⢨⢩⢪⢫⢬⢭" +
     "⢮⢯⢰⢱⢲⢳⢴⢵⢶⢷⢸⢹⢺⢻⢼⢽⢾⢿⣀⣁⣂⣃⣄⣅⣆⣇⣈⣉⣊⣋⣌⣍⣎⣏⣐⣑⣒⣓⣔⣕⣖⣗⣘⣙⣚⣛⣜⣝⣞⣟⣠⣡⣢⣣⣤⣥⣦⣧⣨⣩⣪⣫⣬⣭⣮⣯⣰⣱⣲⣳⣴⣵⣶⣷⣸⣹⣺⣻⣼⣽⣾⣿")
                 _braille.Add(chr);
+            endToken = new CancellationTokenSource();
+            Console.CancelKeyPress += (object sender, ConsoleCancelEventArgs e) =>
+            {
+                Console.WriteLine("[Console:CancelKeyPress]");
+                Thread.Sleep(1000);
+                Program.Close(0);
+                Thread.Sleep(2500);
+                Environment.Exit(0);
+            };
+            AppDomain.CurrentDomain.ProcessExit += (object sender, EventArgs e) => 
+            {
+                Console.WriteLine("[ProcessExit]");
+                Program.Close(1);
+            };
             Program.MainAsync().GetAwaiter().GetResult();
         }
+
+        public static CancellationToken GetToken() => endToken.Token;
 
         static void buildConfig()
         {
@@ -214,7 +231,17 @@ Changed how permissions worked for bot.
                 // Here we initialize the logic required to register our commands.
                 await Services.GetRequiredService<CommandHandlingService>().InitializeAsync();
 
-                await Task.Delay(-1);
+                try
+                {
+                    await Task.Delay(-1, endToken.Token);
+                } catch(Exception ex)
+                {
+                    Console.WriteLine("MainAsync is ending.");
+                    await client.LogoutAsync();
+                    await client.StopAsync();
+                    client?.Dispose();
+                    Console.WriteLine("MainAsync has ended.");
+                }
             }
         }
 
@@ -383,9 +410,12 @@ Changed how permissions worked for bot.
 
         public static void Close(int code)
         {
-            Service.SendClose();
-            Program.Save(true);
-            Environment.Exit(code);
+            if(Service.State != "Started")
+            {
+                Service.SendClose();
+                Program.Save(true);
+            }
+            endToken.Cancel();
         }
 
 #region Save Info

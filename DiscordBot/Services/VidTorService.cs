@@ -14,7 +14,7 @@ namespace DiscordBot.Services
     public class VidTorService : SavedService
     {
         public const string NamePattern = @"(\d{4})-(\d{2})-(\d{2})_([PM])([1-6])";
-        public const string LessonPattern = @"1[23][ABC][A-Z][a-z][123]";
+        public const string LessonPattern = @"1[1-4][ABCDE][A-Z][a-z][1-5]";
         public static string BasePath = Path.Combine(Program.BASE_PATH, "lessons");
         public List<TorrentInfo> Tracking { get; set; }
         public qBittorrentClient Client { get; private set; }
@@ -159,7 +159,7 @@ namespace DiscordBot.Services
 
         public override void OnClose()
         {
-            Client.Dispose();
+            Client?.Dispose();
         }
 
         public async Task AddNew(string temp, Action<TorrentInfo> action)

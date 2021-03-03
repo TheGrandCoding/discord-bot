@@ -16,11 +16,13 @@ namespace DiscordBot.Services.Timing
 
         public void Lock(Action action)
         {
-            _lock.WaitOne();
-            if (source.IsCancellationRequested)
+            if (Program.GetToken().IsCancellationRequested)
                 throw new InvalidOperationException("Closing");
+            _lock.WaitOne();
             try
             {
+                if (Program.GetToken().IsCancellationRequested)
+                    throw new InvalidOperationException("Closing");
                 action();
             } finally
             {
@@ -28,17 +30,11 @@ namespace DiscordBot.Services.Timing
             }
         }
 
-        CancellationTokenSource source;
         public override void OnLoaded()
         {
             Countdowns = Program.Deserialise<List<Countdown>>(ReadSave("[]"));
             var th = new Thread(thread);
-            source = new CancellationTokenSource();
-            th.Start(source.Token);
-        }
-        public override void OnClose()
-        {
-            source.Cancel();
+            th.Start(Program.GetToken());
         }
 
         void thread(object obj)

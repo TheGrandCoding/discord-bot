@@ -22,7 +22,6 @@ namespace DiscordBot.Services.Rules
         public Dictionary<int, Penalty> Penalties { get; set; } 
             = new Dictionary<int, Penalty>();
         public Semaphore Lock { get; } = new Semaphore(1, 1);
-        public CancellationTokenSource Source { get; private set; }
 
         public void execute(Action act)
         {
@@ -78,8 +77,7 @@ namespace DiscordBot.Services.Rules
             {
                 try
                 {
-                    Source = new CancellationTokenSource();
-                    doLoop(Source.Token);
+                    doLoop(Program.GetToken());
                 } catch(Exception ex)
                 {
                     Program.LogMsg($"PenaltyThread", ex);
@@ -117,10 +115,6 @@ namespace DiscordBot.Services.Rules
                 s = Program.Serialise(ld);
             });
             return s;
-        }
-        public override void OnClose()
-        {
-            Source.Cancel();
         }
 
         public Task<ITextChannel> GetAdminChannel(IGuild guild)

@@ -16,25 +16,13 @@ namespace DiscordBot.MLAPI.Modules.Bot
     {
         public Internal(APIContext c) : base(c, "/") { }
 
-        static ManualResetEventSlim closeReset;
         [Method("GET"), Path("/bot/restart")]
         [RequireOwner]
         public void RestartBot()
         {
             Program.LogMsg("Starting to restart due to request", Discord.LogSeverity.Critical, "Internal");
-            Program.Save(true);
-            RespondRaw("OK", 200); // since we've acknowledged the reqeuest, we'll respond now.
-            closeReset = new ManualResetEventSlim();
-            var th = new Thread(() =>
-            {
-                Service.SendClose();
-                closeReset.Set();
-            });
-            th.Start();
-            if(!closeReset.Wait(20_000))
-            {
-                Program.LogMsg("OnClose did not complete in time! Hopefully won't break too much...", Discord.LogSeverity.Critical, "Internal");
-            }
+            Program.Close(0);
+            Thread.Sleep(2500);
 #if LINUX
             Program.LogMsg("Running restart script...");
             ProcessStartInfo Info = new ProcessStartInfo();
@@ -55,29 +43,18 @@ namespace DiscordBot.MLAPI.Modules.Bot
         {
             RespondRaw("OK");
             Program.Close(0);
+            Thread.Sleep(10_000);
+            Environment.Exit(0);
         }
 
 
         [Method("POST"), Path("/bot/build")]
         [RequireAuthentication(false)]
         [RequireApproval(false)]
+        [RequireGithubSignatureValid("bot:build")]
         public void GithubWebhook()
         {
-            Program.LogMsg($"Notified of possible build, checking authorization...");
-            string value = Context.HTTP.Request.Headers["Authorization"];
-            var bytes = Convert.FromBase64String(value.Split(' ')[1]);
-            Program.LogMsg($"{bytes.Length} bytes of password.");
-            var combined = Encoding.UTF8.GetString(bytes);
-            var password = combined.Split(':')[1];
-            if(password == Program.Configuration["tokens:github:internal"])
-            {
-                Program.LogMsg("Restarting but due to GitHub push.", Discord.LogSeverity.Warning, "Internal");
-                RestartBot();
-            } else
-            {
-                Program.LogMsg($"Authorization mismatched, provided: '{password}'");
-                RespondRaw("Failed.", 400);
-            }
+            RestartBot();
         }
 
         static string Bash(string cmd)

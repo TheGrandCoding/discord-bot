@@ -105,6 +105,8 @@ namespace DiscordBot.Services
 
         public override void OnSave()
         {
+            if (Laws == null)
+                return;
             foreach (var act in Laws.Values)
                 SaveAct(act);
         }

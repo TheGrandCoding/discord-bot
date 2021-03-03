@@ -17,6 +17,8 @@ namespace DiscordBot.Services
             {
                 s = File.ReadAllText(Path.Combine(SaveFolder, SaveFile), Encoding.UTF8);
             } catch { }
+            if (s == "null")
+                s = null;
             return s ?? defaultContent;
         }
 
@@ -30,7 +32,7 @@ namespace DiscordBot.Services
 
         public void DirectSave(string content)
         {
-            if (string.IsNullOrWhiteSpace(content))
+            if (string.IsNullOrWhiteSpace(content) || content == "null")
                 return; // refuse to save dat.
             if (!Directory.Exists(SaveFolder))
                 Directory.CreateDirectory(SaveFolder);

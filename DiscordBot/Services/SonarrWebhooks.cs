@@ -15,7 +15,6 @@ namespace DiscordBot.Services.Sonarr
     public class SonarrWebhooksService : SavedService
     {
         public List<ITextChannel> Channels { get; set; }
-        public CancellationTokenSource CancelSource { get; private set; }
 
         public Semaphore Lock = new Semaphore(1, 1);
 
@@ -31,9 +30,8 @@ namespace DiscordBot.Services.Sonarr
 
         public override void OnLoaded()
         {
-            CancelSource = new CancellationTokenSource();
             var th = new Thread(loop);
-            th.Start(CancelSource.Token);
+            th.Start(Program.GetToken());
             OnDownload += SonarrWebhooksService_OnDownload;
 #if DEBUG
             OnTest += (object sender, OnTestSonarrEvent e) =>

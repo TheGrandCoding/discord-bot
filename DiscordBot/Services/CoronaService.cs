@@ -81,7 +81,7 @@ namespace DiscordBot.Services
             var ms = (int)Math.Ceiling(diff.TotalMilliseconds);
             if (ms <= 0)
                 ms = (1000 * 60 * 15);
-            Thread.Sleep(ms);
+            Task.Delay(ms, Program.GetToken()).Wait();
         }
 
         string thousand(int input)
@@ -237,6 +237,7 @@ namespace DiscordBot.Services
                 Program.LogMsg("CoronaService", ex);
                 HasFailed = true;
             }
+            Console.WriteLine("Corona thread has ended!");
         }
 
         double getProbability(int c)
@@ -284,7 +285,7 @@ namespace DiscordBot.Services
         void withinTryWork()
         {
             var client = Program.Services.GetRequiredService<HttpClient>();
-            while(this.IsEnabled)
+            while(this.IsEnabled && Program.GetToken().IsCancellationRequested == false)
             {
                 handleTimeout();
                 Dictionary<string, CoronaData> dataDict = new Dictionary<string, CoronaData>();

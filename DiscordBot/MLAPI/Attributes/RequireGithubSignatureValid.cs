@@ -11,7 +11,7 @@ namespace DiscordBot.MLAPI
         private readonly string _name;
         public RequireGithubSignatureValid(string secretName)
         {
-            _name = "tokens:github:" + secretName;
+            _name = "tokens:github:" + secretName.Replace("/", ":");
         }
         public override bool CanChildOverride(APIPrecondition child)
         {

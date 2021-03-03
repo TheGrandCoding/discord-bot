@@ -1,0 +1,18 @@
+[Unit]
+Description=MLAPI Bot
+
+[Service]
+# systemd will run this executable to start the service
+ExecStart=/home/pi/Desktop/runasbot.sh new
+# to query logs using journalctl, set a logical name here
+SyslogIdentifier=MLAPI
+
+
+User=root
+
+# This environment variable is necessary when dotnet isn't loaded for the specified user.
+# To figure out this value, run 'env | grep DOTNET_ROOT' when dotnet has been loaded into your shell.
+Environment=DOTNET_ROOT=/usr/bin/dotnet
+
+[Install]
+WantedBy=multi-user.target

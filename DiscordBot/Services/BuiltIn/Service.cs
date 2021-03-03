@@ -33,8 +33,6 @@ namespace DiscordBot.Services
 
         public static DateTime? lastDailyTick = null;
 
-        protected CancellationToken CancelToken { get; private set; }
-
         public virtual void OnReady() { }
         public virtual void OnLoaded() { }
         public virtual void OnSave() { }
@@ -44,7 +42,18 @@ namespace DiscordBot.Services
         public int CompareTo([AllowNull] Service other)
             => new serviceComparer().Compare(this, other);
 
-        protected static List<Service> zza_services;
+        protected static List<Service> zza_services = new List<Service>();
+
+        public static string State {  get
+            {
+                if (doneFunctions.ContainsKey("OnClose"))
+                    return "Closed";
+                if (doneFunctions.ContainsKey("OnLoaded"))
+                    return "Loaded";
+                if (doneFunctions.ContainsKey("OnReady"))
+                    return "Ready";
+                return "Started";
+            } }
 
         static Dictionary<string, bool> doneFunctions = new Dictionary<string, bool>();
         static void sendFunction(object obj)
@@ -140,22 +149,21 @@ namespace DiscordBot.Services
         public static void SendLoad()
         {
             sendFunction("OnLoaded");
-            if (cancel == null)
+            if (!doingDailyTick)
                 StartDailyTick();
         }
 
         public static void SendSave() => sendFunction("OnSave");
 
-        static CancellationTokenSource cancel;
+        static bool doingDailyTick = false;
         public static void StartDailyTick()
         {
-            cancel = new CancellationTokenSource();
+            doingDailyTick = true;
             var th = new Thread(thread);
             th.Start();
         }
         public static void SendClose()
         {
-            cancel.Cancel();
             sendFunction("OnClose");
         }
 
@@ -168,7 +176,7 @@ namespace DiscordBot.Services
 
         static void thread()
         {
-            var token = cancel.Token;
+            var token = Program.GetToken();
             var nfi = (NumberFormatInfo)CultureInfo.InvariantCulture.NumberFormat.Clone();
             nfi.NumberGroupSeparator = " ";
             try

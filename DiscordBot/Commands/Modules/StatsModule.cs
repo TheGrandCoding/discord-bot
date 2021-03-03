@@ -176,7 +176,7 @@ namespace DiscordBot.Commands.Modules
                     } catch { }
                 }
             } while (Remaining > 0 && !Token.IsCancellationRequested && AllStats.TotalSent < Maximum);
-            Thread.Sleep(10 * 1000);
+            Task.Delay(10_000, Program.GetToken()).Wait();
             SendUpdate();
         }
 
