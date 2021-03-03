@@ -26,7 +26,7 @@ namespace DiscordBot.Services
                     "https://upload.wikimedia.org/wikipedia/commons/thumb/9/95/Fleetwood_round_table_wishing_well_-_DSC06564.JPG/1200px-Fleetwood_round_table_wishing_well_-_DSC06564.JPG",
                     "https://www.keeleyhire.co.uk/images/multi/full/100305.jpg"
                 };
-                await arg.Channel.SendMessageAsync(possibles[Program.RND.next(0, possibles.Count)],
+                await arg.Channel.SendMessageAsync(possibles[Program.RND.Next(0, possibles.Count)],
                     messageReference: new MessageReference(arg.Id, arg.Channel.Id));
             }
         }
