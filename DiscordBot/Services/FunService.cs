@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace DiscordBot.Services
@@ -12,6 +13,8 @@ namespace DiscordBot.Services
         public override void OnReady()
         {
             Program.Client.MessageReceived += Client_MessageReceived;
+            var th = new Thread(loop);
+            th.Start();
         }
 
         private async Task Client_MessageReceived(Discord.WebSocket.SocketMessage arg)

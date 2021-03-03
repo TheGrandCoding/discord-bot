@@ -92,12 +92,20 @@ namespace DiscordBot.Services.Sonarr
                 {
                     Lock.Release();
                 }
+                try
+                {
 #if DEBUG
-                Task.Delay(Time.Minute * 2, token)
+                    Task.Delay(Time.Minute * 2, token)
 #else
-                Task.Delay(Time.Minute * 15, token)
+                    Task.Delay(Time.Minute * 15, token)
 #endif
-                    .Wait();
+                        .Wait();
+                }
+                catch (Exception ex)
+                {
+                    Program.LogMsg("SonarrLoop", ex);
+                    return;
+                }
             }
             Program.LogMsg("Exited loop", LogSeverity.Debug, "SonarWebhooks");
         }
