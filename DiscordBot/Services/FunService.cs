@@ -66,12 +66,16 @@ namespace DiscordBot.Services
                 try
                 {
                     var t = Program.GetToken();
-                    var rgb = rainbow[i];
-                    var c = new Color(rgb[0], rgb[1], rgb[2]);
-                    role.ModifyAsync(x => x.Color = c).Wait(t);
+                    var usr = guild.GetUser(Program.AppInfo.Owner.Id);
+                    if (usr.Status == UserStatus.Online)
+                    {
+                        var rgb = rainbow[i];
+                        var c = new Color(rgb[0], rgb[1], rgb[2]);
+                        role.ModifyAsync(x => x.Color = c).Wait(t);
 
-                    if (++i >= rainbow.Count)
-                        i = 0;
+                        if (++i >= rainbow.Count)
+                            i = 0;
+                    }
                     Task.Delay(30000, t).Wait();
                 } catch
                 {
