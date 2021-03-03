@@ -6,6 +6,8 @@ Description=MLAPI Bot
 ExecStart=/home/pi/Desktop/runasbot.sh new
 # to query logs using journalctl, set a logical name here
 SyslogIdentifier=MLAPI
+Restart=always
+RestartSec=5
 
 
 User=root
