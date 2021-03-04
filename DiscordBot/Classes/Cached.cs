@@ -7,7 +7,7 @@ namespace DiscordBot.Classes
         public Cached(T value, int minuteExpires = 15)
         {
             _value = value;
-            Set = DateTime.Now.AddMinutes(-1);
+            Set = DateTime.Now;
             Timeout = minuteExpires;
         }
         T _value;

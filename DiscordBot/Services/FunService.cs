@@ -15,7 +15,7 @@ namespace DiscordBot.Services
     {
         public Dictionary<string, List<string>> ImageTriggers { get; set; } = new Dictionary<string, List<string>>();
 
-        Cached<bool> BlockChange = new Cached<bool>(true, 3);
+        Cached<bool> BlockChange = new Cached<bool>(false, 1);
         static List<int[]> RAINBOW = new List<int[]>()
             {
                 new int[] {170, 0, 0},
@@ -60,6 +60,17 @@ namespace DiscordBot.Services
             return false;
         }
 
+        int indexOf(int r, int g, int b)
+        {
+            for(int i = 0; i < RAINBOW.Count; i++)
+            {
+                var a = RAINBOW[i];
+                if (a[0] == r && a[1] == g && a[2] == b)
+                    return i;
+            }
+            return 0;
+        }
+
         private async Task Client_MessageReceived(Discord.WebSocket.SocketMessage arg)
         {
             if (arg.Author.IsBot)
@@ -79,7 +90,7 @@ namespace DiscordBot.Services
                     {
                         BlockChange.Value = true;
                         var color = role.Color;
-                        var i = RAINBOW.IndexOf(new int[] { color.R, color.G, color.B });
+                        var i = indexOf(color.R, color.G, color.B);
                         if (++i >= RAINBOW.Count)
                             i = 0;
                         var clr = RAINBOW[i];
