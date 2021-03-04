@@ -8,8 +8,15 @@ using System.Threading.Tasks;
 
 namespace DiscordBot.Services
 {
-    public class FunService : Service
+    public class FunService : SavedService
     {
+        public Dictionary<string, List<string>> ImageTriggers { get; set; } = new Dictionary<string, List<string>>();
+
+        public override string GenerateSave()
+        {
+            return Program.Serialise(ImageTriggers);
+        }
+
         public override void OnReady()
         {
             Program.Client.MessageReceived += Client_MessageReceived;
@@ -17,18 +24,27 @@ namespace DiscordBot.Services
             th.Start();
         }
 
+        bool TryGetValue(string text, out List<string> s)
+        {
+            s = new List<string>();
+            foreach(var key in ImageTriggers.Keys)
+            {
+
+                if(key.Equals(text, StringComparison.OrdinalIgnoreCase))
+                {
+                    s = ImageTriggers[key];
+                    return true;
+                }
+            }
+            return false;
+        }
+
         private async Task Client_MessageReceived(Discord.WebSocket.SocketMessage arg)
         {
             if (arg.Author.IsBot)
                 return;
-            if(arg.Content == "well")
+            if(TryGetValue(arg.Content, out var possibles))
             {
-                var possibles = new List<string>()
-                {
-                    "https://pruittwater.com/wp-content/uploads/2018/04/Deep-Well-Ocala-Fl-1024x768.jpg",
-                    "https://upload.wikimedia.org/wikipedia/commons/thumb/9/95/Fleetwood_round_table_wishing_well_-_DSC06564.JPG/1200px-Fleetwood_round_table_wishing_well_-_DSC06564.JPG",
-                    "https://www.keeleyhire.co.uk/images/multi/full/100305.jpg"
-                };
                 await arg.Channel.SendMessageAsync(possibles[Program.RND.Next(0, possibles.Count)],
                     messageReference: new MessageReference(arg.Id, arg.Channel.Id));
             }
@@ -56,7 +72,7 @@ namespace DiscordBot.Services
                 new int[] {85,85,255},
                 new int[] {255,85,255},
                 new int[] {170,0,170},
-                new int[] {255,255,255},
+                //new int[] {255,255,255},
                 new int[] {170,170,170},
                 new int[] {85,85,85}
             };
