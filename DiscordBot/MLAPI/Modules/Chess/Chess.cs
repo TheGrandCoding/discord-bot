@@ -13,7 +13,6 @@ using Markdig.Extensions.SelfPipeline;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.Extensions.DependencyInjection;
-using MongoDB.Bson.Serialization;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
@@ -128,7 +127,7 @@ namespace DiscordBot.MLAPI.Modules
                 case "19":
                     return "th";
                 default:
-                    switch (rep[rep.Length - 1])
+                    switch (rep[^1])
                     {
                         case '1':
                             return "st";
@@ -402,7 +401,7 @@ namespace DiscordBot.MLAPI.Modules
                 string ROW = $"<tr><td>";
                 ROW += $"<input id='i-{i++}' type='text' class='text' maxlength='1' value='' placeholder='leave blank if not here' onkeyup='return addPresent(event, this, \"{usr.Id}\");'/>";
                 ROW += $"{getPlayerNameRow(usr, 0)}</td>";
-                ROW += $"<td>{ChessS.getLastPresentDate(DB, usr, true).ToString("yyyy-MM-dd")}</td>";
+                ROW += $"<td>{ChessS.getLastPresentDate(DB, usr, true):yyyy-MM-dd}</td>";
                 TABLE += ROW + "</tr>";
             }
             ReplyFile("register.html", 200, new Replacements().Add("table", TABLE));

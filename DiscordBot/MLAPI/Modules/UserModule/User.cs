@@ -225,7 +225,7 @@ namespace DiscordBot.MLAPI.Modules.UserModule
                 RespondRaw("Token generated and added");
                 return;
             }
-            token.Value = AuthToken.Generate(token.Value.Length);
+            token.Regenerate(token.Value.Length);
             RespondRaw("Token regenerated");
         }
         #endregion
