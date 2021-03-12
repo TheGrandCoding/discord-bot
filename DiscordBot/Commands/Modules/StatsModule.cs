@@ -16,16 +16,17 @@ namespace DiscordBot.Commands.Modules
     public class StatsModule : BotBase
     {
         public static Dictionary<ulong, CancellationTokenSource> Tokens = new Dictionary<ulong, CancellationTokenSource>();
+
         [Command("run")]
-        [Summary("Does some statistics checks in this channel")]
-        public async Task Run(int maximumMessages = 1000, bool includeBots = false)
+        [Summary("Does some statistics checks in the given channel")]
+        public async Task Run(ITextChannel channel, int maximumMessages = 1000, bool includeBots = false)
         {
-            if(Tokens.TryGetValue(Context.Channel.Id, out var src))
+            if (Tokens.TryGetValue(channel.Id, out var src))
             {
                 await ReplyAsync("This channel is already being looked at.");
                 return;
             }
-            if(Tokens.Count > 0)
+            if (Tokens.Count > 0)
             {
                 var existing = Tokens.Keys.First();
                 await ReplyAsync($"A statistics check is already in progress for <#{existing}>");
@@ -37,16 +38,26 @@ namespace DiscordBot.Commands.Modules
             src = new CancellationTokenSource(TimeSpan.FromMinutes(30));
             var stats = new Statistics()
             {
-                Channel = Context.Channel as ITextChannel,
+                Channel = channel as ITextChannel,
                 Status = msg,
                 Maximum = maximumMessages,
                 Remaining = maximumMessages,
                 Token = src.Token,
                 IncludeBots = includeBots
             };
-            Tokens[Context.Channel.Id] = src;
+            Tokens[channel.Id] = src;
             stats.Start();
         }
+
+
+
+        [Command("run")]
+        [Summary("Does some statistics checks in this channel")]
+        public async Task Run(int maximumMessages = 1000, bool includeBots = false)
+            => await Run(Context.Channel as ITextChannel, maximumMessages, includeBots);
+
+
+
 
         [Command("stop")]
         [Summary("Stops current stats checks")]
@@ -194,7 +205,7 @@ namespace DiscordBot.Commands.Modules
             {
                 await Status.ModifyAsync(x => x.Embed = ToEmbed().Build());
                 if (Token.IsCancellationRequested || Remaining <= 0)
-                    await Channel.SendMessageAsync($"Stats checks have finished. See {Status.GetJumpUrl()}");
+                    await Status.Channel.SendMessageAsync($"Stats checks have finished. See {Status.GetJumpUrl()}");
             });
         }
 
@@ -207,6 +218,8 @@ namespace DiscordBot.Commands.Modules
         {
             var builder = new EmbedBuilder();
             builder.Title = $"Last {Maximum} Messages";
+            if (Status.Channel.Id != Channel.Id)
+                builder.Title += " in #" + Channel.Name;
             builder.Description = $"Global " + AllStats.ToString();
             var ordered = Stats.OrderByDescending(x => x.Value.TotalSent).Where(x => x.Key != 0).Select(x => x.Key).ToList();
             if(ordered.Count > max)
