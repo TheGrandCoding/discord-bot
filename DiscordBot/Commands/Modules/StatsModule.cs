@@ -1,7 +1,13 @@
 ﻿using Discord;
 using Discord.Commands;
 using DiscordBot.Classes;
+using DiscordBot.MLAPI;
 using DiscordBot.Permissions;
+using DiscordBot.Services;
+using DiscordBot.Utils;
+using Google.Apis.Util;
+using Microsoft.Extensions.DependencyInjection;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,37 +21,40 @@ namespace DiscordBot.Commands.Modules
     [Group("stats")]
     public class StatsModule : BotBase
     {
-        public static Dictionary<ulong, CancellationTokenSource> Tokens = new Dictionary<ulong, CancellationTokenSource>();
+        //public static Dictionary<ulong, CancellationTokenSource> Tokens = new Dictionary<ulong, CancellationTokenSource>();
+        public static Dictionary<ulong, Statistics> Statistics { get; set; } = new Dictionary<ulong, Statistics>();
 
         [Command("run")]
         [Summary("Does some statistics checks in the given channel")]
         public async Task Run(ITextChannel channel, int maximumMessages = 1000, bool includeBots = false)
         {
-            if (Tokens.TryGetValue(channel.Id, out var src))
+            if (Statistics.TryGetValue(channel.Id, out var stats))
             {
                 await ReplyAsync("This channel is already being looked at.");
                 return;
             }
-            if (Tokens.Count > 0)
+            if (Statistics.Count > 0)
             {
-                var existing = Tokens.Keys.First();
-                await ReplyAsync($"A statistics check is already in progress for <#{existing}>");
+                var existing = Statistics.Keys.First();
+                await ReplyAsync($"A statistics check is already in progress for <#{existing}>, and only one can occur at a time");
                 return;
             }
             var msg = await ReplyAsync(embed: new EmbedBuilder()
                 .WithDescription("Starting stats checks...")
                 .Build());
-            src = new CancellationTokenSource(TimeSpan.FromMinutes(30));
-            var stats = new Statistics()
+            var src = new CancellationTokenSource(TimeSpan.FromMinutes(30));
+            stats = new Statistics()
             {
                 Channel = channel as ITextChannel,
                 Status = msg,
                 Maximum = maximumMessages,
                 Remaining = maximumMessages,
+                TokenSource = src,
                 Token = src.Token,
                 IncludeBots = includeBots
             };
-            Tokens[channel.Id] = src;
+            await msg.ModifyAsync(x => x.Embed = stats.ToEmbed().Build());
+            Statistics[channel.Id] = stats;
             stats.Start();
         }
 
@@ -57,16 +66,14 @@ namespace DiscordBot.Commands.Modules
             => await Run(Context.Channel as ITextChannel, maximumMessages, includeBots);
 
 
-
-
         [Command("stop")]
         [Summary("Stops current stats checks")]
         public async Task Cancel()
         {
-            if (Tokens.TryGetValue(Context.Channel.Id, out var src))
+            if (Statistics.TryGetValue(Context.Channel.Id, out var src))
             {
                 await ReplyAsync("Stopping...");
-                src.Cancel();
+                src.TokenSource.Cancel();
             } else
             {
                 await ReplyAsync("This channel has no statistics ongoing");
@@ -75,12 +82,12 @@ namespace DiscordBot.Commands.Modules
 
         [Command("fstop")]
         [Summary("Force stops all stats checks")]
-        [RequireOwner]
+        [Discord.Commands.RequireOwner]
         public async Task FStop()
         {
-            foreach (var x in Tokens.Values)
-                x.Cancel();
-            Tokens = new Dictionary<ulong, CancellationTokenSource>();
+            foreach (var x in Statistics.Values)
+                x.TokenSource.Cancel();
+            Statistics = new Dictionary<ulong, Statistics>();
         }
     }
 
@@ -96,6 +103,7 @@ namespace DiscordBot.Commands.Modules
         public int Maximum = int.MaxValue;
         public int Remaining;
         public bool IncludeBots { get; set; }
+        public CancellationTokenSource TokenSource { get; set; }
         public CancellationToken Token { get; set; }
         public Dictionary<ulong, ValueStats> Stats { get; set; } = new Dictionary<ulong, ValueStats>();
         public Dictionary<ulong, string> DisplayNames { get; set; } = new Dictionary<ulong, string>();
@@ -136,7 +144,7 @@ namespace DiscordBot.Commands.Modules
             } 
             finally
             {
-                StatsModule.Tokens.Remove(Channel.Id);
+                StatsModule.Statistics.Remove(Channel.Id);
             }
         }
 
@@ -193,7 +201,7 @@ namespace DiscordBot.Commands.Modules
 
         public void Update()
         {
-            if(LastSentUpdate == null || (DateTime.Now - LastSentUpdate.Value).TotalSeconds > 10)
+            if(LastSentUpdate == null || (DateTime.Now - LastSentUpdate.Value).TotalSeconds > 3)
             {
                 LastSentUpdate = DateTime.Now;
                 SendUpdate();
@@ -203,9 +211,48 @@ namespace DiscordBot.Commands.Modules
         {
             var _ = Task.Run(async () =>
             {
-                await Status.ModifyAsync(x => x.Embed = ToEmbed().Build());
+                //await Status.ModifyAsync(x => x.Embed = ToEmbed().Build());
                 if (Token.IsCancellationRequested || Remaining <= 0)
                     await Status.Channel.SendMessageAsync($"Stats checks have finished. See {Status.GetJumpUrl()}");
+                var ordered = Stats.OrderByDescending(x => x.Value.TotalSent).Where(x => x.Key != 0).Select(x => x.Key).ToList();
+                if (ordered.Count > max)
+                {
+                    var os = new ValueStats();
+                    Stats[0] = os;
+                    DisplayNames[0] = $"Other ({max - ordered.Count})";
+                    foreach (var other in ordered.Skip(max))
+                    {
+                        // new = old + (val - old / n)
+                        var ex = Stats[other];
+                        for (int i = 0; i < ex.TotalSent; i++)
+                        {
+                            os.TotalSent++;
+                            os.AddAverage(ex.AverageLength, ref os.AverageLength);
+                            os.AddAverage(ex.AverageSecondsIntoDay, ref os.AverageSecondsIntoDay);
+                        }
+                    }
+                    ordered = ordered.Take(max).ToList();
+                    ordered.Add(0);
+                }
+                var jobj = new JObject();
+                jobj["total"] = AllStats.ToJson();
+                foreach (var id in ordered)
+                {
+                    var stats = Stats[id];
+                    var key = DisplayNames.GetValueOrDefault(id, id.ToString());
+                    var user = Program.Client.GetUser(id);
+                    var obj = new JObject();
+                    var usrObj = new JObject();
+                    usrObj["username"] = user?.Username ?? key;
+                    usrObj["avatar"] = user?.GetAnyAvatarUrl() ?? "n/a";
+                    obj["user"] = usrObj;
+                    obj["stats"] = stats.ToJson();
+                    jobj[id.ToString()] = obj;
+                }
+                if (WSService.Server.WebSocketServices.TryGetServiceHost("/statistics", out var host))
+                {
+                    host.Sessions.Broadcast(jobj.ToString());
+                }
             });
         }
 
@@ -220,36 +267,9 @@ namespace DiscordBot.Commands.Modules
             builder.Title = $"Last {Maximum} Messages";
             if (Status.Channel.Id != Channel.Id)
                 builder.Title += " in #" + Channel.Name;
-            builder.Description = $"Global " + AllStats.ToString();
-            var ordered = Stats.OrderByDescending(x => x.Value.TotalSent).Where(x => x.Key != 0).Select(x => x.Key).ToList();
-            if(ordered.Count > max)
-            {
-                var os = new ValueStats();
-                Stats[0] = os;
-                DisplayNames[0] = $"Other ({max - ordered.Count})";
-                foreach(var other in ordered.Skip(max))
-                {
-                    // new = old + (val - old / n)
-                    var ex = Stats[other];
-                    for(int i = 0; i < ex.TotalSent; i++)
-                    {
-                        os.TotalSent++;
-                        os.AddAverage(ex.AverageLength, ref os.AverageLength);
-                        os.AddAverage(ex.AverageSecondsIntoDay, ref os.AverageSecondsIntoDay);
-                    }
-                }
-                ordered = ordered.Take(max).ToList();
-                ordered.Add(0);
-            }
-            foreach(var id in ordered)
-            {
-                var stats = Stats[id];
-                var percSent = (stats.TotalSent / (double)AllStats.TotalSent) * 100;
-                var val = stats.ToString();
-                val += $"\r\nPerc: {percSent:00.0}%";
-                var key = DisplayNames.GetValueOrDefault(id, id.ToString());
-                builder.AddField(key, val, true);
-            }
+            builder.Url = Handler.LocalAPIUrl + "/statistics";
+            builder.Description = $"Full statistics thus far: " + AllStats.ToString() + 
+                $"\r\n[Click here]({builder.Url}) to view stats";
             var duration = DateTime.Now - StartedAt;
             builder.WithFooter($"Elapsed: {duration.Hours:00}:{duration.Minutes:00}:{duration.Seconds:00}");
             return builder;
@@ -275,6 +295,14 @@ namespace DiscordBot.Commands.Modules
                 $"Avg. Time: {now:HH:mm:ss}";
         }
 
+        public JObject ToJson()
+        {
+            var jobj = new JObject();
+            jobj["count"] = TotalSent;
+            jobj["avgLength"] = AverageLength;
+            jobj["avgTime"] = AverageSecondsIntoDay;
+            return jobj;
+        }
     }
 
 }

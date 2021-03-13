@@ -37,7 +37,7 @@ namespace DiscordBot.Services
         
         private string InternalGenerateSave()
         {
-            return Program.Serialise(Tracking, Newtonsoft.Json.TypeNameHandling.None, new BotUserConverter());
+            return Program.Serialise(Tracking, Newtonsoft.Json.TypeNameHandling.None, Newtonsoft.Json.Formatting.None, new BotUserConverter());
         }
 
         public override void OnReady()

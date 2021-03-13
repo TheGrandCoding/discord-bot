@@ -33,6 +33,7 @@ namespace DiscordBot.Services
             Server.AddWebSocketService<LogWS>("/log");
             Server.AddWebSocketService<BanAppealsWS>("/ban-appeal");
             Server.AddWebSocketService<TimeTrackerWS>("/time-tracker");
+            Server.AddWebSocketService<StatisticsWS>("/statistics");
             //Server.Log.Level = LogLevel.Trace;
             Server.Log.Output = (x, y) =>
             {
