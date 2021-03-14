@@ -5,7 +5,6 @@ using Discord.Rest;
 using Discord.WebSocket;
 using DiscordBot.Classes;
 using DiscordBot.Classes.Attributes;
-using DiscordBot.Classes.Calculator;
 using DiscordBot.Classes.Chess;
 using DiscordBot.MLAPI;
 using DiscordBot.MLAPI.Modules.TimeTracking;
@@ -17,11 +16,7 @@ using Google.Apis.YouTube.v3;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
-using Pomelo.EntityFrameworkCore.MySql.Storage;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -40,7 +35,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.15.2"; 
+        public const string VERSION = "0.15.3"; 
         public const string CHANGELOG = VERSION + @"
 == Permissions changes
 Changed how permissions worked for bot.
