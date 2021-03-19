@@ -12,10 +12,12 @@ using System.Threading.Tasks;
 namespace DiscordBot.Commands.Modules.Actions
 {
     [Group("vc")]
+    [Name("VC Announce")]
     public class VCAnnounce : BotBase
     {
         public VCAnnounceService Service { get; set; }
         [Command("join")]
+        [Summary("If attachment, sets join sound to mp3 attachment. If no attachment, removes any join sound.")]
         public async Task<RuntimeResult> SetJoin()
         {
             var attachment = Context.Message.Attachments.FirstOrDefault();
