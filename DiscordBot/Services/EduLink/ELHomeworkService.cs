@@ -7,6 +7,7 @@ using EduLinkDLL.Classes;
 using EduLinkDLL.Exceptions;
 using Html2Markdown;
 using Microsoft.Extensions.DependencyInjection;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,7 +16,7 @@ using System.Threading.Tasks;
 namespace DiscordBot.Services.EduLink
 {
     [RequireService(typeof(ReactionService), typeof(ELTimetableService))]
-    public class ELHomeworkService : SavedService
+    public class ELHomeworkService : SavedService, ISARProvider
     {
         private static ELHomeworkService instance;
         public ELHomeworkService()
@@ -208,6 +209,15 @@ namespace DiscordBot.Services.EduLink
         public static void handleReaction(object sender, ReactionEventArgs args) 
         {
             instance.handleAsync(args).Wait();
+        }
+
+        public JToken GetSARDataFor(ulong userId)
+        {
+            if(Info.TryGetValue(userId, out var prefs))
+            {
+                return JObject.FromObject(prefs);
+            }
+            return null;
         }
     }
 

@@ -5,6 +5,7 @@ using DiscordBot.Services.BuiltIn;
 using DiscordBot.Utils;
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
@@ -43,6 +44,17 @@ namespace DiscordBot.Services
             => new serviceComparer().Compare(this, other);
 
         protected static List<Service> zza_services = new List<Service>();
+
+        public static IReadOnlyCollection<TInterface> GetServices<TInterface>()
+        {
+            var ls = new List<TInterface>();
+            foreach(var sv in zza_services)
+            {
+                if (sv is TInterface ti)
+                    ls.Add(ti);
+            }
+            return ls.ToImmutableArray();
+        }
 
         public static string State {  get
             {

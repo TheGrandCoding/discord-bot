@@ -18,7 +18,7 @@ using System.Threading.Tasks;
 
 namespace DiscordBot.Services
 {
-    public class CoronaService : SavedService
+    public class CoronaService : SavedService, ISARProvider
     {
         public const string URL = @"https://corona-api.com/countries/";
         public const int IsolationPeriod = 10 * 24;
@@ -27,6 +27,7 @@ namespace DiscordBot.Services
         public Dictionary<ulong, DateTime> Isolation = new Dictionary<ulong, DateTime>();
         public List<SendingEntry> Entries = new List<SendingEntry>();
         public DateTime lastDone = DateTime.Now;
+
 
         class save
         {
@@ -354,6 +355,17 @@ namespace DiscordBot.Services
                     this.OnSave();
                 }
             }
+        }
+
+        public JToken GetSARDataFor(ulong userId)
+        {
+            if(Isolation.TryGetValue(userId, out var time))
+            {
+                var jo = new JObject();
+                jo[userId] = time.ToString();
+                return jo;
+            }
+            return null;
         }
     }
 

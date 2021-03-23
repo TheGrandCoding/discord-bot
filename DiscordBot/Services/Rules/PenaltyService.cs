@@ -4,6 +4,7 @@ using DiscordBot.Classes.Attributes;
 using DiscordBot.Utils;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -16,7 +17,7 @@ using System.Threading.Tasks;
 namespace DiscordBot.Services.Rules
 {
     [RequireService(typeof(LoggingService))]
-    public class PenaltyService : SavedService
+    public class PenaltyService : SavedService, ISARProvider
     {
         private static int _id;
         public Dictionary<int, Penalty> Penalties { get; set; } 
@@ -161,6 +162,37 @@ namespace DiscordBot.Services.Rules
             await AddPenalty(new TopicBlockPenalty(op.Guild, op, target, reason, duration, regex));
         }
         #endregion
+
+        public JToken GetSARDataFor(ulong userId)
+        {
+            if(!Lock.WaitOne(30_000))
+                return JObject.FromObject("*Failed to fetch data: could not achieve thread-lock*");
+            try
+            {
+                var array = new JArray();
+                foreach(var penalty in Penalties.Values)
+                {
+                    if(penalty.Operator?.Id == userId || penalty.Target?.Id == userId)
+                    {
+                        var obj = new JObject();
+                        obj["id"] = penalty.Id;
+                        obj["duration"] = penalty.Duration.ToString();
+                        obj["performed"] = penalty.Performed.ToString();
+                        if (penalty.Operator?.Id == userId)
+                            obj["operator"] = userId;
+                        if (penalty.Target?.Id == userId)
+                            obj["target"] = userId;
+                        obj["_type"] = penalty.GetType().Name;
+                        array.Add(obj);
+                    }
+                }
+                return array;
+
+            } finally
+            {
+                Lock.Release();
+            }
+        }
     }
 
     class PenaltySave

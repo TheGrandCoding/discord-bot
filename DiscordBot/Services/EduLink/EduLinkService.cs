@@ -1,6 +1,7 @@
 ﻿using Discord;
 using EduLinkDLL;
 using EduLinkDLL.Exceptions;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -8,7 +9,7 @@ using System.Text;
 
 namespace DiscordBot.Services
 {
-    public class EduLinkService : EncryptedService
+    public class EduLinkService : EncryptedService, ISARProvider
     {
         protected override string KeyLocation => "edulink_service";
 
@@ -84,6 +85,19 @@ namespace DiscordBot.Services
                     catch { }
                 }
             }
+        }
+
+        public JToken GetSARDataFor(ulong userId)
+        {
+            var content = ReadSave();
+            if (string.IsNullOrWhiteSpace(content))
+                return null;
+            var dict = Program.Deserialise<Dictionary<ulong, userInfo>>(content);
+            if(dict.TryGetValue(userId, out var info))
+            {
+                return JObject.FromObject(info);
+            }
+            return null;
         }
     }
 }
