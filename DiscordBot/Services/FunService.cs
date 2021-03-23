@@ -15,6 +15,8 @@ namespace DiscordBot.Services
     {
         public Dictionary<string, List<string>> ImageTriggers { get; set; } = new Dictionary<string, List<string>>();
 
+        public static bool IsChangeEnabled = false;
+
         Cached<bool> BlockChange = new Cached<bool>(false, 1);
         static List<int[]> RAINBOW = new List<int[]>()
             {
@@ -80,7 +82,7 @@ namespace DiscordBot.Services
                 await arg.Channel.SendMessageAsync(possibles[Program.RND.Next(0, possibles.Count)],
                     messageReference: new MessageReference(arg.Id, arg.Channel.Id));
             }
-            if(arg.Author is SocketGuildUser gUser && arg.Channel is SocketGuildChannel channel)
+            if(IsChangeEnabled && arg.Author is SocketGuildUser gUser && arg.Channel is SocketGuildChannel channel)
             {
                 var guild = channel.Guild;
                 var role = gUser.Roles.FirstOrDefault(x => x.Name == "Rainbow");
