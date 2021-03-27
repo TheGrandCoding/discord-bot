@@ -5,6 +5,7 @@ using DiscordBot.Classes.Chess;
 using DiscordBot.Classes.Chess.Online;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -18,7 +19,7 @@ using static DiscordBot.Services.BuiltIn.BuiltInUsers;
 
 namespace DiscordBot.Services
 {
-    public class ChessService : Service
+    public class ChessService : Service, ISARProvider
     {
         public override bool IsEnabled => true;
         public override bool IsCritical => true;
@@ -867,6 +868,16 @@ namespace DiscordBot.Services
                     await arg.ModifyAsync(x => x.Nickname = chessUser.Name);
                 }
             }
+        }
+
+        public JToken GetSARDataFor(ulong userId)
+        {
+            using var db = DB();
+            var chessUser = db.Players.FirstOrDefault(x => x.DiscordAccount == cast(userId));
+            if (chessUser == null)
+                return null;
+            var TOTAL = new JObject();
+            return JObject.Parse(JsonConvert.SerializeObject(chessUser));
         }
     }
 }

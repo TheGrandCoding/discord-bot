@@ -1,14 +1,16 @@
 ﻿using Discord;
 using Discord.WebSocket;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading;
 
 namespace DiscordBot.Services.Timing
 {
-    public class CountdownService : SavedService
+    public class CountdownService : SavedService, ISARProvider
     {
         public List<Countdown> Countdowns { get; set; }
         public override string GenerateSave() => Program.Serialise(Countdowns);
@@ -91,6 +93,25 @@ namespace DiscordBot.Services.Timing
                     Countdowns.Remove(y);
             });
             Thread.Sleep(waitTime);
+        }
+
+        public JToken GetSARDataFor(ulong userId)
+        {
+            _lock.WaitOne();
+            try
+            {
+                var ctn = Countdowns.Where(x => x.User?.Id == userId).ToList();
+                var jar = new JArray();
+                foreach(var x in ctn)
+                {
+                    var jobj = JObject.FromObject(x);
+                    jar.Add(jobj);
+                }
+                return jar;
+            } finally
+            {
+                _lock.Release();
+            }
         }
     }
 

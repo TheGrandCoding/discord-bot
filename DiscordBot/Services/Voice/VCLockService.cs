@@ -3,6 +3,7 @@ using Discord.Commands;
 using Discord.WebSocket;
 using DiscordBot.Classes;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,7 +12,7 @@ using System.Threading.Tasks;
 
 namespace DiscordBot.Services
 {
-    public class VCLockService : SavedService
+    public class VCLockService : SavedService, ISARProvider
     {
         public Dictionary<ulong, VCLock> LockedChannels { get; set; }
         public override string GenerateSave()
@@ -117,6 +118,13 @@ namespace DiscordBot.Services
             LockedChannels.Remove(lck.Voice.Id);
             lck.Remove();
             OnSave();
+        }
+
+        public JToken GetSARDataFor(ulong userId)
+        {
+            if(LockedChannels.TryGetValue(userId, out var vc))
+                return JToken.FromObject($"Storing your user id in reference to the locked voice channel {vc.Name}");
+            return null;
         }
     }
 

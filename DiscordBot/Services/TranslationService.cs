@@ -3,6 +3,7 @@ using DiscordBot.Classes.Attributes;
 using DiscordBot.Utils;
 using Google.Cloud.Translation.V2;
 using Microsoft.Extensions.DependencyInjection;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,8 +13,12 @@ using System.Threading.Tasks;
 namespace DiscordBot.Services
 {
     [RequireService(typeof(ReactionService))]
-    public class TranslationService : SavedService
+    public class TranslationService : SavedService, ISARProvider
     {
+        public TranslationService()
+        {
+        }
+
         public Dictionary<ulong, List<ulong>> Watched { get; set; }
         public override string GenerateSave()
         {
@@ -201,6 +206,22 @@ namespace DiscordBot.Services
                 if (a != null)
                     return;
             }
+        }
+
+        public JToken GetSARDataFor(ulong userId)
+        {
+            var dict = new Dictionary<string, List<string>>();
+            foreach(var keypair in Watched)
+            {
+                if(keypair.Key == userId)
+                {
+                    dict[$"{userId}"] = keypair.Value.Select(x => "*other user data*").ToList();
+                } else if(keypair.Value.Contains(userId))
+                {
+                    dict[$"*other user data*"] = new List<string>() { $"{userId}" };
+                }
+            }
+            return JObject.FromObject(dict);
         }
     }
 }
