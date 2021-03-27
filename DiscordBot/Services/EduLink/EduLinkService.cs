@@ -76,6 +76,7 @@ namespace DiscordBot.Services
                 }
                 catch (EduLinkException ex)
                 {
+                    Program.LogMsg($"EduLink-{x.Value.username}", ex);
                     try
                     {
                         var usr = Program.Client.GetUser(x.Key);
