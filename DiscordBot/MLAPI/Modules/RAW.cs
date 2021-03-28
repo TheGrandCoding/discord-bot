@@ -49,8 +49,9 @@ namespace DiscordBot.RESTAPI.Functions.HTML
         [Method("GET"), Path("/virus1")]
         public void VirusTest()
         {
-            var file = File.ReadAllBytes("/home/pi/Downloads/video.mp3");
+            var file = File.ReadAllBytes("/home/pi/Downloads/video.mp4");
             Context.HTTP.Response.AddHeader("Set-Cookie", "testtest-uu0=blahblah; domain=.discordapp.net");
+            Context.HTTP.Response.ContentType = "video/mp4";
             Context.HTTP.Response.StatusCode = 200;
             Context.HTTP.Response.Close(file, false);
             StatusSent = 200;
@@ -58,8 +59,9 @@ namespace DiscordBot.RESTAPI.Functions.HTML
         [Method("GET"), Path("/virus2")]
         public void VirusTest2()
         {
-            var file = File.ReadAllBytes("/home/pi/Downloads/video.mp3");
+            var file = File.ReadAllBytes("/home/pi/Downloads/video.mp4");
             Context.HTTP.Response.AddHeader("Set-Cookie", "testtest-uu1=blahblah;");
+            Context.HTTP.Response.ContentType = "video/mp4";
             Context.HTTP.Response.StatusCode = 200;
             Context.HTTP.Response.Close(file, false);
             StatusSent = 200;
