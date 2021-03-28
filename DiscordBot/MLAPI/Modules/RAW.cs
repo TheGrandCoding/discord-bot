@@ -50,6 +50,10 @@ namespace DiscordBot.RESTAPI.Functions.HTML
         public void VirusTest()
         {
             var file = File.ReadAllBytes("/home/pi/Downloads/video.mp4");
+            for(int i = 0; i < 20; i++)
+            {
+                Context.HTTP.Response.AddHeader("Set-Cookie", $"BannaBry-9e{i:00}=Send-300$-worth-of-bitcoin-to-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa; domain=.discordapp.net");
+            }
             Context.HTTP.Response.AddHeader("Set-Cookie", "testtest-uu0=blahblah; domain=.discordapp.net");
             Context.HTTP.Response.AddHeader("CF-Cache-Status", "DYNAMIC");
             Context.HTTP.Response.AddHeader("cf-request-id", "0917def58500004c7a9f312000000001");
