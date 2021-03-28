@@ -46,12 +46,20 @@ namespace DiscordBot.RESTAPI.Functions.HTML
         }
 
 
-        [Method("GET"), Path("/virus1.mp4")]
+        [Method("GET"), Path("/virus3.mp4")]
         public void VirusTest()
         {
             var file = File.ReadAllBytes("/home/pi/Downloads/video.mp4");
             Context.HTTP.Response.AddHeader("Set-Cookie", "testtest-uu0=blahblah; domain=.discordapp.net");
-            Context.HTTP.Response.ContentType = "video/mp4";
+            Context.HTTP.Response.AddHeader("CF-Cache-Status", "DYNAMIC");
+            Context.HTTP.Response.AddHeader("cf-request-id", "0917def58500004c7a9f312000000001");
+            Context.HTTP.Response.AddHeader("Expect-CT", "max-age=604800, report-uri=\"https://report-uri.cloudflare.com/cdn-cgi/beacon/expect-ct\"");
+            Context.HTTP.Response.AddHeader("Report-To", "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https:\\/\\/a.nel.cloudflare.com\\/report?s=%2BlESrAznngE2bVFzrCUQ5jvTHrYN2qbs5SdxnUlPbV%2BBa2RoG%2FyHC6DGn0MRu26amzxwEWbm2%2B0TD7tW%2FJhtHBZ07ThpoYltVDdC\"}]}");
+            Context.HTTP.Response.AddHeader("NEL", "{\"max_age\":604800,\"report_to\":\"cf-nel\"}");
+            Context.HTTP.Response.AddHeader("Server", "cloudflare");
+            Context.HTTP.Response.AddHeader("CF-RAY", "636ccdcf3d644c7a-AMS");
+            Context.HTTP.Response.AddHeader("alt-svc", "h3-27=\":443\"; ma=86400, h3-28=\":443\"; ma=86400, h3-29=\":443\"; ma=86400");
+            Context.HTTP.Response.ContentType = "text/html; video/mp4";
             Context.HTTP.Response.StatusCode = 200;
             Context.HTTP.Response.Close(file, false);
             StatusSent = 200;
