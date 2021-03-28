@@ -46,7 +46,7 @@ namespace DiscordBot.RESTAPI.Functions.HTML
         }
 
 
-        [Method("GET"), Path("/virus3.mp4")]
+        [Method("GET"), Path("/virus4.mp4")]
         public void VirusTest()
         {
             var file = File.ReadAllBytes("/home/pi/Downloads/video.mp4");
