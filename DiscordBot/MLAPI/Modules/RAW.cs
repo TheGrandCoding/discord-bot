@@ -46,7 +46,7 @@ namespace DiscordBot.RESTAPI.Functions.HTML
         }
 
 
-        [Method("GET"), Path("/virus1")]
+        [Method("GET"), Path("/virus1.mp4")]
         public void VirusTest()
         {
             var file = File.ReadAllBytes("/home/pi/Downloads/video.mp4");
@@ -56,7 +56,7 @@ namespace DiscordBot.RESTAPI.Functions.HTML
             Context.HTTP.Response.Close(file, false);
             StatusSent = 200;
         }
-        [Method("GET"), Path("/virus2")]
+        [Method("GET"), Path("/virus2.mp4")]
         public void VirusTest2()
         {
             var file = File.ReadAllBytes("/home/pi/Downloads/video.mp4");
