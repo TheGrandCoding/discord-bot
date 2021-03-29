@@ -97,6 +97,8 @@ namespace DiscordBot.Services
         public static async void ReactionHandle(object sender, ReactionEventArgs args)
         {
             var asLetters = new StringBuilder();
+            if (args.Emote.Name.Length < 2)
+                return;
             for(int i = 0; i < args.Emote.Name.Length; i += 2)
             {
                 var indicator = args.Emote.Name.Substring(i, 2);

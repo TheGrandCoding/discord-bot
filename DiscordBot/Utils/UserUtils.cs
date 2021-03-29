@@ -14,6 +14,7 @@ namespace DiscordBot.Utils
                 s = user.GetDefaultAvatarUrl();
             return s;
         }
-        public static string GetName(this IGuildUser user) => user.Nickname ?? user.Username;
+        public static string GetName(this IGuildUser user) 
+            => user == null ? null : (user.Nickname ?? user.Username);
     }
 }

@@ -29,10 +29,11 @@ namespace DiscordBot.Commands.Modules.Rules
                 {
                     if (x.Guild.Id == Context.Guild.Id)
                     {
-                        var expires = x.Performed.Add(x.Duration);
-                        var diff = expires - DateTime.Now;
+                        string expires = x.Duration.HasValue 
+                            ? Program.FormatTimeSpan(x.Performed.Add(x.Duration.Value) - DateTime.Now)
+                            : "indefinite";
                         embed.AddField($"#{x.Id}", $"{x.GetType().Name.Replace("Penalty", "")}\r\n" +
-                            $"{x.Operator.GetName()} on {x.Target.GetName()}, remain: {Program.FormatTimeSpan(diff, true)}");
+                            $"{x.Operator.GetName()} on {x.Target.GetName()}, remain: {expires}");
                     }
                 }
             });
@@ -47,6 +48,24 @@ namespace DiscordBot.Commands.Modules.Rules
         {
             Service.RemovePenalty(id);
             Success("Done");
+        }
+
+        [Command("penalty nsfw")]
+        [RequireUserPermission(GuildPermission.Administrator)]
+        public async Task ToggleIgnoreNsfw(int id)
+        {
+            Service.Modify(id, async penalty =>
+            {
+                if (penalty is ContentBlockPenalty cbp)
+                {
+                    cbp.IgnoreNSFW = !cbp.IgnoreNSFW;
+                    await ReplyAsync(cbp.IgnoreNSFW ? "Penalty now ignores NSFW channels" : "Penalty does not ignore NSFW channels");
+                }
+                else
+                {
+                    await ReplyAsync($"{penalty.GetType().Name} is independent of any nsfw channel logic, and thus cannot be toggled.");
+                }
+            });
         }
 
         [Command("setreason"), Alias("sreason", "penalty setreason", "penalty sreason")]
@@ -95,6 +114,15 @@ namespace DiscordBot.Commands.Modules.Rules
                 Context.Guild.GetUser(target.Id),
                 Context.BotUser.Reason, duration, regex);
             Success("Topic block added.");
+        }
+
+        [Command("iblock"), Alias("imageblock")]
+        [Summary("Prevents a particular image being displayed within the guild")]
+        [RequireUserPermission(ChannelPermission.ManageMessages)]
+        public async Task ImageBlock(ulong hash, TimeSpan? duration = null)
+        {
+            await Service.AddImageBlock(Context.User as SocketGuildUser, null,
+                Context.BotUser.Reason, duration, hash);
         }
     }
 }
