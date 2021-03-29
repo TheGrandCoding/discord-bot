@@ -201,13 +201,18 @@ namespace DiscordBot.Services.Rules
             });
         }
 
-        public void Modify(int id, Action<Penalty> action)
+        public bool Modify(int id, Action<Penalty> action)
         {
+            var found = false;
             execute(() =>
             {
                 if (Penalties.TryGetValue(id, out var p))
+                {
+                    found = true;
                     action(p);
+                }
             });
+            return found;
         }
 
         #region Penalties
@@ -554,13 +559,13 @@ namespace DiscordBot.Services.Rules
             var algo = new DifferenceHash();
             var hash = algo.Hash(fstream);
             var sim = CompareHash.Similarity(ImageHash, hash);
-            if (sim < 0.975)
+            if (sim < 97.5)
                 return;
             await message.DeleteAsync(new RequestOptions()
             {
-                AuditLogReason = $"Image {sim*100:00}% similar to one blocked under {Id}"
+                AuditLogReason = $"Image {sim:00}% similar to one blocked under {Id}"
             });
-            await this.Escalate(message.Author as SocketGuildUser, $"Similarity: {sim*100:00.0}%");
+            await this.Escalate(message.Author as SocketGuildUser, $"Similarity: {sim:00.0}%");
         }
 
     }

@@ -54,7 +54,7 @@ namespace DiscordBot.Commands.Modules.Rules
         [RequireUserPermission(GuildPermission.Administrator)]
         public async Task ToggleIgnoreNsfw(int id)
         {
-            Service.Modify(id, async penalty =>
+            var found = Service.Modify(id, async penalty =>
             {
                 if (penalty is ContentBlockPenalty cbp)
                 {
@@ -66,6 +66,11 @@ namespace DiscordBot.Commands.Modules.Rules
                     await ReplyAsync($"{penalty.GetType().Name} is independent of any nsfw channel logic, and thus cannot be toggled.");
                 }
             });
+            if (!found)
+            {
+                await ReplyAsync("Could not find any penalty by that Id");
+                await List();
+            }
         }
 
         [Command("setreason"), Alias("sreason", "penalty setreason", "penalty sreason")]
