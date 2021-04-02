@@ -347,7 +347,7 @@ namespace DiscordBot.Services.Sonarr
         public string Overview { get; set; }
         public string Network { get; set; }
         public string AirTime { get; set; }
-        public JObject Images { get; set; }
+        public JArray Images { get; set; }
         public List<SeasonStatus> Seasons { get; set; }
         public int Year { get; set; }
         public bool SeasonFolder { get; set; }
