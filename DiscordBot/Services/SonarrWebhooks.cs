@@ -123,19 +123,12 @@ namespace DiscordBot.Services.Sonarr
                 relStr += $"[From {rel.indexer} by {rel.releaseGroup} {time}]({rel.nzbInfoUrl})\r\n";
             }
             builder.AddField("Release" + (releases.Count > 1 ? "s" : ""), relStr, false);
-            Lock.WaitOne();
-            try
-            {
-                foreach (var channel in Channels) {
-                    if (channel.Channel is NullTextChannel)
-                        continue;
-                    if (isPrivate && !channel.ShowsPrivate)
-                        continue;
-                    await channel.Channel.SendMessageAsync(embed: builder.Build());
-                }
-            } finally
-            {
-                Lock.Release();
+            foreach (var channel in Channels) {
+                if (channel.Channel is NullTextChannel)
+                    continue;
+                if (isPrivate && !channel.ShowsPrivate)
+                    continue;
+                await channel.Channel.SendMessageAsync(embed: builder.Build());
             }
         }
 
