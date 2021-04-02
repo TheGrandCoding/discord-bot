@@ -67,6 +67,15 @@ namespace DiscordBot.Services
                 return "Started";
             } }
 
+        static void sendErrorToOwner(Service failed, Exception ex)
+        {
+            var embed = new EmbedBuilder();
+            embed.Title = $"{failed.Name} Error";
+            embed.Color = failed.IsCritical ? Color.Red : Color.Orange;
+            embed.Description = "```\r\n" + ex?.ToString() + "\r\n```";
+            Program.AppInfo?.Owner.SendMessageAsync(embed: embed.Build());
+        }
+
         static Dictionary<string, bool> doneFunctions = new Dictionary<string, bool>();
         static void sendFunction(object obj)
         {
@@ -104,6 +113,10 @@ namespace DiscordBot.Services
                                     var ex = tie.InnerException;
                                     Program.LogMsg(ex, srv.Name);
                                     srv.HasFailed = true;
+                                    try
+                                    {
+                                        sendErrorToOwner(srv, ex);
+                                    } catch { }
                                     if (srv.IsCritical)
                                         throw ex;
                                 }
@@ -138,11 +151,10 @@ namespace DiscordBot.Services
                 Program.LogMsg($"Critical failure on service, must exit: {ex}", Discord.LogSeverity.Critical, name);
                 try
                 {
-                    var exStr = Program.Clamp(ex.ToString(), 1990);
-                    Program.Client.GetUser(144462654201790464)
-                        .SendMessageAsync($"```\r\n{exStr}\r\n```");
-                } catch { }
-                Environment.Exit(2);
+                    sendErrorToOwner(null, ex);
+                }
+                catch { }
+                Program.Close(2);
                 return;
             }
         }

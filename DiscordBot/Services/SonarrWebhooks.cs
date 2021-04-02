@@ -29,12 +29,15 @@ namespace DiscordBot.Services.Sonarr
 
         public override string GenerateSave()
         {
-            return Program.Serialise(Channels);
+            var save = new Save()
+            {
+                Channels = Channels
+            };
+            return Program.Serialise(save);
         }
         public override void OnReady()
         {
-            var sv = ReadSave("[]");
-            var save = Program.Deserialise<Save>(sv);
+            var save = Program.Deserialise<Save>(ReadSave("{}"));
             Channels = save.Channels ?? new List<SaveChannel>();
         }
 
