@@ -19,7 +19,9 @@ namespace DiscordBot.MLAPI.Modules
         [Method("POST"), Path("webhooks/sonarr")]
         public void Sonarr()
         {
+            Program.LogMsg($"Received webhook", Discord.LogSeverity.Info, "OnGrab");
             var sonarrEvent = JsonConvert.DeserializeObject<SonarrEvent>(Context.Body);
+            Program.LogMsg($"Parsed {sonarrEvent.EventType}", Discord.LogSeverity.Info, "OnGrab");
             try
             {
                 var towrite = JsonConvert.SerializeObject(sonarrEvent, Formatting.Indented);

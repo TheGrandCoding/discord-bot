@@ -57,6 +57,7 @@ namespace DiscordBot.Services.Sonarr
         {
             HTTP = new HttpClient();
             var apiKey = Program.Configuration["tokens:sonarr"];
+            Program.LogMsg($"X-API-Key is {(apiKey == null ? "null" : "not null")}", Discord.LogSeverity.Info, "OnGrab");
             HTTP.DefaultRequestHeaders.Add("X-Api-Key", apiKey);
             var th = new Thread(loop);
             th.Start(Program.GetToken());
@@ -86,11 +87,19 @@ namespace DiscordBot.Services.Sonarr
 
         private void SonarrWebhooksService_OnGrab(object sender, OnGrabSonarrEvent e)
         {
-            HandleOnGrabAsync(e).Wait();
+            try
+            {
+                HandleOnGrabAsync(e).Wait();
+            }
+            catch (Exception ex)
+            {
+                Program.LogMsg(ex, "OnGrab");
+            }
         }
 
         public async Task HandleOnGrabAsync(OnGrabSonarrEvent e)
         {
+            Program.LogMsg($"Handling {e.Series.Title}", LogSeverity.Info, "OnGrab");
             //var episodes = new Dictionary<int, bool>();
             var releases = new List<GrabbedData>();
             bool isPrivate = false;
@@ -101,11 +110,15 @@ namespace DiscordBot.Services.Sonarr
             {
                 //if (episodes.ContainsKey(episode.Id))
                 //    continue;
-                var request = new HttpRequestMessage(HttpMethod.Get, apiUrl + $"/history?epsiodeId={episode.Id}");
+                var url = apiUrl + $"/history?epsiodeId={episode.Id}";
+                Program.LogMsg($"Sending GET {url}", LogSeverity.Info, "OnGrab");
+                var request = new HttpRequestMessage(HttpMethod.Get, url);
                 var response = await HTTP.SendAsync(request);
-                var content = await response.Content.ReadAsStringAsync();
                 Program.LogMsg($"{e.Series.Title} {episode.SeasonNumber}{episode.EpisodeNumber} {episode.Id} :: {response.StatusCode}");
+                var content = await response.Content.ReadAsStringAsync();
+                Program.LogMsg($"Parsed content to string", Discord.LogSeverity.Info, "OnGrab");
                 var history = JsonConvert.DeserializeObject<HistoryCollection>(content);
+                Program.LogMsg($"Got {history.TotalRecords} records", Discord.LogSeverity.Info, "OnGrab");
                 var recentGrab = history.Records.FirstOrDefault(x => x is HistoryGrabbedRecord) as HistoryGrabbedRecord;
                 TagsCache[e.Series.Id] = recentGrab.Series.Tags;
                 isPrivate = recentGrab.Series.Tags.Contains("private");
@@ -213,7 +226,9 @@ namespace DiscordBot.Services.Sonarr
 
         public void Handle(SonarrEvent type)
         {
+            Program.LogMsg($"Waiting lock for {type.EventType}", Discord.LogSeverity.Info, "OnGrab");
             Lock.WaitOne();
+            Program.LogMsg($"Received lock for {type.EventType}", Discord.LogSeverity.Info, "OnGrab");
             try
             {
                 if (type is OnTestSonarrEvent t)
