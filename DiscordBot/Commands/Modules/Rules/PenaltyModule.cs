@@ -125,6 +125,12 @@ namespace DiscordBot.Commands.Modules.Rules
         [RequireUserPermission(GuildPermission.ManageGuild)]
         public async Task SetDefaultDuration(string defaultDuration)
         {
+            if(defaultDuration == "null")
+            {
+                Service.DefaultDurations.Remove(Context.Guild.Id);
+                Success("Removed default duration. All mutes will by default be indefinite");
+                return;
+            }
             var ts = PenaltyService.GetDurationForDefault(defaultDuration);
             if(!ts.HasValue)
             {
