@@ -24,6 +24,8 @@ namespace DiscordBot.Services.Sonarr
 #endif
 
         public Semaphore Lock = new Semaphore(1, 1);
+        public HttpClient HTTP { get; private set; }
+        public CacheDictionary<int, string[]> TagsCache { get; } = new CacheDictionary<int, string[]>(60 * 24); // day
 
         public override string GenerateSave()
         {
@@ -53,6 +55,9 @@ namespace DiscordBot.Services.Sonarr
 
         public override void OnLoaded()
         {
+            HTTP = new HttpClient();
+            var apiKey = Program.Configuration["tokens:sonarr"];
+            HTTP.DefaultRequestHeaders.Add("X-Api-Key", apiKey);
             var th = new Thread(loop);
             th.Start(Program.GetToken());
             OnDownload += SonarrWebhooksService_OnDownload;
@@ -63,21 +68,20 @@ namespace DiscordBot.Services.Sonarr
                 Episodes[e.Series.Id] = new Episodes(e.Series, e.Episodes);
             };
 #endif
-            test().Wait();
         }
 
-        async Task test()
+        public async Task<string[]> GetSeriesTags(int seriesId)
         {
-            var apiKey = Program.Configuration["tokens:sonarr"];
-            using var http = new HttpClient();
-            http.DefaultRequestHeaders.Add("X-Api-Key", apiKey);
-            var request = new HttpRequestMessage(HttpMethod.Get, apiUrl + $"/history?epsiodeId={12933}");
-            var response = await http.SendAsync(request);
+            if (TagsCache.TryGetValue(seriesId, out var v))
+                return v;
+            var request = new HttpRequestMessage(HttpMethod.Get, apiUrl + $"/series/{seriesId}");
+            var response = await HTTP.SendAsync(request);
             var content = await response.Content.ReadAsStringAsync();
-            Program.LogMsg($"{12933} :: {response.StatusCode}");
-            var history = JsonConvert.DeserializeObject<HistoryCollection>(content);
-            var recentGrab = history.Records.FirstOrDefault(x => x is HistoryGrabbedRecord) as HistoryGrabbedRecord;
-
+            Program.LogMsg($"{seriesId} :: {response.StatusCode}", LogSeverity.Info, "GetSeriesTags");
+            var jobj = JObject.Parse(content);
+            var array = jobj["tags"].ToObject<string[]>();
+            TagsCache.Add(seriesId, array);
+            return array;
         }
 
         private void SonarrWebhooksService_OnGrab(object sender, OnGrabSonarrEvent e)
@@ -87,27 +91,38 @@ namespace DiscordBot.Services.Sonarr
 
         public async Task HandleOnGrabAsync(OnGrabSonarrEvent e)
         {
-            var apiKey = Program.Configuration["tokens:sonarr"];
-            using var http = new HttpClient();
-            http.DefaultRequestHeaders.Add("X-Api-Key", apiKey);
             //var episodes = new Dictionary<int, bool>();
             var releases = new List<GrabbedData>();
+            bool isPrivate = false;
+            var builder = new EmbedBuilder();
+            builder.Title = "Episodes Grabbed";
+            builder.Description = $"{e.Series.Title}; {e.Episodes.Length} episodes found";
             foreach (var episode in e.Episodes)
             {
                 //if (episodes.ContainsKey(episode.Id))
                 //    continue;
                 var request = new HttpRequestMessage(HttpMethod.Get, apiUrl + $"/history?epsiodeId={episode.Id}");
-                var response = await http.SendAsync(request);
+                var response = await HTTP.SendAsync(request);
                 var content = await response.Content.ReadAsStringAsync();
                 Program.LogMsg($"{e.Series.Title} {episode.SeasonNumber}{episode.EpisodeNumber} {episode.Id} :: {response.StatusCode}");
                 var history = JsonConvert.DeserializeObject<HistoryCollection>(content);
                 var recentGrab = history.Records.FirstOrDefault(x => x is HistoryGrabbedRecord) as HistoryGrabbedRecord;
+                TagsCache[e.Series.Id] = recentGrab.Series.Tags;
+                isPrivate = recentGrab.Series.Tags.Contains("private");
                 //episodes[episode.Id] = true;
                 var existing = releases.Any(x => x.guid == recentGrab.data.guid);
                 if(!existing)
                     releases.Add(recentGrab.data);
+                if(builder.Fields.Count < 23)
+                    builder.AddField($"S{episode.SeasonNumber:00}E{episode.EpisodeNumber:00}", episode.Title + "\r\n" + episode.Quality, true);
             }
-            bool isPrivate = false;
+            var relStr = "";
+            foreach(var rel in releases)
+            {
+                var time = Program.FormatTimeSpan(TimeSpan.FromMinutes(rel.ageMinutes), true);
+                relStr += $"[From {rel.indexer} by {rel.releaseGroup} {time}]({rel.nzbInfoUrl})\r\n";
+            }
+            builder.AddField("Release" + (releases.Count > 1 ? "s" : ""), relStr, false);
             Lock.WaitOne();
             try
             {
@@ -116,8 +131,7 @@ namespace DiscordBot.Services.Sonarr
                         continue;
                     if (isPrivate && !channel.ShowsPrivate)
                         continue;
-                    await channel.Channel.SendMessageAsync($"Releases:\r\n-" +
-                        string.Join("\r\n-", releases.Select(x => x.nzbInfoUrl)));
+                    await channel.Channel.SendMessageAsync(embed: builder.Build());
                 }
             } finally
             {
@@ -149,6 +163,7 @@ namespace DiscordBot.Services.Sonarr
                         var diff = DateTime.Now - value.Last;
                         if (diff.TotalMinutes >= 15)
                         {
+                            var isprivate = GetSeriesTags(keypair.Value.Series.Id).Result.Contains("private");
                             var embed = value.ToEmbed();
                             var toRemove = new List<ITextChannel>();
                             foreach (var txt in Channels)
@@ -159,6 +174,8 @@ namespace DiscordBot.Services.Sonarr
                                     toRemove.Add(chnl);
                                     continue;
                                 }
+                                if (isprivate && txt.ShowsPrivate == false)
+                                    continue;
                                 try
                                 {
                                     chnl.SendMessageAsync(embed: embed);
@@ -235,9 +252,9 @@ namespace DiscordBot.Services.Sonarr
     public class Episodes
     {
         public DateTime Last { get; set; }
-        public SeriesInfo Series { get; set; }
+        public StubSeriesInfo Series { get; set; }
         public List<EpisodeInfo> List { get; set; }
-        public Episodes(SeriesInfo series, IEnumerable<EpisodeInfo> info)
+        public Episodes(StubSeriesInfo series, IEnumerable<EpisodeInfo> info)
         {
             Series = series;
             List = info.ToList();
@@ -282,24 +299,26 @@ namespace DiscordBot.Services.Sonarr
     [JsonSubtypes.KnownSubType(typeof(OnTestSonarrEvent), "Test")]
     public abstract class SonarrEvent
     {
-        public string EventType { get; }
-        public SeriesInfo Series { get; }
+        public string EventType { get; set; }
+        public StubSeriesInfo Series { get; set; }
     }
 
     public abstract class EpisodesSonarrEvent : SonarrEvent
     {
-        public EpisodeInfo[] Episodes { get; }
+        public EpisodeInfo[] Episodes { get; set; }
     }
 
     public class OnGrabSonarrEvent : EpisodesSonarrEvent
     {
-        public ReleaseInfo Release { get; }
+        public ReleaseInfo Release { get; set; }
+        public string DownloadClient { get; set; }
+        public string DownloadId { get; set; }
     }
 
     public class OnDownloadSonarrEvent : EpisodesSonarrEvent
     {
-        public EpisodeFileInfo EpisodeFile { get; }
-        public bool IsUpgrade { get; }
+        public EpisodeFileInfo EpisodeFile { get; set; }
+        public bool IsUpgrade { get; set; }
     }
 
     public class OnTestSonarrEvent : EpisodesSonarrEvent
@@ -309,37 +328,58 @@ namespace DiscordBot.Services.Sonarr
 #endregion
 
 #region Infos
-    public class SeriesInfo
+    public class StubSeriesInfo
     {
-        public int Id { get; }
-        public string Title { get; }
-        public string Path { get; }
-        public int TvDbId { get; }
+        public int Id { get; set; }
+        public string Title { get; set; }
+        public string Path { get; set; }
+        public int TvDbId { get; set; }
+    }
+    public class SeasonStatus
+    {
+        public int SeasonNumber { get; set; }
+        public bool Monitored { get; set; }
+    }
+    public class FullSeriesInfo : StubSeriesInfo
+    {
+        public int SeasonCount { get; set; }
+        public string Status { get; set; }
+        public string Overview { get; set; }
+        public string Network { get; set; }
+        public string AirTime { get; set; }
+        public JObject Images { get; set; }
+        public List<SeasonStatus> Seasons { get; set; }
+        public int Year { get; set; }
+        public bool SeasonFolder { get; set; }
+        public bool Monitored { get; set; }
+        public int Runtime { get; set; }
+        public string[] Genres { get; set; }
+        public string[] Tags { get; set; }
     }
     public class EpisodeInfo
     {
-        public int Id { get; }
-        public int EpisodeNumber { get; }
-        public int SeasonNumber { get; }
-        public string Title { get; }
-        public DateTime? AirDate { get; }
-        public DateTime? AirDateUtc { get; }
-        public string Quality { get; }
-        public int QualityVersion { get; }
+        public int Id { get; set; }
+        public int EpisodeNumber { get; set; }
+        public int SeasonNumber { get; set; }
+        public string Title { get; set; }
+        public DateTime? AirDate { get; set; }
+        public DateTime? AirDateUtc { get; set; }
+        public string Quality { get; set; }
+        public int QualityVersion { get; set; }
     }
     public class ReleaseInfo
     {
-        public string Quality { get; }
-        public int QualityVersion { get; }
-        public long Size { get; }
+        public string Quality { get; set; }
+        public int QualityVersion { get; set; }
+        public long Size { get; set; }
     }
     public class EpisodeFileInfo
     {
-        public int Id { get; }
-        public string RelativePath { get; }
-        public string Path { get; }
-        public string Quality { get; }
-        public int QualityVersion { get; }
+        public int Id { get; set; }
+        public string RelativePath { get; set; }
+        public string Path { get; set; }
+        public string Quality { get; set; }
+        public int QualityVersion { get; set; }
     }
     public class QualityInfo2
     {
@@ -379,12 +419,13 @@ namespace DiscordBot.Services.Sonarr
         public string SourceTitle { get; set; }
         public virtual string EventType { get; set; }
         public EpisodeInfo Episode { get; set; }
-        public SeriesInfo Series { get; set; }
+        public FullSeriesInfo Series { get; set; }
         public int Id { get; set; }
     }
     public class GrabbedData
     {
         public string indexer { get; set; }
+        public string releaseGroup { get; set; }
         public string nzbInfoUrl { get; set; }
         /// <summary>
         /// Whole number of days

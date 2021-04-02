@@ -49,5 +49,21 @@ namespace DiscordBot.Commands.Modules.Webhook
             }
             await ReplyAsync(s);
         }
+
+        [Command("private sonarr")]
+        [RequireOwner]
+        public async Task PrivateSonarr()
+        {
+            var chnl = SonarrService.Channels.FirstOrDefault(x => x.Channel.Id == Context.Channel.Id);
+            if(chnl == null)
+            {
+                await ReplyAsync("No webhook for current channel!");
+            } else
+            {
+                chnl.ShowsPrivate = !chnl.ShowsPrivate;
+                await ReplyAsync("Channel showing private shows now: " + chnl.ShowsPrivate.ToString());
+                SonarrService.OnSave();
+            }
+        }
     }
 }
