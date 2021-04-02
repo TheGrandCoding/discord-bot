@@ -12,6 +12,7 @@ using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -29,7 +30,46 @@ namespace DiscordBot.Services.Rules
         public Dictionary<int, Penalty> Penalties { get; set; } 
             = new Dictionary<int, Penalty>();
         public Dictionary<ulong, int> Escalations { get; set; } = new Dictionary<ulong, int>();
+        public Dictionary<ulong, string> DefaultDurations { get; set; } = new Dictionary<ulong, string>();
         public Semaphore Lock { get; } = new Semaphore(1, 1);
+
+
+        private static readonly string[] Formats = {
+            "%d'd'%h'h'%m'm'%s's'", //4d3h2m1s
+            "%d'd'%h'h'%m'm'",      //4d3h2m
+            "%d'd'%h'h'%s's'",      //4d3h  1s
+            "%d'd'%h'h'",           //4d3h
+            "%d'd'%m'm'%s's'",      //4d  2m1s
+            "%d'd'%m'm'",           //4d  2m
+            "%d'd'%s's'",           //4d    1s
+            "%d'd'",                //4d
+            "%h'h'%m'm'%s's'",      //  3h2m1s
+            "%h'h'%m'm'",           //  3h2m
+            "%h'h'%s's'",           //  3h  1s
+            "%h'h'",                //  3h
+            "%m'm'%s's'",           //    2m1s
+            "%m'm'",                //    2m
+            "%s's'",                //      1s
+        };
+        public static TimeSpan? GetDurationForDefault(string text)
+        {
+            if (TimeSpan.TryParseExact(text.ToLowerInvariant(), Formats, CultureInfo.InvariantCulture, out var ts))
+                return ts;
+            if (text.StartsWith("next:"))
+            {
+                var after = text.Substring("next:".Length);
+                if (after.Length != 4)
+                    return null;
+                var hours = int.Parse(after.Substring(0, 2));
+                var minutes = int.Parse(after.Substring(2, 2));
+                var date = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day,
+                    hours, minutes, 0);
+                if (date < DateTime.Now)
+                    date = date.AddDays(1);
+                return date - DateTime.Now;
+            }
+            return null;
+        }
 
         public void execute(Action act)
         {
@@ -80,6 +120,7 @@ namespace DiscordBot.Services.Rules
                 {
                     Penalties[pen.Id] = pen;
                 }
+                DefaultDurations = loaded.defaultDurations;
             });
             new Thread(() =>
             {
@@ -160,13 +201,22 @@ namespace DiscordBot.Services.Rules
             }) as MutePenalty;
             if(penalty == null)
             {
+                DefaultDurations.TryGetValue(user.Guild.Id, out var defStr);
+                TimeSpan? duration = defStr == null ? null : GetDurationForDefault(defStr);
+                penalty = await AddMute(user.Guild.CurrentUser, user, "Detected via role change", duration);
+                string message = $"MLAPI has detected that {user.Mention} has been muted.\r\n" +
+                    $"To set a duration for this mute, run the `{Program.Prefix}penalty duration {penalty.Id} [duration, eg 1h25m]` command\r\n";
+                if(defStr == null)
+                {
+                    message += "No default duration has been set, so it will remain until removed.\r\n" +
+                        $"To set a default duration, use the `{Program.Prefix}prefix default [duration]` command";
+                } else
+                {
+                    message += $"Due to this guild's default duration setting, the mute will automatically be removed in " +
+                        Program.FormatTimeSpan(duration.Value, true);
+                }
                 // addmute already saves the service
-                penalty = await AddMute(user.Guild.CurrentUser, user, "Detected via role change", null);
-                await user.Guild.PublicUpdatesChannel.SendMessageAsync($"MLAPI has detected that {user.Mention} has been muted.\r\n" +
-                    $"To set a duration for this mute, run the `{Program.Prefix}penalty duration {penalty.Id} [duration, eg 1h25m]` command\r\n" +
-                    $"If a duration is set, the bot will automatically remove the mute once it expires.\r\n" +
-                    $"If a duration is not set, the mute will remain until the role is removed.\r\n" +
-                    $"This bot will automatically delete any messages sent by the muted user, if they can speak.");
+                await user.Guild.PublicUpdatesChannel.SendMessageAsync(message);
             }
         }
 
@@ -211,7 +261,8 @@ namespace DiscordBot.Services.Rules
                 var ld = new PenaltySave()
                 {
                     PenaltyId = _id,
-                    penalties = Penalties.Values.ToList()
+                    penalties = Penalties.Values.ToList(),
+                    defaultDurations = DefaultDurations
                 };
                 s = Program.Serialise(ld);
             });
@@ -359,6 +410,7 @@ namespace DiscordBot.Services.Rules
         public int PenaltyId { get; set; }
         [Newtonsoft.Json.JsonProperty(ItemTypeNameHandling = Newtonsoft.Json.TypeNameHandling.Auto)]
         public List<Penalty> penalties { get; set; } = new List<Penalty>();
+        public Dictionary<ulong, string> defaultDurations { get; set; } = new Dictionary<ulong, string>();
     }
 
     public abstract class Penalty

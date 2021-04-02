@@ -119,6 +119,25 @@ namespace DiscordBot.Commands.Modules.Rules
             return new BotResult();
         }
 
+
+
+        [Command("penalty default")]
+        [RequireUserPermission(GuildPermission.ManageGuild)]
+        public async Task SetDefaultDuration(string defaultDuration)
+        {
+            var ts = PenaltyService.GetDurationForDefault(defaultDuration);
+            if(!ts.HasValue)
+            {
+                await ReplyAsync("Invalid format.\r\nValid formats include:\r\n" +
+                    "- Any timespan format (eg, '1h5m3s')\r\n" +
+                    "- `next:hhmm`, eg `next:0900`, which mutes when that time occurs tomorrow");
+                return;
+            }
+            Service.DefaultDurations[Context.Guild.Id] = defaultDuration;
+            Service.OnSave();
+            Success($"Default duration set to `{defaultDuration}`, this would be in {Program.FormatTimeSpan(ts.Value, true)}");
+        }
+
         [Command("mute")]
         [RequireUserPermission(GuildPermission.ManageMessages, Group = "or")]
         public async Task Mute(BotUser target, TimeSpan duration)
