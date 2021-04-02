@@ -25,7 +25,8 @@ namespace DiscordBot.Services.Sonarr
 
         public Semaphore Lock = new Semaphore(1, 1);
         public HttpClient HTTP { get; private set; }
-        public CacheDictionary<int, string[]> TagsCache { get; } = new CacheDictionary<int, string[]>(60 * 24); // day
+        public CacheDictionary<int, string> TagsCache { get; } = new CacheDictionary<int, string>(60 * 24);
+        public CacheDictionary<int, string[]> SeriesTagsCache { get; } = new CacheDictionary<int, string[]>(60 * 24); // day
 
         public override string GenerateSave()
         {
@@ -50,14 +51,7 @@ namespace DiscordBot.Services.Sonarr
             var th = new Thread(loop);
             th.Start(Program.GetToken());
             OnDownload += SonarrWebhooksService_OnDownload;
-            Program.LogMsg($"{OnGrab?.GetInvocationList().Length} listeners #1", LogSeverity.Info, "OnGrab");
             OnGrab += SonarrWebhooksService_OnGrab;
-            Program.LogMsg($"{OnGrab?.GetInvocationList().Length} listeners #2", LogSeverity.Info, "OnGrab");
-            OnGrab += (object sender, OnGrabSonarrEvent e) =>
-            {
-                Program.LogMsg($"Invoked bracket");
-            };
-            Program.LogMsg($"{OnGrab?.GetInvocationList().Length} listeners #3", LogSeverity.Info, "OnGrab");
 #if DEBUG
             OnTest += (object sender, OnTestSonarrEvent e) =>
             {
@@ -66,9 +60,20 @@ namespace DiscordBot.Services.Sonarr
 #endif
         }
 
+        async Task<string> GetTagLabel(int id)
+        {
+            if (TagsCache.TryGetValue(id, out var s))
+                return s;
+            var response = await HTTP.GetAsync(apiUrl + $"/tag/{id}");
+            var jobj = JObject.Parse(await response.Content.ReadAsStringAsync());
+            var l = jobj["label"].ToObject<string>();
+            TagsCache[id] = l;
+            return l;
+        }
+
         public async Task<string[]> GetSeriesTags(int seriesId)
         {
-            if (TagsCache.TryGetValue(seriesId, out var v))
+            if (SeriesTagsCache.TryGetValue(seriesId, out var v))
                 return v;
             var request = new HttpRequestMessage(HttpMethod.Get, apiUrl + $"/series/{seriesId}");
             var response = await HTTP.SendAsync(request);
@@ -76,9 +81,29 @@ namespace DiscordBot.Services.Sonarr
             Program.LogMsg($"{seriesId} :: {response.StatusCode}", LogSeverity.Info, "GetSeriesTags");
             var jobj = JObject.Parse(content);
             var array = jobj["tags"].ToObject<string[]>();
-            TagsCache.Add(seriesId, array);
+            SeriesTagsCache.Add(seriesId, array);
             return array;
         }
+
+        public async Task<bool> IsPrivate(int seriesId)
+        {
+            foreach(var tag in await GetSeriesTags(seriesId))
+            {
+                string label;
+                if(int.TryParse(tag, out var id))
+                {
+                    label = await GetTagLabel(id);
+                } else
+                {
+                    label = tag;
+                }
+                if (label == "private")
+                    return true;
+            }
+            return false;
+        }
+        public async Task<bool> IsPrivate(FullSeriesInfo info)
+            => await IsPrivate(info.Id);
 
         private void SonarrWebhooksService_OnGrab(object sender, OnGrabSonarrEvent e)
         {
@@ -99,10 +124,11 @@ namespace DiscordBot.Services.Sonarr
             Program.LogMsg($"Handling {e.Series.Title}", LogSeverity.Info, "OnGrab");
             //var episodes = new Dictionary<int, bool>();
             var releases = new List<GrabbedData>();
-            bool isPrivate = false;
+            bool is_private = false;
             var builder = new EmbedBuilder();
             builder.Title = "Episodes Grabbed";
             builder.Description = $"{e.Series.Title}; {e.Episodes.Length} episodes found";
+            builder.Color = Color.Orange;
             foreach (var episode in e.Episodes)
             {
                 //if (episodes.ContainsKey(episode.Id))
@@ -117,8 +143,8 @@ namespace DiscordBot.Services.Sonarr
                 var history = JsonConvert.DeserializeObject<HistoryCollection>(content);
                 Program.LogMsg($"Got {history.TotalRecords} records", Discord.LogSeverity.Info, "OnGrab");
                 var recentGrab = history.Records.FirstOrDefault(x => x is HistoryGrabbedRecord) as HistoryGrabbedRecord;
-                TagsCache[e.Series.Id] = recentGrab.Series.Tags;
-                isPrivate = recentGrab.Series.Tags.Contains("private");
+                SeriesTagsCache[e.Series.Id] = recentGrab.Series.Tags;
+                is_private = is_private || await IsPrivate(e.Series.Id);
                 //episodes[episode.Id] = true;
                 var existing = releases.Any(x => x.guid == recentGrab.data.guid);
                 if(!existing)
@@ -136,7 +162,7 @@ namespace DiscordBot.Services.Sonarr
             foreach (var channel in Channels) {
                 if (channel.Channel is NullTextChannel)
                     continue;
-                if (isPrivate && !channel.ShowsPrivate)
+                if (is_private && !channel.ShowsPrivate)
                     continue;
                 await channel.Channel.SendMessageAsync(embed: builder.Build());
             }
@@ -166,7 +192,7 @@ namespace DiscordBot.Services.Sonarr
                         var diff = DateTime.Now - value.Last;
                         if (diff.TotalMinutes >= 15)
                         {
-                            var isprivate = GetSeriesTags(keypair.Value.Series.Id).Result.Contains("private");
+                            var isprivate = IsPrivate(keypair.Value.Series.Id).Result;
                             var embed = value.ToEmbed();
                             var toRemove = new List<ITextChannel>();
                             foreach (var txt in Channels)
