@@ -21,12 +21,17 @@ namespace DiscordBot.Commands.Modules.Webhook
         public async Task ToggleSonarr()
         {
             var id = Context.Channel.Id;
-            if(SonarrService.Channels.RemoveAll(x => x.Id == id) > 0)
+            if(SonarrService.Channels.RemoveAll(x => x.Channel.Id == id) > 0)
             {
                 await ReplyAsync("Removed.");
             } else
             {
-                SonarrService.Channels.Add(Context.Channel as ITextChannel);
+                var sv = new SaveChannel()
+                {
+                    Channel = Context.Channel as ITextChannel,
+                    ShowsPrivate = false
+                };
+                SonarrService.Channels.Add(sv);
                 await ReplyAsync("Added.");
             }
             SonarrService.OnSave();
@@ -36,9 +41,11 @@ namespace DiscordBot.Commands.Modules.Webhook
         public async Task ListSonarr()
         {
             var s = "Channels:";
-            foreach(var chnl in SonarrService.Channels.Where(x => x.GuildId == Context.Guild.Id))
+            foreach(var chnl in SonarrService.Channels.Where(x => x.Channel.GuildId == Context.Guild.Id))
             {
-                s += $"\r\n {chnl.Id}, {MentionUtils.MentionChannel(chnl.Id)}";
+                s += $"\r\n {chnl.Channel.Id}, {MentionUtils.MentionChannel(chnl.Channel.Id)}";
+                if (chnl.ShowsPrivate)
+                    s += " (private)";
             }
             await ReplyAsync(s);
         }

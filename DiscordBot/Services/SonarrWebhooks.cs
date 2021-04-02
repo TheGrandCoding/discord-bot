@@ -1,12 +1,13 @@
 ﻿using Discord;
 using DiscordBot.Classes;
-using Microsoft.EntityFrameworkCore.Internal;
-using Microsoft.EntityFrameworkCore.Metadata;
+using JsonSubTypes;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
-using System.Text;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -14,7 +15,13 @@ namespace DiscordBot.Services.Sonarr
 {
     public class SonarrWebhooksService : SavedService
     {
-        public List<ITextChannel> Channels { get; set; }
+        public List<SaveChannel> Channels { get; set; }
+
+#if DEBUG
+        const string apiUrl = "http://192.168.1.3:8989/api";
+#else
+        const string apiUrl = "http://localhost:8989/api";
+#endif
 
         public Semaphore Lock = new Semaphore(1, 1);
 
@@ -24,8 +31,24 @@ namespace DiscordBot.Services.Sonarr
         }
         public override void OnReady()
         {
-            var sv = ReadSave("[]");
-            Channels = Program.Deserialise<List<ITextChannel>>(sv) ?? new List<ITextChannel>();
+            var sv = ReadSave("{}");
+            if(sv.StartsWith("["))
+            {
+                Channels = new List<SaveChannel>();
+                var txt = Program.Deserialise<List<ITextChannel>>(sv);
+                foreach(var x in txt)
+                {
+                    Channels.Add(new SaveChannel()
+                    {
+                        Channel = x,
+                        ShowsPrivate = true
+                    });
+                }
+            } else
+            {
+                var save = Program.Deserialise<Save>(sv);
+                Channels = save.Channels ?? new List<SaveChannel>();
+            }
         }
 
         public override void OnLoaded()
@@ -33,12 +56,73 @@ namespace DiscordBot.Services.Sonarr
             var th = new Thread(loop);
             th.Start(Program.GetToken());
             OnDownload += SonarrWebhooksService_OnDownload;
+            OnGrab += SonarrWebhooksService_OnGrab;
 #if DEBUG
             OnTest += (object sender, OnTestSonarrEvent e) =>
             {
                 Episodes[e.Series.Id] = new Episodes(e.Series, e.Episodes);
             };
 #endif
+            test().Wait();
+        }
+
+        async Task test()
+        {
+            var apiKey = Program.Configuration["tokens:sonarr"];
+            using var http = new HttpClient();
+            http.DefaultRequestHeaders.Add("X-Api-Key", apiKey);
+            var request = new HttpRequestMessage(HttpMethod.Get, apiUrl + $"/history?epsiodeId={12933}");
+            var response = await http.SendAsync(request);
+            var content = await response.Content.ReadAsStringAsync();
+            Program.LogMsg($"{12933} :: {response.StatusCode}");
+            var history = JsonConvert.DeserializeObject<HistoryCollection>(content);
+            var recentGrab = history.Records.FirstOrDefault(x => x is HistoryGrabbedRecord) as HistoryGrabbedRecord;
+
+        }
+
+        private void SonarrWebhooksService_OnGrab(object sender, OnGrabSonarrEvent e)
+        {
+            HandleOnGrabAsync(e).Wait();
+        }
+
+        public async Task HandleOnGrabAsync(OnGrabSonarrEvent e)
+        {
+            var apiKey = Program.Configuration["tokens:sonarr"];
+            using var http = new HttpClient();
+            http.DefaultRequestHeaders.Add("X-Api-Key", apiKey);
+            //var episodes = new Dictionary<int, bool>();
+            var releases = new List<GrabbedData>();
+            foreach (var episode in e.Episodes)
+            {
+                //if (episodes.ContainsKey(episode.Id))
+                //    continue;
+                var request = new HttpRequestMessage(HttpMethod.Get, apiUrl + $"/history?epsiodeId={episode.Id}");
+                var response = await http.SendAsync(request);
+                var content = await response.Content.ReadAsStringAsync();
+                Program.LogMsg($"{e.Series.Title} {episode.SeasonNumber}{episode.EpisodeNumber} {episode.Id} :: {response.StatusCode}");
+                var history = JsonConvert.DeserializeObject<HistoryCollection>(content);
+                var recentGrab = history.Records.FirstOrDefault(x => x is HistoryGrabbedRecord) as HistoryGrabbedRecord;
+                //episodes[episode.Id] = true;
+                var existing = releases.Any(x => x.guid == recentGrab.data.guid);
+                if(!existing)
+                    releases.Add(recentGrab.data);
+            }
+            bool isPrivate = false;
+            Lock.WaitOne();
+            try
+            {
+                foreach (var channel in Channels) {
+                    if (channel.Channel is NullTextChannel)
+                        continue;
+                    if (isPrivate && !channel.ShowsPrivate)
+                        continue;
+                    await channel.Channel.SendMessageAsync($"Releases:\r\n-" +
+                        string.Join("\r\n-", releases.Select(x => x.nzbInfoUrl)));
+                }
+            } finally
+            {
+                Lock.Release();
+            }
         }
 
         private void SonarrWebhooksService_OnDownload(object sender, OnDownloadSonarrEvent e)
@@ -53,23 +137,24 @@ namespace DiscordBot.Services.Sonarr
         {
             if (!(param is CancellationToken token))
                 return;
-            while(!token.IsCancellationRequested)
+            while (!token.IsCancellationRequested)
             {
                 try
                 {
                     Lock.WaitOne();
                     var rem = new List<int>();
-                    foreach(var keypair in Episodes)
+                    foreach (var keypair in Episodes)
                     {
                         var value = keypair.Value;
                         var diff = DateTime.Now - value.Last;
-                        if(diff.TotalMinutes >= 15)
+                        if (diff.TotalMinutes >= 15)
                         {
                             var embed = value.ToEmbed();
                             var toRemove = new List<ITextChannel>();
-                            foreach(var chnl in Channels)
+                            foreach (var txt in Channels)
                             {
-                                if(chnl is NullTextChannel)
+                                var chnl = txt.Channel;
+                                if (chnl is NullTextChannel)
                                 {
                                     toRemove.Add(chnl);
                                     continue;
@@ -77,7 +162,7 @@ namespace DiscordBot.Services.Sonarr
                                 try
                                 {
                                     chnl.SendMessageAsync(embed: embed);
-                                } catch(Exception ex)
+                                } catch (Exception ex)
                                 {
                                     toRemove.Add(chnl);
                                     Program.LogMsg("Sonarr", ex);
@@ -116,24 +201,11 @@ namespace DiscordBot.Services.Sonarr
         public event EventHandler<OnGrabSonarrEvent> OnGrab;
         public event EventHandler<OnDownloadSonarrEvent> OnDownload;
 
-        public SonarrEvent parse(JObject jobject)
-        {
-            var type = jobject["eventType"].ToObject<string>();
-            if (type == "Test")
-                return new OnTestSonarrEvent(jobject);
-            if (type == "Grab")
-                return new OnGrabSonarrEvent(jobject);
-            if (type == "Download")
-                return new OnDownloadSonarrEvent(jobject);
-            throw new InvalidOperationException($"Cannot handle event of type '{type}'");
-        }
-
-        public void Handle(JObject jobject)
+        public void Handle(SonarrEvent type)
         {
             Lock.WaitOne();
             try
             {
-                var type = parse(jobject);
                 if (type is OnTestSonarrEvent t)
                     OnTest?.Invoke(this, t);
                 else if (type is OnGrabSonarrEvent g)
@@ -145,6 +217,19 @@ namespace DiscordBot.Services.Sonarr
                 Lock.Release();
             }
         }
+    }
+
+    public class Save
+    {
+        public List<SaveChannel> Channels { get; set; }
+    }
+    public class SaveChannel
+    {
+        [JsonProperty("c")]
+        public ITextChannel Channel { get; set; }
+        [JsonProperty("p", DefaultValueHandling = DefaultValueHandling.IgnoreAndPopulate)]
+        [DefaultValue(false)]
+        public bool ShowsPrivate { get; set; }
     }
 
     public class Episodes
@@ -181,7 +266,7 @@ namespace DiscordBot.Services.Sonarr
             builder.Title = List.Count == 1 ? "Episode Downloaded" : "Episodes Downloaded";
             builder.Description = $"{Series.Title}";
             builder.WithCurrentTimestamp();
-            foreach(var episode in List)
+            foreach (var episode in List)
             {
                 builder.AddField($"S{episode.SeasonNumber:00}E{episode.EpisodeNumber:00}",
                     $"{episode.Title}, {episode.Quality}", true);
@@ -190,73 +275,46 @@ namespace DiscordBot.Services.Sonarr
         }
     }
 
-    #region Events
+#region Events
+    [JsonConverter(typeof(JsonSubtypes), "EventType")]
+    [JsonSubtypes.KnownSubType(typeof(OnGrabSonarrEvent), "Grab")]
+    [JsonSubtypes.KnownSubType(typeof(OnDownloadSonarrEvent), "Download")]
+    [JsonSubtypes.KnownSubType(typeof(OnTestSonarrEvent), "Test")]
     public abstract class SonarrEvent
     {
         public string EventType { get; }
         public SeriesInfo Series { get; }
-        public SonarrEvent(JObject jobj)
-        {
-            EventType = jobj["eventType"].ToObject<string>();
-            Series = new SeriesInfo(jobj["series"] as JObject);
-        }
     }
 
     public abstract class EpisodesSonarrEvent : SonarrEvent
     {
         public EpisodeInfo[] Episodes { get; }
-        public EpisodesSonarrEvent(JObject jobj) : base(jobj)
-        {
-            var jarray = jobj["episodes"] as JArray;
-            Episodes = jarray
-                .Select(x => new EpisodeInfo(x as JObject))
-                .ToArray();
-        }
     }
 
     public class OnGrabSonarrEvent : EpisodesSonarrEvent
     {
         public ReleaseInfo Release { get; }
-        public OnGrabSonarrEvent(JObject jobj) : base(jobj)
-        {
-            Release = new ReleaseInfo(jobj["release"] as JObject);
-        }
     }
 
     public class OnDownloadSonarrEvent : EpisodesSonarrEvent
     {
         public EpisodeFileInfo EpisodeFile { get; }
         public bool IsUpgrade { get; }
-        public OnDownloadSonarrEvent(JObject jobj) : base(jobj)
-        {
-            EpisodeFile = new EpisodeFileInfo(jobj["episodeFile"] as JObject);
-            IsUpgrade = jobj["isUpgrade"].ToObject<bool>();
-        }
     }
 
     public class OnTestSonarrEvent : EpisodesSonarrEvent
     {
-        public OnTestSonarrEvent(JObject jobj) : base(jobj)
-        {
-        }
     }
 
-    #endregion
+#endregion
 
-    #region Infos
+#region Infos
     public class SeriesInfo
     {
         public int Id { get; }
         public string Title { get; }
         public string Path { get; }
         public int TvDbId { get; }
-        public SeriesInfo(JObject jobj)
-        {
-            Id = jobj["id"].ToObject<int>();
-            Title = jobj["title"].ToObject<string>();
-            Path = jobj["path"].ToObject<string>();
-            TvDbId = jobj["tvdbId"].ToObject<int>();
-        }
     }
     public class EpisodeInfo
     {
@@ -268,31 +326,12 @@ namespace DiscordBot.Services.Sonarr
         public DateTime? AirDateUtc { get; }
         public string Quality { get; }
         public int QualityVersion { get; }
-        public EpisodeInfo(JObject jobj)
-        {
-            Id = jobj["id"].ToObject<int>();
-            EpisodeNumber = jobj["episodeNumber"].ToObject<int>();
-            SeasonNumber = jobj["seasonNumber"].ToObject<int>();
-            Title = jobj["title"].ToObject<string>();
-            if (jobj.TryGetValue("airDate", out var ad))
-                AirDate = ad.ToObject<DateTime>();
-            if (jobj.TryGetValue("airDateUtc", out var adu))
-                AirDateUtc = adu.ToObject<DateTime>();
-            Quality = jobj["quality"]?.ToObject<string>() ?? null;
-            QualityVersion = jobj["qualityVersion"]?.ToObject<int>() ?? 0;
-        }
     }
     public class ReleaseInfo
     {
         public string Quality { get; }
         public int QualityVersion { get; }
         public long Size { get; }
-        public ReleaseInfo(JObject jobj)
-        {
-            Quality = jobj["quality"]?.ToObject<string>() ?? "";
-            QualityVersion = jobj["qualityVersion"].ToObject<int>();
-            Size = jobj["size"]?.ToObject<long>() ?? 0;
-        }
     }
     public class EpisodeFileInfo
     {
@@ -301,14 +340,70 @@ namespace DiscordBot.Services.Sonarr
         public string Path { get; }
         public string Quality { get; }
         public int QualityVersion { get; }
-        public EpisodeFileInfo(JObject jobj)
-        {
-            Id = jobj["id"].ToObject<int>();
-            RelativePath = jobj["relativePath"].ToObject<string>();
-            Path = jobj["path"].ToObject<string>();
-            Quality = jobj["quality"]?.ToObject<string>() ?? "";
-            QualityVersion = jobj["qualityVersion"]?.ToObject<int>() ?? 0;
-        }
     }
-    #endregion
+    public class QualityInfo2
+    {
+        public int Id { get; set; }
+        public string Name { get; set; }
+        public string Source { get; set; }
+        public int Resolution { get; set; }
+    }
+    public class RevisionInfo
+    {
+        public int Version { get; set; }
+        public int Real { get; set; }
+        public bool IsRepack { get; set; }
+    }
+    public class QualityInfo
+    {
+        public QualityInfo2 Quality { get; set; }
+        public RevisionInfo Proper { get; set; }
+    }
+
+    public class HistoryCollection
+    {
+        [JsonProperty("page")]
+        public int Page { get; set; }
+        [JsonProperty("totalRecords")]
+        public int TotalRecords { get; set; }
+        [JsonProperty("records")]
+        public HistoryRecord[] Records { get; set; }
+    }
+    [JsonConverter(typeof(JsonSubtypes), "EventType")]
+    [JsonSubtypes.KnownSubType(typeof(HistoryGrabbedRecord), "grabbed")]
+    [JsonSubtypes.FallBackSubType(typeof(HistoryGenericRecord))]
+    public class HistoryRecord
+    {
+        public int episodeId { get; set; }
+        public int seriesId { get; set; }
+        public string SourceTitle { get; set; }
+        public virtual string EventType { get; set; }
+        public EpisodeInfo Episode { get; set; }
+        public SeriesInfo Series { get; set; }
+        public int Id { get; set; }
+    }
+    public class GrabbedData
+    {
+        public string indexer { get; set; }
+        public string nzbInfoUrl { get; set; }
+        /// <summary>
+        /// Whole number of days
+        /// </summary>
+        public int age { get; set; }
+        public double ageHours { get; set; }
+        public double ageMinutes { get; set; }
+        public string downloadUrl { get; set; }
+        public string guid { get; set; }
+    }
+    public class HistoryGrabbedRecord : HistoryRecord
+    {
+        public override string EventType => "grabbed";
+        public GrabbedData data { get; set; }
+    }
+    public class HistoryGenericRecord : HistoryRecord
+    {
+        public JObject data { get; set; }
+    }
+
+#endregion
 }
