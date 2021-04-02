@@ -62,7 +62,14 @@ namespace DiscordBot.Services.Sonarr
             var th = new Thread(loop);
             th.Start(Program.GetToken());
             OnDownload += SonarrWebhooksService_OnDownload;
+            Program.LogMsg($"{OnGrab?.GetInvocationList().Length} listeners #1", LogSeverity.Info, "OnGrab");
             OnGrab += SonarrWebhooksService_OnGrab;
+            Program.LogMsg($"{OnGrab?.GetInvocationList().Length} listeners #2", LogSeverity.Info, "OnGrab");
+            OnGrab += (object sender, OnGrabSonarrEvent e) =>
+            {
+                Program.LogMsg($"Invoked bracket");
+            };
+            Program.LogMsg($"{OnGrab?.GetInvocationList().Length} listeners #3", LogSeverity.Info, "OnGrab");
 #if DEBUG
             OnTest += (object sender, OnTestSonarrEvent e) =>
             {
@@ -238,6 +245,7 @@ namespace DiscordBot.Services.Sonarr
                 else if (type is OnGrabSonarrEvent g)
                 {
                     Program.LogMsg($"Invoking event for OnGrab", Discord.LogSeverity.Info, "OnGrab");
+                    Program.LogMsg($"{OnGrab?.GetInvocationList().Length} listeners #4", LogSeverity.Info, "OnGrab");
                     OnGrab?.Invoke(this, g);
                 }
                 else if (type is OnDownloadSonarrEvent d)
