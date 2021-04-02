@@ -91,7 +91,7 @@ namespace DiscordBot.MLAPI.Modules.Integrations
                 (message.Author as IGuildUser).Nickname ?? message.Author.Username,
                 message.Author.GetAnyAvatarUrl()
                 );
-            await message.DeleteAsync();
+            await message.DeleteAndTrackAsync("moving message");
         }
 
         /*public async Task Move(ulong message, ulong channel)

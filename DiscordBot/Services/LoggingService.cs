@@ -21,6 +21,8 @@ namespace DiscordBot.Services
     {
         public IGuild LogGuild { get; set; }
 
+        public static Dictionary<ulong, string> MessagesDeletedByBot { get; } = new Dictionary<ulong, string>();
+
         Dictionary<ulong, guildSave> GuildMap { get; set; } = new Dictionary<ulong, guildSave>();
         Cached<bool> disconnected = new Cached<bool>(false, 15);
 
@@ -29,6 +31,11 @@ namespace DiscordBot.Services
         public async Task<Dictionary<string, int>> GetDeleter(IGuild guild, DbMsg message, DateTime deletedAt, Func<IUser, string> formatter)
         {
             var weightDictionary = new Dictionary<string, int>();
+            if(MessagesDeletedByBot.TryGetValue(message.Id, out var botDelReason))
+            {
+                weightDictionary[$"mlapi: {botDelReason}"] = 1;
+                return weightDictionary;
+            }
             _auditLogLock.WaitOne();
             try
             {
@@ -191,7 +198,12 @@ namespace DiscordBot.Services
                 }
                 var category = await GetCategory(guild);
                 var sv = GuildMap[guild.Id];
-                var newtxt = await LogGuild.CreateTextChannelAsync("log-" + action, x =>
+#if DEBUG
+                var name = "dbg-" + action;
+#else
+                var name = "log-" + action;
+#endif
+                var newtxt = await LogGuild.CreateTextChannelAsync(name, x =>
                 {
                     x.CategoryId = category.Id;
                     x.Topic = "Logs for any new, updated or deleted " + action + "s";
@@ -207,9 +219,9 @@ namespace DiscordBot.Services
                 Program.LogMsg($"Released lock for {guild.Name}", LogSeverity.Info, action);
             }
         }
-        #endregion
+#endregion
 
-        #region Helper Functions
+#region Helper Functions
         public async Task<IUserMessage> SendLog(IGuild guild, string action, EmbedBuilder builder, ulong? context = null)
         {
             builder.WithCurrentTimestamp();
@@ -223,9 +235,9 @@ namespace DiscordBot.Services
             var msg = await chnl.SendMessageAsync(embed: builder.Build());
             return msg;
         }
-        #endregion
+#endregion
 
-        #region Messages
+#region Messages
         private async Task Client_MessageDeleted(Cacheable<IMessage, ulong> arg1, ISocketMessageChannel arg2)
         {
             var when = DateTime.Now;
@@ -287,7 +299,6 @@ namespace DiscordBot.Services
             data.log.ModifyAsync(x => x.Embed = built).Wait();
         }
 
-
         private async Task Client_MessageUpdated(Cacheable<IMessage, ulong> arg1, SocketMessage arg2, ISocketMessageChannel arg3)
         {
             if (!(arg3 is ITextChannel txt))
@@ -316,9 +327,9 @@ namespace DiscordBot.Services
                 OnSave();
         }
 
-        #endregion
+#endregion
 
-        #region Voice
+#region Voice
 
         public Dictionary<ulong, DateTime> LastAction { get; set; } = new Dictionary<ulong, DateTime>();
         private async Task Client_UserVoiceStateUpdated(SocketUser arg1, SocketVoiceState arg2, SocketVoiceState arg3)
@@ -364,7 +375,7 @@ namespace DiscordBot.Services
             await SendLog((arg2.VoiceChannel ?? arg3.VoiceChannel).Guild, "voice", builder, arg1.Id);
         }
 
-        #endregion
+#endregion
     }
 
     class logSave

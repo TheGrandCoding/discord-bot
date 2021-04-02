@@ -4,6 +4,7 @@ using Discord.WebSocket;
 using DiscordBot.Classes;
 using DiscordBot.Commands;
 using DiscordBot.Services;
+using DiscordBot.Utils;
 using Microsoft.IdentityModel.Tokens;
 using System;
 using System.Collections.Generic;
@@ -30,7 +31,7 @@ namespace DiscordBot.Commands.Modules
                 .WithDescription($"Use `{Program.Prefix}roles add [emote] [@role]` to add pairs")
                 .Build());
             Service.Register(Context.Guild, msg, x => { });
-            await Context.Message.DeleteAsync();
+            await Context.Message.DeleteAndTrackAsync("Command executed");
         }
         [Command("add")]
         [Summary("Adds a new emote-role pair to the server")]

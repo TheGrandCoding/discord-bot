@@ -4,6 +4,7 @@ using DiscordBot.Classes;
 using DiscordBot.Commands;
 using DiscordBot.Commands.Attributes;
 using DiscordBot.Services;
+using DiscordBot.Utils;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -33,7 +34,7 @@ namespace DiscordBot.Commands.Modules
         [Command("delete")]
         public async Task Delete()
         {
-            await Context.Message.DeleteAsync();
+            await Context.Message.DeleteAndTrackAsync("test");
         }
 
         public static void response(object sender, ReactionEventArgs e)

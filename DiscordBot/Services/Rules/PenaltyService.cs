@@ -1,8 +1,10 @@
 ﻿using CoenM.ImageHash;
 using CoenM.ImageHash.HashAlgorithms;
 using Discord;
+using Discord.Rest;
 using Discord.WebSocket;
 using DiscordBot.Classes.Attributes;
+using DiscordBot.Services.BuiltIn;
 using DiscordBot.Utils;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
@@ -20,7 +22,7 @@ using System.Threading.Tasks;
 
 namespace DiscordBot.Services.Rules
 {
-    [RequireService(typeof(LoggingService))]
+    [RequireService(typeof(LoggingService), typeof(UserChangeService))]
     public class PenaltyService : SavedService, ISARProvider
     {
         private static int _id;
@@ -113,6 +115,59 @@ namespace DiscordBot.Services.Rules
                     await x.OnMessageReceived(umsg, chnl);
             };
             Program.Client.ReactionAdded += Client_ReactionAdded;
+            var changes = Program.Services.GetRequiredService<UserChangeService>();
+            changes.RolesAdded += User_RolesAdded;
+            changes.RolesRemoved += User_RolesRemoved;
+        }
+
+        private async Task User_RolesRemoved(SocketGuildUser user, SocketRole[] removed)
+        {
+            var muted = await GetMutedRole(user.Guild);
+            if (removed.Any(x => x.Id == muted.Id) == false)
+                return;
+
+            var penalty = FindPenalty(x =>
+            {
+                if (!(x is MutePenalty mute))
+                    return false;
+                return mute.Target?.Id == user.Id;
+            });
+            if(penalty != null)
+            {
+                RemovePenalty(penalty.Id);
+                if(penalty.Duration.HasValue && penalty.Finished == false)
+                {
+                    var remaining = (penalty.Performed + penalty.Duration.Value) - DateTime.Now;
+                    await user.Guild.PublicUpdatesChannel.SendMessageAsync(
+                        $"Detected mute removed for {user.Mention} despite {Program.FormatTimeSpan(remaining)} remaining\r\n" +
+                        $"The mute has been unregistered from the bot without issue.");
+                }
+                OnSave();
+            }
+        }
+
+        private async Task User_RolesAdded(SocketGuildUser user, SocketRole[] added)
+        {
+            var muted = await GetMutedRole(user.Guild);
+            if (added.Any(x => x.Id == muted.Id) == false)
+                return;
+
+            var penalty = FindPenalty(x =>
+            {
+                if (!(x is MutePenalty mute))
+                    return false;
+                return x.Target?.Id == user.Id;
+            }) as MutePenalty;
+            if(penalty == null)
+            {
+                // addmute already saves the service
+                penalty = await AddMute(user.Guild.CurrentUser, user, "Detected via role change", null);
+                await user.Guild.PublicUpdatesChannel.SendMessageAsync($"MLAPI has detected that {user.Mention} has been muted.\r\n" +
+                    $"To set a duration for this mute, run the `{Program.Prefix}penalty duration {penalty.Id} [duration, eg 1h25m]` command\r\n" +
+                    $"If a duration is set, the bot will automatically remove the mute once it expires.\r\n" +
+                    $"If a duration is not set, the mute will remain until the role is removed.\r\n" +
+                    $"This bot will automatically delete any messages sent by the muted user, if they can speak.");
+            }
         }
 
         async Task Client_ReactionAdded(Cacheable<IUserMessage, ulong> arg1, ISocketMessageChannel arg2, SocketReaction arg3)
@@ -144,10 +199,7 @@ namespace DiscordBot.Services.Rules
             var algo = new DifferenceHash();
             var hash = algo.Hash(fstream);
             var p = await AddImageBlock(user as SocketGuildUser, null, "Via emoji, none given", null, hash, guildwide: true);
-            await message.DeleteAsync(new RequestOptions()
-            {
-                AuditLogReason = "Adding image block"
-            });
+            await message.DeleteAndTrackAsync($"Violated image block {p.Id}");
             await user.SendMessageAsync($"Added indefinite image block for hash {hash}; id of penalty: ${p.Id}");
         }
 
@@ -169,9 +221,24 @@ namespace DiscordBot.Services.Rules
         public Task<ITextChannel> GetAdminChannel(IGuild guild)
         {
             var srv = Program.Services.GetRequiredService<LoggingService>();
-            return srv.GetChannel(guild, "penalty");
+            var c = srv.GetChannel(guild, "penalty");
+            srv.OnSave();
+            return c;
         }
-    
+
+        public async Task<IRole> GetMutedRole(SocketGuild guild)
+        {
+            IRole mutedRole = guild.Roles.FirstOrDefault(x => x.Name == "Muted");
+            if (mutedRole == null)
+            {
+                mutedRole = await guild.CreateRoleAsync("Muted", permissions: GuildPermissions.None, isMentionable: false);
+                await guild.PublicUpdatesChannel.SendMessageAsync(
+                    $"MLAPI has just created a muted role: {mutedRole.Mention}\r\n" +
+                    "You may want to configure its permissions, though MLAPI will automatically delete messages and configure the channel as the muted user speaks");
+            }
+            return mutedRole;
+        }
+
         public async Task<Penalty> AddPenalty(Penalty penalty)
         {
             var txt = await GetAdminChannel(penalty.Guild);
@@ -215,18 +282,30 @@ namespace DiscordBot.Services.Rules
             return found;
         }
 
+        public Penalty FindPenalty(Func<Penalty, bool> filter)
+        {
+            Lock.WaitOne();
+            try
+            {
+                return Penalties.Values.FirstOrDefault(filter);
+            } finally
+            {
+                Lock.Release();
+            }
+        }
+
         #region Penalties
-        public async Task AddMute(SocketGuildUser op, SocketGuildUser target, string reason, TimeSpan? duration)
+        public async Task<MutePenalty> AddMute(SocketGuildUser op, SocketGuildUser target, string reason, TimeSpan? duration)
         {
-            await AddPenalty(new MutePenalty(op.Guild, op, target, reason, duration));
+            return await AddPenalty(new MutePenalty(op.Guild, op, target, reason, duration)) as MutePenalty;
         }
-        public async Task AddTempBan(SocketGuildUser op, SocketGuildUser target, string reason, TimeSpan? duration)
+        public async Task<Penalty> AddTempBan(SocketGuildUser op, SocketGuildUser target, string reason, TimeSpan? duration)
         {
-            await AddPenalty(new TempBanPenalty(op.Guild, op, target, reason, duration));
+            return await AddPenalty(new TempBanPenalty(op.Guild, op, target, reason, duration));
         }
-        public async Task AddTopicBlock(SocketGuildUser op, SocketGuildUser target, string reason, TimeSpan? duration, string regex, bool ignoreNsfw = false, bool guildwide = false)
+        public async Task<Penalty> AddTopicBlock(SocketGuildUser op, SocketGuildUser target, string reason, TimeSpan? duration, string regex, bool ignoreNsfw = false, bool guildwide = false)
         {
-            await AddPenalty(new TopicBlockPenalty(op.Guild, op, target, reason, duration, regex)
+            return await AddPenalty(new TopicBlockPenalty(op.Guild, op, target, reason, duration, regex)
             {
                 IgnoreNSFW = ignoreNsfw,
                 IsGuildPenalty = guildwide
@@ -287,7 +366,7 @@ namespace DiscordBot.Services.Rules
         public Penalty(SocketGuild guild, IGuildUser op, IGuildUser target, string reason, TimeSpan? duration)
         {
             Guild = guild;
-            Operator = op;
+            Operator = op ?? guild.CurrentUser;
             Target = target;
             IsGuildPenalty = Target == null;
             Reason = reason;
@@ -349,24 +428,24 @@ namespace DiscordBot.Services.Rules
 
         async Task<IRole> GetMutedRole()
         {
-            IRole mutedRole = Guild.Roles.FirstOrDefault(x => x.Name == "Muted");
-            if(mutedRole == null)
-            {
-                mutedRole = await Guild.CreateRoleAsync("Muted", isMentionable: false);
-            }
-            return mutedRole;
+            return await Service.GetMutedRole(Guild);
         }
 
         public override async Task Set()
         {
             var mutedRole = await GetMutedRole();
-            await Target.AddRoleAsync(mutedRole, new RequestOptions()
+            var user = Guild.GetUser(Target.Id);
+            if(user.Roles.Any(x => x.Id == mutedRole.Id) == false)
             {
-                AuditLogReason = $"Muted for {Program.FormatTimeSpan(Duration.Value, true)}"
-            });
+                await Target.AddRoleAsync(mutedRole, new RequestOptions()
+                {
+                    AuditLogReason = $"Muted for {Program.FormatTimeSpan(Duration.Value, true)}"
+                });
+            }
             try
             {
-                await Target.SendMessageAsync($"You have been muted in {Guild.Name} for {Program.FormatTimeSpan(Duration.Value)}");
+                var duration = Duration.HasValue ? "for " + Program.FormatTimeSpan(Duration.Value) : "until further notice";
+                await Target.SendMessageAsync($"You have been muted in {Guild.Name} {duration}");
             } catch { }
             var txt = await Service.GetAdminChannel(Guild);
             await txt.SendMessageAsync(embed: GetBuilder()
@@ -391,10 +470,7 @@ namespace DiscordBot.Services.Rules
                 return;
             var mutedRole = await GetMutedRole();
             await channel.AddPermissionOverwriteAsync(mutedRole, new OverwritePermissions(sendMessages: PermValue.Deny));
-            await message.DeleteAsync(new RequestOptions()
-            {
-                AuditLogReason = "User is muted, message is invalid - channel perms updated"
-            });
+            await message.DeleteAndTrackAsync("User is muted");
         }
     }
 
@@ -506,10 +582,7 @@ namespace DiscordBot.Services.Rules
                     embed.AddField($"{match.Index}", Program.Clamp(match.Value, 256));
                 }
                 await txt.SendMessageAsync(embed: embed.Build());
-                await message.DeleteAsync(new RequestOptions()
-                {
-                    AuditLogReason = $"User prohibited from discussing this topic | {Id}"
-                });
+                await message.DeleteAndTrackAsync($"Violation of topic block {Id}");
                 await this.Escalate(message.Author as SocketGuildUser);
             }
         }
@@ -561,10 +634,7 @@ namespace DiscordBot.Services.Rules
             var sim = CompareHash.Similarity(ImageHash, hash);
             if (sim < 97.5)
                 return;
-            await message.DeleteAsync(new RequestOptions()
-            {
-                AuditLogReason = $"Image {sim:00}% similar to one blocked under {Id}"
-            });
+            await message.DeleteAndTrackAsync($"Image {sim:00}% similar to one blocked under {Id}");
             await this.Escalate(message.Author as SocketGuildUser, $"Similarity: {sim:00.0}%");
         }
 

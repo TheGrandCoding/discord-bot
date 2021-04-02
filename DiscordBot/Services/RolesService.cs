@@ -4,6 +4,7 @@ using DiscordBot.Classes;
 using DiscordBot.Classes.Attributes;
 using DiscordBot.Commands;
 using DiscordBot.Permissions;
+using DiscordBot.Utils;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
@@ -117,7 +118,7 @@ namespace DiscordBot.Services
             {
                 try
                 {
-                    prior.Message.DeleteAsync().Wait();
+                    prior.Message.DeleteAndTrackAsync("new registration message").Wait();
                 } catch { }
             }
             var store = new EmojiStore();

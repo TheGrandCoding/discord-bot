@@ -2,6 +2,7 @@
 using Discord.Commands;
 using Discord.WebSocket;
 using DiscordBot.Services.Games;
+using DiscordBot.Utils;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -86,7 +87,7 @@ namespace DiscordBot.Commands.Modules.Games
             if (inChannel == null)
                 return Error("No game is currently happening in this channel");
             Service.Games.Remove(inChannel);
-            await inChannel.Message.DeleteAsync();
+            await inChannel.Message.DeleteAndTrackAsync("game has ended");
             return Success("Game removed.");
         }
     }

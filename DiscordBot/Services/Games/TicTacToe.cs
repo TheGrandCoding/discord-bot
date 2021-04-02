@@ -47,7 +47,7 @@ namespace DiscordBot.Services.Games
             await Handle(selected, arg.Author as SocketGuildUser, (x, y));
             try
             {
-                await arg.DeleteAsync();
+                await arg.DeleteAndTrackAsync("Removed pursuant to tictactoe game");
             } catch { }
         }
 
@@ -71,7 +71,7 @@ namespace DiscordBot.Services.Games
         {
             var channel = game.Message.Channel;
             var newMsg = await channel.SendMessageAsync(embed: game.ToEmbed());
-            await game.Message.DeleteAsync();
+            await game.Message.DeleteAndTrackAsync("resending game message");
             game.Message = newMsg;
             var _ = Task.Run(game.AddReactions);
         }

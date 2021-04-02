@@ -90,6 +90,35 @@ namespace DiscordBot.Commands.Modules.Rules
 
         }
 
+        [Command("penalty duration")]
+        [RequireUserPermission(GuildPermission.ManageMessages, Group = "or")]
+        [RequireUserPermission(GuildPermission.KickMembers, Group = "or")]
+        public async Task<RuntimeResult> SetDuration(int penaltyId, TimeSpan duration)
+        {
+            if(Service.Penalties.TryGetValue(penaltyId, out var penalty))
+            {
+                var perms = (Context.User as SocketGuildUser).GuildPermissions;
+                if(!(perms.Administrator || perms.ManageGuild))
+                {
+                    if(penalty is MutePenalty || penalty is TopicBlockPenalty || penalty is ImageBlockPenalty)
+                    {
+                        if (!perms.ManageMessages)
+                            return new BotResult($"You do not have permission to perform {penalty.GetType().Name}, so you cannot change its duration");
+                    }
+                    if (penalty is TempBanPenalty)
+                        if(!perms.KickMembers && !perms.BanMembers)
+                            return new BotResult($"You do not have permission to perform {penalty.GetType().Name}, so you cannot change its duration");
+                }
+                penalty.Duration = duration;
+                await ReplyAsync("Duration set.");
+            } else
+            {
+                await ReplyAsync("No penalty by that id");
+                await List();
+            }
+            return new BotResult();
+        }
+
         [Command("mute")]
         [RequireUserPermission(GuildPermission.ManageMessages, Group = "or")]
         public async Task Mute(BotUser target, TimeSpan duration)

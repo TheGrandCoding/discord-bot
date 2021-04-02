@@ -1,4 +1,5 @@
 ﻿using DiscordBot.Classes.Rules;
+using DiscordBot.Utils;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -52,7 +53,7 @@ namespace DiscordBot.Services
             var excess = set.Messages.Skip(i);
             foreach (var thing in excess)
             {
-                thing.DeleteAsync().Wait();
+                thing.DeleteAndTrackAsync("Rules updated and this message is unneeded").Wait();
                 set.Messages.Remove(thing);
                 dirty = true;
             }
