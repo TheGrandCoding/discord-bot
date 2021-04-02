@@ -87,6 +87,7 @@ namespace DiscordBot.Services.Sonarr
 
         private void SonarrWebhooksService_OnGrab(object sender, OnGrabSonarrEvent e)
         {
+            Program.LogMsg($"Starting handler", Discord.LogSeverity.Info, "OnGrab");
             try
             {
                 HandleOnGrabAsync(e).Wait();
@@ -95,6 +96,7 @@ namespace DiscordBot.Services.Sonarr
             {
                 Program.LogMsg(ex, "OnGrab");
             }
+            Program.LogMsg($"Finished handler", Discord.LogSeverity.Info, "OnGrab");
         }
 
         public async Task HandleOnGrabAsync(OnGrabSonarrEvent e)
@@ -226,7 +228,7 @@ namespace DiscordBot.Services.Sonarr
 
         public void Handle(SonarrEvent type)
         {
-            Program.LogMsg($"Waiting lock for {type.EventType}", Discord.LogSeverity.Info, "OnGrab");
+            Program.LogMsg($"Waiting lock for {type.EventType} | {typeof(SonarrEvent)}", Discord.LogSeverity.Info, "OnGrab");
             Lock.WaitOne();
             Program.LogMsg($"Received lock for {type.EventType}", Discord.LogSeverity.Info, "OnGrab");
             try
@@ -234,12 +236,16 @@ namespace DiscordBot.Services.Sonarr
                 if (type is OnTestSonarrEvent t)
                     OnTest?.Invoke(this, t);
                 else if (type is OnGrabSonarrEvent g)
+                {
+                    Program.LogMsg($"Invoking event for OnGrab", Discord.LogSeverity.Info, "OnGrab");
                     OnGrab?.Invoke(this, g);
+                }
                 else if (type is OnDownloadSonarrEvent d)
                     OnDownload?.Invoke(this, d);
             } finally
             {
                 Lock.Release();
+            Program.LogMsg($"Released lock for {type.EventType}", Discord.LogSeverity.Info, "OnGrab");
             }
         }
     }
