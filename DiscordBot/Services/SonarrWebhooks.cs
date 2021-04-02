@@ -33,24 +33,9 @@ namespace DiscordBot.Services.Sonarr
         }
         public override void OnReady()
         {
-            var sv = ReadSave("{}");
-            if(sv.StartsWith("["))
-            {
-                Channels = new List<SaveChannel>();
-                var txt = Program.Deserialise<List<ITextChannel>>(sv);
-                foreach(var x in txt)
-                {
-                    Channels.Add(new SaveChannel()
-                    {
-                        Channel = x,
-                        ShowsPrivate = true
-                    });
-                }
-            } else
-            {
-                var save = Program.Deserialise<Save>(sv);
-                Channels = save.Channels ?? new List<SaveChannel>();
-            }
+            var sv = ReadSave("[]");
+            var save = Program.Deserialise<Save>(sv);
+            Channels = save.Channels ?? new List<SaveChannel>();
         }
 
         public override void OnLoaded()

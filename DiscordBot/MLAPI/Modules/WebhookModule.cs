@@ -19,6 +19,12 @@ namespace DiscordBot.MLAPI.Modules
         [Method("POST"), Path("webhooks/sonarr")]
         public void Sonarr()
         {
+            var srv = Program.Services.GetRequiredService<SonarrWebhooksService>();
+            if(srv.HasFailed)
+            {
+                RespondRaw("Internal error occurer; service has failed.", 500);
+                return;
+            }
             Program.LogMsg($"Received webhook", Discord.LogSeverity.Info, "OnGrab");
             var sonarrEvent = JsonConvert.DeserializeObject<SonarrEvent>(Context.Body);
             Program.LogMsg($"Parsed {sonarrEvent.EventType}", Discord.LogSeverity.Info, "OnGrab");
@@ -27,7 +33,6 @@ namespace DiscordBot.MLAPI.Modules
                 var towrite = JsonConvert.SerializeObject(sonarrEvent, Formatting.Indented);
                 File.WriteAllText("latest" + sonarrEvent.EventType + ".json", towrite);
             } catch { }
-            var srv = Program.Services.GetRequiredService<SonarrWebhooksService>();
             srv.Handle(sonarrEvent);
             RespondRaw("OK");
         }
