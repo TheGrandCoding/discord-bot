@@ -63,7 +63,8 @@ namespace DiscordBot.Services.Radarr
             var embed = new EmbedBuilder();
             var movie = await GetMovie(e.Movie.Id);
             embed.Title = $"{movie.Title} {movie.Year}";
-            embed.Color = Color.Orange;
+            embed.Color = Color.Green;
+            embed.WithFooter("Movie Imported");
             embed.Description = Program.Clamp(movie.Overview, 256);
             embed.ImageUrl = movie.Images.First().RemoteUrl;
             if (!string.IsNullOrWhiteSpace(e.MovieFile.Quality))
@@ -89,6 +90,7 @@ namespace DiscordBot.Services.Radarr
             var movie = await GetMovie(e.Movie.Id);
             var history = await GetHistory(e.Movie.Id);
             embed.Title = $"{movie.Title} {movie.Year}";
+            embed.WithFooter("Movie Grabbed");
             embed.Color = Color.Orange;
             embed.Description = Program.Clamp(movie.Overview, 256);
             embed.ImageUrl = movie.Images.First().RemoteUrl;
