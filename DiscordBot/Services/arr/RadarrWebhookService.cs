@@ -28,7 +28,7 @@ namespace DiscordBot.Services.Radarr
         public Semaphore Lock = new Semaphore(1, 1);
         public HttpClient HTTP { get; private set; }
         public CacheDictionary<int, string> TagsCache { get; } = new CacheDictionary<int, string>(60 * 24);
-        public CacheDictionary<int, string[]> SeriesTagsCache { get; } = new CacheDictionary<int, string[]>(60 * 24); // day
+        public CacheDictionary<int, string[]> MovieTagsCache { get; } = new CacheDictionary<int, string[]>(60 * 24); // day
 
         public override string GenerateSave()
         {
@@ -45,15 +45,79 @@ namespace DiscordBot.Services.Radarr
         }
         public override void OnLoaded()
         {
+            HTTP = new HttpClient();
+            var apiKey = Program.Configuration["tokens:radarr"];
+            Program.LogMsg($"X-API-Key is {(apiKey == null ? "null" : "not null")}", Discord.LogSeverity.Info, "Radarr");
+            HTTP.DefaultRequestHeaders.Add("X-Api-Key", apiKey);
             OnGrab += RadarrWebhookService_OnGrab;
+            OnDownload += RadarrWebhookService_OnDownload;
+        }
+
+        private void RadarrWebhookService_OnDownload(object sender, OnDownloadRadarrEvent e)
+        {
+            HandleRadarrOnDownload(e).Wait();
+        }
+
+        async Task HandleRadarrOnDownload(OnDownloadRadarrEvent e)
+        {
+            var embed = new EmbedBuilder();
+            var movie = await GetMovie(e.Movie.Id);
+            embed.Title = $"{movie.Title} {movie.Year}";
+            embed.Color = Color.Orange;
+            embed.Description = Program.Clamp(movie.Overview, 256);
+            embed.ImageUrl = movie.Images.First().Url;
+            if (!string.IsNullOrWhiteSpace(e.MovieFile.Quality))
+                embed.AddField("Quality", e.MovieFile.Quality, true);
+            foreach (var chnl in Channels)
+            {
+                var shouldSend = await ShouldSendInChannel(e.Movie.Id, chnl);
+                if (shouldSend)
+                {
+                    await chnl.Channel.SendMessageAsync(embed: embed.Build());
+                }
+            }
         }
 
         private void RadarrWebhookService_OnGrab(object sender, OnGrabRadarrEvent e)
         {
-            foreach(var chnl in Channels)
+            HandleRadarrOnGrab(e).Wait();
+        }
+
+        async Task HandleRadarrOnGrab(OnGrabRadarrEvent e)
+        {
+            var embed = new EmbedBuilder();
+            var movie = await GetMovie(e.Movie.Id);
+            var history = await GetHistory(e.Movie.Id);
+            embed.Title = $"{movie.Title} {movie.Year}";
+            embed.Color = Color.Orange;
+            embed.Description = Program.Clamp(movie.Overview, 256);
+            embed.ImageUrl = movie.Images.First().Url;
+            if (!string.IsNullOrWhiteSpace(e.Release.Quality))
+                embed.AddField("Quality", e.Release.Quality, true);
+            var relStr = $"[{e.Release.ReleaseTitle}]({history.Data.NzbInfoUrl})";
+            embed.AddField("Release", relStr, true);
+            foreach (var chnl in Channels)
             {
-                chnl.Channel.SendMessageAsync($"New movie grabbed.");
+                var shouldSend = await ShouldSendInChannel(e.Movie.Id, chnl);
+                if (shouldSend)
+                {
+                    await chnl.Channel.SendMessageAsync(embed: embed.Build());
+                }
             }
+        }
+
+        async Task<RadarrGrabbedHistoryRecord> GetHistory(int movieId)
+        {
+            var url = apiUrl + $"/history/movie?movieId={movieId}&eventType={1}"; // 1=grabbed
+            var response = await HTTP.GetAsync(url);
+            var content = await response.Content.ReadAsStringAsync();
+            var array = JsonConvert.DeserializeObject<List<RadarrHistoryRecord>>(content);
+            foreach(var record in array.OrderByDescending(x => x.Date))
+            {
+                if (record is RadarrGrabbedHistoryRecord gh)
+                    return gh;
+            }
+            return null;
         }
 
         async Task<string> GetTagLabel(int id)
@@ -67,35 +131,35 @@ namespace DiscordBot.Services.Radarr
             return l;
         }
 
-        public async Task<string[]> GetSeriesTags(int seriesId)
+        public async Task<MovieInfo> GetMovie(int movieId)
         {
-            if (SeriesTagsCache.TryGetValue(seriesId, out var v))
-                return v;
-            var request = new HttpRequestMessage(HttpMethod.Get, apiUrl + $"/series/{seriesId}");
+            var request = new HttpRequestMessage(HttpMethod.Get, apiUrl + $"/movie/{movieId}");
             var response = await HTTP.SendAsync(request);
             var content = await response.Content.ReadAsStringAsync();
-            Program.LogMsg($"{seriesId} :: {response.StatusCode}", LogSeverity.Info, "GetSeriesTags");
-            var jobj = JObject.Parse(content);
-            var array = jobj["tags"].ToObject<string[]>();
+            Program.LogMsg($"{movieId} :: {response.StatusCode}", LogSeverity.Info, "GetMovie");
+            var parsed = Program.Deserialise<MovieInfo>(content);
+            return parsed;
+        }
+
+        public async Task<string[]> GetMovieTags(int movieId)
+        {
+            if (MovieTagsCache.TryGetValue(movieId, out var v))
+                return v;
+            var movie = await GetMovie(movieId);
             var parsed = new List<string>();
-            foreach (var tag in array)
+            foreach (var tag in movie.Tags)
             {
-                if (!int.TryParse(tag, out var tagId))
-                {
-                    parsed.Add(tag);
-                    continue;
-                }
-                var label = await GetTagLabel(tagId);
+                var label = await GetTagLabel(tag);
                 parsed.Add(label);
             }
-            SeriesTagsCache.Add(seriesId, parsed.ToArray());
-            Program.LogMsg($"For {seriesId}: [{string.Join(", ", parsed)}]", LogSeverity.Info, "GetSeriesTags");
+            MovieTagsCache.Add(movieId, parsed.ToArray());
+            Program.LogMsg($"For {movieId}: [{string.Join(", ", parsed)}]", LogSeverity.Info, "GetMovieTags");
             return parsed.ToArray();
         }
 
-        public async Task<bool> SeriesHasTag(int seriesId, Func<string, bool> tagPredicate)
+        public async Task<bool> MovieHasTag(int movieId, Func<string, bool> tagPredicate)
         {
-            foreach (var tag in await GetSeriesTags(seriesId))
+            foreach (var tag in await GetMovieTags(movieId))
             {
                 if (tagPredicate(tag))
                     return true;
@@ -103,9 +167,9 @@ namespace DiscordBot.Services.Radarr
             return false;
         }
 
-        public async Task<bool> ShouldSendInChannel(int seriesId, SaveChannel channel)
+        public async Task<bool> ShouldSendInChannel(int movieId, SaveChannel channel)
         {
-            var tags = await GetSeriesTags(seriesId);
+            var tags = await GetMovieTags(movieId);
             if (tags.Contains("private") && channel.ShowsPrivate == false)
                 return false;
             foreach (var required in channel.TagRequired)
@@ -151,18 +215,124 @@ namespace DiscordBot.Services.Radarr
     public abstract class RadarrEvent
     {
         public string EventType { get; set; }
+        public StubMovieInfo Movie { get; set; }
+        public RemoteMovieInfo RemoteMovie { get; set; }
     }
 
     public class OnGrabRadarrEvent : RadarrEvent
     {
+        public string DownloadClient { get; set; }
+        public string DownloadId { get; set; }
+        public MovieReleaseInfo Release { get; set; }
     }
 
     public class OnDownloadRadarrEvent : RadarrEvent
     {
+        public string DownloadId { get; set; }
+        public MovieFile MovieFile { get; set; }
+        public bool isUpgrade { get; set; }
     }
 
     public class OnTestRadarrEvent : RadarrEvent
     {
+    }
+    #endregion
+
+    #region Entities
+    public class StubMovieInfo
+    {
+        public int Id { get; set; }
+        public string Title { get; set; }
+        public DateTime ReleaseDate { get; set; }
+        public string FolderPath { get; set; }
+        public int TmdbId { get; set; }
+    }
+    public class MovieInfo : StubMovieInfo
+    {
+        public string SortTitle { get; set; }
+        public long SizeOnDisk { get; set; }
+        public string Overview { get; set; }
+        public string InCinemas { get; set; }
+        public string PhysicalRelease { get; set; }
+        public MovieImage[] Images { get; set; }
+        public string Website { get; set; }
+        public int Year { get; set; }
+        public bool HasFile { get; set; }
+        public string YouTubeTrailerId { get; set; }
+        public string Studio { get; set; }
+        public string Path { get; set; }
+        public string RootFolderPath { get; set; }
+        public int QualityProfileId { get; set; }
+        public bool Monitored { get; set; }
+        public int Runtime { get; set; }
+        public string[] Genres { get; set; }
+        public int[] Tags { get; set; }
+    }
+    public class MovieImage
+    {
+        public string CoverType { get; set; }
+        public string Url { get; set; }
+    }
+
+    public class RemoteMovieInfo
+    {
+        public int TmdbId { get; set; }
+        public int ImdbId { get; set; }
+        public string Title { get; set; }
+        public int Year { get; set; }
+    }
+    public class MovieReleaseInfo
+    {
+        public string Quality { get; set; }
+        public int QualityVersion { get; set; }
+        public string ReleaseGroup { get; set; }
+        public string ReleaseTitle { get; set; }
+        public string Indexer { get; set; }
+        public long Size { get; set; }
+    }
+    public class MovieFile
+    {
+        public int Id { get; set; }
+        public string RelativePath { get; set; }
+        public string Path { get; set; }
+        public string Quality { get; set; }
+        public int QualityVersion { get; set; }
+        public long Size { get; set; }
+    }
+    [JsonConverter(typeof(JsonSubtypes), "EventType")]
+    [JsonSubtypes.KnownSubType(typeof(RadarrGrabbedHistoryRecord), "grabbed")]
+    [JsonSubtypes.FallBackSubType(typeof(RadarrGenericHistoryRecord))]
+    public abstract class RadarrHistoryRecord
+    {
+        public int Id { get; set; }
+        public int MovieId { get; set; }
+        public string SoruceTitle { get; set; }
+        public JObject Languages { get; set; }
+        public QualityInfo Quality { get; set; }
+        public string EventType { get; set; }
+        public DateTime Date { get; set; }
+    }
+    public class RadarrGrabbedInfo
+    {
+        public string Indexer { get; set; }
+        public string NzbInfoUrl { get; set; }
+        public string ReleaseGroup { get; set; }
+        [JsonProperty("age")]
+        public int AgeDays { get; set; }
+        public double AgeHours { get; set; }
+        public double AgeMinutes { get; set; }
+        public DateTime PublishedDate { get; set; }
+        public long Size { get; set; }
+        public string DownloadUrl { get; set; }
+        public string Guid { get; set; }
+    }
+    public class RadarrGrabbedHistoryRecord : RadarrHistoryRecord
+    {
+        public RadarrGrabbedInfo Data { get; set; }
+    }
+    public class RadarrGenericHistoryRecord : RadarrHistoryRecord
+    {
+        public JObject Data { get; set; }
     }
     #endregion
 }

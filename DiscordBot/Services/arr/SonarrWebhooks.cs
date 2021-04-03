@@ -449,6 +449,7 @@ namespace DiscordBot.Services.Sonarr
     {
         public QualityInfo2 Quality { get; set; }
         public RevisionInfo Proper { get; set; }
+        public RevisionInfo Revision { get; set; }
     }
 
     public class HistoryCollection
