@@ -241,17 +241,15 @@ namespace DiscordBot.Commands.Modules
 
         Dictionary<string, int> GetWords()
         {
-            var wordCounts = WordCount.Values.ToList();
-            wordCounts.Sort();
-            var lQIndex = (int)(wordCounts.Count * 0.25) + 1;
-            var lowerQuartile = wordCounts[lQIndex];
-            var ls = new Dictionary<string, int>();
-            foreach(var x in WordCount)
+            var words = WordCount.OrderByDescending(x => x.Value);
+            var dict = new Dictionary<string, int>();
+            foreach(var keypair in words)
             {
-                if (x.Value >= lowerQuartile)
-                    ls[x.Key] = x.Value;
+                dict[keypair.Key] = keypair.Value;
+                if (dict.Count >= 100)
+                    break;
             }
-            return ls;
+            return dict;
         }
 
         public void SendEmbed()
