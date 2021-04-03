@@ -93,6 +93,7 @@ namespace DiscordBot.Services.Sonarr
                 parsed.Add(label);
             }
             SeriesTagsCache.Add(seriesId, parsed.ToArray());
+            Program.LogMsg($"For {seriesId}: [{string.Join(", ", parsed)}]", LogSeverity.Info, "GetSeriesTags");
             return parsed.ToArray();
         }
 
@@ -112,9 +113,9 @@ namespace DiscordBot.Services.Sonarr
             if (tags.Contains("private") && channel.ShowsPrivate == false)
                 return false;
             foreach (var required in channel.TagRequired)
-                if (tags.Contains(required) == false)
-                    return false;
-            return true;
+                if (tags.Contains(required))
+                    return true;
+            return channel.TagRequired.Count == 0;
         }
 
         private void SonarrWebhooksService_OnGrab(object sender, OnGrabSonarrEvent e)
