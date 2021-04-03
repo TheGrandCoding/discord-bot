@@ -307,7 +307,7 @@ namespace DiscordBot.Services.Radarr
         public int Id { get; set; }
         public int MovieId { get; set; }
         public string SoruceTitle { get; set; }
-        public JObject Languages { get; set; }
+        public JArray Languages { get; set; }
         public QualityInfo Quality { get; set; }
         public string EventType { get; set; }
         public DateTime Date { get; set; }
