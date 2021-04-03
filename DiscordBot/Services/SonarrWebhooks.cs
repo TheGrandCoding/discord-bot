@@ -81,29 +81,41 @@ namespace DiscordBot.Services.Sonarr
             Program.LogMsg($"{seriesId} :: {response.StatusCode}", LogSeverity.Info, "GetSeriesTags");
             var jobj = JObject.Parse(content);
             var array = jobj["tags"].ToObject<string[]>();
-            SeriesTagsCache.Add(seriesId, array);
-            return array;
+            var parsed = new List<string>();
+            foreach (var tag in array)
+            {
+                if (!int.TryParse(tag, out var tagId))
+                {
+                    parsed.Add(tag);
+                    continue;
+                }
+                var label = await GetTagLabel(tagId);
+                parsed.Add(label);
+            }
+            SeriesTagsCache.Add(seriesId, parsed.ToArray());
+            return parsed.ToArray();
         }
 
-        public async Task<bool> IsPrivate(int seriesId)
+        public async Task<bool> SeriesHasTag(int seriesId, Func<string, bool> tagPredicate)
         {
-            foreach(var tag in await GetSeriesTags(seriesId))
+            foreach (var tag in await GetSeriesTags(seriesId))
             {
-                string label;
-                if(int.TryParse(tag, out var id))
-                {
-                    label = await GetTagLabel(id);
-                } else
-                {
-                    label = tag;
-                }
-                if (label == "private")
+                if (tagPredicate(tag))
                     return true;
             }
             return false;
         }
-        public async Task<bool> IsPrivate(FullSeriesInfo info)
-            => await IsPrivate(info.Id);
+
+        public async Task<bool> ShouldSendInChannel(int seriesId, SaveChannel channel)
+        {
+            var tags = await GetSeriesTags(seriesId);
+            if (tags.Contains("private") && channel.ShowsPrivate == false)
+                return false;
+            foreach (var required in channel.TagRequired)
+                if (tags.Contains(required) == false)
+                    return false;
+            return true;
+        }
 
         private void SonarrWebhooksService_OnGrab(object sender, OnGrabSonarrEvent e)
         {
@@ -124,7 +136,6 @@ namespace DiscordBot.Services.Sonarr
             Program.LogMsg($"Handling {e.Series.Title}", LogSeverity.Info, "OnGrab");
             //var episodes = new Dictionary<int, bool>();
             var releases = new List<GrabbedData>();
-            bool is_private = false;
             var builder = new EmbedBuilder();
             builder.Title = "Episodes Grabbed";
             builder.Description = $"{e.Series.Title}; {e.Episodes.Length} episodes found";
@@ -144,7 +155,6 @@ namespace DiscordBot.Services.Sonarr
                 Program.LogMsg($"Got {history.TotalRecords} records", Discord.LogSeverity.Info, "OnGrab");
                 var recentGrab = history.Records.FirstOrDefault(x => x is HistoryGrabbedRecord) as HistoryGrabbedRecord;
                 SeriesTagsCache[e.Series.Id] = recentGrab.Series.Tags;
-                is_private = is_private || await IsPrivate(e.Series.Id);
                 //episodes[episode.Id] = true;
                 var existing = releases.Any(x => x.guid == recentGrab.data.guid);
                 if(!existing)
@@ -159,10 +169,12 @@ namespace DiscordBot.Services.Sonarr
                 relStr += $"[From {rel.indexer} by {rel.releaseGroup} {time}]({rel.nzbInfoUrl})\r\n";
             }
             builder.AddField("Release" + (releases.Count > 1 ? "s" : ""), relStr, false);
-            foreach (var channel in Channels) {
+            foreach (var channel in Channels) 
+            {
                 if (channel.Channel is NullTextChannel)
                     continue;
-                if (is_private && !channel.ShowsPrivate)
+                var check = await ShouldSendInChannel(e.Series.Id, channel);
+                if (check == false)
                     continue;
                 await channel.Channel.SendMessageAsync(embed: builder.Build());
             }
@@ -192,7 +204,6 @@ namespace DiscordBot.Services.Sonarr
                         var diff = DateTime.Now - value.Last;
                         if (diff.TotalMinutes >= 15)
                         {
-                            var isprivate = IsPrivate(keypair.Value.Series.Id).Result;
                             var embed = value.ToEmbed();
                             var toRemove = new List<ITextChannel>();
                             foreach (var txt in Channels)
@@ -203,7 +214,8 @@ namespace DiscordBot.Services.Sonarr
                                     toRemove.Add(chnl);
                                     continue;
                                 }
-                                if (isprivate && txt.ShowsPrivate == false)
+                                var send = ShouldSendInChannel(keypair.Value.Series.Id, txt).Result;
+                                if (send == false)
                                     continue;
                                 try
                                 {
@@ -283,6 +295,9 @@ namespace DiscordBot.Services.Sonarr
         [JsonProperty("p", DefaultValueHandling = DefaultValueHandling.IgnoreAndPopulate)]
         [DefaultValue(false)]
         public bool ShowsPrivate { get; set; }
+
+        [JsonProperty("t")]
+        public List<string> TagRequired { get; set; } = new List<string>();
     }
 
     public class Episodes

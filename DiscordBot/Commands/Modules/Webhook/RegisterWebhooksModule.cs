@@ -65,5 +65,22 @@ namespace DiscordBot.Commands.Modules.Webhook
                 SonarrService.OnSave();
             }
         }
+
+        [Command("tags sonarr")]
+        [RequireOwner]
+        public async Task TagsSonarr(List<string> tags)
+        {
+            var chnl = SonarrService.Channels.FirstOrDefault(x => x.Channel.Id == Context.Channel.Id);
+            if (chnl == null)
+            {
+                await ReplyAsync("No webhook for current channel!");
+            }
+            else
+            {
+                chnl.TagRequired = tags;
+                await ReplyAsync("Channel requires any of these tags to be present: " + string.Join(',', tags));
+                SonarrService.OnSave();
+            }
+        }
     }
 }

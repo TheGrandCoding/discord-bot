@@ -36,7 +36,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.15.13"; 
+        public const string VERSION = "0.15.14"; 
         public const string CHANGELOG = VERSION + @"
 == Permissions changes
 Changed how permissions worked for bot.
@@ -458,6 +458,8 @@ Changed how permissions worked for bot.
 
         static void runStartups()
         {
+            var timerOverall = new Stopwatch();
+            timerOverall.Start();
             Client.SetActivityAsync(new Game($"code v{Program.VER_STR}", ActivityType.Playing));
             var servicesTypes = ReflectiveEnumerator.GetEnumerableOfType<Service>(null).Select(x => x.GetType());
             var services = new List<Service>();
@@ -508,6 +510,17 @@ Changed how permissions worked for bot.
                 return;
             }
             Program.Save(); // for some DailyValidationFailed things.
+            timerOverall.Stop();
+#if !DEBUG
+            try
+            {
+                AppInfo.Owner.SendMessageAsync(embed: new EmbedBuilder()
+                    .WithTitle("Started v" + VER_STR)
+                    .WithDescription($"Bot launched in {timerOverall.ElapsedMilliseconds}ms")
+                    .Build());
+            }
+            catch { }
+#endif
         }
 
         private static async Task ClientReady()
