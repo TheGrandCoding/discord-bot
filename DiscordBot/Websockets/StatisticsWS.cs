@@ -1,5 +1,6 @@
 ﻿using Discord;
 using DiscordBot.Classes;
+using DiscordBot.Commands.Modules;
 using DiscordBot.MLAPI;
 using DiscordBot.MLAPI.Modules.TimeTracking;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,6 +25,26 @@ namespace DiscordBot.Websockets
             {
                 _ip ??= Context.Headers["X-Forwarded-For"] ?? Context.UserEndPoint.Address.ToString();
                 return _ip;
+            }
+        }
+        public int ListeningTo { get; private set; }
+
+        protected override void OnOpen()
+        {
+            var id = Context.QueryString.Get("id");
+            if(int.TryParse(id, out var iii))
+            {
+                if(!StatsModule.AllStats.TryGetValue(iii, out var stats))
+                {
+                    Context.WebSocket.Close(CloseStatusCode.Normal, "No stats exists by that id");
+                } else
+                {
+                    ListeningTo = iii;
+                    Send(stats.GetJson().ToString());
+                }
+            } else
+            {
+                Context.WebSocket.Close(CloseStatusCode.Normal, "ID was not passed in query string");
             }
         }
 

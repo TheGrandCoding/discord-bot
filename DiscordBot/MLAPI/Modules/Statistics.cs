@@ -11,7 +11,7 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("GET"), Path("/statistics")]
-        public void Raw()
+        public void Raw(int id)
         {
             ReplyFile("base.html", 200);
         }

@@ -5,6 +5,7 @@ using DiscordBot.MLAPI;
 using DiscordBot.Permissions;
 using DiscordBot.Services;
 using DiscordBot.Utils;
+using DiscordBot.Websockets;
 using Google.Apis.Util;
 using Markdig.Helpers;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,20 +25,22 @@ namespace DiscordBot.Commands.Modules
     public class StatsModule : BotBase
     {
         //public static Dictionary<ulong, CancellationTokenSource> Tokens = new Dictionary<ulong, CancellationTokenSource>();
-        public static Dictionary<ulong, Statistics> Statistics { get; set; } = new Dictionary<ulong, Statistics>();
+        public static Dictionary<ulong, Statistics> RunningStats { get; set; } = new Dictionary<ulong, Statistics>();
+        public static Dictionary<int, Statistics> AllStats { get; set; } = new Dictionary<int, Statistics>();
+
 
         [Command("run")]
         [Summary("Does some statistics checks in the given channel")]
         public async Task Run(ITextChannel channel, int maximumMessages = 1000, bool includeBots = false)
         {
-            if (Statistics.TryGetValue(channel.Id, out var stats))
+            if (RunningStats.TryGetValue(channel.Id, out var stats))
             {
                 await ReplyAsync("This channel is already being looked at.");
                 return;
             }
-            if (Statistics.Count > 0)
+            if (RunningStats.Count > 0)
             {
-                var existing = Statistics.Keys.First();
+                var existing = RunningStats.Keys.First();
                 await ReplyAsync($"A statistics check is already in progress for <#{existing}>, and only one can occur at a time");
                 return;
             }
@@ -56,7 +59,8 @@ namespace DiscordBot.Commands.Modules
                 IncludeBots = includeBots
             };
             await msg.ModifyAsync(x => x.Embed = stats.ToEmbed().Build());
-            Statistics[channel.Id] = stats;
+            RunningStats[channel.Id] = stats;
+            AllStats[stats.Id] = stats;
             stats.Start();
         }
 
@@ -72,7 +76,7 @@ namespace DiscordBot.Commands.Modules
         [Summary("Stops current stats checks")]
         public async Task Cancel()
         {
-            if (Statistics.TryGetValue(Context.Channel.Id, out var src))
+            if (RunningStats.TryGetValue(Context.Channel.Id, out var src))
             {
                 await ReplyAsync("Stopping...");
                 src.TokenSource.Cancel();
@@ -87,14 +91,21 @@ namespace DiscordBot.Commands.Modules
         [Discord.Commands.RequireOwner]
         public async Task FStop()
         {
-            foreach (var x in Statistics.Values)
+            foreach (var x in RunningStats.Values)
                 x.TokenSource.Cancel();
-            Statistics = new Dictionary<ulong, Statistics>();
+            RunningStats = new Dictionary<ulong, Statistics>();
         }
     }
 
     public class Statistics
     {
+        static int _id = 0;
+        public Statistics()
+        {
+            Id = System.Threading.Interlocked.Increment(ref _id);
+        }
+
+        public int Id { get; set; }
         public void Start()
         {
             var th = new Thread(wrappedThread);
@@ -113,8 +124,6 @@ namespace DiscordBot.Commands.Modules
         public ValueStats AllStats = new ValueStats();
         public DateTime StartedAt { get; set; } = DateTime.Now;
         public DateTime? LastSentUpdate = null;
-
-        static Regex validWordRegex = new Regex(@"[A-za-z0-9]{3,}");
 
         public void Add(IUserMessage message)
         {
@@ -157,7 +166,7 @@ namespace DiscordBot.Commands.Modules
             } 
             finally
             {
-                StatsModule.Statistics.Remove(Channel.Id);
+                StatsModule.RunningStats.Remove(Channel.Id);
             }
         }
 
@@ -209,65 +218,108 @@ namespace DiscordBot.Commands.Modules
                 }
             } while (Remaining > 0 && !Token.IsCancellationRequested && AllStats.TotalSent < Maximum);
             Task.Delay(10_000, Program.GetToken()).Wait();
-            SendUpdate();
+            LastSentUpdate = null;
+            Update();
         }
 
         public void Update()
         {
+            bool sentAny = false;
             if(LastSentUpdate == null || (DateTime.Now - LastSentUpdate.Value).TotalSeconds > 3)
             {
-                LastSentUpdate = DateTime.Now;
-                SendUpdate();
+                sentAny = true;
+                SendWebsockets();
             }
+            if (LastSentUpdate == null || (DateTime.Now - LastSentUpdate.Value).TotalSeconds > 15)
+            {
+                sentAny = true;
+                SendEmbed();
+            }
+            if (sentAny)
+                LastSentUpdate = DateTime.Now;
         }
-        public void SendUpdate()
+
+        Dictionary<string, int> GetWords()
+        {
+            var wordCounts = WordCount.Values.ToList();
+            wordCounts.Sort();
+            var lQIndex = (int)(wordCounts.Count * 0.25) + 1;
+            var lowerQuartile = wordCounts[lQIndex];
+            var ls = new Dictionary<string, int>();
+            foreach(var x in WordCount)
+            {
+                if (x.Value >= lowerQuartile)
+                    ls[x.Key] = x.Value;
+            }
+            return ls;
+        }
+
+        public void SendEmbed()
+        {
+
+            var _ = Task.Run(async () =>
+            {
+                await Status.ModifyAsync(x => x.Embed = ToEmbed().Build());
+                if (Token.IsCancellationRequested || Remaining <= 0)
+                {
+                    await Status.Channel.SendMessageAsync($"Stats checks have finished. See {Status.GetJumpUrl()}");
+                }
+            });
+        }
+
+        public JObject GetJson()
+        {
+            var ordered = Stats.OrderByDescending(x => x.Value.TotalSent).Where(x => x.Key != 0).Select(x => x.Key).ToList();
+            if (ordered.Count > max)
+            {
+                var os = new ValueStats();
+                Stats[0] = os;
+                DisplayNames[0] = $"Other ({max - ordered.Count})";
+                foreach (var other in ordered.Skip(max))
+                {
+                    // new = old + (val - old / n)
+                    var ex = Stats[other];
+                    for (int i = 0; i < ex.TotalSent; i++)
+                    {
+                        os.TotalSent++;
+                        os.AddAverage(ex.AverageLength, ref os.AverageLength);
+                        os.AddAverage(ex.AverageSecondsIntoDay, ref os.AverageSecondsIntoDay);
+                    }
+                }
+                ordered = ordered.Take(max).ToList();
+                ordered.Add(0);
+            }
+            var jobj = new JObject();
+            jobj["total"] = AllStats.ToJson();
+            foreach (var id in ordered)
+            {
+                var stats = Stats[id];
+                var key = DisplayNames.GetValueOrDefault(id, id.ToString());
+                var user = Program.Client.GetUser(id);
+                var obj = new JObject();
+                var usrObj = new JObject();
+                usrObj["username"] = user?.Username ?? key;
+                usrObj["avatar"] = user?.GetAnyAvatarUrl() ?? "n/a";
+                obj["user"] = usrObj;
+                obj["stats"] = stats.ToJson();
+                jobj[id.ToString()] = obj;
+            }
+            jobj["words"] = JObject.FromObject(GetWords());
+            return jobj;
+        }
+
+        public void SendWebsockets()
         {
             var _ = Task.Run(async () =>
             {
-                if (Token.IsCancellationRequested || Remaining <= 0)
+                var jobj = GetJson().ToString();
+                if (WSService.Server.WebSocketServices.TryGetServiceHost($"/statistics", out var host))
                 {
-                    await Status.ModifyAsync(x => x.Embed = ToEmbed().Build());
-                    await Status.Channel.SendMessageAsync($"Stats checks have finished. See {Status.GetJumpUrl()}");
-                }
-                var ordered = Stats.OrderByDescending(x => x.Value.TotalSent).Where(x => x.Key != 0).Select(x => x.Key).ToList();
-                if (ordered.Count > max)
-                {
-                    var os = new ValueStats();
-                    Stats[0] = os;
-                    DisplayNames[0] = $"Other ({max - ordered.Count})";
-                    foreach (var other in ordered.Skip(max))
+                    foreach(var session in host.Sessions.Sessions)
                     {
-                        // new = old + (val - old / n)
-                        var ex = Stats[other];
-                        for (int i = 0; i < ex.TotalSent; i++)
-                        {
-                            os.TotalSent++;
-                            os.AddAverage(ex.AverageLength, ref os.AverageLength);
-                            os.AddAverage(ex.AverageSecondsIntoDay, ref os.AverageSecondsIntoDay);
-                        }
+                        if (session is StatisticsWS ws && ws.ListeningTo == Id)
+                            host.Sessions.SendTo(jobj, ws.ID);
                     }
-                    ordered = ordered.Take(max).ToList();
-                    ordered.Add(0);
-                }
-                var jobj = new JObject();
-                jobj["total"] = AllStats.ToJson();
-                foreach (var id in ordered)
-                {
-                    var stats = Stats[id];
-                    var key = DisplayNames.GetValueOrDefault(id, id.ToString());
-                    var user = Program.Client.GetUser(id);
-                    var obj = new JObject();
-                    var usrObj = new JObject();
-                    usrObj["username"] = user?.Username ?? key;
-                    usrObj["avatar"] = user?.GetAnyAvatarUrl() ?? "n/a";
-                    obj["user"] = usrObj;
-                    obj["stats"] = stats.ToJson();
-                    jobj[id.ToString()] = obj;
-                }
-                jobj["words"] = JObject.FromObject(WordCount);
-                if (WSService.Server.WebSocketServices.TryGetServiceHost("/statistics", out var host))
-                {
-                    host.Sessions.Broadcast(jobj.ToString());
                 }
             });
         }
@@ -283,9 +335,11 @@ namespace DiscordBot.Commands.Modules
             builder.Title = $"Last {Maximum} Messages";
             if (Status.Channel.Id != Channel.Id)
                 builder.Title += " in #" + Channel.Name;
-            builder.Url = Handler.LocalAPIUrl + "/statistics";
+            builder.Url = Handler.LocalAPIUrl + $"/statistics?id={Id}";
             builder.Description = $"Overall statistics:\r\n" + AllStats.ToString() + 
-                $"\r\n[Click here]({builder.Url}) to view stats";
+                $"\r\nUnique words: {WordCount.Count}" +
+                $"\r\nTotal words sent: {WordCount.Values.Sum()}" +
+                $"\r\n[Click here]({builder.Url}) to view stats, with a cool pie chart";
             var duration = DateTime.Now - StartedAt;
             builder.WithFooter($"Elapsed: {duration.Hours:00}:{duration.Minutes:00}:{duration.Seconds:00}");
             return builder;
