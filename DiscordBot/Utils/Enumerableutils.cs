@@ -13,5 +13,10 @@ namespace DiscordBot.Utils
             else
                 dict[key] = new List<TListType>() { value };
         }
+
+        public static void Increment<TKey>(this Dictionary<TKey, int> dict, TKey key)
+        {
+            dict[key] = dict.GetValueOrDefault(key, 0) + 1;
+        }
     }
 }

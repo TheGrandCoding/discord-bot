@@ -6,12 +6,14 @@ using DiscordBot.Permissions;
 using DiscordBot.Services;
 using DiscordBot.Utils;
 using Google.Apis.Util;
+using Markdig.Helpers;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -106,10 +108,13 @@ namespace DiscordBot.Commands.Modules
         public CancellationTokenSource TokenSource { get; set; }
         public CancellationToken Token { get; set; }
         public Dictionary<ulong, ValueStats> Stats { get; set; } = new Dictionary<ulong, ValueStats>();
+        public Dictionary<string, int> WordCount { get; set; } = new Dictionary<string, int>();
         public Dictionary<ulong, string> DisplayNames { get; set; } = new Dictionary<ulong, string>();
         public ValueStats AllStats = new ValueStats();
         public DateTime StartedAt { get; set; } = DateTime.Now;
         public DateTime? LastSentUpdate = null;
+
+        static Regex validWordRegex = new Regex(@"[A-za-z0-9]{3,}");
 
         public void Add(IUserMessage message)
         {
@@ -127,6 +132,14 @@ namespace DiscordBot.Commands.Modules
             AllStats.TotalSent++;
             AllStats.AddAverage(message.Content.Length, ref AllStats.AverageLength);
             AllStats.AddAverage(diff.TotalSeconds, ref AllStats.AverageSecondsIntoDay);
+
+            if (message.Content.StartsWith("$") || message.Content.StartsWith("^"))
+                return;
+            foreach(var word in message.Content.Split(" "))
+            {
+                if (word.Length >= 3 && word.All(x => x.IsAlphaNumeric()))
+                    WordCount.Increment(word);
+            }
         }
 
         public void wrappedThread()
@@ -211,9 +224,11 @@ namespace DiscordBot.Commands.Modules
         {
             var _ = Task.Run(async () =>
             {
-                //await Status.ModifyAsync(x => x.Embed = ToEmbed().Build());
                 if (Token.IsCancellationRequested || Remaining <= 0)
+                {
+                    await Status.ModifyAsync(x => x.Embed = ToEmbed().Build());
                     await Status.Channel.SendMessageAsync($"Stats checks have finished. See {Status.GetJumpUrl()}");
+                }
                 var ordered = Stats.OrderByDescending(x => x.Value.TotalSent).Where(x => x.Key != 0).Select(x => x.Key).ToList();
                 if (ordered.Count > max)
                 {
@@ -249,6 +264,7 @@ namespace DiscordBot.Commands.Modules
                     obj["stats"] = stats.ToJson();
                     jobj[id.ToString()] = obj;
                 }
+                jobj["words"] = JObject.FromObject(WordCount);
                 if (WSService.Server.WebSocketServices.TryGetServiceHost("/statistics", out var host))
                 {
                     host.Sessions.Broadcast(jobj.ToString());
@@ -268,7 +284,7 @@ namespace DiscordBot.Commands.Modules
             if (Status.Channel.Id != Channel.Id)
                 builder.Title += " in #" + Channel.Name;
             builder.Url = Handler.LocalAPIUrl + "/statistics";
-            builder.Description = $"Full statistics thus far: " + AllStats.ToString() + 
+            builder.Description = $"Overall statistics:\r\n" + AllStats.ToString() + 
                 $"\r\n[Click here]({builder.Url}) to view stats";
             var duration = DateTime.Now - StartedAt;
             builder.WithFooter($"Elapsed: {duration.Hours:00}:{duration.Minutes:00}:{duration.Seconds:00}");
