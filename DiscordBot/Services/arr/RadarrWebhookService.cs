@@ -277,7 +277,7 @@ namespace DiscordBot.Services.Radarr
     public class RemoteMovieInfo
     {
         public int TmdbId { get; set; }
-        public int ImdbId { get; set; }
+        public string ImdbId { get; set; }
         public string Title { get; set; }
         public int Year { get; set; }
     }
