@@ -68,7 +68,7 @@ namespace DiscordBot.Commands.Modules.Webhook
 
         [Command("tags sonarr")]
         [RequireOwner]
-        public async Task TagsSonarr(List<string> tags)
+        public async Task TagsSonarr(string[] tags)
         {
             var chnl = SonarrService.Channels.FirstOrDefault(x => x.Channel.Id == Context.Channel.Id);
             if (chnl == null)
@@ -77,7 +77,7 @@ namespace DiscordBot.Commands.Modules.Webhook
             }
             else
             {
-                chnl.TagRequired = tags;
+                chnl.TagRequired = tags.ToList();
                 await ReplyAsync("Channel requires any of these tags to be present: " + string.Join(',', tags));
                 SonarrService.OnSave();
             }
