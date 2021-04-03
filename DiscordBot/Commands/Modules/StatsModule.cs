@@ -147,7 +147,7 @@ namespace DiscordBot.Commands.Modules
             foreach(var word in message.Content.Split(" "))
             {
                 if (word.Length >= 3 && word.All(x => x.IsAlphaNumeric()))
-                    WordCount.Increment(word);
+                    WordCount.Increment(word.ToLower());
             }
         }
 
