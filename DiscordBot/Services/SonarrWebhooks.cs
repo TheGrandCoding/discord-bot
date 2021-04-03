@@ -155,7 +155,6 @@ namespace DiscordBot.Services.Sonarr
                 var history = JsonConvert.DeserializeObject<HistoryCollection>(content);
                 Program.LogMsg($"Got {history.TotalRecords} records", Discord.LogSeverity.Info, "OnGrab");
                 var recentGrab = history.Records.FirstOrDefault(x => x is HistoryGrabbedRecord) as HistoryGrabbedRecord;
-                SeriesTagsCache[e.Series.Id] = recentGrab.Series.Tags;
                 //episodes[episode.Id] = true;
                 var existing = releases.Any(x => x.guid == recentGrab.data.guid);
                 if(!existing)
