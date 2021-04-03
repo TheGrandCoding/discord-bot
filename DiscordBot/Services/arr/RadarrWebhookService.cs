@@ -65,7 +65,7 @@ namespace DiscordBot.Services.Radarr
             embed.Title = $"{movie.Title} {movie.Year}";
             embed.Color = Color.Orange;
             embed.Description = Program.Clamp(movie.Overview, 256);
-            embed.ImageUrl = movie.Images.First().Url;
+            embed.ImageUrl = movie.Images.First().RemoteUrl;
             if (!string.IsNullOrWhiteSpace(e.MovieFile.Quality))
                 embed.AddField("Quality", e.MovieFile.Quality, true);
             foreach (var chnl in Channels)
@@ -91,7 +91,7 @@ namespace DiscordBot.Services.Radarr
             embed.Title = $"{movie.Title} {movie.Year}";
             embed.Color = Color.Orange;
             embed.Description = Program.Clamp(movie.Overview, 256);
-            embed.ImageUrl = movie.Images.First().Url;
+            embed.ImageUrl = movie.Images.First().RemoteUrl;
             if (!string.IsNullOrWhiteSpace(e.Release.Quality))
                 embed.AddField("Quality", e.Release.Quality, true);
             var relStr = $"[{e.Release.ReleaseTitle}]({history.Data.NzbInfoUrl})";
@@ -272,6 +272,7 @@ namespace DiscordBot.Services.Radarr
     {
         public string CoverType { get; set; }
         public string Url { get; set; }
+        public string RemoteUrl { get; set; }
     }
 
     public class RemoteMovieInfo
