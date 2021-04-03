@@ -46,6 +46,8 @@ namespace DiscordBot.Commands.Modules.Webhook
                 s += $"\r\n {chnl.Channel.Id}, {MentionUtils.MentionChannel(chnl.Channel.Id)}";
                 if (chnl.ShowsPrivate)
                     s += " (private)";
+                if (chnl.TagRequired.Count > 0)
+                    s += " [" + string.Join(',', chnl.TagRequired) + "]";
             }
             await ReplyAsync(s);
         }
