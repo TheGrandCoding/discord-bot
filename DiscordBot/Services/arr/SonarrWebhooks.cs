@@ -146,6 +146,8 @@ namespace DiscordBot.Services.Sonarr
             var builder = new EmbedBuilder();
             builder.Title = "Episodes Grabbed";
             builder.Description = $"{e.Series.Title}; {e.Episodes.Length} episodes found";
+            if (!string.IsNullOrWhiteSpace(e.Release.Quality))
+                builder.Description += " at " + e.Release.Quality;
             builder.Color = Color.Orange;
             var tags = await GetSeriesTags(e.Series.Id);
             builder.WithFooter(string.Join(", ", tags));
@@ -174,8 +176,9 @@ namespace DiscordBot.Services.Sonarr
                 if (!existing)
                     releases.Add(recentGrab.data);
                 if(builder.Fields.Count < 23)
-                    builder.AddField($"S{episode.SeasonNumber:00}E{episode.EpisodeNumber:00}", episode.Title 
-                        + "\r\n" + (episode.Quality ?? e.Release.Quality), true);
+                {
+                    builder.AddField($"S{episode.SeasonNumber:00}E{episode.EpisodeNumber:00}", episode.Title, true);
+                }
             }
             var relStr = "";
             if(releases.Count == 1)
@@ -325,26 +328,27 @@ namespace DiscordBot.Services.Sonarr
         public DateTime Last { get; set; }
         public SonarrStubSeries Series { get; set; }
         public List<SonarrEpisode> List { get; set; }
+        public Dictionary<int, SonarrEpisodeFile> Files { get; set; }
         public Episodes(SonarrStubSeries series, IEnumerable<SonarrEpisode> info)
         {
+            Files = new Dictionary<int, SonarrEpisodeFile>();
             Series = series;
             List = info.ToList();
             Last = DateTime.Now;
         }
-        public Episodes(OnDownloadSonarrEvent evnt)
+        public Episodes(OnDownloadSonarrEvent evnt) : this(evnt.Series, new List<SonarrEpisode>())
         {
-            List = new List<SonarrEpisode>();
-            Series = evnt.Series;
             Add(evnt);
         }
         public void Add(OnDownloadSonarrEvent evnt)
         {
             foreach (var x in evnt.Episodes)
-                Add(x);
+                Add(x, evnt.EpisodeFile);
         }
-        public void Add(SonarrEpisode ep)
+        public void Add(SonarrEpisode ep, SonarrEpisodeFile file)
         {
             List.Add(ep);
+            Files.Add(ep.Id, file);
             Last = DateTime.Now;
         }
         public Embed ToEmbed()
@@ -356,8 +360,9 @@ namespace DiscordBot.Services.Sonarr
             builder.WithCurrentTimestamp();
             foreach (var episode in List)
             {
+                var file = Files.GetValueOrDefault(episode.Id);
                 builder.AddField($"S{episode.SeasonNumber:00}E{episode.EpisodeNumber:00}",
-                    $"{episode.Title}, {episode.Quality}", true);
+                    $"{episode.Title}\r\n{(file?.Quality ?? "n/a")}", true);
             }
             return builder.Build();
         }
@@ -440,8 +445,6 @@ namespace DiscordBot.Services.Sonarr
         public string Title { get; set; }
         public DateTime? AirDate { get; set; }
         public DateTime? AirDateUtc { get; set; }
-        public string Quality { get; set; }
-        public int QualityVersion { get; set; }
     }
     public class SonarrRelease
     {
