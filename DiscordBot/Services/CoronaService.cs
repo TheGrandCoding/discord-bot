@@ -235,7 +235,7 @@ namespace DiscordBot.Services
             } catch (Exception ex)
             {
                 Program.LogMsg("CoronaService", ex);
-                HasFailed = true;
+                MarkFailed(ex);
             }
             Console.WriteLine("Corona thread has ended!");
         }

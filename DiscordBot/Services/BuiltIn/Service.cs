@@ -9,6 +9,7 @@ using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -25,7 +26,7 @@ namespace DiscordBot.Services
         /// </summary>
         public virtual bool IsCritical => false;
         public virtual bool IsEnabled => true;
-        public bool HasFailed { get; protected set; }
+        public bool HasFailed { get; private set; }
         
         public virtual int Priority => 0;
 
@@ -67,13 +68,45 @@ namespace DiscordBot.Services
                 return "Started";
             } }
 
-        static void sendErrorToOwner(Service failed, Exception ex)
+        static void sendErrorToOwner(Service failed, string fName, Exception ex)
         {
             var embed = new EmbedBuilder();
-            embed.Title = $"{failed.Name} Error";
+            embed.Title = $"{failed.Name} {fName} Error";
+            var errorText = ex?.ToString() ?? "null";
             embed.Color = failed.IsCritical ? Color.Red : Color.Orange;
-            embed.Description = "```\r\n" + ex?.ToString() + "\r\n```";
-            Program.AppInfo?.Owner.SendMessageAsync(embed: embed.Build());
+            if(errorText.Length > 2000)
+            {
+                // send as file.
+                var path = Path.Combine(Path.GetTempPath(), "exception.txt");
+                File.WriteAllText(path, errorText);
+                Program.AppInfo?.Owner.SendFileAsync(path, embed: embed.Build());
+            } else
+            {
+                embed.Description = "```\r\n" + ex?.ToString() + "\r\n```";
+                Program.AppInfo?.Owner.SendMessageAsync(embed: embed.Build());
+            }
+        }
+
+        private static void MarkFailed(Service srv, string fName, Exception ex)
+        {
+            try
+            {
+                sendErrorToOwner(srv, fName, ex);
+            } catch { }
+        }
+        protected void MarkFailed(Exception ex)
+        {
+            this.HasFailed = true;
+            MarkFailed(this, "General", ex);
+        }
+
+        static Exception findTrueException(Exception ex)
+        {
+            if (ex is TargetInvocationException tie)
+                return findTrueException(tie.InnerException);
+            if (ex is AggregateException ag && ag.InnerExceptions.Count == 1)
+                return ag.InnerExceptions.First();
+            return ex;
         }
 
         static Dictionary<string, bool> doneFunctions = new Dictionary<string, bool>();
@@ -108,15 +141,11 @@ namespace DiscordBot.Services
                                 {
                                     method.Invoke(srv, null);
                                 }
-                                catch (TargetInvocationException tie)
+                                catch (Exception exception)
                                 {
-                                    var ex = tie.InnerException;
+                                    Exception ex = findTrueException(exception);
+                                    MarkFailed(srv, name, ex);
                                     Program.LogMsg(ex, srv.Name);
-                                    srv.HasFailed = true;
-                                    try
-                                    {
-                                        sendErrorToOwner(srv, ex);
-                                    } catch { }
                                     if (srv.IsCritical)
                                         throw ex;
                                 }
@@ -149,11 +178,6 @@ namespace DiscordBot.Services
             catch (Exception ex)
             {
                 Program.LogMsg($"Critical failure on service, must exit: {ex}", Discord.LogSeverity.Critical, name);
-                try
-                {
-                    sendErrorToOwner(null, ex);
-                }
-                catch { }
                 Program.Close(2);
                 return;
             }

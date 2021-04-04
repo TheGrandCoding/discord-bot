@@ -13,6 +13,7 @@ namespace DiscordBot.Services
 {
     public class VidTorService : SavedService
     {
+        public override int DefaultTimeout => base.DefaultTimeout * 3;
         public const string NamePattern = @"(\d{4})-(\d{2})-(\d{2})_([PM])([1-6])";
         public const string LessonPattern = @"1[1-4][ABCDE][A-Z][a-z][1-5]";
         public static string BasePath = Path.Combine(Program.BASE_PATH, "lessons");
@@ -48,21 +49,14 @@ namespace DiscordBot.Services
                 Program.LogMsg((message.Exception?.ToString() ?? "") + message.Message, (Discord.LogSeverity)message.Severity, "VidTor" + message.Source);
                 return Task.CompletedTask;
             };
-            Task.Run(async () =>
-            {
-                try
-                {
-                    await Client.LoginAsync("admin", Program.Configuration["tokens:qbit"] ?? "adminadmin");
-                    var qVersion = await Client.GetApplicationVersionAsync();
-                    var apiVersion = await Client.GetWebApiVersion();
-                    Program.LogMsg($"Running {qVersion} with API {apiVersion}", Discord.LogSeverity.Info, "VidTorqBit");
-                }
-                catch (Exception ex)
-                {
-                    Program.LogMsg(ex, "VidTorqBit");
-                    this.HasFailed = true;
-                }
-            }).Wait();
+            startup().Wait();
+        }
+        async Task startup()
+        {
+            await Client.LoginAsync("admin", Program.Configuration["tokens:qbit"] ?? "adminadmin");
+            var qVersion = await Client.GetApplicationVersionAsync();
+            var apiVersion = await Client.GetWebApiVersion();
+            Program.LogMsg($"Running {qVersion} with API {apiVersion}", Discord.LogSeverity.Info, "VidTorqBit");
         }
         public override void OnLoaded()
         {

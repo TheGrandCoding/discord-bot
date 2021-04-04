@@ -39,14 +39,20 @@ namespace DiscordBot.Services.Sonarr
         public override void OnReady()
         {
             var save = Program.Deserialise<Save>(ReadSave("{}"));
-            Channels = save.Channels ?? new List<SaveChannel>();
+            Channels = new List<SaveChannel>();
+            foreach(var chnl in save.Channels)
+            {
+                if (!(chnl.Channel is NullTextChannel))
+                    Channels.Add(chnl);
+            }
         }
 
         public override void OnLoaded()
         {
             HTTP = new HttpClient();
             var apiKey = Program.Configuration["tokens:sonarr"];
-            Program.LogMsg($"X-API-Key is {(apiKey == null ? "null" : "not null")}", Discord.LogSeverity.Info, "OnGrab");
+            if (string.IsNullOrWhiteSpace(apiKey))
+                throw new ArgumentNullException("Sonarr API Key missing at tokens:sonarr");
             HTTP.DefaultRequestHeaders.Add("X-Api-Key", apiKey);
             var th = new Thread(loop);
             th.Start(Program.GetToken());
@@ -136,11 +142,13 @@ namespace DiscordBot.Services.Sonarr
         {
             Program.LogMsg($"Handling {e.Series.Title}", LogSeverity.Info, "OnGrab");
             //var episodes = new Dictionary<int, bool>();
-            var releases = new List<GrabbedData>();
+            var releases = new List<SonarrGrabbedData>();
             var builder = new EmbedBuilder();
             builder.Title = "Episodes Grabbed";
             builder.Description = $"{e.Series.Title}; {e.Episodes.Length} episodes found";
             builder.Color = Color.Orange;
+            var tags = await GetSeriesTags(e.Series.Id);
+            builder.WithFooter(string.Join(", ", tags));
             foreach (var episode in e.Episodes)
             {
                 //if (episodes.ContainsKey(episode.Id))
@@ -149,24 +157,36 @@ namespace DiscordBot.Services.Sonarr
                 Program.LogMsg($"Sending GET {url}", LogSeverity.Info, "OnGrab");
                 var request = new HttpRequestMessage(HttpMethod.Get, url);
                 var response = await HTTP.SendAsync(request);
-                Program.LogMsg($"{e.Series.Title} {episode.SeasonNumber}{episode.EpisodeNumber} {episode.Id} :: {response.StatusCode}");
+                Program.LogMsg($"{episode.Id} :: {response.StatusCode}");
                 var content = await response.Content.ReadAsStringAsync();
                 Program.LogMsg($"Parsed content to string", Discord.LogSeverity.Info, "OnGrab");
-                var history = JsonConvert.DeserializeObject<HistoryCollection>(content);
-                Program.LogMsg($"Got {history.TotalRecords} records", Discord.LogSeverity.Info, "OnGrab");
-                var recentGrab = history.Records.FirstOrDefault(x => x is HistoryGrabbedRecord) as HistoryGrabbedRecord;
+                var history = JsonConvert.DeserializeObject<SonarrHistoryCollection>(content);
+                Program.LogMsg($"Got {history.Records.Length}/{history.TotalRecords} records", Discord.LogSeverity.Info, "OnGrab");
+                var recentGrab = history.Records.FirstOrDefault(x => x is SonarrHistoryGrabbedRecord) as SonarrHistoryGrabbedRecord;
                 //episodes[episode.Id] = true;
                 var existing = releases.Any(x => x.guid == recentGrab.data.guid);
-                if(!existing)
+                if(builder.ImageUrl == null)
+                {
+                    builder.ImageUrl = (recentGrab.Series.Images.FirstOrDefault(x => x.CoverType == "poster")
+                        ?? recentGrab.Series.Images.First()).Url;
+                }
+                Program.LogMsg($"{episode.Id} :: {recentGrab.Series.Title} {recentGrab.data.guid}");
+                if (!existing)
                     releases.Add(recentGrab.data);
                 if(builder.Fields.Count < 23)
-                    builder.AddField($"S{episode.SeasonNumber:00}E{episode.EpisodeNumber:00}", episode.Title + "\r\n" + episode.Quality, true);
+                    builder.AddField($"S{episode.SeasonNumber:00}E{episode.EpisodeNumber:00}", episode.Title 
+                        + "\r\n" + (episode.Quality ?? e.Release.Quality), true);
             }
             var relStr = "";
-            foreach(var rel in releases)
+            if(releases.Count == 1)
             {
-                var time = Program.FormatTimeSpan(TimeSpan.FromMinutes(rel.ageMinutes), true);
-                relStr += $"[From {rel.indexer} by {rel.releaseGroup} {time}]({rel.nzbInfoUrl})\r\n";
+                relStr = $"[{e.Release.ReleaseTitle}]({releases.First().nzbInfoUrl})";
+            } else
+            {
+                foreach(var rel in releases)
+                {
+                    relStr += $"{rel.nzbInfoUrl}\r\n";
+                }
             }
             builder.AddField("Release" + (releases.Count > 1 ? "s" : ""), relStr, false);
             foreach (var channel in Channels) 
@@ -303,9 +323,9 @@ namespace DiscordBot.Services.Sonarr
     public class Episodes
     {
         public DateTime Last { get; set; }
-        public StubSeriesInfo Series { get; set; }
-        public List<EpisodeInfo> List { get; set; }
-        public Episodes(StubSeriesInfo series, IEnumerable<EpisodeInfo> info)
+        public SonarrStubSeries Series { get; set; }
+        public List<SonarrEpisode> List { get; set; }
+        public Episodes(SonarrStubSeries series, IEnumerable<SonarrEpisode> info)
         {
             Series = series;
             List = info.ToList();
@@ -313,7 +333,7 @@ namespace DiscordBot.Services.Sonarr
         }
         public Episodes(OnDownloadSonarrEvent evnt)
         {
-            List = new List<EpisodeInfo>();
+            List = new List<SonarrEpisode>();
             Series = evnt.Series;
             Add(evnt);
         }
@@ -322,7 +342,7 @@ namespace DiscordBot.Services.Sonarr
             foreach (var x in evnt.Episodes)
                 Add(x);
         }
-        public void Add(EpisodeInfo ep)
+        public void Add(SonarrEpisode ep)
         {
             List.Add(ep);
             Last = DateTime.Now;
@@ -351,24 +371,24 @@ namespace DiscordBot.Services.Sonarr
     public abstract class SonarrEvent
     {
         public string EventType { get; set; }
-        public StubSeriesInfo Series { get; set; }
+        public SonarrStubSeries Series { get; set; }
     }
 
     public abstract class EpisodesSonarrEvent : SonarrEvent
     {
-        public EpisodeInfo[] Episodes { get; set; }
+        public SonarrEpisode[] Episodes { get; set; }
     }
 
     public class OnGrabSonarrEvent : EpisodesSonarrEvent
     {
-        public ReleaseInfo Release { get; set; }
+        public SonarrRelease Release { get; set; }
         public string DownloadClient { get; set; }
         public string DownloadId { get; set; }
     }
 
     public class OnDownloadSonarrEvent : EpisodesSonarrEvent
     {
-        public EpisodeFileInfo EpisodeFile { get; set; }
+        public SonarrEpisodeFile EpisodeFile { get; set; }
         public bool IsUpgrade { get; set; }
     }
 
@@ -379,27 +399,32 @@ namespace DiscordBot.Services.Sonarr
 #endregion
 
 #region Infos
-    public class StubSeriesInfo
+    public class SonarrStubSeries
     {
         public int Id { get; set; }
         public string Title { get; set; }
         public string Path { get; set; }
         public int TvDbId { get; set; }
     }
-    public class SeasonStatus
+    public class SonarrSeasonStatus
     {
         public int SeasonNumber { get; set; }
         public bool Monitored { get; set; }
     }
-    public class FullSeriesInfo : StubSeriesInfo
+    public class SonarrImage
+    {
+        public string CoverType { get; set; }
+        public string Url { get; set; }
+    }
+    public class SonarrSeries : SonarrStubSeries
     {
         public int SeasonCount { get; set; }
         public string Status { get; set; }
         public string Overview { get; set; }
         public string Network { get; set; }
         public string AirTime { get; set; }
-        public JArray Images { get; set; }
-        public List<SeasonStatus> Seasons { get; set; }
+        public SonarrImage[] Images { get; set; }
+        public List<SonarrSeasonStatus> Seasons { get; set; }
         public int Year { get; set; }
         public bool SeasonFolder { get; set; }
         public bool Monitored { get; set; }
@@ -407,7 +432,7 @@ namespace DiscordBot.Services.Sonarr
         public string[] Genres { get; set; }
         public string[] Tags { get; set; }
     }
-    public class EpisodeInfo
+    public class SonarrEpisode
     {
         public int Id { get; set; }
         public int EpisodeNumber { get; set; }
@@ -418,13 +443,14 @@ namespace DiscordBot.Services.Sonarr
         public string Quality { get; set; }
         public int QualityVersion { get; set; }
     }
-    public class ReleaseInfo
+    public class SonarrRelease
     {
+        public string ReleaseTitle { get; set; }
         public string Quality { get; set; }
         public int QualityVersion { get; set; }
         public long Size { get; set; }
     }
-    public class EpisodeFileInfo
+    public class SonarrEpisodeFile
     {
         public int Id { get; set; }
         public string RelativePath { get; set; }
@@ -432,49 +458,49 @@ namespace DiscordBot.Services.Sonarr
         public string Quality { get; set; }
         public int QualityVersion { get; set; }
     }
-    public class QualityInfo2
+    public class SonarrInnerQuality
     {
         public int Id { get; set; }
         public string Name { get; set; }
         public string Source { get; set; }
         public int Resolution { get; set; }
     }
-    public class RevisionInfo
+    public class SonarrRevision
     {
         public int Version { get; set; }
         public int Real { get; set; }
         public bool IsRepack { get; set; }
     }
-    public class QualityInfo
+    public class SonarrQuality
     {
-        public QualityInfo2 Quality { get; set; }
-        public RevisionInfo Proper { get; set; }
-        public RevisionInfo Revision { get; set; }
+        public SonarrInnerQuality Quality { get; set; }
+        public SonarrRevision Proper { get; set; }
+        public SonarrRevision Revision { get; set; }
     }
 
-    public class HistoryCollection
+    public class SonarrHistoryCollection
     {
         [JsonProperty("page")]
         public int Page { get; set; }
         [JsonProperty("totalRecords")]
         public int TotalRecords { get; set; }
         [JsonProperty("records")]
-        public HistoryRecord[] Records { get; set; }
+        public SonarrHistoryRecord[] Records { get; set; }
     }
     [JsonConverter(typeof(JsonSubtypes), "EventType")]
-    [JsonSubtypes.KnownSubType(typeof(HistoryGrabbedRecord), "grabbed")]
-    [JsonSubtypes.FallBackSubType(typeof(HistoryGenericRecord))]
-    public class HistoryRecord
+    [JsonSubtypes.KnownSubType(typeof(SonarrHistoryGrabbedRecord), "grabbed")]
+    [JsonSubtypes.FallBackSubType(typeof(SonarrHistoryGenericRecord))]
+    public class SonarrHistoryRecord
     {
         public int episodeId { get; set; }
         public int seriesId { get; set; }
         public string SourceTitle { get; set; }
         public virtual string EventType { get; set; }
-        public EpisodeInfo Episode { get; set; }
-        public FullSeriesInfo Series { get; set; }
+        public SonarrEpisode Episode { get; set; }
+        public SonarrSeries Series { get; set; }
         public int Id { get; set; }
     }
-    public class GrabbedData
+    public class SonarrGrabbedData
     {
         public string indexer { get; set; }
         public string releaseGroup { get; set; }
@@ -488,12 +514,12 @@ namespace DiscordBot.Services.Sonarr
         public string downloadUrl { get; set; }
         public string guid { get; set; }
     }
-    public class HistoryGrabbedRecord : HistoryRecord
+    public class SonarrHistoryGrabbedRecord : SonarrHistoryRecord
     {
         public override string EventType => "grabbed";
-        public GrabbedData data { get; set; }
+        public SonarrGrabbedData data { get; set; }
     }
-    public class HistoryGenericRecord : HistoryRecord
+    public class SonarrHistoryGenericRecord : SonarrHistoryRecord
     {
         public JObject data { get; set; }
     }

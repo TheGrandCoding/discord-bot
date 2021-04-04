@@ -130,7 +130,7 @@ namespace DiscordBot.Services.Rules
                 } catch(Exception ex)
                 {
                     Program.LogMsg($"PenaltyThread", ex);
-                    this.HasFailed = true;
+                    MarkFailed(ex);
                 }
             }).Start();
 

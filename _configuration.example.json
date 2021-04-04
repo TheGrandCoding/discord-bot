@@ -53,6 +53,7 @@
     "padlock": "<int>",
     "publickey": "<string>",
     "qbit": "<string>",
+    "radarr": "<string>",
     "reddit": {
       "access": "<string>",
       "id": "<string>",

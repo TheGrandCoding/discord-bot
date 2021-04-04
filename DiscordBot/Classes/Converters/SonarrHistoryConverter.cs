@@ -11,15 +11,15 @@ namespace DiscordBot.Classes.Converters
     {
         public override bool CanConvert(Type objectType)
         {
-            return objectType == typeof(HistoryRecord);
+            return objectType == typeof(SonarrHistoryRecord);
         }
 
         public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
         {
             var obj = JObject.ReadFrom(reader);
             if (obj["eventType"].ToObject<string>() == "grabbed")
-                return obj.ToObject<HistoryGrabbedRecord>();
-            return obj.ToObject<HistoryGenericRecord>();
+                return obj.ToObject<SonarrHistoryGrabbedRecord>();
+            return obj.ToObject<SonarrHistoryGenericRecord>();
         }
 
         public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)

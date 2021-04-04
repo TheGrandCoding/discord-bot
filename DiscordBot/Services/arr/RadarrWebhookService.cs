@@ -47,7 +47,8 @@ namespace DiscordBot.Services.Radarr
         {
             HTTP = new HttpClient();
             var apiKey = Program.Configuration["tokens:radarr"];
-            Program.LogMsg($"X-API-Key is {(apiKey == null ? "null" : "not null")}", Discord.LogSeverity.Info, "Radarr");
+            if (string.IsNullOrWhiteSpace(apiKey))
+                throw new ArgumentNullException("Radarr API Key missing at tokens:sonarr");
             HTTP.DefaultRequestHeaders.Add("X-Api-Key", apiKey);
             OnGrab += RadarrWebhookService_OnGrab;
             OnDownload += RadarrWebhookService_OnDownload;
@@ -311,7 +312,7 @@ namespace DiscordBot.Services.Radarr
         public int MovieId { get; set; }
         public string SoruceTitle { get; set; }
         public JArray Languages { get; set; }
-        public QualityInfo Quality { get; set; }
+        public SonarrQuality Quality { get; set; }
         public string EventType { get; set; }
         public DateTime Date { get; set; }
     }
