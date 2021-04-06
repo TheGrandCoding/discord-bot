@@ -6,6 +6,7 @@ using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading;
@@ -161,10 +162,19 @@ namespace DiscordBot.Services.Sonarr
                 var response = await HTTP.SendAsync(request);
                 Program.LogMsg($"{episode.Id} :: {response.StatusCode}");
                 var content = await response.Content.ReadAsStringAsync();
+                try
+                {
+                    var _path = Path.Combine(Path.GetTempPath(), $"{e.Series.Title}_{episode.Id}.json");
+                    File.WriteAllText(_path, content);
+                    await Program.AppInfo.Owner.SendFileAsync(_path);
+                } catch { }
                 Program.LogMsg($"Parsed content to string", Discord.LogSeverity.Info, "OnGrab");
                 var history = JsonConvert.DeserializeObject<SonarrHistoryCollection>(content);
                 Program.LogMsg($"Got {history.Records.Length}/{history.TotalRecords} records", Discord.LogSeverity.Info, "OnGrab");
-                var recentGrab = history.Records.FirstOrDefault(x => x is SonarrHistoryGrabbedRecord) as SonarrHistoryGrabbedRecord;
+
+                var recentGrab = history.Records
+                    .Where(x => x.Series.Id == e.Series.Id)
+                    .FirstOrDefault(x => x is SonarrHistoryGrabbedRecord) as SonarrHistoryGrabbedRecord;
                 //episodes[episode.Id] = true;
                 var existing = releases.Any(x => x.guid == recentGrab.data.guid);
                 if(builder.ImageUrl == null)
