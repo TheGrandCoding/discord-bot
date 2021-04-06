@@ -156,18 +156,18 @@ namespace DiscordBot.Services.Sonarr
             {
                 //if (episodes.ContainsKey(episode.Id))
                 //    continue;
-                var url = apiUrl + $"/history?epsiodeId={episode.Id}";
+                var url = apiUrl + $"/history?sortKey=date&episodeId={episode.Id}";
                 Program.LogMsg($"Sending GET {url}", LogSeverity.Info, "OnGrab");
                 var request = new HttpRequestMessage(HttpMethod.Get, url);
                 var response = await HTTP.SendAsync(request);
                 Program.LogMsg($"{episode.Id} :: {response.StatusCode}");
                 var content = await response.Content.ReadAsStringAsync();
-                try
+                /*try
                 {
                     var _path = Path.Combine(Path.GetTempPath(), $"{e.Series.Title}_{episode.Id}.json");
                     File.WriteAllText(_path, content);
                     await Program.AppInfo.Owner.SendFileAsync(_path);
-                } catch { }
+                } catch { }*/
                 Program.LogMsg($"Parsed content to string", Discord.LogSeverity.Info, "OnGrab");
                 var history = JsonConvert.DeserializeObject<SonarrHistoryCollection>(content);
                 Program.LogMsg($"Got {history.Records.Length}/{history.TotalRecords} records", Discord.LogSeverity.Info, "OnGrab");
