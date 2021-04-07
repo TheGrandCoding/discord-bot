@@ -315,7 +315,15 @@ namespace DiscordBot.MLAPI
         static void handleRequest(APIContext context)
         {
             context.Id = Guid.NewGuid();
-            Console.WriteLine($"{context.Id}: {context.Request.RemoteEndPoint} {context.Request.Url}");
+            if(context == null)
+            {
+                Program.LogMsg("context is null");
+            }
+            if (context.Request == null)
+                Program.LogMsg("context.Request is null");
+            if (context.Request.RemoteEndPoint == null)
+                Program.LogMsg("context.Request.RemoteEndPoint is null");
+            Console.WriteLine($"{(context?.Id.ToString() ?? "null")}: {(context.Request?.RemoteEndPoint?.ToString() ?? "null")} {(context?.Request?.Url.ToString() ?? "null")}");
             var idSplit = context.Id.ToString().Split('-');
             var logger = new RequestLogger(context);
             Func<ErrorJson, int, string> sendError = (ErrorJson reply, int code) =>
