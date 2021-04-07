@@ -38,6 +38,7 @@ namespace DiscordBot.MLAPI.Modules.ServerList
                 return;
             }
             Saved = $"{ip}:{port}";
+            RespondRaw("", 200);
         }
     }
 }
