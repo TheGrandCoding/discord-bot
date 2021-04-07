@@ -7,7 +7,7 @@ namespace DiscordBot.MLAPI.Modules.ServerList
 {
     public class MCServer : APIBase
     {
-        public MCServer(APIContext context) : base(context, "/mc")
+        public MCServer(APIContext context) : base(context, "mc")
         {
         }
 
@@ -17,7 +17,7 @@ namespace DiscordBot.MLAPI.Modules.ServerList
         {
             if(string.IsNullOrWhiteSpace(Saved))
             {
-                RespondRaw("", 404);
+                RespondRaw("", 204);
             } else
             {
                 RespondRaw(Saved, 200);
