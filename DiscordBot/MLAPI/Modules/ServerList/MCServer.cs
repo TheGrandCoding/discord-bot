@@ -24,7 +24,7 @@ namespace DiscordBot.MLAPI.Modules.ServerList
             }
         }
 
-        [Method("PUT"), Path("/mc/hamIp")]
+        [Method("GET"), Path("/mc/sethamIp")]
         public void PostDetails(string ip, string port)
         {
             if(!IPAddress.TryParse(ip, out _))
