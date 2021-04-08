@@ -12,6 +12,7 @@ using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -30,6 +31,7 @@ namespace DiscordBot.Services.Rules
         public Dictionary<int, Penalty> Penalties { get; set; } 
             = new Dictionary<int, Penalty>();
         public Dictionary<ulong, int> Escalations { get; set; } = new Dictionary<ulong, int>();
+        public Dictionary<ulong, int> ChannelMuteEscalations { get; set; } = new Dictionary<ulong, int>();
         public Dictionary<ulong, string> DefaultDurations { get; set; } = new Dictionary<ulong, string>();
         public Semaphore Lock { get; } = new Semaphore(1, 1);
 
@@ -222,24 +224,51 @@ namespace DiscordBot.Services.Rules
 
         async Task Client_ReactionAdded(Cacheable<IUserMessage, ulong> arg1, ISocketMessageChannel arg2, SocketReaction arg3)
         {
-            if (arg3.Emote.Name != "⛔") return;
             if (!(arg2 is ITextChannel channel)) return;
-            var message = await arg1.GetOrDownloadAsync();
-            var user = await channel.GetUserAsync(arg3.UserId);
-            await message.RemoveReactionAsync(arg3.Emote, user);
+            if (arg3.Emote.Name == "⛔")
+                await reactBlockImage(channel, arg1, arg3);
+            else if (arg3.Emote.Name == "❌")
+                await reactBlockChannel(channel, arg1, arg3);
+        }
+
+        async Task reactBlockChannel(ITextChannel channel, Cacheable<IUserMessage, ulong> cacheMsg, SocketReaction reaction)
+        {
+            var message = await cacheMsg.GetOrDownloadAsync();
+            var user = await channel.GetUserAsync(reaction.UserId);
+            await message.RemoveReactionAsync(reaction.Emote, user);
             if (user.GuildPermissions.Administrator == false)
             {
                 await user.SendMessageAsync("You do not have permission to block content for this guild");
                 return;
             }
-            if(message.Attachments.Count == 0)
+            SocketGuildUser author = message.Author as SocketGuildUser;
+            int count = ChannelMuteEscalations.GetValueOrDefault(author.Id, 0);
+            int minutes = (int)Math.Pow(5, count);
+            ChannelMuteEscalations[author.Id] = count + 1;
+            var ts = TimeSpan.FromMinutes(minutes);
+            var p = await AddChannelMute(channel, user as SocketGuildUser, author, "Via emoji, none given", ts);
+            await message.DeleteAndTrackAsync($"Channel muted {p.Id}");
+            await user.SendMessageAsync($"Remove message and denied user permission to talk in {channel.Mention}");
+        }
+
+        async Task reactBlockImage(ITextChannel channel, Cacheable<IUserMessage, ulong> cacheMessage, SocketReaction reaction)
+        {
+            var message = await cacheMessage.GetOrDownloadAsync();
+            var user = await channel.GetUserAsync(reaction.UserId);
+            await message.RemoveReactionAsync(reaction.Emote, user);
+            if (user.GuildPermissions.Administrator == false)
+            {
+                await user.SendMessageAsync("You do not have permission to block content for this guild");
+                return;
+            }
+            if (message.Attachments.Count == 0)
             {
                 await user.SendMessageAsync("To block text content, you must use a topic block via command.");
                 return;
             }
             var attachment = message.Attachments.First();
             var path = Path.Combine(Path.GetTempPath(), $"{message.Id}_{attachment.Filename}");
-            if(File.Exists(path) == false)
+            if (File.Exists(path) == false)
             {
                 using var wc = new WebClient();
                 wc.DownloadFile(attachment.Url, path);
@@ -250,7 +279,8 @@ namespace DiscordBot.Services.Rules
             var hash = algo.Hash(fstream);
             var p = await AddImageBlock(user as SocketGuildUser, null, "Via emoji, none given", null, hash, guildwide: true);
             await message.DeleteAndTrackAsync($"Violated image block {p.Id}");
-            await user.SendMessageAsync($"Added indefinite image block for hash {hash}; id of penalty: ${p.Id}");
+            await user.SendMessageAsync($"Added indefinite image block for hash {hash}; id of penalty: {p.Id}");
+
         }
 
         public override string GenerateSave()
@@ -370,7 +400,10 @@ namespace DiscordBot.Services.Rules
                 IsGuildPenalty = guildwide
             });
         }
-        
+        public async Task<ChannelMutePenalty> AddChannelMute(ITextChannel channel, SocketGuildUser op, SocketGuildUser target, string reason, TimeSpan? duration)
+        {
+            return (ChannelMutePenalty) await AddPenalty(new ChannelMutePenalty(channel, (op ?? target).Guild, op, target, reason, duration));
+        }
         #endregion
 
         public JToken GetSARDataFor(ulong userId)
@@ -454,7 +487,7 @@ namespace DiscordBot.Services.Rules
                     (Duration.HasValue 
                         ? $"\r\nDuration: `{Program.FormatTimeSpan(Duration.Value, true)}`"
                         : "\r\nIndefinite"))
-                .WithColor(Color.Red);
+                .WithColor(Finished ? Color.Green : Color.Red);
             if (Target != null)
                 em.WithAuthor(Target);
             if (withOperator)
@@ -523,6 +556,57 @@ namespace DiscordBot.Services.Rules
             var mutedRole = await GetMutedRole();
             await channel.AddPermissionOverwriteAsync(mutedRole, new OverwritePermissions(sendMessages: PermValue.Deny));
             await message.DeleteAndTrackAsync("User is muted");
+        }
+    }
+
+    public class ChannelMutePenalty : Penalty
+    {
+        public ChannelMutePenalty(ITextChannel channel, SocketGuild guild, IGuildUser op, IGuildUser target, string reason, TimeSpan? duration) : base(guild, op, target, reason, duration)
+        {
+            Channel = channel;
+        }
+
+        public PermValue Prior = PermValue.Inherit;
+
+        public ITextChannel Channel { get; set; }
+
+        public async override Task Set()
+        {
+            var existing = Channel.GetPermissionOverwrite(Target);
+
+            var overwrite = existing.GetValueOrDefault(new OverwritePermissions());
+            Prior = overwrite.SendMessages;
+            overwrite = overwrite.Modify(sendMessages: PermValue.Deny);
+            await Channel.AddPermissionOverwriteAsync(Target, overwrite, new RequestOptions()
+            {
+                AuditLogReason = "User muted from this channel specifically"
+            });
+
+            var txt = await Service.GetAdminChannel(Guild);
+            await txt.SendMessageAsync(embed: GetBuilder()
+                .WithTitle("User Channel Muted")
+                .Build());
+        }
+
+        public async override Task Unset()
+        {
+            var existing = Channel.GetPermissionOverwrite(Target);
+            var overwrite = existing.GetValueOrDefault(new OverwritePermissions());
+            overwrite.Modify(sendMessages: Prior);
+            if(overwrite.ToAllowList().Count == 0 && overwrite.ToDenyList().Count == 0)
+            {
+                await Channel.RemovePermissionOverwriteAsync(Target);
+            } else
+            {
+                await Channel.AddPermissionOverwriteAsync(Target, overwrite, new RequestOptions()
+                {
+                    AuditLogReason = "Removed channel mute"
+                });
+            }
+            var txt = await Service.GetAdminChannel(Guild);
+            await txt.SendMessageAsync(embed: GetBuilder()
+                .WithTitle("Removed Channel Mute")
+                .Build());
         }
     }
 
