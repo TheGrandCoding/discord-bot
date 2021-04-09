@@ -139,6 +139,33 @@ namespace DiscordBot.Services.Sonarr
             Program.LogMsg($"Finished handler", Discord.LogSeverity.Info, "OnGrab");
         }
 
+        public async Task<SonarrHistoryGrabbedRecord> GetHistory(int episodeId, int seriesId, int attempts = 0)
+        {
+            var url = apiUrl + $"/history?sortKey=date&episodeId={episodeId}";
+            Program.LogMsg($"Sending GET{attempts} {url}", LogSeverity.Info, "OnGrab");
+            var request = new HttpRequestMessage(HttpMethod.Get, url);
+            var response = await HTTP.SendAsync(request);
+            Program.LogMsg($"{episodeId} :: {response.StatusCode}");
+            var content = await response.Content.ReadAsStringAsync();
+            Program.LogMsg($"Parsed content to string", Discord.LogSeverity.Info, "OnGrab");
+            var history = JsonConvert.DeserializeObject<SonarrHistoryCollection>(content);
+            Program.LogMsg($"Got {history.Records.Length}/{history.TotalRecords} records", Discord.LogSeverity.Info, "OnGrab");
+
+            var recentGrab = history.Records
+                .Where(x => x.Series.Id == seriesId)
+                .FirstOrDefault(x => x is SonarrHistoryGrabbedRecord) as SonarrHistoryGrabbedRecord;
+            if (recentGrab != null)
+                return recentGrab;
+            Program.LogMsg($"Failed to get history for {episodeId}, waiting then retrying");
+            if(attempts > 1)
+            {
+                Program.LogMsg("Too many attempts, exiting");
+                return null;
+            }
+            Thread.Sleep(1000 * attempts);
+            return await GetHistory(episodeId, seriesId, attempts + 1);
+        }
+
         public async Task HandleOnGrabAsync(OnGrabSonarrEvent e)
         {
             Program.LogMsg($"Handling {e.Series.Title}", LogSeverity.Info, "OnGrab");
@@ -156,25 +183,9 @@ namespace DiscordBot.Services.Sonarr
             {
                 //if (episodes.ContainsKey(episode.Id))
                 //    continue;
-                var url = apiUrl + $"/history?sortKey=date&episodeId={episode.Id}";
-                Program.LogMsg($"Sending GET {url}", LogSeverity.Info, "OnGrab");
-                var request = new HttpRequestMessage(HttpMethod.Get, url);
-                var response = await HTTP.SendAsync(request);
-                Program.LogMsg($"{episode.Id} :: {response.StatusCode}");
-                var content = await response.Content.ReadAsStringAsync();
-                /*try
-                {
-                    var _path = Path.Combine(Path.GetTempPath(), $"{e.Series.Title}_{episode.Id}.json");
-                    File.WriteAllText(_path, content);
-                    await Program.AppInfo.Owner.SendFileAsync(_path);
-                } catch { }*/
-                Program.LogMsg($"Parsed content to string", Discord.LogSeverity.Info, "OnGrab");
-                var history = JsonConvert.DeserializeObject<SonarrHistoryCollection>(content);
-                Program.LogMsg($"Got {history.Records.Length}/{history.TotalRecords} records", Discord.LogSeverity.Info, "OnGrab");
-
-                var recentGrab = history.Records
-                    .Where(x => x.Series.Id == e.Series.Id)
-                    .FirstOrDefault(x => x is SonarrHistoryGrabbedRecord) as SonarrHistoryGrabbedRecord;
+                var recentGrab = await GetHistory(episode.Id, e.Series.Id);
+                if (recentGrab == null)
+                    continue;
                 //episodes[episode.Id] = true;
                 var existing = releases.Any(x => x.guid == recentGrab.data.guid);
                 if(builder.ImageUrl == null)
@@ -194,8 +205,10 @@ namespace DiscordBot.Services.Sonarr
             if(releases.Count == 1)
             {
                 relStr = $"[{e.Release.ReleaseTitle}]({releases.First().nzbInfoUrl})";
-            } else
+            } else if (releases.Count == 0)
             {
+                relStr = "*Failed to get release*";
+            } else {
                 foreach(var rel in releases)
                 {
                     relStr += $"{rel.nzbInfoUrl}\r\n";

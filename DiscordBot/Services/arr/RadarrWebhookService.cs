@@ -97,7 +97,14 @@ namespace DiscordBot.Services.Radarr
             embed.ImageUrl = movie.Images.First().RemoteUrl;
             if (!string.IsNullOrWhiteSpace(e.Release.Quality))
                 embed.AddField("Quality", e.Release.Quality, true);
-            var relStr = $"[{e.Release.ReleaseTitle}]({history.Data.NzbInfoUrl})";
+            string relStr;
+            if(history == null)
+            {
+                relStr = "*Failed to get release*";
+            } else
+            {
+                relStr = $"[{e.Release.ReleaseTitle}]({history.Data.NzbInfoUrl})";
+            }
             embed.AddField("Release", relStr, true);
             foreach (var chnl in Channels)
             {
@@ -109,18 +116,27 @@ namespace DiscordBot.Services.Radarr
             }
         }
 
-        async Task<RadarrGrabbedHistoryRecord> GetHistory(int movieId)
+        async Task<RadarrGrabbedHistoryRecord> GetHistory(int movieId, int attempts = 0)
         {
             var url = apiUrl + $"/history/movie?movieId={movieId}&eventType={1}"; // 1=grabbed
+            Program.LogMsg($"GET{attempts} {url}", LogSeverity.Info, "RadarrGetHistory");
             var response = await HTTP.GetAsync(url);
             var content = await response.Content.ReadAsStringAsync();
             var array = JsonConvert.DeserializeObject<List<RadarrHistoryRecord>>(content);
+            Program.LogMsg($"GET {url} :: {response.StatusCode}, {(array?.Count ?? -1)} items", LogSeverity.Info, "RadarrGetHistory");
             foreach(var record in array.OrderByDescending(x => x.Date))
             {
                 if (record is RadarrGrabbedHistoryRecord gh)
                     return gh;
             }
-            return null;
+            Program.LogMsg($"Failed to find history for {movieId}, waiting then retrying.", LogSeverity.Info, "RadarrGetHistory");
+            if (attempts > 3)
+            {
+                Program.LogMsg($"{movieId} not retrying - too many attempts.", LogSeverity.Info, "RadarrGetHistory");
+                return null;
+            }
+            Thread.Sleep(1000 * attempts);
+            return await GetHistory(movieId, attempts + 1);
         }
 
         async Task<string> GetTagLabel(int id)
