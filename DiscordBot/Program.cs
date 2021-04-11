@@ -295,7 +295,7 @@ Changed how permissions worked for bot.
             } }
         static void fileLog(object sender, LogMessage msg)
         {
-            if (msg.Severity < LogLevel)
+            if ((int)msg.Severity > (int)LogLevel)
                 return;
             lock (_lockObj)
             {
