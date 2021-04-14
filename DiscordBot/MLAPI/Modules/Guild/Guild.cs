@@ -145,6 +145,7 @@ namespace DiscordBot.MLAPI.Modules.Guild
             ruleset.CurrentRules = rules;
             service.Update(ruleset).Wait();
             service.OnSave();
+            RespondRaw("OK", 200);
         }
     }
 }
