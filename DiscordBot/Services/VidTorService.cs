@@ -51,13 +51,22 @@ namespace DiscordBot.Services
             };
             startup().Wait();
         }
+
         async Task startup()
         {
-            await Client.LoginAsync("admin", Program.Configuration["tokens:qbit"] ?? "adminadmin");
-            var qVersion = await Client.GetApplicationVersionAsync();
-            var apiVersion = await Client.GetWebApiVersion();
-            Program.LogMsg($"Running {qVersion} with API {apiVersion}", Discord.LogSeverity.Info, "VidTorqBit");
+            try
+            {
+                await Client.LoginAsync("admin", Program.Configuration["tokens:qbit"] ?? "adminadmin");
+                var qVersion = await Client.GetApplicationVersionAsync();
+                var apiVersion = await Client.GetWebApiVersion();
+                Program.LogMsg($"Running {qVersion} with API {apiVersion}", Discord.LogSeverity.Info, "VidTorqBit");
+            } catch(Exception ex)
+            {
+                Program.LogMsg(ex, "VidTorService");
+                MarkFailed(ex);
+            }
         }
+
         public override void OnLoaded()
         {
             var sv = ReadSave("[]");
