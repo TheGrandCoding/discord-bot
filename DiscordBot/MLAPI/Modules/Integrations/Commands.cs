@@ -2,6 +2,7 @@
 using Discord.Addons.Interactive;
 using Discord.Commands;
 using DiscordBot.Commands;
+using DiscordBot.Services;
 using DiscordBot.Services.BuiltIn;
 using DiscordBot.Utils;
 using Google.Cloud.Translation.V2;
@@ -10,6 +11,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace DiscordBot.MLAPI.Modules.Integrations
@@ -72,20 +74,41 @@ namespace DiscordBot.MLAPI.Modules.Integrations
             if (message.Embeds != null)
                 foreach (var em in message.Embeds)
                     embeds.Add((Embed)em);
+            string fileUrl = null;
             if(message.Attachments != null)
             {
-                foreach(var x in message.Attachments)
+                var diffSeconds = (DateTimeOffset.Now - message.CreatedAt).TotalSeconds;
+                var sleepFor = 10 - diffSeconds;
+                if(sleepFor > 0)
+                { // give logging thread time to download & upload attachment
+                    Thread.Sleep((int)sleepFor * 1000);
+                }
+                var msgService = Program.Services.GetRequiredService<MsgService>();
+                var newAttachment = await msgService.GetSavedAttachment(to.Guild, message.Id);
+                if(newAttachment == null)
                 {
+                    var x = message.Attachments.First();
                     embeds.Add(new EmbedBuilder()
                         .WithTitle(x.Filename)
                         .WithUrl(x.Url)
                         .WithImageUrl(x.Url)
                         .WithFooter("Note: This file link may not work.")
                         .Build());
+                } else
+                {
+                    fileUrl = newAttachment.Url;
                 }
             }
+            string content = message.Content;
+            if(fileUrl != null)
+            {
+                if (string.IsNullOrWhiteSpace(content))
+                    content = fileUrl;
+                else
+                    content += "\r\n" + fileUrl;
+            }
             await webhook.SendMessageAsync(
-                message.Content,
+                content,
                 false,
                 embeds,
                 (message.Author as IGuildUser).Nickname ?? message.Author.Username,

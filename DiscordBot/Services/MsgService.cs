@@ -413,6 +413,34 @@ namespace DiscordBot.Services
             thr.Start(data);
         }
 
+        public Dictionary<ulong, ulong> NewAttachmentMap { get; set; } = new Dictionary<ulong, ulong>();
+
+        public async Task<IAttachment> GetSavedAttachment(IGuild guild, ulong originalId)
+        {
+            downloadLock.WaitOne();
+            try
+            {
+                var service = Program.Services.GetRequiredService<LoggingService>();
+                var chnl = service.GetChannel(guild, "attachment").Result;
+                if (NewAttachmentMap.TryGetValue(originalId, out var newMsgId))
+                {
+                    var msg = await chnl.GetMessageAsync(newMsgId);
+                    return msg?.Attachments.First() ?? null;
+                }
+                var messages = await chnl.GetMessagesAsync(originalId, Direction.After).FlattenAsync();
+                foreach(var msg in messages)
+                {
+                    if (msg.Content.EndsWith(originalId.ToString()))
+                        return msg?.Attachments.First() ?? null;
+                }
+                return null;
+            }
+            finally
+            {
+                downloadLock.Release();
+            }
+        }
+
         Semaphore downloadLock = new Semaphore(1, 1);
         void downloadAttachmentThread(object arg)
         {
@@ -458,6 +486,7 @@ namespace DiscordBot.Services
                 } while (dbMsg == null);
                 dbMsg.Attachments = dbMsg.Attachments.Replace(data.Attachment.Url, message.Attachments.First().Url);
                 _db_.SaveChanges();
+                NewAttachmentMap[data.MessageId] = message.Id;
                 Program.LogMsg($"Completed all {data.Attachment.Url}", LogSeverity.Warning, "Attch");
             }
             catch (Exception ex)
