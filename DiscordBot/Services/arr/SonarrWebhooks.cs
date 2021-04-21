@@ -127,6 +127,13 @@ namespace DiscordBot.Services.Sonarr
 
         private void SonarrWebhooksService_OnGrab(object sender, OnGrabSonarrEvent e)
         {
+            new Thread(handleGrabThread).Start(e);
+        }
+
+        void handleGrabThread(object o)
+        {
+            if (!(o is OnGrabSonarrEvent e))
+                return;
             Program.LogMsg($"Starting handler", Discord.LogSeverity.Info, "OnGrab");
             try
             {
@@ -134,7 +141,7 @@ namespace DiscordBot.Services.Sonarr
             }
             catch (Exception ex)
             {
-                Program.LogMsg(ex, "OnGrab");
+                Program.LogMsg(ex, "OnGrab:" + e.DownloadId ?? "");
             }
             Program.LogMsg($"Finished handler", Discord.LogSeverity.Info, "OnGrab");
         }
@@ -157,7 +164,7 @@ namespace DiscordBot.Services.Sonarr
             if (recentGrab != null)
                 return recentGrab;
             Program.LogMsg($"Failed to get history for {episodeId}, waiting then retrying");
-            if(attempts > 1)
+            if(attempts > 10)
             {
                 Program.LogMsg("Too many attempts, exiting");
                 return null;

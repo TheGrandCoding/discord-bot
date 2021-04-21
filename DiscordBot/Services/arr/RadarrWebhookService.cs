@@ -82,7 +82,20 @@ namespace DiscordBot.Services.Radarr
 
         private void RadarrWebhookService_OnGrab(object sender, OnGrabRadarrEvent e)
         {
-            HandleRadarrOnGrab(e).Wait();
+            new Thread(handleOnSeparateThread).Start(e);
+        }
+
+        void handleOnSeparateThread(object o)
+        {
+            if (!(o is OnGrabRadarrEvent e))
+                return;
+            try
+            {
+                HandleRadarrOnGrab(e).Wait();
+            } catch(Exception ex)
+            {
+                Program.LogMsg(ex, "Radarr " + e.DownloadId ?? "");
+            }
         }
 
         async Task HandleRadarrOnGrab(OnGrabRadarrEvent e)
@@ -130,7 +143,7 @@ namespace DiscordBot.Services.Radarr
                     return gh;
             }
             Program.LogMsg($"Failed to find history for {movieId}, waiting then retrying.", LogSeverity.Info, "RadarrGetHistory");
-            if (attempts > 3)
+            if (attempts > 10)
             {
                 Program.LogMsg($"{movieId} not retrying - too many attempts.", LogSeverity.Info, "RadarrGetHistory");
                 return null;
