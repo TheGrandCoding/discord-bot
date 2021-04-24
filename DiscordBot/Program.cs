@@ -2,6 +2,7 @@
 using Discord.Addons.Interactive;
 using Discord.Commands;
 using Discord.Rest;
+using Discord.SlashCommands;
 using Discord.WebSocket;
 using DiscordBot.Classes;
 using DiscordBot.Classes.Attributes;
@@ -36,7 +37,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.15.26"; 
+        public const string VERSION = "0.16.0"; 
         public const string CHANGELOG = VERSION + @"
 == Permissions changes
 Changed how permissions worked for bot.
@@ -209,6 +210,8 @@ Changed how permissions worked for bot.
                 client.Ready += ClientReady;
                 Commands = Services.GetRequiredService<CommandService>();
                 Commands.Log += LogAsync;
+                var slsh = Services.GetRequiredService<SlashCommandService>();
+                slsh.Log += LogAsync;
                 var genericType = typeof(BotTypeReader<>);
                 foreach (Type type in
                     Assembly.GetAssembly(genericType).GetTypes()
@@ -226,6 +229,7 @@ Changed how permissions worked for bot.
 
                 // Here we initialize the logic required to register our commands.
                 await Services.GetRequiredService<CommandHandlingService>().InitializeAsync();
+                await slsh.AddModulesAsync(Assembly.GetEntryAssembly(), Services);
 
                 try
                 {
@@ -351,8 +355,9 @@ Changed how permissions worked for bot.
             var coll = new ServiceCollection()
                 .AddSingleton(new DiscordSocketClient(new DiscordSocketConfig
                 {
-                    LogLevel = LogSeverity.Info,
-                    MessageCacheSize = 1000
+                    LogLevel = LogSeverity.Debug,
+                    MessageCacheSize = 1000,
+                    AlwaysAcknowledgeInteractions = false
                 }))
                 .AddSingleton(new CommandService(new CommandServiceConfig
                 {
@@ -362,6 +367,7 @@ Changed how permissions worked for bot.
                 }))
                 .AddSingleton<CommandHandlingService>()
                 .AddSingleton<InteractiveService>();
+            coll.AddSingleton(new SlashCommandService());
             coll.AddDbContext<LogContext>(ServiceLifetime.Transient);
             coll.AddDbContext<ChessDbContext>(options =>
             {
@@ -526,6 +532,14 @@ Changed how permissions worked for bot.
         private static async Task ClientReady()
         {
             AppInfo = await Client.GetApplicationInfoAsync();
+            var slsh = Services.GetRequiredService<SlashCommandService>();
+#if DEBUG
+            var guildIds = new List<ulong>() { 420240046428258304 };
+#else
+            var guildIds = Client.Guilds.Select(x => x.Id).ToList();
+#endif
+            await slsh.RegisterCommandsAsync(Client, guildIds, new CommandRegistrationOptions(OldCommandOptions.DELETE_UNUSED, ExistingCommandOptions.OVERWRITE));
+            Client.InteractionCreated += slsh.ExecuteAsync;
             var th = new Thread(runStartups);
             th.Name = "clientReady";
             th.Start();

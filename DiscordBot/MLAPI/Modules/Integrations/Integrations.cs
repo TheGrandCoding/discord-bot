@@ -135,7 +135,8 @@ namespace DiscordBot.MLAPI.Modules.Integrations
             }
         }
 
-        [Method("POST"), Path("/interactions/discord")]
+        //[Method("POST"), Path("/interactions/discord")]
+        // Now receiving over gateway.
         public void Receive()
         {
             var ping = Program.Deserialise<Interaction>(Context.Body);

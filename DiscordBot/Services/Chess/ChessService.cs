@@ -21,7 +21,7 @@ namespace DiscordBot.Services
 {
     public class ChessService : Service, ISARProvider
     {
-        public override bool IsEnabled => true;
+        public override bool IsEnabled => false;
         public override bool IsCritical => true;
         public static int PlayerIdMax = 0;
         public static Dictionary<Guid, ChessTimedGame> TimedGames = new Dictionary<Guid, ChessTimedGame>();
@@ -798,14 +798,7 @@ namespace DiscordBot.Services
             {
                 Program.LogMsg($"Failed to load Chess", ex);
                 LoadException = ex.Message;
-                try
-                {
-                    LogAdmin(new EmbedBuilder()
-                        .WithTitle("Failed to Start")
-                        .WithColor(Color.Red)
-                        .WithDescription($"```\n{ex}```"));
-                }
-                catch { }
+                
             }
         }
 

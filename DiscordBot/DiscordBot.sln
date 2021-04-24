@@ -8,7 +8,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DiscordBot", "DiscordBot.cs
 		{8D5D910F-4EF8-4E96-A614-E6C29B80670E} = {8D5D910F-4EF8-4E96-A614-E6C29B80670E}
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "qBitApi", "..\qBitApi\qBitApi.csproj", "{8D5D910F-4EF8-4E96-A614-E6C29B80670E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "qBitApi", "..\qBitApi\qBitApi.csproj", "{8D5D910F-4EF8-4E96-A614-E6C29B80670E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

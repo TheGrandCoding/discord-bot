@@ -1,5 +1,6 @@
 ﻿using DiscordBot.Classes.Chess;
 using DiscordBot.Classes.HTMLHelpers.Objects;
+using DiscordBot.MLAPI.Attributes;
 using DiscordBot.Services;
 using Microsoft.Extensions.DependencyInjection;
 using System;
@@ -9,6 +10,7 @@ using System.Text;
 
 namespace DiscordBot.MLAPI.Modules
 {
+    [RequireService(typeof(ChessService))]
     public abstract class ChessBase : AuthedAPIBase
     {
         public ChessBase(APIContext c, string path) : base(c, path)

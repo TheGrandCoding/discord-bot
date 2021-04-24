@@ -144,6 +144,13 @@ namespace DiscordBot.Classes.Chess
             => AppealsRelations.AsQueryable().Where(x => x.AppealHearingId == id);
 
         #endregion
+    
+        public override void Dispose()
+        {
+            Program.LogMsg("Disposing ChessDB", LogSeverity.Info, "ChessDbContext");
+            base.Dispose();
+        }
+
     }
 
     [DebuggerDisplay("{Id} {Name} {Permission}")]
