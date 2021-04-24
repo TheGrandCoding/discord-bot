@@ -23,6 +23,9 @@ namespace DiscordBot.SlashCommands
         }
         public WebhookService Webhooks { get; }
 
+        const int maximumMoveCount = 512;
+        const int maximumHoursAgo = 12;
+
         private async Task MoveMsg(IUserMessage message, ITextChannel to)
         {
             var webhook = await Webhooks.GetWebhookClientAsync(to);
@@ -74,6 +77,39 @@ namespace DiscordBot.SlashCommands
             await message.DeleteAndTrackAsync("moving message");
         }
     
+        async Task<List<IUserMessage>> fetchMessages(ITextChannel from, int maxAmount, DateTime date)
+        {
+            var messages = new List<IUserMessage>();
+            IUserMessage last = null;
+            do
+            {
+                IEnumerable<IMessage> gotten;
+                if (last == null)
+                    gotten = await from.GetMessagesAsync().FlattenAsync();
+                else
+                    gotten = await from.GetMessagesAsync(last, Direction.Before).FlattenAsync();
+                var ordered = gotten.OrderByDescending(x => x.Id);
+                last = ordered.LastOrDefault(x => x is IUserMessage) as IUserMessage;
+                foreach (var listMsg in ordered)
+                {
+                    if (!(listMsg is IUserMessage msg))
+                        continue;
+                    if (msg.CreatedAt < date)
+                    {
+                        break;
+                    }
+                    messages.Add(msg);
+                    if (messages.Count >= maxAmount)
+                        break;
+                }
+                if(gotten.Count() < 100) // not a complete fetch, so we're at end of channel
+                {
+                    break;
+                }
+            } while (last == null || (last.CreatedAt > date && messages.Count < maxAmount));
+            return messages;
+        }
+
         [SlashCommand("last", "Moves the latest [amount] messages to the selected channel")]
         public async Task MoveBatch(int amount, SocketGuildChannel toChannel)
         {
@@ -90,16 +126,24 @@ namespace DiscordBot.SlashCommands
                 await Interaction.RespondAsync(":x: You do not have permission to execute this command", type: InteractionResponseType.ChannelMessageWithSource, flags: InteractionResponseFlags.Ephemeral);
                 return;
             }
-            await Interaction.AcknowledgeAsync();
-            var _m = await from.GetMessagesAsync((int)amount).FlattenAsync();
-            foreach (var msg in _m.OrderBy(x => x.CreatedAt))
-            {
-                if (msg is IUserMessage umsg)
+            var messages = await fetchMessages(from, Math.Min(amount, maximumMoveCount), DateTime.Now.AddHours(-maximumHoursAgo));
+            var response = await Interaction.FollowupAsync($"Moving {messages.Count} messages.") as IUserMessage;
+            DateTime last = DateTime.Now;
+            int done = 0;
+            foreach (var msg in messages.OrderBy(x => x.Id))
+            { // oldest first
+                await MoveMsg(msg, to);
+                done++;
+                if ((DateTime.Now - last).TotalSeconds > 5)
                 {
-                    await MoveMsg(umsg, to);
+                    last = DateTime.Now;
+                    await response.ModifyAsync(x =>
+                    {
+                        x.Content = $"Moved {done}/{messages.Count} ({(done / messages.Count) * 100:00}%)";
+                    });
                 }
             }
-            await Interaction.FollowupAsync($"Moved {_m.Count()} messages.");
+            await response.ModifyAsync(x => x.Content = $"Moved {messages.Count} messages.");
         }
 
         [SlashCommand("after", "Moves the provided message, and all that follow it, to the channel")]
@@ -126,7 +170,7 @@ namespace DiscordBot.SlashCommands
                 return;
             }
             var date = Discord.SnowflakeUtils.FromSnowflake(messageId);
-            if(Math.Abs((DateTime.Now - date).TotalHours) > 2)
+            if(Math.Abs((DateTime.Now - date).TotalHours) > maximumHoursAgo)
             {
                 await Interaction.RespondAsync(":x: Message was sent too long ago.", type: InteractionResponseType.ChannelMessage, flags: InteractionResponseFlags.Ephemeral);
                 return;
@@ -135,42 +179,29 @@ namespace DiscordBot.SlashCommands
 
             // oldest   --> youngest
             // smallest --> largest; snowflake
-            var messages = new List<IUserMessage>();
-            
-            IUserMessage last = null;
-            do
-            {
-                IEnumerable<IMessage> gotten;
-                if (last == null)
-                    gotten = await from.GetMessagesAsync(5).FlattenAsync();
-                else
-                    gotten = await from.GetMessagesAsync(last, Direction.Before, 5).FlattenAsync();
-                var ordered = gotten.OrderByDescending(x => x.Id);
-                last = ordered.LastOrDefault(x => x is IUserMessage) as IUserMessage;
-                foreach(var listMsg in ordered)
-                {
-                    if (!(listMsg is IUserMessage msg))
-                        continue;
-                    if(msg.CreatedAt < date)
-                    {
-                        if (msg.Id < messageId)
-                            break;
-                    }
-                    messages.Add(msg);
-
-                }
-
-            } while(last == null || last.CreatedAt > date);
-            if(messages.Count > 512)
+            var messages = await fetchMessages(from, maximumMoveCount * 2, date.DateTime);
+            if(messages.Count > maximumMoveCount)
             {
                 await Interaction.FollowupAsync(":x: Too many messages to move.");
                 return;
             }
-            foreach(var msg in messages.OrderBy(x => x.Id))
+            var response = await Interaction.FollowupAsync($"Moving {messages.Count} messages.") as IUserMessage;
+            DateTime last = DateTime.Now;
+            int done = 0;
+            foreach (var msg in messages.OrderBy(x => x.Id))
             { // oldest first
                 await MoveMsg(msg, to);
+                done++;
+                if((DateTime.Now - last).TotalSeconds > 5)
+                {
+                    last = DateTime.Now;
+                    await response.ModifyAsync(x =>
+                    {
+                        x.Content = $"Moved {done}/{messages.Count} ({(done/messages.Count)*100:00}%)";
+                    });
+                }
             }
-            await Interaction.FollowupAsync($"Moved {messages.Count} messages.");
+            await response.ModifyAsync(x => x.Content = $"Moved {messages.Count} messages.");
         }
     
     }
