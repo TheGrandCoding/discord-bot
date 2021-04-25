@@ -6,12 +6,12 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DiscordBot.SlashCommands
+namespace DiscordBot.SlashCommands.Modules
 {
     public class Translate : BotSlashBase
     {
         [SlashCommand("translate", "Translates the provided text into English")]
-        public async Task TranslateCmd(string message, string language = null) 
+        public async Task TranslateCmd([Required]string message, string language = null) 
         {
             string fromLanguage = null;
             if (language != null)

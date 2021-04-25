@@ -253,7 +253,7 @@ namespace DiscordBot.Services
             var existing = db.Invites.FirstOrDefault(x => x.Id == cast(usr.Id));
             if (existing != null)
                 return existing.Code;
-            var created = SystemChannel.CreateInviteAsync(0, 0, true, true, new RequestOptions() { AuditLogReason = $"For {player.Name}; {usr.Id}" }).Result;
+            var created = SystemChannel.CreateInviteAsync(0, 0, true, true, options: new RequestOptions() { AuditLogReason = $"For {player.Name}; {usr.Id}" }).Result;
             db.Invites.Add(new ChessInvite()
             {
                 Id = cast(usr.Id),

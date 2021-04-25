@@ -12,7 +12,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace DiscordBot.SlashCommands
+namespace DiscordBot.SlashCommands.Modules
 {
     [CommandGroup("move", "Move messages")]
     public class Move : BotSlashBase
@@ -111,7 +111,7 @@ namespace DiscordBot.SlashCommands
         }
 
         [SlashCommand("last", "Moves the latest [amount] messages to the selected channel")]
-        public async Task MoveBatch(int amount, SocketGuildChannel toChannel)
+        public async Task MoveBatch([Required]int amount, [Required]SocketGuildChannel toChannel)
         {
             if (!(toChannel is SocketTextChannel to))
             {
@@ -148,8 +148,9 @@ namespace DiscordBot.SlashCommands
 
         [SlashCommand("after", "Moves the provided message, and all that follow it, to the channel")]
         public async Task MoveAfter(
-            [ParameterName("messageId")]string strMsgId, 
-            SocketGuildChannel toChannel)
+            [ParameterName("messageId")]
+            [Required]string strMsgId,
+            [Required]SocketGuildChannel toChannel)
         {
             if(!(toChannel is SocketTextChannel to))
             {
