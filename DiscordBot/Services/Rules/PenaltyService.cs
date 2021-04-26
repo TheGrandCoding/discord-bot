@@ -592,7 +592,7 @@ namespace DiscordBot.Services.Rules
         {
             var existing = Channel.GetPermissionOverwrite(Target);
             var overwrite = existing.GetValueOrDefault(new OverwritePermissions());
-            overwrite.Modify(sendMessages: Prior);
+            overwrite = overwrite.Modify(sendMessages: Prior);
             if(overwrite.ToAllowList().Count == 0 && overwrite.ToDenyList().Count == 0)
             {
                 await Channel.RemovePermissionOverwriteAsync(Target);
