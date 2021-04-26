@@ -39,7 +39,7 @@
     <PackageReference Include="CheAle14.EduLinkDLL" Version="0.0.4-alpha06" />
     <PackageReference Include="CoenM.ImageSharp.ImageHash" Version="1.0.0" />
     <PackageReference Include="Discord.Addons.Interactive" Version="2.3.1" />
-    <PackageReference Include="Discord.Net" Version="2.3.2-alpha08" />
+    <PackageReference Include="Discord.Net" Version="2.3.2-alpha10" />
     <PackageReference Include="Google.Apis.YouTube.v3" Version="1.50.0.2238" />
     <PackageReference Include="Google.Cloud.Translation.V2" Version="2.0.0" />
     <PackageReference Include="Html2Markdown" Version="4.0.0.427" />
@@ -94,6 +94,10 @@
     <None Update="opus.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="SlashCommands\Attributes\" />
   </ItemGroup>
 
 </Project>

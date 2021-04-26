@@ -111,6 +111,7 @@ namespace DiscordBot.SlashCommands.Modules
         }
 
         [SlashCommand("last", "Moves the latest [amount] messages to the selected channel")]
+        [RequireUserPermission(ChannelPermission.ManageMessages)]
         public async Task MoveBatch([Required]int amount, [Required]SocketGuildChannel toChannel)
         {
             if (!(toChannel is SocketTextChannel to))
@@ -120,10 +121,9 @@ namespace DiscordBot.SlashCommands.Modules
             }
             var from = Interaction.Channel;
             var fromPerms = Interaction.Member.GetPermissions(from);
-            var toPerms = Interaction.Member.GetPermissions(to);
-            if(!(toPerms.ManageMessages && fromPerms.ManageMessages))
+            if(!fromPerms.ManageMessages)
             {
-                await Interaction.RespondAsync(":x: You do not have permission to execute this command", type: InteractionResponseType.ChannelMessageWithSource, flags: InteractionResponseFlags.Ephemeral);
+                await Interaction.RespondAsync($":x: You do not have permission to move messages to {to.Mention}", type: InteractionResponseType.ChannelMessageWithSource, flags: InteractionResponseFlags.Ephemeral);
                 return;
             }
             var messages = await fetchMessages(from, Math.Min(amount, maximumMoveCount), DateTime.Now.AddHours(-maximumHoursAgo));
@@ -147,6 +147,7 @@ namespace DiscordBot.SlashCommands.Modules
         }
 
         [SlashCommand("after", "Moves the provided message, and all that follow it, to the channel")]
+        [RequireUserPermission(ChannelPermission.ManageMessages)]
         public async Task MoveAfter(
             [ParameterName("messageId")]
             [Required]string strMsgId,
@@ -159,15 +160,14 @@ namespace DiscordBot.SlashCommands.Modules
             }
             var from = Interaction.Channel;
             var fromPerms = Interaction.Member.GetPermissions(from);
-            var toPerms = Interaction.Member.GetPermissions(to);
             if (!ulong.TryParse(strMsgId, out var messageId))
             {
                 await Interaction.RespondAsync(":x: You must enter a message id - a long number.", type: InteractionResponseType.ChannelMessage, flags: InteractionResponseFlags.Ephemeral);
                 return;
             }
-            if (!(toPerms.ManageMessages && fromPerms.ManageMessages))
+            if (!fromPerms.ManageMessages)
             {
-                await Interaction.RespondAsync(":x: You do not have permission to execute this command", type: InteractionResponseType.ChannelMessageWithSource, flags: InteractionResponseFlags.Ephemeral);
+                await Interaction.RespondAsync($":x: You do not have permission to move mesages to {to.Mention}", type: InteractionResponseType.ChannelMessageWithSource, flags: InteractionResponseFlags.Ephemeral);
                 return;
             }
             var date = Discord.SnowflakeUtils.FromSnowflake(messageId);

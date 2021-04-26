@@ -539,7 +539,7 @@ Changed how permissions worked for bot.
             var guildIds = Client.Guilds.Select(x => x.Id).ToList();
 #endif
             await slsh.RegisterCommandsAsync(Client, guildIds, new CommandRegistrationOptions(OldCommandOptions.DELETE_UNUSED, ExistingCommandOptions.OVERWRITE));
-            Client.InteractionCreated += slsh.ExecuteAsync;
+            Client.InteractionCreated += async (SocketInteraction x) => await slsh.ExecuteAsync(x, Services);
             var th = new Thread(runStartups);
             th.Name = "clientReady";
             th.Start();
