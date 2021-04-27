@@ -81,7 +81,7 @@ namespace DiscordBot.SlashCommands.Modules
             [Required] 
             string strid, 
             [Required]
-            [ParameterName("voiceChannel")]
+            [ParameterName("voice-channel")]
             SocketGuildChannel chnl)
         {
             if(!(chnl is SocketVoiceChannel vc))

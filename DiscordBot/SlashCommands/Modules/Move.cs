@@ -112,9 +112,9 @@ namespace DiscordBot.SlashCommands.Modules
 
         [SlashCommand("last", "Moves the latest [amount] messages to the selected channel")]
         [RequireUserPermission(ChannelPermission.ManageMessages)]
-        public async Task MoveBatch([Required]int amount, [Required]SocketGuildChannel toChannel)
+        public async Task MoveBatch([Required]int amount, [Required]SocketGuildChannel chnl)
         {
-            if (!(toChannel is SocketTextChannel to))
+            if (!(chnl is SocketTextChannel to))
             {
                 await Interaction.RespondAsync(":x: You must select a text channel.", type: InteractionResponseType.ChannelMessage, flags: InteractionResponseFlags.Ephemeral);
                 return;
@@ -151,9 +151,9 @@ namespace DiscordBot.SlashCommands.Modules
         public async Task MoveAfter(
             [ParameterName("messageId")]
             [Required]string strMsgId,
-            [Required]SocketGuildChannel toChannel)
+            [Required]SocketGuildChannel chnl)
         {
-            if(!(toChannel is SocketTextChannel to))
+            if (!(chnl is SocketTextChannel to))
             {
                 await Interaction.RespondAsync(":x: You must select a text channel.", type: InteractionResponseType.ChannelMessage, flags: InteractionResponseFlags.Ephemeral);
                 return;

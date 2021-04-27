@@ -539,7 +539,37 @@ Changed how permissions worked for bot.
             var guildIds = Client.Guilds.Select(x => x.Id).ToList();
 #endif
             await slsh.RegisterCommandsAsync(Client, guildIds, new CommandRegistrationOptions(OldCommandOptions.DELETE_UNUSED, ExistingCommandOptions.OVERWRITE));
-            Client.InteractionCreated += async (SocketInteraction x) => await slsh.ExecuteAsync(x, Services);
+            Client.InteractionCreated += async (SocketInteraction x) =>
+            {
+                try
+                {
+                    var result = await slsh.ExecuteAsync(x, Services);
+                    if(!result.IsSuccess && result is ExecuteResult exec && exec.Exception != null)
+                    {
+                        Program.LogMsg("SlashCommandInvoke", exec.Exception);
+                        try
+                        {
+                            await x.RespondAsync(":x: Internal exception occured whilst handling this command: " + exec.Exception.Message);
+                        } catch { }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Program.LogMsg($"{x.Id} {x.Member?.Id ?? 0} {ex}", LogSeverity.Error, "InteractionCreated");
+                    try
+                    {
+                        await x.RespondAsync($":x: Encountered an internal error attempting that command: {ex.Message}");
+                    }
+                    catch
+                    {
+                        try
+                        {
+                            await x.FollowupAsync($":x: Encountered an internal error attempting that command: {ex.Message}");
+                        }
+                        catch { }
+                    }
+                }
+            };
             var th = new Thread(runStartups);
             th.Name = "clientReady";
             th.Start();
