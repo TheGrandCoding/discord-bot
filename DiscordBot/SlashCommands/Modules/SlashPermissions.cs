@@ -18,34 +18,41 @@ namespace DiscordBot.SlashCommands.Modules
         [SlashCommand("list", "Lists all commands in guild; optionally only those with the prefix")]
         public async Task ListCommands(string prefix = null, int page = 0)
         {
-            await Interaction.AcknowledgeAsync();
-            var commands = await Interaction.Guild.GetGuildCommandsAsync();
-            var pages = new List<EmbedBuilder>();
-            var embed = new EmbedBuilder();
-            bool f = !string.IsNullOrWhiteSpace(prefix);
-            embed.Title = "Slash Commands" + (f ? " /" + prefix : "");
-            embed.Description = "";
-            foreach(var cmd in commands)
+            try
             {
-                var row = getCmdRow(cmd) + "\r\n";
-                if(embed.Description.Length + row.Length > 2048)
+                await Interaction.AcknowledgeAsync();
+                var commands = await Interaction.Guild.GetGuildCommandsAsync();
+                var pages = new List<EmbedBuilder>();
+                var embed = new EmbedBuilder();
+                bool f = !string.IsNullOrWhiteSpace(prefix);
+                embed.Title = "Slash Commands" + (f ? " /" + prefix : "");
+                embed.Description = "";
+                foreach(var cmd in commands)
                 {
-                    embed.WithFooter($"Page {pages.Count}");
-                    pages.Add(embed);
-                    embed = new EmbedBuilder();
-                    embed.Title = "Slash Commands" + (f ? " /" + prefix : "");
-                    embed.Description = "";
+                    var row = getCmdRow(cmd) + "\r\n";
+                    if(embed.Description.Length + row.Length > 2048)
+                    {
+                        embed.WithFooter($"Page {pages.Count}");
+                        pages.Add(embed);
+                        embed = new EmbedBuilder();
+                        embed.Title = "Slash Commands" + (f ? " /" + prefix : "");
+                        embed.Description = "";
+                    }
+                    embed.Description += row;
                 }
-                embed.Description += row;
+                embed.WithFooter($"Page {pages.Count}");
+                pages.Add(embed);
+                if(page < 0 || page >= pages.Count)
+                {
+                    await Interaction.FollowupAsync($":x: Index out of range: [0:{pages.Count - 1}]");
+                    return;
+                }
+                await Interaction.FollowupAsync(embed: pages[page].Build());
             }
-            embed.WithFooter($"Page {pages.Count}");
-            pages.Add(embed);
-            if(page < 0 || page >= pages.Count)
+            catch (Exception ex)
             {
-                await Interaction.FollowupAsync($":x: Index out of range: [0:{pages.Count - 1}]");
-                return;
+                Program.LogMsg("CmdList", ex);
             }
-            await Interaction.FollowupAsync(embed: pages[page].Build());
         }
 
         string getCmdRow(RestApplicationCommand cmd)
