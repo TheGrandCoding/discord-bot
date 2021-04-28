@@ -37,7 +37,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.16.0"; 
+        public const string VERSION = "0.16.1"; 
         public const string CHANGELOG = VERSION + @"
 == Permissions changes
 Changed how permissions worked for bot.
@@ -346,7 +346,11 @@ Changed how permissions worked for bot.
 
         public static string getDbString(string database)
         {
+#if DEBUG
+            var config = "Data Source=(localdb)\\MSSQLLocalDB;Initial Catalog={0};Integrated Security=True;Connect Timeout=30;Encrypt=False;TrustServerCertificate=False;ApplicationIntent=ReadWrite;MultiSubnetFailover=False";
+#else
             var config = Configuration["tokens:db"];
+#endif
             return string.Format(config, database);
         }
 

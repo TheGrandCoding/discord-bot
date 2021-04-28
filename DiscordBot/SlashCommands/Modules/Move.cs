@@ -15,6 +15,7 @@ using System.Threading.Tasks;
 namespace DiscordBot.SlashCommands.Modules
 {
     [CommandGroup("move", "Move messages")]
+    [DefaultDisabled]
     public class Move : BotSlashBase
     {
         public Move()

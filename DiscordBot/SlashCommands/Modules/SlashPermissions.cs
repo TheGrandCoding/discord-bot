@@ -18,7 +18,7 @@ namespace DiscordBot.SlashCommands.Modules
         [SlashCommand("list", "Lists all commands in guild; optionally only those with the prefix")]
         public async Task ListCommands(string prefix = null, int page = 0)
         {
-            await Interaction.AcknowledgeAsync();
+            await Interaction.AcknowledgeAsync(flags: InteractionResponseFlags.Ephemeral);
             var commands = await Interaction.Guild.GetGuildCommandsAsync();
             var pages = new List<EmbedBuilder>();
             var embed = new EmbedBuilder();
@@ -93,7 +93,14 @@ namespace DiscordBot.SlashCommands.Modules
                         flags: InteractionResponseFlags.Ephemeral);
                     return;
                 }
-                var cmdPerms = await Interaction.Guild.GetGuildCommandPermissionsAsync(id);
+                var cmd = await getCommand(id);
+                if(cmd == null)
+                {
+                    await Interaction.RespondAsync(":x: Command does not exist",
+                        flags: InteractionResponseFlags.Ephemeral);
+                    return;
+                }
+                var cmdPerms = await cmd.GetPermissionsAsync(Interaction.Guild);
                 if (cmdPerms == null)
                 {
                     await Interaction.RespondAsync("Command has no permissions",
@@ -108,6 +115,7 @@ namespace DiscordBot.SlashCommands.Modules
                     return;
                 }
                 var sb = new StringBuilder();
+                sb.Append("Default: " + emote(cmd.DefaultPermission) + "\r\n");
                 foreach (var thing in perms)
                 {
                     if (thing.Type == ApplicationCommandPermissionType.User)
@@ -117,10 +125,48 @@ namespace DiscordBot.SlashCommands.Modules
                     sb.Append(" " + emote(thing.Permission));
                     sb.Append("\r\n");
                 }
-                await Interaction.RespondAsync($"Command permissions:\r\n{sb}");
+                await Interaction.RespondAsync($"Command permissions:\r\n{sb}",
+                    allowedMentions: AllowedMentions.None);
             }
 
-            [SlashCommand("user", "Get or set the permission for a user for the command")]
+            async Task manageThing(ulong id, ulong thingId, ApplicationCommandPermissionType thingType, bool? value)
+            {
+                await Interaction.AcknowledgeAsync(flags: InteractionResponseFlags.Ephemeral);
+                try
+                {
+                    RestApplicationCommand command = await getCommand(id);
+                    if (command == null)
+                    {
+                        await Interaction.FollowupAsync(":x: Command does not exist");
+                        return;
+                    }
+                    var existingPerms = await command.GetPermissionsAsync(Interaction.Guild);
+                    var permBuilder = SlashCommandPermsBuilder.From(existingPerms);
+                    var existingValue = permBuilder.Get(thingId);
+                    if (value.HasValue)
+                    {
+                        if (existingValue != value.Value)
+                        {
+                            permBuilder.With(thingId, thingType, value.Value);
+                            await command.ModifyPermissionsAsync(Interaction.Guild, x => { x.Permissions = permBuilder.Build(); });
+                        }
+                        await Interaction.FollowupAsync("Done!");
+                    }
+                    else
+                    {
+                        if (!existingValue.HasValue)
+                            await Interaction.FollowupAsync($"{thingType} has no explicit permission set.");
+                        else
+                            await Interaction.FollowupAsync($"{thingType} permission for command: " + emote(existingValue.Value));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Program.LogMsg(ex, "a");
+                }
+            }
+
+            [SlashCommand("user", "Get or set the permission for a user to use the command")]
             public async Task GetUserOverwrite(
                 [ParameterName("command-id")]
                 [Required]
@@ -133,41 +179,61 @@ namespace DiscordBot.SlashCommands.Modules
                         flags: InteractionResponseFlags.Ephemeral);
                     return;
                 }
-                await Interaction.AcknowledgeAsync();
-                try
-                {
-                    RestApplicationCommand command = await getCommand(id);
-                    if(command == null)
-                    {
-                        await Interaction.FollowupAsync(":x: Command does not exist");
-                        return;
-                    }
-                    var existingPerms = await command.GetPermissionsAsync(Interaction.Guild);
-                    var permBuilder = SlashCommandPermsBuilder.From(existingPerms);
-                    var existingValue = permBuilder.Get(user);
-                    if(value.HasValue)
-                    {
-                        if(existingValue != value.Value)
-                        {
-                            permBuilder.With(user, value.Value);
-                            await command.ModifyPermissionsAsync(Interaction.Guild, x => { x.Permissions = permBuilder.Build(); });
-                        }
-                        await Interaction.FollowupAsync("Done!");
-                    } else {
-                        if (!existingValue.HasValue)
-                            await Interaction.FollowupAsync("User has no explicit permission set.");
-                        else
-                            await Interaction.FollowupAsync("User permission for command: " + emote(existingValue.Value));
-                    }
-                }catch (Exception ex)
-                {
-                    Program.LogMsg(ex, "a");
-                }
+                await manageThing(id, user.Id, ApplicationCommandPermissionType.User, value);
             }
         
-            public async error_errrr SetDefaultOverwrite()
+            [SlashCommand("role", "Get or set the permission for a role to use the command")]
+            public async Task RoleOverwrite(
+                [ParameterName("command-id")]
+                [Required]
+                string strId,
+                [Required] SocketRole role, bool? value = null)
+            {
+                if (!ulong.TryParse(strId, out var id))
+                {
+                    await Interaction.RespondAsync(":x: Id must be a valid ulong.",
+                        flags: InteractionResponseFlags.Ephemeral);
+                    return;
+                }
+                await manageThing(id, role.Id, ApplicationCommandPermissionType.Role, value);
+            }
+
+            [SlashCommand("default", "Set whether this command is enabled for @everyone by default")]
+            public async Task SetDefaultOverwrite(
+                [ParameterName("command-id")]
+                [Required]
+                string strId, bool value)
             {
                 // TODO:
+                if (!ulong.TryParse(strId, out var id))
+                {
+                    await Interaction.RespondAsync(":x: Id must be a valid ulong.",
+                        flags: InteractionResponseFlags.Ephemeral);
+                    return;
+                }
+                var cmd = await getCommand(id);
+                if (cmd == null)
+                {
+                    await Interaction.RespondAsync(":x: Command does not exist",
+                        flags: InteractionResponseFlags.Ephemeral);
+                    return;
+                }
+                if(cmd is RestGlobalCommand glb)
+                {
+                    await glb.ModifyPermissionsAsync(Interaction.Guild, x =>
+                    {
+                        x.Permissions = new SlashCommandPermsBuilder()
+                            .With(Interaction.Guild.Id, ApplicationCommandPermissionType.Role, value) // @everyone role
+                            .Build();
+                    });
+                    await Interaction.RespondAsync("Done!\r\nNote: due to a Discord bug, the command will appear greyed out but will still be executable.",
+                        flags: InteractionResponseFlags.Ephemeral);
+                } else if(cmd is RestGuildCommand gld)
+                {
+                    await gld.ModifyAsync(x => x.DefaultPermission = value);
+                    await Interaction.RespondAsync("Done!",
+                        flags: InteractionResponseFlags.Ephemeral);
+                }
             }
         }
     }
