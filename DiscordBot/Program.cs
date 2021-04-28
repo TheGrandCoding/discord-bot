@@ -37,7 +37,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.16.1"; 
+        public const string VERSION = "0.16.2"; 
         public const string CHANGELOG = VERSION + @"
 == Permissions changes
 Changed how permissions worked for bot.
@@ -537,7 +537,7 @@ Changed how permissions worked for bot.
         {
             AppInfo = await Client.GetApplicationInfoAsync();
             var slsh = Services.GetRequiredService<SlashCommandService>();
-#if DEBUG
+#if !DEBUG
             var guildIds = new List<ulong>() { 420240046428258304 };
 #else
             var guildIds = Client.Guilds.Select(x => x.Id).ToList();
