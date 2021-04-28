@@ -87,46 +87,53 @@ namespace DiscordBot.SlashCommands.Modules
             [SlashCommand("list", "Get all permission overwrites for the provided command")]
             public async Task ListCmdOverwrites([ParameterName("command-id")][Required]string strId)
             {
-                if (!ulong.TryParse(strId, out var id))
+                try
                 {
-                    await Interaction.RespondAsync(":x: Command ID must be a valid ulong",
-                        flags: InteractionResponseFlags.Ephemeral);
-                    return;
+                    if (!ulong.TryParse(strId, out var id))
+                    {
+                        await Interaction.RespondAsync(":x: Command ID must be a valid ulong",
+                            flags: InteractionResponseFlags.Ephemeral);
+                        return;
+                    }
+                    var cmd = await getCommand(id);
+                    if(cmd == null)
+                    {
+                        await Interaction.RespondAsync(":x: Command does not exist",
+                            flags: InteractionResponseFlags.Ephemeral);
+                        return;
+                    }
+                    var cmdPerms = await cmd.GetPermissionsAsync(Interaction.Guild);
+                    if (cmdPerms == null)
+                    {
+                        await Interaction.RespondAsync("Command has no permissions",
+                            flags: InteractionResponseFlags.Ephemeral);
+                        return;
+                    }
+                    var perms = cmdPerms.Permissions;
+                    if (perms.Count == 0)
+                    {
+                        await Interaction.RespondAsync("Command has no permissions.",
+                            flags: InteractionResponseFlags.Ephemeral);
+                        return;
+                    }
+                    var sb = new StringBuilder();
+                    sb.Append("Default: " + emote(cmd.DefaultPermission) + "\r\n");
+                    foreach (var thing in perms)
+                    {
+                        if (thing.Type == ApplicationCommandPermissionType.User)
+                            sb.Append($"User <@!{thing.Id}>");
+                        else
+                            sb.Append($"Role <&{thing.Id}>");
+                        sb.Append(" " + emote(thing.Permission));
+                        sb.Append("\r\n");
+                    }
+                    await Interaction.RespondAsync($"Command permissions:\r\n{sb}",
+                        allowedMentions: AllowedMentions.None);
                 }
-                var cmd = await getCommand(id);
-                if(cmd == null)
+                catch (Exception ex)
                 {
-                    await Interaction.RespondAsync(":x: Command does not exist",
-                        flags: InteractionResponseFlags.Ephemeral);
-                    return;
+                    Program.LogMsg(ex, "ListSlash");
                 }
-                var cmdPerms = await cmd.GetPermissionsAsync(Interaction.Guild);
-                if (cmdPerms == null)
-                {
-                    await Interaction.RespondAsync("Command has no permissions",
-                        flags: InteractionResponseFlags.Ephemeral);
-                    return;
-                }
-                var perms = cmdPerms.Permissions;
-                if (perms.Count == 0)
-                {
-                    await Interaction.RespondAsync("Command has no permissions.",
-                        flags: InteractionResponseFlags.Ephemeral);
-                    return;
-                }
-                var sb = new StringBuilder();
-                sb.Append("Default: " + emote(cmd.DefaultPermission) + "\r\n");
-                foreach (var thing in perms)
-                {
-                    if (thing.Type == ApplicationCommandPermissionType.User)
-                        sb.Append($"User <@!{thing.Id}>");
-                    else
-                        sb.Append($"Role <&{thing.Id}>");
-                    sb.Append(" " + emote(thing.Permission));
-                    sb.Append("\r\n");
-                }
-                await Interaction.RespondAsync($"Command permissions:\r\n{sb}",
-                    allowedMentions: AllowedMentions.None);
             }
 
             async Task manageThing(ulong id, ulong thingId, ApplicationCommandPermissionType thingType, bool? value)

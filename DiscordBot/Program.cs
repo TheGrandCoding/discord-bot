@@ -547,7 +547,9 @@ Changed how permissions worked for bot.
             {
                 try
                 {
+                    Program.LogMsg($"Executing interaction {x.Id}", LogSeverity.Debug, "Interactions");
                     var result = await slsh.ExecuteAsync(x, Services);
+                    Program.LogMsg($"Executed interaction {x.Id}: {result.IsSuccess} {result.Error} {result.ErrorReason}", LogSeverity.Info, "Interaction");
                     if(!result.IsSuccess && result is ExecuteResult exec && exec.Exception != null)
                     {
                         Program.LogMsg("SlashCommandInvoke", exec.Exception);
