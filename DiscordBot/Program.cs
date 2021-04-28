@@ -359,7 +359,7 @@ Changed how permissions worked for bot.
             var coll = new ServiceCollection()
                 .AddSingleton(new DiscordSocketClient(new DiscordSocketConfig
                 {
-                    LogLevel = LogSeverity.Info,
+                    LogLevel = LogSeverity.Debug,
                     MessageCacheSize = 1000,
                     AlwaysAcknowledgeInteractions = false
                 }))
