@@ -18,7 +18,7 @@ namespace DiscordBot.SlashCommands.Modules
         [SlashCommand("list", "Lists all commands in guild; optionally only those with the prefix")]
         public async Task ListCommands(string prefix = null, int page = 0)
         {
-            await Interaction.AcknowledgeAsync(flags: InteractionResponseFlags.Ephemeral);
+            await Interaction.AcknowledgeAsync();
             var commands = await Interaction.Guild.GetGuildCommandsAsync();
             var pages = new List<EmbedBuilder>();
             var embed = new EmbedBuilder();
