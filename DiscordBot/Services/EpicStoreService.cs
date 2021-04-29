@@ -83,6 +83,8 @@ namespace DiscordBot.Services
             {
                 if (Program.DailyValidateFailed())
                     return;
+                if (Channels.Count == 0)
+                    return;
                 var games = GetPromotions();
                 if(DateTime.Now.DayOfWeek == DayOfWeek.Thursday)
                     CurrentSale(games);
@@ -111,6 +113,8 @@ namespace DiscordBot.Services
         {
             var games = response.Data.Catalog.SearchStore.Elements;
             var thing = games.FirstOrDefault(x => x.EffectiveDate.DayOfYear == DateTime.Now.DayOfYear);
+            if (thing == null)
+                return;
             var builder = new EmbedBuilder();
             builder.Timestamp = thing.EffectiveDate;
             builder.Title = $"Free Game Today";
