@@ -33,7 +33,7 @@ namespace DiscordBot.Services
             var weightDictionary = new Dictionary<string, int>();
             if(MessagesDeletedByBot.TryGetValue(message.Id, out var botDelReason))
             {
-                weightDictionary[$"mlapi: {botDelReason}"] = 1;
+                weightDictionary[$"mlapi: {botDelReason}"] = 666;
                 return weightDictionary;
             }
             _auditLogLock.WaitOne();
@@ -99,6 +99,7 @@ namespace DiscordBot.Services
         public override void OnLoaded()
         {
             Program.Client.MessageDeleted += Client_MessageDeleted;
+            Program.Client.MessagesBulkDeleted += Client_MessagesBulkDeleted;
             Program.Client.MessageUpdated += Client_MessageUpdated;
             Program.Client.UserJoined += Client_UserJoined;
             Program.Client.UserVoiceStateUpdated += Client_UserVoiceStateUpdated;
@@ -107,6 +108,7 @@ namespace DiscordBot.Services
                 disconnected.Value = true;
             };
         }
+
 
         public override void OnDailyTick()
         {
@@ -267,6 +269,34 @@ namespace DiscordBot.Services
                 when = when
             };
             new Thread(threadCheckDeleter).Start(data);
+        }
+
+        private async Task Client_MessagesBulkDeleted(IReadOnlyCollection<Cacheable<IMessage, ulong>> arg1, ISocketMessageChannel arg2)
+        {
+            if (arg2 is ITextChannel channel)
+            {
+                var desc = $"{arg1.Count} messages bulk deleted; ids:";
+                string reason = null;
+                foreach (var x in arg1)
+                {
+                    if (reason == null)
+                        reason = MessagesDeletedByBot.GetValueOrDefault(x.Id, null);
+                    var row = "\r\n" + x.Id.ToString();
+                    if (desc.Length + row.Length < 2048)
+                        desc += row;
+                    else
+                        break;
+                }
+                var embed = new EmbedBuilder()
+                    .WithTitle("Messages Bulk Deleted")
+                    .WithDescription(desc)
+                    .WithFooter("See messages log for per-message log");
+                if (reason != null)
+                    embed.AddField("Reason", reason);
+                await SendLog(channel.Guild, "bulkdelete", embed);
+            }
+            foreach (var cached in arg1)
+                await Client_MessageDeleted(cached, arg2);
         }
 
         struct messageData
