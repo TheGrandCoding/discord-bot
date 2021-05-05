@@ -5,6 +5,7 @@ using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 
 namespace DiscordBot.Services
@@ -74,9 +75,10 @@ namespace DiscordBot.Services
                     client.LoginAsync(x.Value.username, x.Value.password, x.Value.establishment).Wait();
                     Clients[x.Key] = client;
                 }
-                catch (EduLinkException ex)
+                catch (Exception ex) when (ex is EduLinkException || ex is AggregateException ag && ag.InnerExceptions.Any(x => x is EduLinkException))
                 {
                     Program.LogMsg($"EduLink-{x.Value.username}", ex);
+#if !DEBUG
                     try
                     {
                         var usr = Program.Client.GetUser(x.Key);
@@ -84,6 +86,7 @@ namespace DiscordBot.Services
                             $">>> {ex.Message}");
                     }
                     catch { }
+#endif
                 }
             }
         }
