@@ -61,6 +61,8 @@ namespace DiscordBot.SlashCommands.Modules
                     else
                         manualDelete.Add(msg);
                     done++;
+                    if (done >= count)
+                        break;
                 }
                 if ((DateTime.Now - lastSent).TotalSeconds > 5)
                     response = await sendOrModify(response, $"Found {bulkDelete.Count + manualDelete.Count} messages to delete");

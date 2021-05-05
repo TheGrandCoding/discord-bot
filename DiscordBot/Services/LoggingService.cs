@@ -277,26 +277,30 @@ namespace DiscordBot.Services
             {
                 var desc = $"{arg1.Count} messages bulk deleted; ids:";
                 string reason = null;
+                var pages = new List<string>();
                 foreach (var x in arg1)
                 {
                     if (reason == null)
                         reason = MessagesDeletedByBot.GetValueOrDefault(x.Id, null);
                     var row = "\r\n" + x.Id.ToString();
-                    if (desc.Length + row.Length < 2048)
-                        desc += row;
-                    else
-                        break;
+                    if(desc.Length + row.Length > 2000)
+                    {
+                        desc = "[Part 1] " + desc;
+                        pages.Add(desc);
+                        desc = "";
+                    }
+                    desc += row;
                 }
-                var embed = new EmbedBuilder()
-                    .WithTitle("Messages Bulk Deleted")
-                    .WithDescription(desc)
-                    .WithFooter("See messages log for per-message log");
-                if (reason != null)
-                    embed.AddField("Reason", reason);
-                await SendLog(channel.Guild, "bulkdelete", embed);
+                foreach(var page in pages)
+                {
+                    var embed = new EmbedBuilder()
+                        .WithTitle("Messages Bulk Deleted")
+                        .WithDescription(page);
+                    if (reason != null)
+                        embed.AddField("Reason", reason);
+                    await SendLog(channel.Guild, "bulkdelete", embed);
+                }
             }
-            foreach (var cached in arg1)
-                await Client_MessageDeleted(cached, arg2);
         }
 
         struct messageData
