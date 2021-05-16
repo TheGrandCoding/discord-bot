@@ -89,8 +89,9 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
         }
 
         public DbSet<VideoData> WatchTimes { get; set; }
+        public DbSet<RedditData> Threads { get; set; }
 
-        public void Add(ulong user, string id, double time)
+        public void AddVideo(ulong user, string id, double time)
         {
             var vid = new VideoData()
             {
@@ -112,11 +113,42 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
             }
         }
 
-        public VideoData Get(ulong user, string video)
+        public void AddThread(ulong user, string id, int comments)
+        {
+            var rtd = new RedditData()
+            {
+                UserId = user,
+                ThreadId = id,
+                Comments = comments,
+                LastUpdated = DateTime.Now
+            };
+            var existing = Threads.Find(rtd._userId, rtd.ThreadId);
+            if (existing == null)
+            {
+                Threads.Add(rtd);
+            }
+            else
+            {
+                existing.LastUpdated = DateTime.Now;
+                existing.Comments = comments;
+                Threads.Update(existing);
+            }
+        }
+
+
+        public VideoData GetVideo(ulong user, string video)
         {
             unchecked
             {
                 var v = WatchTimes.FirstOrDefault(x => x._userId == (long)user && x.VideoId == video);
+                return v;
+            }
+        }
+        public RedditData GetThread(ulong user, string thread)
+        {
+            unchecked
+            {
+                var v = Threads.FirstOrDefault(x => x._userId == (long)user && x.ThreadId == thread);
                 return v;
             }
         }
@@ -125,6 +157,8 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
         {
             modelBuilder.Entity<VideoData>()
                 .HasKey(x => new { x._userId, x.VideoId });
+            modelBuilder.Entity<RedditData>()
+                .HasKey(x => new { x._userId, x.ThreadId });
         }
     }
 
@@ -148,6 +182,30 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
         public string VideoId { get; set; }
 
         public double WatchedTime { get; set; }
+
+        public DateTime LastUpdated { get; set; }
+    }
+
+    public class RedditData
+    {
+        public long _userId
+        {
+            get
+            {
+                unchecked { return (long)UserId; }
+            }
+            set
+            {
+                unchecked { UserId = (ulong)value; }
+            }
+        }
+
+        [NotMapped]
+        public ulong UserId { get; set; }
+
+        public string ThreadId { get; set; }
+
+        public int Comments { get; set; }
 
         public DateTime LastUpdated { get; set; }
     }
@@ -212,7 +270,7 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
             {
                 if (string.IsNullOrWhiteSpace(id))
                     continue;
-                var thing = DB.Get(Context.User.Id, id);
+                var thing = DB.GetVideo(Context.User.Id, id);
                 jobj[id] = thing?.WatchedTime ?? 0d;
             }
             RespondRaw(jobj.ToString(), 200);
@@ -225,10 +283,27 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
             foreach(JProperty token in jobj.Children())
             {
                 var val = token.Value.ToObject<double>();
-                DB.Add(Context.User.Id, token.Name, val);
+                DB.AddVideo(Context.User.Id, token.Name, val);
             }
             DB.SaveChanges();
             RespondRaw("OK", HttpStatusCode.Created);
+        }
+
+        [Method("GET"), Path("/api/tracker/threads")]
+        public void GetThreads(string ids)
+        {
+            var jobj = new JObject();
+            foreach (var id in ids.Split(';', ','))
+            {
+                if (string.IsNullOrWhiteSpace(id))
+                    continue;
+                var thing = DB.GetThread(Context.User.Id, id);
+                var threadObj = new JObject();
+                threadObj["time"] = new DateTimeOffset(thing.LastUpdated).ToUnixTimeMilliseconds();
+                threadObj["count"] = thing.Comments;
+                jobj[id] = threadObj;
+            }
+            RespondRaw(jobj.ToString(), 200);
         }
 
         [Method("POST"), Path("/tracker/webhook")]

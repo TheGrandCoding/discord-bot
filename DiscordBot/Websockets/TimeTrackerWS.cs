@@ -105,50 +105,78 @@ namespace DiscordBot.Websockets
             var packet = new TTPacket(JObject.Parse(e.Data));
 
             JObject jobj;
-            if(packet.Id == TTPacketId.GetTimes)
+            if (packet.Id == TTPacketId.GetTimes)
             {
                 jobj = new JObject();
                 var content = packet.Content as JArray;
-                foreach(JToken token in content)
+                foreach (JToken token in content)
                 {
                     var id = token.ToObject<string>();
-                    var thing = DB.Get(User.Id, id);
+                    var thing = DB.GetVideo(User.Id, id);
                     jobj[id] = thing?.WatchedTime ?? 0d;
                 }
                 Send(packet.ReplyWith(jobj));
-            } else if(packet.Id == TTPacketId.SetTimes)
+            }
+            else if (packet.Id == TTPacketId.SetTimes)
             {
                 jobj = packet.Content as JObject;
                 foreach (JProperty token in jobj.Children())
                 {
                     var val = token.Value.ToObject<double>();
-                    DB.Add(User.Id, token.Name, val);
+                    DB.AddVideo(User.Id, token.Name, val);
                 }
                 DB.SaveChanges();
                 Send(packet.ReplyWith(JValue.FromObject("OK")));
                 WatchingVideo.Value = true;
                 SendAllClientRatelimits();
-            } else if(packet.Id == TTPacketId.GetVersion)
+            }
+            else if (packet.Id == TTPacketId.GetVersion)
             {
                 string version = TimeTrackDb.GetExtensionVersion();
                 Send(packet.ReplyWith(JValue.FromObject(version)));
-            } else if (packet.Id == TTPacketId.GetLatest)
+            }
+            else if (packet.Id == TTPacketId.GetLatest)
             {
                 jobj = new JObject();
                 var videos = DB.WatchTimes.AsQueryable().OrderByDescending(x => x.LastUpdated).Take(5).ToList();
                 var ids = videos.Select(x => x.VideoId).ToArray();
                 var videoInfo = TimeTrackDb.GetVideoInformation(ids);
-                foreach(var vid in videos)
+                foreach (var vid in videos)
                 {
                     var vidObj = new JObject();
                     vidObj["saved"] = (int)vid.WatchedTime;
                     vidObj["when"] = new DateTimeOffset(vid.LastUpdated).ToUnixTimeMilliseconds();
-                    if(videoInfo.TryGetValue(vid.VideoId, out var info))
+                    if (videoInfo.TryGetValue(vid.VideoId, out var info))
                     {
                         vidObj["title"] = info.Snippet.Title;
                         vidObj["author"] = info.Snippet.ChannelTitle;
                     }
                     jobj[vid.VideoId] = vidObj;
+                }
+                Send(packet.ReplyWith(jobj));
+            }
+            else if (packet.Id == TTPacketId.VisitedThread)
+            {
+                var threadId = packet.Content["id"].ToObject<string>();
+                var comments = packet.Content["count"].ToObject<int>();
+                DB.AddThread(User.Id, threadId, comments);
+                DB.SaveChanges();
+                Send(packet.ReplyWith(JValue.FromObject("OK")));
+            }
+            else if (packet.Id == TTPacketId.GetThreads)
+            {
+                jobj = new JObject();
+                var content = packet.Content as JArray;
+                foreach (JToken token in content)
+                {
+                    var id = token.ToObject<string>();
+                    var thing = DB.GetThread(User.Id, id);
+                    if (thing == null)
+                        continue;
+                    var threadObj = new JObject();
+                    threadObj["when"] = new DateTimeOffset(thing.LastUpdated).ToUnixTimeMilliseconds();
+                    threadObj["count"] = thing.Comments;
+                    jobj[id] = threadObj;
                 }
                 Send(packet.ReplyWith(jobj));
             }
@@ -174,6 +202,8 @@ namespace DiscordBot.Websockets
         SendVersion,
         DirectRatelimit,
         GetLatest,
-        SendLatest
+        SendLatest,
+        VisitedThread,
+        GetThreads
     }
 }
