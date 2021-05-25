@@ -90,6 +90,7 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
 
         public DbSet<VideoData> WatchTimes { get; set; }
         public DbSet<RedditData> Threads { get; set; }
+        public DbSet<IgnoreData> Ignores { get; set; }
 
         public void AddVideo(ulong user, string id, double time)
         {
@@ -112,7 +113,6 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
                 WatchTimes.Update(existing);
             }
         }
-
         public void AddThread(ulong user, string id, int comments)
         {
             var rtd = new RedditData()
@@ -134,6 +134,25 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
                 Threads.Update(existing);
             }
         }
+        public void AddIgnored(ulong user, string id, bool isIgnored)
+        {
+            var ignore = new IgnoreData()
+            {
+                UserId = user,
+                VideoId = id
+            };
+            if(!isIgnored)
+            {
+
+                // we're removing it
+                var existing = Ignores.Find(ignore._userId, ignore.VideoId);
+                if (existing == null)
+                    return;
+                Ignores.Remove(existing);
+                return;
+            }
+            Ignores.Add(ignore);
+        }
 
 
         public VideoData GetVideo(ulong user, string video)
@@ -152,14 +171,45 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
                 return v;
             }
         }
+        public IgnoreData[] GetIgnoreDatas(ulong user)
+        {
+            unchecked
+            {
+                var x = Ignores.AsAsyncEnumerable().Where(x => x._userId == (long)user).ToArrayAsync().Result;
+                return x;
+            }
+        }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<VideoData>()
-                .HasKey(x => new { x._userId, x.VideoId });
+                .HasKey(x => new { x._userId, x.VideoId  });
             modelBuilder.Entity<RedditData>()
                 .HasKey(x => new { x._userId, x.ThreadId });
+            modelBuilder.Entity<IgnoreData>()
+                .HasKey(x => new { x._userId, x.VideoId  });
+
         }
+    }
+
+    public class IgnoreData
+    {
+        public long _userId
+        {
+            get
+            {
+                unchecked { return (long)UserId; }
+            }
+            set
+            {
+                unchecked { UserId = (ulong)value; }
+            }
+        }
+
+        [NotMapped]
+        public ulong UserId { get; set; }
+
+        public string VideoId { get; set; }
     }
 
     public class VideoData

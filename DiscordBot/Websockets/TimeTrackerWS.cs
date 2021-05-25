@@ -34,9 +34,14 @@ namespace DiscordBot.Websockets
         public int GetInterval = 0;
         public int SetInterval = 0;
 
+        public List<TimeTrackerWS> GetSameUsers()
+        {
+            return Sessions.Sessions.Cast<TimeTrackerWS>().Where(x => x.User?.Id == User.Id).ToList();
+        }
+
         public void SendAllClientRatelimits()
         {
-            var sameClient = Sessions.Sessions.Cast<TimeTrackerWS>().Where(x => x.User?.Id == User.Id).ToList();
+            var sameClient = GetSameUsers();
             var numWatching = sameClient.Count(x => x.WatchingVideo.GetValueOrDefault(false));
             if (numWatching <= 0)
                 numWatching = 1;
@@ -63,6 +68,20 @@ namespace DiscordBot.Websockets
             {
                 Send(new TTPacket(TTPacketId.DirectRatelimit, jobj));
             }
+        }
+
+        public void SendIgnoredDatas()
+        {
+            var ignored = DB.GetIgnoreDatas(User.Id);
+            if (ignored.Length == 0)
+                return;
+            var jobj = new JObject();
+            foreach(var ignore in ignored)
+            {
+                jobj[ignore.VideoId] = true;
+            }
+            var packet = new TTPacket(TTPacketId.UpdateIgnored, jobj);
+            Send(packet);
         }
 
         string _ip = null;
@@ -97,6 +116,7 @@ namespace DiscordBot.Websockets
             DB = Program.Services.GetRequiredService<TimeTrackDb>();
             WatchingVideo = new Cached<bool>(false, 2);
             SendAllClientRatelimits();
+            SendIgnoredDatas();
         }
 
         protected override void OnMessage(MessageEventArgs e)
@@ -179,6 +199,22 @@ namespace DiscordBot.Websockets
                     jobj[id] = threadObj;
                 }
                 Send(packet.ReplyWith(jobj));
+            } else if(packet.Id == TTPacketId.UpdateIgnored)
+            {
+                foreach(var item in packet.Content as JObject)
+                {
+                    var id = item.Key;
+                    var isIgnored = item.Value.ToObject<bool>();
+                    DB.AddIgnored(User.Id, id, isIgnored);
+                }
+                DB.SaveChanges();
+                Send(packet.ReplyWith(JToken.FromObject("OK")));
+                foreach(var wsConn in GetSameUsers())
+                {
+                    if (wsConn.ID == this.ID)
+                        continue;
+                    wsConn.Send(packet);
+                }
             }
         }
     }
@@ -204,6 +240,7 @@ namespace DiscordBot.Websockets
         GetLatest,
         SendLatest,
         VisitedThread,
-        GetThreads
+        GetThreads,
+        UpdateIgnored,
     }
 }
