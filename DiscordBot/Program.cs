@@ -37,7 +37,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.16.8"; 
+        public const string VERSION = "0.16.9"; 
         public const string CHANGELOG = VERSION + @"
 == Permissions changes
 Changed how permissions worked for bot.
@@ -398,7 +398,7 @@ Changed how permissions worked for bot.
                         mysqlOptions.CharSet(CharSet.Utf8Mb4);
                     });
 #endif
-            }, ServiceLifetime.Singleton);
+            }, ServiceLifetime.Transient);
             var yClient = new Google.Apis.YouTube.v3.YouTubeService(new Google.Apis.Services.BaseClientService.Initializer()
             {
                 ApiKey = Program.Configuration["tokens:youtubeApi"],

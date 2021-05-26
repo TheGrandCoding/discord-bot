@@ -28,7 +28,6 @@ namespace DiscordBot.Websockets
         }
 
         public BotUser User { get; set; }
-        public TimeTrackDb DB { get; private set; }
         public Cached<bool> WatchingVideo { get; private set; }
 
         public int GetInterval = 0;
@@ -70,7 +69,7 @@ namespace DiscordBot.Websockets
             }
         }
 
-        public void SendIgnoredDatas()
+        public void SendIgnoredDatas(TimeTrackDb DB)
         {
             var ignored = DB.GetIgnoreDatas(User.Id);
             if (ignored.Length == 0)
@@ -113,17 +112,14 @@ namespace DiscordBot.Websockets
                 return;
             }
             User = usr;
-            DB = Program.Services.GetRequiredService<TimeTrackDb>();
+            using var db = Program.Services.GetRequiredService<TimeTrackDb>();
             WatchingVideo = new Cached<bool>(false, 2);
             SendAllClientRatelimits();
-            SendIgnoredDatas();
+            SendIgnoredDatas(db);
         }
 
-        protected override void OnMessage(MessageEventArgs e)
+        void handlePacket(TTPacket packet, TimeTrackDb DB)
         {
-            Program.LogMsg(e.Data, LogSeverity.Debug, $"TTWS-{IP}");
-            var packet = new TTPacket(JObject.Parse(e.Data));
-
             JObject jobj;
             if (packet.Id == TTPacketId.GetTimes)
             {
@@ -180,7 +176,6 @@ namespace DiscordBot.Websockets
                 var threadId = packet.Content["id"].ToObject<string>();
                 var comments = packet.Content["count"].ToObject<int>();
                 DB.AddThread(User.Id, threadId, comments);
-                DB.SaveChanges();
                 Send(packet.ReplyWith(JValue.FromObject("OK")));
             }
             else if (packet.Id == TTPacketId.GetThreads)
@@ -199,22 +194,52 @@ namespace DiscordBot.Websockets
                     jobj[id] = threadObj;
                 }
                 Send(packet.ReplyWith(jobj));
-            } else if(packet.Id == TTPacketId.UpdateIgnored)
+            }
+            else if (packet.Id == TTPacketId.UpdateIgnored)
             {
-                foreach(var item in packet.Content as JObject)
+                foreach (var item in packet.Content as JObject)
                 {
                     var id = item.Key;
                     var isIgnored = item.Value.ToObject<bool>();
                     DB.AddIgnored(User.Id, id, isIgnored);
                 }
-                DB.SaveChanges();
                 Send(packet.ReplyWith(JToken.FromObject("OK")));
-                foreach(var wsConn in GetSameUsers())
+                foreach (var wsConn in GetSameUsers())
                 {
                     if (wsConn.ID == this.ID)
                         continue;
                     wsConn.Send(packet);
                 }
+            }
+        }
+
+        Cached<bool> sentError = new Cached<bool>(false);
+        protected override void OnMessage(MessageEventArgs e)
+        {
+            Program.LogMsg(e.Data, LogSeverity.Debug, $"TTWS-{IP}");
+            var packet = new TTPacket(JObject.Parse(e.Data));
+
+            using var db = Program.Services.GetRequiredService<TimeTrackDb>();
+            try
+            {
+                handlePacket(packet, db);
+            } catch(Exception ex)
+            {
+                Program.LogMsg(ex, $"TimeTrack-{User.Name}");
+                if (sentError.GetValueOrDefault(false))
+                    return;
+                sentError.Value = true;
+                try
+                {
+                    var embed = new EmbedBuilder();
+                    embed.Title = "WS Error Occured";
+                    embed.Description = ex.Message;
+                    embed.Footer = new EmbedFooterBuilder().WithText($"{packet.Id}");
+                    User.FirstValidUser.SendMessageAsync(embed: embed.Build()).Wait();
+                } catch { }
+            } finally
+            {
+                db.SaveChanges();
             }
         }
     }
