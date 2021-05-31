@@ -4,33 +4,22 @@ using DiscordBot.MLAPI.Modules.TimeTracking;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace DiscordBot.Migrations.TimeTrackDbMigrations
 {
     [DbContext(typeof(TimeTrackDb))]
-    partial class TimeTrackDbModelSnapshot : ModelSnapshot
+    [Migration("20210516084438_AddThreds")]
+    partial class AddThreds
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
                 .UseIdentityColumns()
                 .HasAnnotation("Relational:MaxIdentifierLength", 128)
                 .HasAnnotation("ProductVersion", "5.0.0");
-
-            modelBuilder.Entity("DiscordBot.MLAPI.Modules.TimeTracking.IgnoreData", b =>
-                {
-                    b.Property<long>("_userId")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("VideoId")
-                        .HasColumnType("nvarchar(450)");
-
-                    b.HasKey("_userId", "VideoId");
-
-                    b.ToTable("Ignores");
-                });
 
             modelBuilder.Entity("DiscordBot.MLAPI.Modules.TimeTracking.RedditData", b =>
                 {

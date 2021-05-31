@@ -225,9 +225,9 @@ namespace DiscordBot.Services.Rules
         async Task Client_ReactionAdded(Cacheable<IUserMessage, ulong> arg1, ISocketMessageChannel arg2, SocketReaction arg3)
         {
             if (!(arg2 is ITextChannel channel)) return;
-            if (arg3.Emote.Name == "⛔")
+            if (arg3.Emote.Name == "⛔" || arg3.Emote.Name == "imageblock")
                 await reactBlockImage(channel, arg1, arg3);
-            else if (arg3.Emote.Name == "❌")
+            else if (arg3.Emote.Name == "❌" || arg3.Emote.Name == "channelmute")
                 await reactBlockChannel(channel, arg1, arg3);
         }
 
