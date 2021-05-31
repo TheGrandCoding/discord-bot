@@ -374,7 +374,7 @@ namespace DiscordBot.Services
                         exit = true;
                         break;
                     }
-                    await AddMessage(sm, _db_);
+                    await Task.Run(async () => await AddMessage(sm, _db_));
                 }
                 if(ordered.Count() < max)
                 {
@@ -673,7 +673,7 @@ namespace DiscordBot.Services
                 {
                     total.Add(new DiscordMsg(this, umsg));
 #if !DEBUG
-                    await AddMessage(umsg);
+                    await Task.Run(async () => await AddMessage(umsg));
 #endif
                 }
             }
