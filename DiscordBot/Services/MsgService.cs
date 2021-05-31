@@ -409,9 +409,13 @@ namespace DiscordBot.Services
                 Guild = guild,
                 MessageId = id
             };
+#if THREADED
             var thr = new Thread(downloadAttachmentThread);
             thr.Name = $"dl-{attachment.Filename}";
             thr.Start(data);
+#else
+            downloadAttachmentThread(data);
+#endif
         }
 
         public Dictionary<ulong, ulong> NewAttachmentMap { get; set; } = new Dictionary<ulong, ulong>();
@@ -503,7 +507,7 @@ namespace DiscordBot.Services
             }
         }
 
-        #endregion
+#endregion
 
         async Task AddMessage(IMessage arg, LogContext _db_ = null)
         {
@@ -732,7 +736,7 @@ namespace DiscordBot.Services
 
         private async System.Threading.Tasks.Task Client_MessageReceived(SocketMessage arg)
         {
-            await AddMessage(arg);
+            await Task.Run(async () => await AddMessage(arg));
         }
 
         string getWhere(IUserMessage m)
