@@ -112,10 +112,10 @@ namespace DiscordBot.Commands.Modules.Legislation
         async Task<string> GetResponse(string prompt)
         {
             await ReplyAsync(prompt);
-            var msg = await NextMessageAsync(timeout: TimeSpan.FromMinutes(15));
-            if (msg == null || string.IsNullOrWhiteSpace(msg.Content))
+            var result = await NextMessageAsync(timeout: TimeSpan.FromMinutes(15));
+            if (!result.IsSuccess)
                 throw new Exception($"No response recieved");
-            return msg.Content;
+            return result.Value.Content;
         }
 
 

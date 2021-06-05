@@ -56,8 +56,11 @@ namespace DiscordBot.Services
             perform(Program.GetUser(arg), arg.Guild.Id, "UserJoined", null);
         }
 
-        private async System.Threading.Tasks.Task Client_GuildMemberUpdated(Discord.WebSocket.SocketGuildUser arg1, Discord.WebSocket.SocketGuildUser arg2)
+        private async System.Threading.Tasks.Task Client_GuildMemberUpdated(Cacheable<Discord.WebSocket.SocketGuildUser, ulong> cached, Discord.WebSocket.SocketGuildUser arg2)
         {
+            if (!cached.HasValue)
+                return;
+            var arg1 = cached.Value;
             var priorRoles = arg1?.Roles.Select(x => x.Id).ToList() ?? new List<ulong>();
             var currentRoles = arg2?.Roles.Select(x => x.Id).ToList() ?? new List<ulong>();
 

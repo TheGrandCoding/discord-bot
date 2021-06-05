@@ -73,10 +73,10 @@ namespace DiscordBot.Commands.Modules.Legislation
         async Task<string> GetResponse(string prompt)
         {
             await ReplyAsync(prompt);
-            var msg = await NextMessageAsync(timeout: TimeSpan.FromMinutes(15));
-            if (msg == null || string.IsNullOrWhiteSpace(msg.Content))
+            var result = await NextMessageAsync(timeout: TimeSpan.FromMinutes(15));
+            if (!result.IsSuccess)
                 throw new Exception($"No response recieved");
-            return msg.Content;
+            return result.Value.Content;
         }
 
         [Command("approve")]
@@ -641,14 +641,14 @@ namespace DiscordBot.Commands.Modules.Legislation
             {
                 var nextLetter = getNextLetter(Act, section);
                 await ReplyAsync($"Section already exists by that number, reply if to use **{nextLetter}** instead; wait to cancel");
-                var next = await NextMessageAsync();
+                var next = (await NextMessageAsync()).Value;
                 if(next == null || string.IsNullOrWhiteSpace(next.Content))
                     return new BotResult("Cancelled due to no response on conflict.");
                 section = nextLetter;
             }
             var noticeMsg = await ReplyAsync("Please send the header of the section; react if group.");
             await noticeMsg.AddReactionAsync(Emotes.THUMBS_UP);
-            var textMsg = await NextMessageAsync(timeout: TimeSpan.FromMinutes(5));
+            var textMsg = (await NextMessageAsync(timeout: TimeSpan.FromMinutes(5))).Value;
             if (textMsg == null || string.IsNullOrWhiteSpace(textMsg.Content))
                 return new BotResult("Cancelled.");
             Section = new Section(textMsg.Content);
@@ -676,13 +676,13 @@ namespace DiscordBot.Commands.Modules.Legislation
             {
                 var nextLetter = getNextLetter(Section, paragraph);
                 await ReplyAsync($"Paragraph already exists by that number, reply if to use **{nextLetter}** instead; wait to cancel");
-                var next = await NextMessageAsync();
+                var next = (await NextMessageAsync()).Value;
                 if (next == null || string.IsNullOrWhiteSpace(next.Content))
                     return new BotResult("Cancelled due to no response on conflict.");
                 paragraph = nextLetter;
             }
             await ReplyAsync("Please provide any text for the paragraph; reply with `-` for null");
-            var textMsg = await NextMessageAsync(timeout: TimeSpan.FromMinutes(15));
+            var textMsg = (await NextMessageAsync(timeout: TimeSpan.FromMinutes(15))).Value;
             if (textMsg == null || string.IsNullOrWhiteSpace(textMsg.Content))
                 return new BotResult("Cancelled");
             var text = textMsg.Content == "-" ? null : textMsg.Content;
@@ -715,14 +715,14 @@ namespace DiscordBot.Commands.Modules.Legislation
             {
                 var suggest = getNextLetter(Paragraph, number);
                 await ReplyAsync($"That clause already exists. Would you like to insert a new one with number **{suggest}** instead? Reply if yes, wait to cancel");
-                var next = await NextMessageAsync();
+                var next = (await NextMessageAsync()).Value;
                 if (next == null || string.IsNullOrWhiteSpace(next.Content))
                     return new BotResult("Cancelled");
                 number = suggest;
                 Clause = null;
             }
             await ReplyAsync("Please provide any text for the clause");
-            var textMsg = await NextMessageAsync(timeout: TimeSpan.FromMinutes(15));
+            var textMsg = (await NextMessageAsync(timeout: TimeSpan.FromMinutes(15))).Value;
             if (textMsg == null || string.IsNullOrWhiteSpace(textMsg.Content))
                 return new BotResult("Cancelled");
             Clause = new TextualLawThing(textMsg.Content)

@@ -1,11 +1,12 @@
 ﻿using Discord;
-using Discord.Addons.Interactive;
 using Discord.Commands;
 using Discord.WebSocket;
 using DiscordBot.Classes;
 using DiscordBot.Commands;
 using DiscordBot.Services;
 using DiscordBot.Utils;
+using Interactivity;
+using Interactivity.Pagination;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
@@ -19,6 +20,9 @@ namespace DiscordBot.Commands.Modules
     [Name("Bot Commands")]
     public sealed class BotCmdModule : BotBase
     {
+
+        public Interactivity.InteractivityService InteractivityService { get; set; }
+
         List<char> allowed_chars;
         public BotCmdModule()
         {
@@ -202,34 +206,20 @@ namespace DiscordBot.Commands.Modules
             if (dbMsg == null)
                 return new BotResult("Message is not in database.");
             var contents = db.GetContents(messageId).OrderBy(x => x.Timestamp);
-            var paginator = new PaginatedMessage();
-            var opt = PaginatedAppearanceOptions.Default;
-            paginator.Options = new PaginatedAppearanceOptions()
-            {
-                Back = opt.Back,
-                Next = opt.Next,
-                Stop = opt.Stop,
-                Info = opt.Info,
-                InformationText = "Displays a message's content, from the first time the bot recorded it and every edit since until the last known content.",
-                DisplayInformationIcon = false,
-                JumpDisplayOptions = JumpDisplayOptions.Never
-            };
-            paginator.Title = $"Message History";
+            
             var url = $"https://discord.com/channels/{dbMsg.Guild}/{dbMsg.Channel}/{dbMsg.Message}";
-            paginator.Content = $"{url}";
-            if(!string.IsNullOrWhiteSpace(dbMsg.Attachments))
+            var paginator = new StaticPaginatorBuilder()
+                .WithDefaultEmotes()
+                .WithFooter(PaginatorFooter.PageNumber);
+            foreach (var content in contents)
             {
-                Console.WriteLine(dbMsg.Attachments);
-                paginator.Content += "\r\n" + dbMsg.Attachments.Replace(",", "\r\n");
+                var page = new PageBuilder()
+                    .WithTitle($"Message at {content.Timestamp:dd/MM/yyyy HH:mm:ss}")
+                    .WithText(url)
+                    .WithDescription(content.Content);
+                paginator.AddPage(page);
             }
-            var ls = new List<string>();
-            int i = 0;
-            foreach(var content in contents)
-            {
-                ls.Add(content.Content);
-                paginator.Content += $"\r\n{i++}: {content.Timestamp:dd/MM/yyyy HH:mm:ss}";
-            }
-            paginator.Pages = ls;
+
             await PagedReplyAsync(paginator);
             return new BotResult();
         }

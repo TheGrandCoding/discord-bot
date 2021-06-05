@@ -1,7 +1,8 @@
 ﻿using Discord;
-using Discord.Addons.Interactive;
 using Discord.Commands;
 using DiscordBot.Commands;
+using Interactivity;
+using Interactivity.Pagination;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -26,9 +27,15 @@ namespace DiscordBot.Commands.Modules
         public async Task ListAll()
         {
             string content = $"";
-            List<string> pages = new List<string>();
+            var paginator = new StaticPaginatorBuilder();
             foreach(var module in cmdService.Modules)
             {
+                var page = new PageBuilder();
+                var text = new StringBuilder();
+                text.Append($"**{module.Name}**");
+                if (!string.IsNullOrWhiteSpace(module.Summary))
+                    text.Append(": " + module.Summary);
+                page.WithText(text.ToString());
                 List<string> cmds = new List<string>();
                 foreach(var cmd in module.Commands)
                 {
@@ -44,18 +51,11 @@ namespace DiscordBot.Commands.Modules
                         cmds.Add(s);
                 }
 
-                pages.Add($"**{module.Name ?? module.GetType().Name}**" +
-                    $"\r\n" + string.Join("\r\n", cmds));
+                page.WithDescription(string.Join("\r\n", cmds));
+                paginator.AddPage(page);
             }
 
-            await PagedReplyAsync(new PaginatedMessage()
-            {
-                Pages = pages,
-                Options = new PaginatedAppearanceOptions()
-                {
-                    DisplayInformationIcon = false,
-                },
-            });
+            await PagedReplyAsync(paginator);
         }
     
         static string getParamaterText(ParameterInfo param)

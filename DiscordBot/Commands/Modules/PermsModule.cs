@@ -1,10 +1,11 @@
 ﻿using Discord;
-using Discord.Addons.Interactive;
 using Discord.Commands;
 using DiscordBot.Classes;
 using DiscordBot.Permissions;
 using DiscordBot.Services;
 using DiscordBot.TypeReaders;
+using Interactivity;
+using Interactivity.Pagination;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -22,74 +23,72 @@ namespace DiscordBot.Commands.Modules
         [Summary("Lists all nodes, with an optional prefix search")]
         public async Task ListAllPermissions(string prefix = null)
         {
-            var pages = new List<string>();
-            string cPage = "";
+            var paginator = new StaticPaginatorBuilder();
+            PageBuilder cPage = new PageBuilder();
             foreach(var node in Service.AllNodes.Values)
             {
                 if (prefix != null && !node.Node.StartsWith(prefix))
                     continue;
                 var s = $"`{node.Node}` {node.Description}\r\n";
-                if((cPage.Length + s.Length) > 1024)
+                if((cPage.Text.Length + s.Length) > 1024)
                 {
-                    pages.Add(cPage);
-                    cPage = "";
+                    paginator.AddPage(cPage);
+                    cPage = new PageBuilder();
                 }
-                cPage += s;
+                cPage.Text += s;
             }
-            if (cPage == "")
-                cPage = "No permissions nodes are known.";
-            pages.Add(cPage);
-            await PagedReplyAsync(pages);
+            if (cPage.Text == "")
+                cPage.Text = "No permissions nodes are known.";
+            paginator.AddPage(cPage);
+            await PagedReplyAsync(paginator);
         }
 
         async Task printListFor(BotUser u)
         {
-            var paginator = new PaginatedMessage();
-            paginator.Title = $"Permissions of {u.Name}";
-            var pages = new List<string>();
-            string cPage = "";
+            var paginator = new StaticPaginatorBuilder();
+            var cPage = new PageBuilder();
             foreach (var perm in u.Permissions)
             {
                 string sep = perm.Type == PermType.Allow ? "**" : perm.Type == PermType.Deny ? "~~" : "";
                 var s = $"`{perm.RawNode}` {sep}{perm.Description}{sep}\r\n";
-                if ((cPage.Length + s.Length) > 1024)
+                if ((cPage.Text.Length + s.Length) > 1024)
                 {
-                    pages.Add(cPage);
-                    cPage = "";
+                    paginator.AddPage(cPage);
+                    cPage = new PageBuilder();
                 }
-                cPage += s;
+                cPage.Text += s;
             }
-            if (cPage == "")
-                cPage = "No permissions nodes are known.";
-            pages.Add(cPage);
-            paginator.Pages = pages;
+            if (cPage.Text == "")
+                cPage.Text = "No permissions nodes are known.";
+            paginator.AddPage(cPage);
             await PagedReplyAsync(paginator);
         }
 
         async Task printActualFor(BotUser u)
         {
-            var paginator = new PaginatedMessage();
-            paginator.Title = $"Permissions of {u.Name}";
-            paginator.Content = "These are the effective permissions of the user, taking into account wildcards, denials and allowals.";
-            var pages = new List<string>();
-            string cPage = "";
+            var paginator = new StaticPaginatorBuilder();
+            var cPage = new PageBuilder();
+            cPage.Title = $"Permissions of {u.Name}";
+            cPage.Text = "These are the effective permissions of the user, taking into account wildcards, denials and allowals.";
             foreach (var perm in Service.AllNodes.Values)
             {
                 if (!PermChecker.UserHasPerm(u, perm, out var inherit))
                     continue;
                 string sep = inherit ? "**" : "";
                 var s = $"`{perm.Node}` {sep}{perm.Description}{sep}\r\n";
-                if ((cPage.Length + s.Length) > 1024)
+                if ((cPage.Description.Length + s.Length) > 1024)
                 {
-                    pages.Add(cPage);
-                    cPage = "";
+                    paginator.AddPage(cPage);
+                    cPage = new PageBuilder();
+                    cPage.Title = $"Permissions of {u.Name}";
+                    cPage.Text = "These are the effective permissions of the user, taking into account wildcards, denials and allowals.";
+
                 }
-                cPage += s;
+                cPage.Description += s;
             }
-            if (cPage == "")
-                cPage = "None.";
-            pages.Add(cPage);
-            paginator.Pages = pages;
+            if (cPage.Description == "")
+                cPage.Description = "None.";
+            paginator.AddPage(cPage);
             await PagedReplyAsync(paginator);
         }
 

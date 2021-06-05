@@ -22,7 +22,7 @@ namespace DiscordBot.SlashCommands.Modules
             try
             {
                 await Interaction.AcknowledgeAsync(flags: InteractionResponseFlags.Ephemeral);
-                var commands = await Interaction.Guild.GetGuildCommandsAsync();
+                var commands = await Program.Client.Rest.GetGuildApplicationCommands(Interaction.Guild.Id);
                 var pages = new List<EmbedBuilder>();
                 var embed = new EmbedBuilder();
                 bool f = !string.IsNullOrWhiteSpace(prefix);
@@ -91,8 +91,8 @@ namespace DiscordBot.SlashCommands.Modules
             string emote(bool value) => value ? "✅" : "❌";
             async Task<RestApplicationCommand> getCommand(ulong id)
             {
-                return (RestApplicationCommand)(await Interaction.Guild.GetGuildCommandAsync(id))
-                    ?? await Program.Client.GetGlobalCommandAsync(id);
+                return (RestApplicationCommand)(await Interaction.Guild.GetApplicationCommandsAsync())
+                    ?? await Program.Client.GetGlobalCommand(id);
             }
             
             async Task<RestApplicationCommand> getCommand(string input)
@@ -100,11 +100,11 @@ namespace DiscordBot.SlashCommands.Modules
                 if (ulong.TryParse(input, out var id))
                     return await getCommand(id);
                 var srv = Program.Services.GetRequiredService<SlashCommandService>();
-                var cmds = await Interaction.Guild.GetGuildCommandsAsync();
+                var cmds = await Interaction.Guild.GetApplicationCommandsAsync();
                 var cmd = cmds.FirstOrDefault(x => x.Name.Equals(input, StringComparison.OrdinalIgnoreCase));
                 if (cmd != null)
                     return cmd;
-                var global = await Program.Client.GetGlobalCommandsAsync();
+                var global = await Program.Client.GetGlobalCommands();
                 return global.FirstOrDefault(x => x.Name.Equals(input, StringComparison.OrdinalIgnoreCase));
             }
             
@@ -120,7 +120,11 @@ namespace DiscordBot.SlashCommands.Modules
                         await Interaction.FollowupAsync(":x: Command does not exist.");
                         return;
                     }
-                    var cmdPerms = await cmd.GetPermissionsAsync(Interaction.Guild);
+                    GuildApplicationCommandPermissions cmdPerms = null;
+                    if (cmd is RestGlobalCommand g)
+                        cmdPerms = await g.GetCommandPermissions(Interaction.Guild.Id);
+                    else if (cmd is RestGuildCommand u)
+                        cmdPerms = await u.GetCommandPermissions();
                     if (cmdPerms == null || cmdPerms.Permissions == null || cmdPerms.Permissions.Count == 0)
                     {
 
@@ -134,11 +138,11 @@ namespace DiscordBot.SlashCommands.Modules
                     sb.Append("Default: " + emote(cmd.DefaultPermission) + "\r\n");
                     foreach (var thing in cmdPerms.Permissions)
                     {
-                        if (thing.Type == ApplicationCommandPermissionType.User)
+                        if (thing.Type == PermissionTarget.User)
                             sb.Append($"User <@!{thing.Id}>");
                         else
                             sb.Append($"Role <@&{thing.Id}>");
-                        sb.Append(" " + emote(thing.Permission));
+                        sb.Append(" " + emote(thing.Value));
                         sb.Append("\r\n");
                     }
                     embed.Description = sb.ToString();
@@ -151,7 +155,7 @@ namespace DiscordBot.SlashCommands.Modules
                 }
             }
 
-            async Task manageThing(string strId, ulong thingId, ApplicationCommandPermissionType thingType, bool? value)
+            async Task manageThing(string strId, ulong thingId, PermissionTarget thingType, bool? value)
             {
                 await Interaction.AcknowledgeAsync(flags: InteractionResponseFlags.Ephemeral);
                 try
@@ -162,7 +166,12 @@ namespace DiscordBot.SlashCommands.Modules
                         await Interaction.FollowupAsync(":x: Command does not exist");
                         return;
                     }
-                    var existingPerms = await command.GetPermissionsAsync(Interaction.Guild);
+
+                    GuildApplicationCommandPermissions existingPerms = null;
+                    if (command is RestGlobalCommand g)
+                        existingPerms = await g.GetCommandPermissions(Interaction.Guild.Id);
+                    else if (command is RestGuildCommand u)
+                        existingPerms = await u.GetCommandPermissions();
                     var permBuilder = SlashCommandPermsBuilder.From(existingPerms);
                     var existingValue = permBuilder.Get(thingId);
                     if (value.HasValue)
@@ -170,7 +179,7 @@ namespace DiscordBot.SlashCommands.Modules
                         if (existingValue != value.Value)
                         {
                             permBuilder.With(thingId, thingType, value.Value);
-                            await command.ModifyPermissionsAsync(Interaction.Guild, x => { x.Permissions = permBuilder.Build(); });
+                            await command.ModifyCommandPermissionsAsync(Interaction.Guild.Id, permBuilder.Build().ToArray());
                         }
                         await Interaction.FollowupAsync("Done!");
                     }
@@ -195,7 +204,7 @@ namespace DiscordBot.SlashCommands.Modules
                 string strId,
                 [Required] SocketGuildUser user, bool? value = null)
             {
-                await manageThing(strId, user.Id, ApplicationCommandPermissionType.User, value);
+                await manageThing(strId, user.Id, PermissionTarget.User, value);
             }
         
             [SlashCommand("role", "Get or set the permission for a role to use the command")]
@@ -205,7 +214,7 @@ namespace DiscordBot.SlashCommands.Modules
                 string strId,
                 [Required] SocketRole role, bool? value = null)
             {
-                await manageThing(strId, role.Id, ApplicationCommandPermissionType.Role, value);
+                await manageThing(strId, role.Id, PermissionTarget.Role, value);
             }
 
             [SlashCommand("clear", "Removes the overwrite for the provided thing (user or role)")]
@@ -224,13 +233,13 @@ namespace DiscordBot.SlashCommands.Modules
                 if (cmd == null)
                 {
                     await Interaction.RespondAsync(":x: Command does not exist",
-                        flags: InteractionResponseFlags.Ephemeral);
+                        ephemeral: true);
                     return;
                 }
-                var existingPerms = await cmd.GetPermissionsAsync(Interaction.Guild);
+                var existingPerms = await cmd.GetCommandPermissions(Interaction.Guild.Id);
                 var permBuilder = SlashCommandPermsBuilder.From(existingPerms);
                 permBuilder.Remove(id);
-                await cmd.ModifyPermissionsAsync(Interaction.Guild, x => x.Permissions = permBuilder.Build());
+                await cmd.ModifyCommandPermissionsAsync(Interaction.Guild.Id, permBuilder.Build().ToArray());
                 await Interaction.FollowupAsync("Done!");
             }
 
@@ -249,12 +258,10 @@ namespace DiscordBot.SlashCommands.Modules
                 }
                 if(cmd is RestGlobalCommand glb)
                 {
-                    await glb.ModifyPermissionsAsync(Interaction.Guild, x =>
-                    {
-                        x.Permissions = new SlashCommandPermsBuilder()
-                            .With(Interaction.Guild.Id, ApplicationCommandPermissionType.Role, value) // @everyone role
-                            .Build();
-                    });
+                    await glb.ModifyCommandPermissionsAsync(Interaction.Guild.Id,
+                        new SlashCommandPermsBuilder()
+                            .With(Interaction.Guild.Id, PermissionTarget.Role, value) // @everyone role
+                            .Build().ToArray());
                     await Interaction.FollowupAsync("Done!\r\nNote: due to a Discord bug, the command will appear greyed out but will still be executable.");
                 } else if(cmd is RestGuildCommand gld)
                 {

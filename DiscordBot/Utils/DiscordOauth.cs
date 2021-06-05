@@ -46,6 +46,11 @@ namespace DiscordBot.Utils
             public IImmutableList<IActivity> Activities { get; set; }
             public UserProperties? PublicFlags { get; set; }
 
+            public Task<IDMChannel> CreateDMChannelAsync(RequestOptions options = null)
+            {
+                throw new NotImplementedException();
+            }
+
             public string GetAvatarUrl(ImageFormat format = ImageFormat.Auto, ushort size = 128)
                 => Discord.CDN.GetUserAvatarUrl(Id, AvatarId, size, format);
             public string GetDefaultAvatarUrl()

@@ -261,6 +261,11 @@ namespace DiscordBot.Services
 
         public IImmutableList<IActivity> Activities => throw new NotImplementedException();
 
+        public Task<IDMChannel> CreateDMChannelAsync(RequestOptions options = null)
+        {
+            throw new NotImplementedException();
+        }
+
         public string GetAvatarUrl(ImageFormat format = ImageFormat.Auto, ushort size = 128)
         {
             throw new NotImplementedException();

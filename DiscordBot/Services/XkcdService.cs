@@ -85,7 +85,7 @@ namespace DiscordBot.Services
                 var channel = guild.GetTextChannel(pair.Value);
                 if(channel == null)
                 {
-                    var chnl = guild.SystemChannel ?? guild.DefaultChannel ?? guild.EmbedChannel;
+                    var chnl = guild.SystemChannel ?? guild.PublicUpdatesChannel ?? guild.DefaultChannel;
                     if(chnl != null && chnl is ITextChannel c)
                     {
                         c.SendMessageAsync("Channel no longer available for Xkcd messages, disabling.");

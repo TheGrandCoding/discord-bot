@@ -17,7 +17,7 @@ namespace DiscordBot.SlashCommands
             get
             {
                 if(_user == null && Interaction is SocketInteraction inter)
-                    _user = Program.GetUser(inter.Member);
+                    _user = Program.GetUser(inter.User);
                 return _user;
             }
         }

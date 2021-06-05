@@ -34,11 +34,11 @@ namespace DiscordBot.Commands.Modules
                 return;
             }
             await ReplyAsync("Please provide the short text for this rule (will be bolded)");
-            var rep1 = await NextMessageAsync(timeout: TimeSpan.FromMinutes(5));
+            var rep1 = (await NextMessageAsync(timeout: TimeSpan.FromMinutes(5))).Value;
             if (rep1 == null || string.IsNullOrWhiteSpace(rep1.Content))
                 return;
             await ReplyAsync("Please provide a longer description or further text for this rule");
-            var rep2 = await NextMessageAsync(timeout: TimeSpan.FromMinutes(10));
+            var rep2 = (await NextMessageAsync(timeout: TimeSpan.FromMinutes(10))).Value;
             if (rep2 == null || string.IsNullOrWhiteSpace(rep2.Content))
                 return;
 
@@ -54,7 +54,7 @@ namespace DiscordBot.Commands.Modules
                 Value = $"**{rep1.Content}**{longText}"
             };
             await ReplyAsync("Does this look correct? [y/n]", embed: new EmbedBuilder().AddField(field).Build());
-            var confirm = await NextMessageAsync();
+            var confirm = (await NextMessageAsync()).Value;
             if (confirm == null || string.IsNullOrWhiteSpace(confirm.Content) || confirm.Content.StartsWith('y') == false)
             {
                 await ReplyAsync("Cancelling.");

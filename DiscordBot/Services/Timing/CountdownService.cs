@@ -127,7 +127,7 @@ namespace DiscordBot.Services.Timing
         {
             if (Channel != null)
                 return Channel;
-            return User.GetOrCreateDMChannelAsync().Result;
+            return User.CreateDMChannelAsync().Result;
         }
 
         public int SecondsRemaining {  get

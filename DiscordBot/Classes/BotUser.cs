@@ -123,7 +123,6 @@ namespace DiscordBot.Classes
         public string Username => ((IUser)FirstValidUser)?.Username ?? null;
         public DateTimeOffset CreatedAt => ((IUser)FirstValidUser).CreatedAt;
         public string Mention => MentionUtils.MentionUser(Id);
-        public IActivity Activity => ((IUser)FirstValidUser).Activity;
         public UserStatus Status => ((IUser)FirstValidUser).Status;
         public string GetAvatarUrl(ImageFormat format = ImageFormat.Auto, ushort size = 128)
         {
@@ -132,10 +131,6 @@ namespace DiscordBot.Classes
         public string GetDefaultAvatarUrl()
         {
             return CDN.GetDefaultUserAvatarUrl(DiscriminatorValue);
-        }
-        public Task<IDMChannel> GetOrCreateDMChannelAsync(RequestOptions options = null)
-        {
-            return ((IUser)FirstValidUser).GetOrCreateDMChannelAsync(options);
         }
         public IImmutableSet<ClientType> ActiveClients => ((IUser)FirstValidUser).ActiveClients;
         #endregion

@@ -240,9 +240,10 @@ namespace DiscordBot.Services
 #endregion
 
 #region Messages
-        private async Task Client_MessageDeleted(Cacheable<IMessage, ulong> arg1, ISocketMessageChannel arg2)
+        private async Task Client_MessageDeleted(Cacheable<IMessage, ulong> arg1, Cacheable<IMessageChannel, ulong> cached)
         {
             var when = DateTime.Now;
+            var arg2 = await cached.GetOrDownloadAsync();
             if (!(arg2 is ITextChannel txt))
                 return;
             var service = Program.Services.GetRequiredService<MsgService>();
@@ -271,8 +272,9 @@ namespace DiscordBot.Services
             new Thread(threadCheckDeleter).Start(data);
         }
 
-        private async Task Client_MessagesBulkDeleted(IReadOnlyCollection<Cacheable<IMessage, ulong>> arg1, ISocketMessageChannel arg2)
+        private async Task Client_MessagesBulkDeleted(IReadOnlyCollection<Cacheable<IMessage, ulong>> arg1, Cacheable<IMessageChannel, ulong> cached)
         {
+            var arg2 = await cached.GetOrDownloadAsync();
             if (arg2 is ITextChannel channel)
             {
                 var desc = $"{arg1.Count} messages bulk deleted; ids:";

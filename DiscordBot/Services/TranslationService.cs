@@ -1,4 +1,5 @@
 ﻿using Discord;
+using Discord.WebSocket;
 using DiscordBot.Classes.Attributes;
 using DiscordBot.Utils;
 using Google.Cloud.Translation.V2;
@@ -32,7 +33,7 @@ namespace DiscordBot.Services
             Program.Client.ReactionAdded += Client_ReactionAdded;
         }
 
-        private async Task Client_ReactionAdded(Cacheable<IUserMessage, ulong> arg1, Discord.WebSocket.ISocketMessageChannel arg2, Discord.WebSocket.SocketReaction arg3)
+        private async Task Client_ReactionAdded(Cacheable<IUserMessage, ulong> arg1, Cacheable<IMessageChannel, ulong> arg2, SocketReaction arg3)
         {
             var arg = new ReactionEventArgs()
             {

@@ -32,17 +32,17 @@ namespace DiscordBot.SlashCommands.Modules
             int activity)
         {
 
-            var vc = Interaction.Member.VoiceChannel;
+            var vc = (Interaction.User as SocketGuildUser)?.VoiceChannel ?? null;
             if(vc == null)
             {
                 await Interaction.RespondAsync(":x: You must be in a voice channel to run this command",
-                    flags: InteractionResponseFlags.Ephemeral);
+                    ephemeral: true);
                 return;
             }
             if(activity < 0 || activity > 3)
             {
                 await Interaction.RespondAsync(":x: Invalid choice",
-                    flags: InteractionResponseFlags.Ephemeral);
+                    ephemeral: true);
                 return;
             }
             await Interaction.AcknowledgeAsync();
@@ -87,14 +87,14 @@ namespace DiscordBot.SlashCommands.Modules
             if(!(chnl is SocketVoiceChannel vc))
             {
                 await Interaction.RespondAsync(":x: Channel must be a voice channel",
-                    flags: Discord.InteractionResponseFlags.Ephemeral);
+                    ephemeral: true);
                 return;
             }
 
             if(!ulong.TryParse(strid, out var id))
             {
                 await Interaction.RespondAsync(":x: Input was not a valid ulong. Must be a number",
-                    flags: Discord.InteractionResponseFlags.Ephemeral);
+                    ephemeral: true);
                 return;
             }
             await Interaction.AcknowledgeAsync(Discord.InteractionResponseFlags.Ephemeral);

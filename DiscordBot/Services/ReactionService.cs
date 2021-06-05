@@ -1,4 +1,5 @@
 ﻿using Discord;
+using Discord.WebSocket;
 using DiscordBot.Classes;
 using Newtonsoft.Json;
 using System;
@@ -65,11 +66,11 @@ namespace DiscordBot.Services
             await Task.CompletedTask;
         }
 
-        private async Task Client_ReactionRemoved(Cacheable<IUserMessage, ulong> arg1, Discord.WebSocket.ISocketMessageChannel arg2, Discord.WebSocket.SocketReaction arg3)
+        private async Task Client_ReactionRemoved(Cacheable<IUserMessage, ulong> arg1, Cacheable<IMessageChannel, ulong> arg2, Discord.WebSocket.SocketReaction arg3)
         {
             await handleItTho(arg1, EventAction.Removed, arg3);
         }
-        private async Task Client_ReactionAdded(Cacheable<IUserMessage, ulong> arg1, Discord.WebSocket.ISocketMessageChannel arg2, Discord.WebSocket.SocketReaction arg3)
+        private async Task Client_ReactionAdded(Cacheable<IUserMessage, ulong> arg1, Cacheable<IMessageChannel, ulong> arg2, Discord.WebSocket.SocketReaction arg3)
         {
             await handleItTho(arg1, EventAction.Added, arg3);
         }

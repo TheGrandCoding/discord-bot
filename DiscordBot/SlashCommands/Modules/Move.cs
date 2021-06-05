@@ -118,14 +118,16 @@ namespace DiscordBot.SlashCommands.Modules
         {
             if (!(chnl is SocketTextChannel to))
             {
-                await Interaction.RespondAsync(":x: You must select a text channel.", type: InteractionResponseType.ChannelMessage, flags: InteractionResponseFlags.Ephemeral);
+                await Interaction.RespondAsync(":x: You must select a text channel.",
+                    ephemeral: true);
                 return;
             }
-            var from = Interaction.Channel;
-            var fromPerms = Interaction.Member.GetPermissions(from);
+            var from = Interaction.Channel as ITextChannel;
+            var fromPerms = (Interaction.User as SocketGuildUser).GetPermissions(from);
             if (!fromPerms.ManageMessages)
             {
-                await Interaction.RespondAsync($":x: You do not have permission to move messages to {to.Mention}", type: InteractionResponseType.ChannelMessageWithSource, flags: InteractionResponseFlags.Ephemeral);
+                await Interaction.RespondAsync($":x: You do not have permission to move messages to {to.Mention}", type: InteractionResponseType.ChannelMessageWithSource, 
+                    ephemeral: true);
                 return;
             }
             await Interaction.AcknowledgeAsync();
@@ -159,25 +161,29 @@ namespace DiscordBot.SlashCommands.Modules
         {
             if (!(chnl is SocketTextChannel to))
             {
-                await Interaction.RespondAsync(":x: You must select a text channel.", flags: InteractionResponseFlags.Ephemeral);
+                await Interaction.RespondAsync(":x: You must select a text channel.", 
+                    ephemeral: true);
                 return;
             }
-            var from = Interaction.Channel;
-            var fromPerms = Interaction.Member.GetPermissions(from);
+            var from = Interaction.Channel as ITextChannel;
+            var fromPerms = (Interaction.User as SocketGuildUser).GetPermissions(from);
             if (!ulong.TryParse(strMsgId, out var messageId))
             {
-                await Interaction.RespondAsync(":x: You must enter a message id - a long number.", flags: InteractionResponseFlags.Ephemeral);
+                await Interaction.RespondAsync(":x: You must enter a message id - a long number.", 
+                    ephemeral: true);
                 return;
             }
             if (!fromPerms.ManageMessages)
             {
-                await Interaction.RespondAsync($":x: You do not have permission to move mesages to {to.Mention}", flags: InteractionResponseFlags.Ephemeral);
+                await Interaction.RespondAsync($":x: You do not have permission to move mesages to {to.Mention}", 
+                    ephemeral: true);
                 return;
             }
             var date = Discord.SnowflakeUtils.FromSnowflake(messageId);
             if (Math.Abs((DateTime.Now - date).TotalHours) > maximumHoursAgo)
             {
-                await Interaction.RespondAsync(":x: Message was sent too long ago.", flags: InteractionResponseFlags.Ephemeral);
+                await Interaction.RespondAsync(":x: Message was sent too long ago.", 
+                    ephemeral: true);
                 return;
             }
             await Interaction.AcknowledgeAsync();
@@ -215,19 +221,22 @@ namespace DiscordBot.SlashCommands.Modules
         {
             if (!(chnl is SocketTextChannel to))
             {
-                await Interaction.RespondAsync(":x: You must select a text channel.", flags: InteractionResponseFlags.Ephemeral);
+                await Interaction.RespondAsync(":x: You must select a text channel.", 
+                    ephemeral: true);
                 return;
             }
-            var from = Interaction.Channel;
-            var fromPerms = Interaction.Member.GetPermissions(from);
+            var from = Interaction.Channel as ITextChannel;
+            var fromPerms = (Interaction.User as SocketGuildUser).GetPermissions(from);
             if (!ulong.TryParse(message, out var messageId))
             {
-                await Interaction.RespondAsync(":x: You must enter a message id - a long number.", flags: InteractionResponseFlags.Ephemeral);
+                await Interaction.RespondAsync(":x: You must enter a message id - a long number.", 
+                    ephemeral: true);
                 return;
             }
             if (!fromPerms.ManageMessages)
             {
-                await Interaction.RespondAsync($":x: You do not have permission to move mesages to {to.Mention}", flags: InteractionResponseFlags.Ephemeral);
+                await Interaction.RespondAsync($":x: You do not have permission to move mesages to {to.Mention}", 
+                    ephemeral: true);
                 return;
             }
             await Interaction.AcknowledgeAsync();

@@ -19,11 +19,11 @@ namespace DiscordBot.SlashCommands.Modules
                 fromLanguage = LanguageCodesUtils.ToCode(language);
                 if (fromLanguage == null)
                 {
-                    await Interaction.RespondAsync(":x: Language not recognised", type: Discord.InteractionResponseType.ChannelMessageWithSource, flags: Discord.InteractionResponseFlags.Ephemeral);
+                    await Interaction.RespondAsync(":x: Language not recognised", ephemeral: true);
                     return;
                 }
             }
-            await Interaction.RespondAsync(type: Discord.InteractionResponseType.ACKWithSource, flags: Discord.InteractionResponseFlags.Ephemeral);
+            await Interaction.AcknowledgeAsync(Discord.InteractionResponseFlags.Ephemeral);
             var client = TranslationClient.Create();
             var response = await client.TranslateTextAsync(message, LanguageCodes.English, fromLanguage);
             var actualFrom = response.DetectedSourceLanguage == null ? fromLanguage : response.DetectedSourceLanguage;

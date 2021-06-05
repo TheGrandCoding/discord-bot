@@ -51,7 +51,7 @@ namespace DiscordBot.Services.Games
             } catch { }
         }
 
-        private async Task Client_ReactionAdded(Cacheable<IUserMessage, ulong> arg1, ISocketMessageChannel arg2, SocketReaction arg3)
+        private async Task Client_ReactionAdded(Cacheable<IUserMessage, ulong> arg1, Cacheable<IMessageChannel, ulong> arg2, SocketReaction arg3)
         {
             var game = Games.FirstOrDefault(x => x.Message.Id == arg1.Id);
             if (game == null)

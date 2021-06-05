@@ -69,10 +69,18 @@ namespace DiscordBot.SlashCommands.Modules
             } while (done < count);
             response = await sendOrModify(response, $"Removing {bulkDelete.Count + manualDelete.Count} messages");
             if (bulkDelete.Count > 0)
-                await bulkDelete.BulkDeleteAndTrackAsync(Interaction.Channel, $"bPurged by {Interaction.Member.Mention}");
+            {
+                if(Interaction.Channel is ITextChannel txt)
+                {
+                    await bulkDelete.BulkDeleteAndTrackAsync(txt, $"bPurged by {Interaction.User.Mention}");
+                } else
+                { // can't bulk delete in other types of text channels, it seems
+                    manualDelete.AddRange(bulkDelete);
+                }
+            }
             foreach(var msg in manualDelete)
             {
-                await msg.DeleteAndTrackAsync($"Purged by {Interaction.Member.Mention}");
+                await msg.DeleteAndTrackAsync($"Purged by {Interaction.User.Mention}");
             }
         }
     }

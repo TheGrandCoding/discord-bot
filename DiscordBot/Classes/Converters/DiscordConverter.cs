@@ -68,7 +68,7 @@ namespace DiscordBot.Classes
                 var msgId = ulong.Parse(split[2]);
                 if(guild == null)
                 {
-                    var chnl = Program.Client.GetUser(id).GetOrCreateDMChannelAsync().Result;
+                    var chnl = Program.Client.GetUser(id).CreateDMChannelAsync().Result;
                     return chnl.GetMessageAsync(msgId).Result;
                 } else
                 {

@@ -1,5 +1,5 @@
 ﻿using Discord;
-using Discord.Addons.Interactive;
+using Interactivity;
 using Discord.Commands;
 using DiscordBot.Services;
 using DiscordBot.Services.BuiltIn;
@@ -9,12 +9,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Discord.WebSocket;
 
 namespace DiscordBot.Commands
 {
-    public abstract class BotBase : InteractiveBase<BotCommandContext>
+    public abstract class BotBase : ModuleBase<BotCommandContext>
     {
-
+        protected InteractivityService InteractivityService { get; set; }
         static CmdDisableService cmdDisableService { get; set; }
         protected override void BeforeExecute(CommandInfo command)
         {
@@ -31,5 +32,15 @@ namespace DiscordBot.Commands
         }
         public RuntimeResult Error(string message)
             => new BotResult(message);
+
+        public Task<InteractivityResult<object>> PagedReplyAsync(Interactivity.Pagination.PaginatorBuilder builder, TimeSpan? timeout = null)
+        {
+            return InteractivityService.SendPaginatorAsync(builder.Build(),
+                Context.Channel, timeout: timeout);
+        }
+        public Task<InteractivityResult<SocketMessage>> NextMessageAsync(TimeSpan? timeout = null)
+        {
+            return InteractivityService.NextMessageAsync(timeout: timeout);
+        }
     }
 }

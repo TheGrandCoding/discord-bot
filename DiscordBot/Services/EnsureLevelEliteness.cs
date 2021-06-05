@@ -46,8 +46,9 @@ namespace DiscordBot.Services
         public override void OnLoaded()
         {
             Catchup().Wait();
-            Program.Client.GuildMemberUpdated += async (SocketGuildUser arg1, SocketGuildUser arg2) =>
+            Program.Client.GuildMemberUpdated += async (Cacheable<SocketGuildUser, ulong> c1, SocketGuildUser arg2) =>
             {
+                var arg1 = await c1.GetOrDownloadAsync();
                 if(!Guilds.TryGetValue((arg1 ?? arg2).Guild.Id, out var save))
                     return;
                 if (arg2.Roles.Any(x => x.Id == save.VerifyRole.Id))

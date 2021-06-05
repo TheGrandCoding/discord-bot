@@ -57,7 +57,7 @@ namespace DiscordBot.Commands.Modules
                 "\r\n" + string.Join("\r\n", vk.WhitelistedRoles.Select(x => x.Name)) +
                 "\r\n**If this is not desired**, please manually respond with a comma-separated list of roles within 30 seconds",
                 allowedMentions: new AllowedMentions(AllowedMentionTypes.None));
-            var reply = await NextMessageAsync(timeout: TimeSpan.FromSeconds(30));
+            var reply = (await NextMessageAsync(timeout: TimeSpan.FromSeconds(30))).Value;
             if(reply != null && !string.IsNullOrWhiteSpace(reply.Content))
             {
                 var split = reply.Content.Split(',');
@@ -103,7 +103,7 @@ namespace DiscordBot.Commands.Modules
                 "\r\n" + string.Join("\r\n", vk.WhitelistedRoles.Select(x => x.Name)) +
                 "\r\n**If this is not desired**, please manually respond with a comma-separated list of roles within 30 seconds",
                 allowedMentions: new AllowedMentions(AllowedMentionTypes.None));
-            var reply = await NextMessageAsync(timeout: TimeSpan.FromSeconds(30));
+            var reply = (await NextMessageAsync(timeout: TimeSpan.FromSeconds(30))).Value;
             if (reply != null && !string.IsNullOrWhiteSpace(reply.Content))
             {
                 var split = reply.Content.Split(',');
@@ -176,7 +176,7 @@ namespace DiscordBot.Commands.Modules
             Program.Client.ReactionRemoved += Client_ReactionRemoved;
         }
 
-        private async Task Client_ReactionRemoved(Cacheable<IUserMessage, ulong> arg1, ISocketMessageChannel arg2, SocketReaction arg3)
+        private async Task Client_ReactionRemoved(Cacheable<IUserMessage, ulong> arg1, Cacheable<IMessageChannel, ulong> arg2, SocketReaction arg3)
         {
             if (!Items.TryGetValue(arg1.Id, out var item))
                 return;
@@ -230,7 +230,7 @@ namespace DiscordBot.Commands.Modules
             return false;
         }
 
-        private async System.Threading.Tasks.Task Client_ReactionAdded(Cacheable<IUserMessage, ulong> arg1, ISocketMessageChannel arg2, SocketReaction arg3)
+        private async System.Threading.Tasks.Task Client_ReactionAdded(Cacheable<IUserMessage, ulong> arg1, Cacheable<IMessageChannel, ulong> arg2, SocketReaction arg3)
         {
             if(Items.TryGetValue(arg1.Id, out var item))
             {

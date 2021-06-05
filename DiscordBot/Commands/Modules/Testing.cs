@@ -4,7 +4,9 @@ using DiscordBot.Classes;
 using DiscordBot.Commands;
 using DiscordBot.Commands.Attributes;
 using DiscordBot.Services;
+using DiscordBot.Services.BuiltIn;
 using DiscordBot.Utils;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -23,6 +25,22 @@ namespace DiscordBot.Commands.Modules
             var msg = await ReplyAsync("Testing 123.");
             await msg.AddReactionAsync(Emotes.THUMBS_UP);
             React.Register(msg, EventAction.Added, response, Context.User.Id.ToString());
+        }
+
+        [Command("buttons")]
+        public async Task Buttons()
+        {
+            ComponentBuilder builder = new ComponentBuilder();
+            builder.WithButton("Test button 1", "btn1", ButtonStyle.Danger);
+            builder.WithButton("Test button 2", "btn2", ButtonStyle.Danger);
+            var msg = await ReplyAsync("Click button below", component: builder.Build());
+            var srv = Program.Services.GetRequiredService<DiscordBot.Services.BuiltIn.MessageComponentService>();
+            srv.Register(msg, handleButton);
+        }
+        public static void handleButton(object sender, CallbackEventArgs args)
+        {
+            var token = args.Interaction;
+            token.RespondAsync(text: $"Clicked {args.ComponentId}", type: InteractionResponseType.UpdateMessage);
         }
 
         [Command("emote")]

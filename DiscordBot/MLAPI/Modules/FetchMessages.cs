@@ -736,12 +736,13 @@ namespace DiscordBot.MLAPI.Modules
         HTMLBase getUserSubText(SocketGuildUser user)
         {
             var subText = new Div(cls: "subText-1KtqkB");
-            if (user.Activity == null)
+            var userActivity = user.Activities.FirstOrDefault();
+            if (userActivity == null)
                 return subText;
             var activity = new Div(cls: "activity-2Gy-9S");
             subText.Children.Add(activity);
-            var txt = $"{user.Activity.Type} <strong>{user.Activity.Name}</strong>";
-            if (user.Activity is CustomStatusGame cs)
+            var txt = $"{userActivity.Type} <strong>{userActivity.Name}</strong>";
+            if (userActivity is CustomStatusGame cs)
                 txt = cs.State;
             var activityText = new Div(cls: "activityText-yGKsKm");
             activity.Children.Add(activityText);

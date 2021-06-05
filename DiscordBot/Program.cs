@@ -1,5 +1,5 @@
 ﻿using Discord;
-using Discord.Addons.Interactive;
+using Interactivity;
 using Discord.Commands;
 using Discord.Rest;
 using Discord.SlashCommands;
@@ -359,7 +359,7 @@ Changed how permissions worked for bot.
             var coll = new ServiceCollection()
                 .AddSingleton(new DiscordSocketClient(new DiscordSocketConfig
                 {
-                    LogLevel = LogSeverity.Info,
+                    LogLevel = LogSeverity.Debug,
                     MessageCacheSize = 1000,
                     AlwaysAcknowledgeInteractions = false
                 }))
@@ -370,7 +370,12 @@ Changed how permissions worked for bot.
                     CaseSensitiveCommands = false
                 }))
                 .AddSingleton<CommandHandlingService>()
-                .AddSingleton<InteractiveService>();
+                .AddSingleton<InteractivityService>()
+                .AddSingleton(new InteractivityConfig()
+                {
+                    RunOnGateway = false,
+                    DefaultTimeout = TimeSpan.FromSeconds(30)
+                });
             coll.AddSingleton(new SlashCommandService());
             coll.AddDbContext<LogContext>(ServiceLifetime.Transient);
             coll.AddDbContext<ChessDbContext>(options =>
@@ -537,48 +542,87 @@ Changed how permissions worked for bot.
         {
             AppInfo = await Client.GetApplicationInfoAsync();
             var slsh = Services.GetRequiredService<SlashCommandService>();
+            var components = Services.GetRequiredService<Services.BuiltIn.MessageComponentService>();
 #if !DEBUG
             var guildIds = new List<ulong>() { 420240046428258304 };
 #else
             var guildIds = Client.Guilds.Select(x => x.Id).ToList();
 #endif
             await slsh.RegisterCommandsAsync(Client, guildIds, new CommandRegistrationOptions(OldCommandOptions.DELETE_UNUSED, ExistingCommandOptions.OVERWRITE));
-            Client.InteractionCreated += async (SocketInteraction x) =>
+            Client.InteractionCreated += (SocketInteraction x) =>
             {
-                try
+                var task = Task.Run(() => executeInteraction(x));
+                task.ContinueWith(err =>
                 {
-                    Program.LogMsg($"Executing interaction {x.Id}", LogSeverity.Debug, "Interactions");
-                    var result = await slsh.ExecuteAsync(x, Services);
-                    Program.LogMsg($"Executed interaction {x.Id}: {result.IsSuccess} {result.Error} {result.ErrorReason}", LogSeverity.Info, "Interaction");
-                    if(!result.IsSuccess && result is ExecuteResult exec && exec.Exception != null)
+                    Program.LogMsg($"Failed to execute interaction: {err}", LogSeverity.Error, "Interaction");
+                }, TaskContinuationOptions.OnlyOnFaulted);
+                return Task.CompletedTask;
+            };
+            var th = new Thread(runStartups);
+            th.Name = "clientReady";
+            th.Start();
+        }
+
+        static async Task executeInteraction(SocketInteraction x)
+        {
+            var slsh = Program.Services.GetRequiredService<SlashCommandService>();
+            var components = Program.Services.GetRequiredService<Services.BuiltIn.MessageComponentService>();
+            try
+            {
+                IResult result;
+                if (x.Type == InteractionType.ApplicationCommand)
+                {
+                    Program.LogMsg($"Executing slash command {x.Id}", LogSeverity.Debug, "Interactions");
+                    result = await slsh.ExecuteAsync(x as SocketSlashCommand, Program.Services);
+                }
+                else if (x.Type == InteractionType.MessageComponent)
+                {
+                    Program.LogMsg($"Executing message componenet {x.Id}", LogSeverity.Debug, "Interactions");
+                    result = components.ExecuteAsync(x as SocketMessageComponent);
+                }
+                else
+                {
+                    Program.LogMsg($"Unknown interaction type: {x.Type} {(int)x.Type}");
+                    result = MiscResult.FromError("Unknown interaction type");
+                }
+                Program.LogMsg($"Executed interaction {x.Id}: {result.IsSuccess} {result.Error} {result.ErrorReason}", LogSeverity.Info, "Interaction");
+                if (!result.IsSuccess)
+                {
+                    if (result is ExecuteResult exec && exec.Exception != null)
                     {
                         Program.LogMsg("SlashCommandInvoke", exec.Exception);
                         try
                         {
                             await x.RespondAsync(":x: Internal exception occured whilst handling this command: " + exec.Exception.Message);
-                        } catch { }
+                        }
+                        catch { }
                     }
-                }
-                catch (Exception ex)
-                {
-                    Program.LogMsg($"{x.Id} {x.Member?.Id ?? 0} {ex}", LogSeverity.Error, "InteractionCreated");
-                    try
-                    {
-                        await x.RespondAsync($":x: Encountered an internal error attempting that command: {ex.Message}");
-                    }
-                    catch
+                    else
                     {
                         try
                         {
-                            await x.FollowupAsync($":x: Encountered an internal error attempting that command: {ex.Message}");
+                            await x.RespondAsync($":x: Interaction failed: {result.Error} {result.ErrorReason}");
                         }
                         catch { }
                     }
                 }
-            };
-            var th = new Thread(runStartups);
-            th.Name = "clientReady";
-            th.Start();
+            }
+            catch (Exception ex)
+            {
+                Program.LogMsg($"{x.Id} {x.User?.Id ?? 0} {ex}", LogSeverity.Error, "InteractionCreated");
+                try
+                {
+                    await x.RespondAsync($":x: Encountered an internal error attempting that command: {ex.Message}");
+                }
+                catch
+                {
+                    try
+                    {
+                        await x.FollowupAsync($":x: Encountered an internal error attempting that command: {ex.Message}");
+                    }
+                    catch { }
+                }
+            }
         }
 #endregion
 

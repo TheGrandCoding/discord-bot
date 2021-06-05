@@ -1,4 +1,5 @@
 ﻿using Discord.SlashCommands;
+using Discord.WebSocket;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -17,18 +18,19 @@ namespace DiscordBot.SlashCommands.Modules
             if(adminRole == null)
             {
                 await Interaction.RespondAsync(":x: No admin role setup for this guild.",
-                    flags: Discord.InteractionResponseFlags.Ephemeral);
+                    ephemeral: true);
                 return;
             }
             await Interaction.AcknowledgeAsync(Discord.InteractionResponseFlags.Ephemeral);
-            if(Interaction.Member.Roles.Any(x => x.Id == adminRole.Id))
+            var member = Interaction.User as SocketGuildUser;
+            if(member.Roles.Any(x => x.Id == adminRole.Id))
             {
-                await Interaction.Member.RemoveRoleAsync(adminRole, new Discord.RequestOptions() { AuditLogReason = "Toggled admin duty" });
+                await member.RemoveRoleAsync(adminRole, new Discord.RequestOptions() { AuditLogReason = "Toggled admin duty" });
                 await Interaction.FollowupAsync("Your admin rights have been revoked.");
             }
             else
             {
-                await Interaction.Member.AddRoleAsync(adminRole, new Discord.RequestOptions() { AuditLogReason = "Toggled admin duty." });
+                await member.AddRoleAsync(adminRole, new Discord.RequestOptions() { AuditLogReason = "Toggled admin duty." });
                 await Interaction.FollowupAsync("Your admin rights have been reinstated.");
             }
         } 
