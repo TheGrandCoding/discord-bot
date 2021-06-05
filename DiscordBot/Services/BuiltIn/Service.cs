@@ -249,6 +249,10 @@ namespace DiscordBot.Services
             }
         }
 
+        protected void Info(string message) => Program.LogInfo(message, Name);
+        protected void Warning(string message) => Program.LogWarning(message, Name);
+        protected void Error(Exception ex) => Program.LogError(ex, Name);
+        protected void Debug(string message) => Program.LogDebug(message, Name);
 
         class serviceComparer : IComparer<Service>
         {

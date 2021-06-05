@@ -37,7 +37,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.16.9"; 
+        public const string VERSION = "0.16.11"; 
         public const string CHANGELOG = VERSION + @"
 == Permissions changes
 Changed how permissions worked for bot.
@@ -333,10 +333,19 @@ Changed how permissions worked for bot.
             Log?.Invoke(null, msg);
         }
 
+        [Obsolete("Use other log functions")]
         public static void LogMsg(Exception ex, string source) => LogMsg(new LogMessage(LogSeverity.Error, source, null, ex));
+        [Obsolete("Use other log functions")]
         public static void LogMsg(string source, Exception ex) => LogMsg(ex, source);
+        [Obsolete("Use other log functions")]
         public static void LogMsg(string message, LogSeverity sev = LogSeverity.Info, string source = "App")
             => LogMsg(new LogMessage(sev, source, message));
+
+        public static void LogInfo(string message, string source, Exception error = null) => LogMsg(new LogMessage(LogSeverity.Info, source, message, error));
+        public static void LogWarning(string message, string source, Exception error = null) => LogMsg(new LogMessage(LogSeverity.Warning, source, message, error));
+        public static void LogError(Exception error, string source) => LogMsg(new LogMessage(LogSeverity.Error, source, null, error));
+        public static void LogDebug(string message, string source, Exception error = null) => LogMsg(new LogMessage(LogSeverity.Debug, source, message, error));
+
 
         private static Task LogAsync(LogMessage log)
         {

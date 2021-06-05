@@ -379,7 +379,7 @@ namespace DiscordBot.Services
                         exit = true;
                         break;
                     }
-                    await AddMessage(sm, _db_);
+                    await Task.Run(async () => await AddMessage(sm, _db_));
                 }
                 if(ordered.Count() < max)
                 {
@@ -414,8 +414,13 @@ namespace DiscordBot.Services
                 Guild = guild,
                 MessageId = id
             };
+#if THREADED
             var thr = new Thread(downloadAttachmentThread);
+            thr.Name = $"dl-{attachment.Filename}";
             thr.Start(data);
+#else
+            downloadAttachmentThread(data);
+#endif
         }
 
         public Dictionary<ulong, ulong> NewAttachmentMap { get; set; } = new Dictionary<ulong, ulong>();
@@ -456,7 +461,9 @@ namespace DiscordBot.Services
 #endif
             try
             {
+                Info($"Getting lock on thread {Thread.CurrentThread.Name} | {Thread.CurrentThread.ManagedThreadId}");
                 downloadLock.WaitOne();
+                Info($"Got lock on thread {Thread.CurrentThread.Name} | {Thread.CurrentThread.ManagedThreadId}");
                 Program.LogMsg($"Downloading {data.Attachment.Url}", LogSeverity.Info, "Attch");
                 using var cl = new WebClient();
                 cl.DownloadProgressChanged += (object sender, DownloadProgressChangedEventArgs e) =>
@@ -500,11 +507,12 @@ namespace DiscordBot.Services
             }
             finally
             {
+                Info($"Release lock on thread {Thread.CurrentThread.Name} | {Thread.CurrentThread.ManagedThreadId}");
                 downloadLock.Release();
             }
         }
 
-        #endregion
+#endregion
 
         async Task AddMessage(IMessage arg, LogContext _db_ = null)
         {
@@ -537,10 +545,12 @@ namespace DiscordBot.Services
             Console.WriteLine($"{getWhere(umsg)}: {arg.Author.Username}: {arg.Content}");
             Console.ForegroundColor = ConsoleColor.White;
             Console.BackgroundColor = ConsoleColor.Black;
+            Info($"Starting attachment handle for {arg.Id} on thread {Thread.CurrentThread.Name} | {Thread.CurrentThread.ManagedThreadId}");
             foreach(var attch in umsg.Attachments)
             {
                 HandleAttachment(attch, guildChannel.Guild, umsg.Id);
             }
+            Info($"Ended attachment handle for {arg.Id} on thread {Thread.CurrentThread.Name} | {Thread.CurrentThread.ManagedThreadId}");
             if (dispose)
                 _db_.Dispose();
         }
@@ -668,7 +678,7 @@ namespace DiscordBot.Services
                 {
                     total.Add(new DiscordMsg(this, umsg));
 #if !DEBUG
-                    await AddMessage(umsg);
+                    await Task.Run(async () => await AddMessage(umsg));
 #endif
                 }
             }
@@ -731,7 +741,7 @@ namespace DiscordBot.Services
 
         private async System.Threading.Tasks.Task Client_MessageReceived(SocketMessage arg)
         {
-            await AddMessage(arg);
+            await Task.Run(async () => await AddMessage(arg));
         }
 
         string getWhere(IUserMessage m)
