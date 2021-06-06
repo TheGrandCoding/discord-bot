@@ -36,10 +36,13 @@ namespace DiscordBot.Services
             { // since it may be removed.
                 var guild = Program.Client.GetGuild(x.Key);
                 // in case reactions were added whilst bot offline
-                Permissions.RegisterNewNode(new NodeInfo(
-                    $"roles.{guild.Id}.*",
-                    "Use all reaction roles for " + guild.Name)
-                    .SetAssignedBy("roles.*"));
+                if(!Permissions.AllNodes.ContainsKey($"roles.{guild.Id}.*"))
+                {
+                    Permissions.RegisterNewNode(new NodeInfo(
+                        $"roles.{guild.Id}.*",
+                        "Use all reaction roles for " + guild.Name)
+                        .SetAssignedBy("roles.*"));
+                }
                 foreach (var emoteStr in x.Value.Roles.Keys)
                 {
                     IEmote emote;
@@ -56,7 +59,10 @@ namespace DiscordBot.Services
                         $"roles.{guild.Id}.{role.Id}",
                         $"Use button to get/remove {role.Name} for {guild.Name}")
                         .SetAssignedBy($"roles.{guild.Id}.*");
-                    Permissions.RegisterNewNode(rolePerm);
+                    if(!Permissions.AllNodes.ContainsKey(rolePerm.Node))
+                    {
+                        Permissions.RegisterNewNode(rolePerm);
+                    }
                 }
             }
         }
@@ -139,10 +145,12 @@ namespace DiscordBot.Services
             var result = runReactions(e).Result;
             if(result.IsSuccess)
             {
-                e.Interaction.FollowupAsync("Your role was sucessfully toggled.");
+                e.Interaction.FollowupAsync("Your role was sucessfully toggled.",
+                    ephemeral: true);
             } else
             {
-                e.Interaction.FollowupAsync($"Failed to change your role: {result.Reason}");
+                e.Interaction.FollowupAsync($"Failed to change your role: {result.Reason}",
+                    ephemeral: true);
             }
             if (Inspection != null)
             {

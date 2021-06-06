@@ -40,12 +40,20 @@ namespace DiscordBot.Commands.Modules
             int buttons = 0;
             foreach(var emoji in setup.Roles)
             {
+                IEmote em;
+                if(Emote.TryParse(emoji.Key, out var emote))
+                {
+                    em = emote;
+                } else 
+                {
+                    em = new Emoji(emoji.Key);
+                }
                 var role = Context.Guild.GetRole(emoji.Value);
                 var name = role?.Name ?? emoji.Value.ToString();
                 builder.WithButton(name,
                     emoji.Value.ToString(),
                     ButtonStyle.Primary,
-                    new Emoji(emoji.Key),
+                    em,
                     row: (buttons++) / 5
                     );
             }

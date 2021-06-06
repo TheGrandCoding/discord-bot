@@ -24,7 +24,7 @@ namespace DiscordBot.Commands.Modules
             {
                 if(emoji.RoleIds != null && emoji.RoleIds.Count > 0)
                 {
-                    var value = emoji.RoleIds.Select(x => Context.Guild.GetRole(x).Mention);
+                    var value = emoji.RoleIds.Select(x => Context.Guild.GetRole(x)?.Mention ?? x.ToString());
                     builder.AddField(emoji.ToString(), string.Join("\r\n", value), true);
                 }
             }
@@ -50,7 +50,7 @@ namespace DiscordBot.Commands.Modules
                     roleList.Add(Context.Guild.GetRole(id));
                 else if (MentionUtils.TryParseRole(text, out id))
                     roleList.Add(Context.Guild.GetRole(id));
-                else
+                else if (!string.IsNullOrWhiteSpace(text))
                     return new BotResult($"Could not parse `{text}` as any role. Either mention it or use the role's id.");
             }
             await Context.Guild.ModifyEmoteAsync(emote, x =>

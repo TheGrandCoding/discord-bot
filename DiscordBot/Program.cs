@@ -37,7 +37,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.17.1"; 
+        public const string VERSION = "0.17.2"; 
         public const string CHANGELOG = VERSION + @"
 == Permissions changes
 Changed how permissions worked for bot.
@@ -371,7 +371,9 @@ Changed how permissions worked for bot.
                 {
                     LogLevel = LogSeverity.Debug,
                     MessageCacheSize = 1000,
-                    AlwaysAcknowledgeInteractions = false
+                    AlwaysAcknowledgeInteractions = false,
+                    AlwaysDownloadUsers = true,
+                    GatewayIntents = GatewayIntents.All
                 }))
                 .AddSingleton(new CommandService(new CommandServiceConfig
                 {
