@@ -1,7 +1,7 @@
 ﻿using Discord;
 using Discord.SlashCommands;
 using Discord.WebSocket;
-using DiscordBot.Services.BuiltIn;
+using DiscordBot.Services;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
@@ -39,12 +39,12 @@ namespace DiscordBot.SlashCommands.Modules
                 builder.WithButton("Test button 1", "btn1", ButtonStyle.Danger);
                 builder.WithButton("Test button 2", "btn2", ButtonStyle.Danger);
                 var msg = await Interaction.RespondAsync("Click below", component: builder.Build());
-                var srv = Program.Services.GetRequiredService<DiscordBot.Services.BuiltIn.MessageComponentService>();
+                var srv = Program.Services.GetRequiredService<MessageComponentService>();
                 srv.Register(msg, handleButton);
             }
             catch (Exception ex)
             {
-                Program.LogMsg(ex, "EchoButtons");
+                Program.LogError(ex, "EchoButtons");
             }
         }
 

@@ -9,7 +9,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DiscordBot.Services.BuiltIn
+namespace DiscordBot.Services
 {
     public class MessageComponentService : SavedService
     {
@@ -80,7 +80,7 @@ namespace DiscordBot.Services.BuiltIn
     class CallbackMessage
     {
         [JsonConverter(typeof(DiscordConverter))]
-        public IUserMessage Message { get; set; }
+        public IMessage Message { get; set; }
         public CallbackMethod Method { get; set; }
         public string State { get; set; }
         public DateTime Added { get; set; }

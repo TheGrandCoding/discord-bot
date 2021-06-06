@@ -34,7 +34,7 @@ namespace DiscordBot.Commands.Modules
             builder.WithButton("Test button 1", "btn1", ButtonStyle.Danger);
             builder.WithButton("Test button 2", "btn2", ButtonStyle.Danger);
             var msg = await ReplyAsync("Click button below", component: builder.Build());
-            var srv = Program.Services.GetRequiredService<DiscordBot.Services.BuiltIn.MessageComponentService>();
+            var srv = Program.Services.GetRequiredService<MessageComponentService>();
             srv.Register(msg, handleButton);
         }
         public static void handleButton(object sender, CallbackEventArgs args)

@@ -33,6 +33,38 @@ namespace DiscordBot.Commands.Modules
             Service.Register(Context.Guild, msg, x => { });
             await Context.Message.DeleteAndTrackAsync("Command executed");
         }
+
+        ComponentBuilder GetButtons(RolesService.RolesSetup setup)
+        {
+            var builder = new ComponentBuilder();
+            int buttons = 0;
+            foreach(var emoji in setup.Roles)
+            {
+                var role = Context.Guild.GetRole(emoji.Value);
+                var name = role?.Name ?? emoji.Value.ToString();
+                builder.WithButton(name,
+                    emoji.Value.ToString(),
+                    ButtonStyle.Primary,
+                    new Emoji(emoji.Key),
+                    row: (buttons++) / 5
+                    );
+            }
+            return builder;
+        }
+
+        async Task UpdateMessage(RolesService.RolesSetup setup)
+        {
+            await setup.Message.RemoveAllReactionsAsync();
+            var builder = new EmbedBuilder();
+            builder.Title = "Reaction Roles";
+            builder.Description = "Use the buttons below to toggle certain roles controlling your access to parts of this server.";
+            await setup.Message.ModifyAsync(x =>
+            {
+                x.Embed = builder.Build();
+                x.Components = GetButtons(setup).Build();
+            });
+        }
+
         [Command("add")]
         [Summary("Adds a new emote-role pair to the server")]
         public async Task<RuntimeResult> AddRole(IEmote emote, IRole role)
@@ -42,16 +74,9 @@ namespace DiscordBot.Commands.Modules
             if (role.Position >= Context.Guild.CurrentUser.Hierarchy)
                 return new BotResult($"That role is above my highest, so I would be unable to assign it.");
             setup.Roles[emote] = role.Id;
-            await setup.Message.AddReactionAsync(emote);
-            var builder = new EmbedBuilder();
-            builder.Title = "Reaction Roles";
-            foreach (var pair in setup.Roles)
-                builder.AddField(pair.Key, $"<@&{pair.Value}>", true);
-            await setup.Message.ModifyAsync(x =>
-            {
-                x.Embed = builder.Build();
-            });
+            await UpdateMessage(setup);
             Service.OnSave();
+            Service.RegisterPermissions();
             return new BotResult();
         }
 
@@ -91,15 +116,7 @@ namespace DiscordBot.Commands.Modules
             if (!setup.Roles.TryGetValue(emote, out _))
                 return new BotResult("That emote has not been assigned to any roles");
             setup.Roles.Remove(emote);
-            await setup.Message.RemoveReactionAsync(emote, Program.Client.CurrentUser);
-            var builder = new EmbedBuilder();
-            builder.Title = "Reaction Roles";
-            foreach (var pair in setup.Roles)
-                builder.AddField(pair.Key, $"<@&{pair.Value}>", true);
-            await setup.Message.ModifyAsync(x =>
-            {
-                x.Embed = builder.Build();
-            });
+            await UpdateMessage(setup);
             Service.OnSave();
             return new BotResult();
         }

@@ -20,6 +20,12 @@ namespace DiscordBot.Classes
                 || objectType == typeof(SocketVoiceChannel)
                 || objectType == typeof(RestVoiceChannel)
                 || objectType == typeof(SocketGuildUser)
+                || objectType == typeof(IMessage)
+                || objectType == typeof(SocketMessage)
+                || objectType == typeof(RestMessage)
+                || objectType == typeof(ISystemMessage)
+                || objectType == typeof(SocketSystemMessage)
+                || objectType == typeof(RestSystemMessage)
                 || objectType == typeof(IUserMessage)
                 || objectType == typeof(RestUserMessage)
                 || objectType == typeof(SocketUserMessage)
@@ -63,7 +69,9 @@ namespace DiscordBot.Classes
                 return guild.GetUser(id);
             if (objectType == typeof(SocketRole) || objectType == typeof(IRole))
                 return guild.GetRole(id);
-            if(objectType == typeof(SocketUserMessage) || objectType == typeof(IUserMessage))
+            if(objectType == typeof(SocketUserMessage) || objectType == typeof(IUserMessage)
+                || objectType == typeof(SocketSystemMessage) || objectType == typeof(ISystemMessage)
+                || objectType == typeof(SocketMessage) || objectType == typeof(IMessage))
             {
                 var msgId = ulong.Parse(split[2]);
                 if(guild == null)
@@ -91,15 +99,14 @@ namespace DiscordBot.Classes
             else if (value is IGuildUser gu)
             {
                 return $"{gu.GuildId}.{gu.Id}";
-            }
-            else if (value is IUserMessage m)
+            } else if(value is IMessage s)
             {
                 ulong gId = 0;
-                ulong cId = m.Channel.Id;
-                ulong mId = m.Id;
-                if (m.Channel is IGuildChannel c)
+                ulong cId = s.Channel.Id;
+                ulong mId = s.Id;
+                if (s.Channel is IGuildChannel c)
                     gId = c.GuildId;
-                if (m.Channel is IDMChannel d)
+                if (s.Channel is IDMChannel d)
                     cId = d.Recipient.Id;
                 return $"{gId}.{cId}.{mId}";
             } else if(value is IGuild g)

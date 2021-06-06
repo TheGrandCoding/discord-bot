@@ -37,7 +37,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.17.0"; 
+        public const string VERSION = "0.17.1"; 
         public const string CHANGELOG = VERSION + @"
 == Permissions changes
 Changed how permissions worked for bot.
@@ -344,6 +344,7 @@ Changed how permissions worked for bot.
         public static void LogInfo(string message, string source, Exception error = null) => LogMsg(new LogMessage(LogSeverity.Info, source, message, error));
         public static void LogWarning(string message, string source, Exception error = null) => LogMsg(new LogMessage(LogSeverity.Warning, source, message, error));
         public static void LogError(Exception error, string source) => LogMsg(new LogMessage(LogSeverity.Error, source, null, error));
+        public static void LogError(string message, string source, Exception error = null) => LogMsg(new LogMessage(LogSeverity.Error, source, message, error));
         public static void LogDebug(string message, string source, Exception error = null) => LogMsg(new LogMessage(LogSeverity.Debug, source, message, error));
 
 
@@ -551,7 +552,7 @@ Changed how permissions worked for bot.
         {
             AppInfo = await Client.GetApplicationInfoAsync();
             var slsh = Services.GetRequiredService<SlashCommandService>();
-            var components = Services.GetRequiredService<Services.BuiltIn.MessageComponentService>();
+            var components = Services.GetRequiredService<MessageComponentService>();
 #if !DEBUG
             var guildIds = new List<ulong>() { 420240046428258304 };
 #else
@@ -563,7 +564,7 @@ Changed how permissions worked for bot.
                 var task = Task.Run(() => executeInteraction(x));
                 task.ContinueWith(err =>
                 {
-                    Program.LogMsg($"Failed to execute interaction: {err}", LogSeverity.Error, "Interaction");
+                    LogError($"Failed to execute interaction: {err}", "Interaction");
                 }, TaskContinuationOptions.OnlyOnFaulted);
                 return Task.CompletedTask;
             };
@@ -575,7 +576,7 @@ Changed how permissions worked for bot.
         static async Task executeInteraction(SocketInteraction x)
         {
             var slsh = Program.Services.GetRequiredService<SlashCommandService>();
-            var components = Program.Services.GetRequiredService<Services.BuiltIn.MessageComponentService>();
+            var components = Program.Services.GetRequiredService<MessageComponentService>();
             try
             {
                 IResult result;
