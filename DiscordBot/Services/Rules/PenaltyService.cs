@@ -217,6 +217,8 @@ namespace DiscordBot.Services.Rules
             {
                 if (!(x is MutePenalty mute))
                     return false;
+                if (mute.Guild.Id != user.Guild.Id)
+                    return false;
                 return x.Target?.Id == user.Id;
             }) as MutePenalty;
             if(penalty == null)

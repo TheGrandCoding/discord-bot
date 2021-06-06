@@ -134,9 +134,17 @@ namespace DiscordBot.Services
                     $"Use `{Program.Prefix}perms viewo {bUser.Id}` to see what permissions they do have."*/);
             }
             if(user.RoleIds.Any(x => x == roleId))
+            {
                 await user.RemoveRoleAsync(role);
+                await e.Interaction.FollowupAsync($"You no longer have the {role.Name} role",
+                    ephemeral: true);
+            }
             else
+            {
                 await user.AddRoleAsync(role);
+                await e.Interaction.FollowupAsync($"You now have the {role.Name} role",
+                    ephemeral: true);
+            }
             return new BotResult();
         }
 
@@ -144,11 +152,7 @@ namespace DiscordBot.Services
         {
             await e.Interaction.AcknowledgeAsync(InteractionResponseFlags.Ephemeral);
             var result = runReactions(e).Result;
-            if(result.IsSuccess)
-            {
-                await e.Interaction.FollowupAsync("Your role was sucessfully toggled.",
-                    ephemeral: true);
-            } else
+            if(!result.IsSuccess)
             {
                 await e.Interaction.FollowupAsync($"Failed to change your role: {result.Reason}",  ephemeral: true);
             }
