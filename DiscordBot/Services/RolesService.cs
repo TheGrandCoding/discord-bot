@@ -10,6 +10,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace DiscordBot.Services
 {
@@ -139,18 +140,17 @@ namespace DiscordBot.Services
             return new BotResult();
         }
 
-        public static void handleReact(object sender, CallbackEventArgs e)
+        public static async Task handleReact(CallbackEventArgs e)
         {
-            e.Interaction.AcknowledgeAsync(InteractionResponseFlags.Ephemeral);
+            await e.Interaction.AcknowledgeAsync(InteractionResponseFlags.Ephemeral);
             var result = runReactions(e).Result;
             if(result.IsSuccess)
             {
-                e.Interaction.FollowupAsync("Your role was sucessfully toggled.",
+                await e.Interaction.FollowupAsync("Your role was sucessfully toggled.",
                     ephemeral: true);
             } else
             {
-                e.Interaction.FollowupAsync($"Failed to change your role: {result.Reason}",
-                    ephemeral: true);
+                await e.Interaction.FollowupAsync($"Failed to change your role: {result.Reason}",  ephemeral: true);
             }
             if (Inspection != null)
             {
@@ -159,7 +159,7 @@ namespace DiscordBot.Services
                 builder.AddField("User", $"{e.User.Username}#{e.User.Discriminator}\r\n{e.User.Id}", true);
                 builder.AddField("Button", e.ComponentId, true);
                 builder.Description = $"**{result.Reason}**";
-                Inspection.SendMessageAsync(embed: builder.Build());
+                await Inspection .SendMessageAsync(embed: builder.Build());
             }
         }
 

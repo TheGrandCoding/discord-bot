@@ -24,7 +24,9 @@ using System.Threading.Tasks;
 
 namespace DiscordBot.Services.Rules
 {
-    [RequireService(typeof(LoggingService), typeof(UserChangeService))]
+    [RequireService(typeof(LoggingService), 
+                    typeof(UserChangeService),
+                    typeof(ReactionService))]
     public class PenaltyService : SavedService, ISARProvider
     {
         private static int _id;
@@ -34,6 +36,7 @@ namespace DiscordBot.Services.Rules
         public Dictionary<ulong, int> ChannelMuteEscalations { get; set; } = new Dictionary<ulong, int>();
         public Dictionary<ulong, string> DefaultDurations { get; set; } = new Dictionary<ulong, string>();
         public Semaphore Lock { get; } = new Semaphore(1, 1);
+        public MessageComponentService MessageComponentService { get; private set; }
 
 
         private static readonly string[] Formats = {
@@ -115,6 +118,7 @@ namespace DiscordBot.Services.Rules
         {
             execute(() =>
             {
+                MessageComponentService = Program.Services.GetRequiredService<MessageComponentService>();
                 var sv = ReadSave();
                 var loaded = Program.Deserialise<PenaltySave>(sv);
                 _id = loaded.PenaltyId;
@@ -189,6 +193,20 @@ namespace DiscordBot.Services.Rules
             }
         }
 
+        EmbedBuilder getRoleMuteBuilder(SocketGuildUser user, MutePenalty penalty)
+        {
+            var builder = new EmbedBuilder();
+            builder.Title = "Muted by Role";
+            builder.Description = $"{user.Mention} has been muted through a role being added\r\n" +
+                $"To set or change its duration, use the buttons below or the `{Program.Prefix}penalty duration {penalty.Id} [duration, eg 1h25m]` command";
+            if (penalty.Duration.HasValue)
+                builder.AddField("Duration", $"This mute will last for {Program.FormatTimeSpan(penalty.Duration.Value)}\r\n" +
+                    $"It will be removed at {DateTime.Now.Add(penalty.Duration.Value):F}");
+            else
+                builder.AddField("Duration", "This mute is indefinite, and will last until the role is manually removed.");
+            return builder;
+        }
+
         private async Task User_RolesAdded(SocketGuildUser user, SocketRole[] added)
         {
             var muted = await GetMutedRole(user.Guild);
@@ -206,20 +224,82 @@ namespace DiscordBot.Services.Rules
                 DefaultDurations.TryGetValue(user.Guild.Id, out var defStr);
                 TimeSpan? duration = defStr == null ? null : GetDurationForDefault(defStr);
                 penalty = await AddMute(user.Guild.CurrentUser, user, "Detected via role change", duration);
-                string message = $"MLAPI has detected that {user.Mention} has been muted.\r\n" +
-                    $"To set a duration for this mute, run the `{Program.Prefix}penalty duration {penalty.Id} [duration, eg 1h25m]` command\r\n";
-                if(defStr == null)
-                {
-                    message += "No default duration has been set, so it will remain until removed.\r\n" +
-                        $"To set a default duration, use the `{Program.Prefix}prefix default [duration]` command";
-                } else
-                {
-                    message += $"Due to this guild's default duration setting, the mute will automatically be removed in " +
-                        Program.FormatTimeSpan(duration.Value, true);
-                }
+
+                var embed = getRoleMuteBuilder(user, penalty);
+                var cBuilder = new ComponentBuilder();
+                cBuilder.WithButton("Set duration to 1h", $"{penalty.Id}-0", ButtonStyle.Secondary);
+                cBuilder.WithButton("+1 hour", $"{penalty.Id}-1", ButtonStyle.Success);
+                cBuilder.WithButton("-1 hour", $"{penalty.Id}-2", ButtonStyle.Primary);
+
+                cBuilder.WithButton("Remove Mute", $"{penalty.Id}-3", ButtonStyle.Danger, row: 1);
+
                 // addmute already saves the service
-                await user.Guild.PublicUpdatesChannel.SendMessageAsync(message);
+                var msg = await user.Guild.PublicUpdatesChannel.SendMessageAsync(embed: embed.Build(),
+                    component: cBuilder.Build());
+                MessageComponentService.Register(msg, handleMuteChange, penalty.Id.ToString());
             }
+        }
+
+        public static async Task handleMuteChange(CallbackEventArgs e)
+        {
+            await e.Interaction.AcknowledgeAsync(InteractionResponseFlags.Ephemeral);
+            var This = Program.Services.GetRequiredService<PenaltyService>();
+            var array = e.ComponentId.Split('-').Select(x => int.Parse(x));
+            var penaltyId = array.ElementAt(0);
+            var actionType = array.ElementAt(1);
+            var penalty = This.FindPenalty(x =>
+            {
+                return x.Id == penaltyId;
+            }) as MutePenalty;
+            if(penalty == null)
+            {
+                await e.Message.ModifyAsync(x =>
+                {
+                    x.Content = "*Mute has been removed*";
+                    x.Components = new ComponentBuilder().Build();
+                });
+                await e.Interaction.FollowupAsync("This mute has already been removed and cannot be modified further",
+                    ephemeral: true);
+                return;
+            }
+            switch(actionType)
+            {
+                case 0:
+                    penalty.Duration = new TimeSpan(1, 0, 0);
+                    await e.Interaction.FollowupAsync($"{e.User.Mention} has set duration of mute for {penalty.Target.Mention} to one hour");
+                    break;
+                case 1:
+                    penalty.Duration = penalty.Duration.GetValueOrDefault(TimeSpan.FromHours(0)).Add(TimeSpan.FromHours(1));
+                    await e.Interaction.FollowupAsync($"{e.User.Mention} has increased duration of mute for {penalty.Target.Mention}" +
+                        $" to {Program.FormatTimeSpan(penalty.Duration.Value)}");
+                    break;
+                case 2:
+                    if(!penalty.Duration.HasValue || penalty.Duration.Value.TotalHours < 1)
+                    {
+                        await e.Interaction.FollowupAsync("Duration is already lower than one hour, cannot reduce by one.",
+                            ephemeral: true);
+                        return;
+                    }
+                    penalty.Duration = penalty.Duration.GetValueOrDefault(TimeSpan.FromHours(0)).Add(TimeSpan.FromHours(-1));
+                    await e.Interaction.FollowupAsync($"{e.User.Mention} has decreased duration of mute for {penalty.Target.Mention}" +
+                        $" to {Program.FormatTimeSpan(penalty.Duration.Value)}");
+                    break;
+                case 3:
+                    This.RemovePenalty(penaltyId);
+                    await e.Interaction.FollowupAsync($"{e.User.Mention} removed the mute of {penalty.Target.Mention}");
+                    await e.Message.ModifyAsync(x =>
+                    {
+                        x.Content = "*This mute has been removed*";
+                        x.Components = new ComponentBuilder().Build();
+                    });
+                    return;
+                default:
+                    await e.Interaction.FollowupAsync($"Unknown action: {actionType}.");
+                    return;
+
+            }
+            await e.Message.ModifyAsync(x => x.Embed = This.getRoleMuteBuilder(penalty.Target as SocketGuildUser, penalty).Build());
+            This.OnSave();
         }
 
         async Task Client_ReactionAdded(Cacheable<IUserMessage, ulong> arg1, Cacheable<IMessageChannel, ulong> cached, SocketReaction arg3)

@@ -48,10 +48,10 @@ namespace DiscordBot.SlashCommands.Modules
             }
         }
 
-        public static void handleButton(object sender, CallbackEventArgs args)
+        public static async Task handleButton(CallbackEventArgs args)
         {
             var token = args.Interaction;
-            token.RespondAsync(text: $"Clicked {args.ComponentId}", type: InteractionResponseType.UpdateMessage);
+            await token.RespondAsync(text: $"Clicked {args.ComponentId}", type: InteractionResponseType.UpdateMessage);
         }
     }
 }

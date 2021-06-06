@@ -37,10 +37,10 @@ namespace DiscordBot.Commands.Modules
             var srv = Program.Services.GetRequiredService<MessageComponentService>();
             srv.Register(msg, handleButton);
         }
-        public static void handleButton(object sender, CallbackEventArgs args)
+        public static async Task handleButton(CallbackEventArgs args)
         {
             var token = args.Interaction;
-            token.RespondAsync(text: $"Clicked {args.ComponentId}", type: InteractionResponseType.UpdateMessage);
+            await token.RespondAsync(text: $"Clicked {args.ComponentId}", type: InteractionResponseType.UpdateMessage);
         }
 
         [Command("emote")]

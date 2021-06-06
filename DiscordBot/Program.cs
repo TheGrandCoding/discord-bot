@@ -575,8 +575,12 @@ Changed how permissions worked for bot.
             th.Start();
         }
 
+        public static bool ignoringCommands = false;
+
         static async Task executeInteraction(SocketInteraction x)
         {
+            if (ignoringCommands)
+                return;
             var slsh = Program.Services.GetRequiredService<SlashCommandService>();
             var components = Program.Services.GetRequiredService<MessageComponentService>();
             try
@@ -585,12 +589,12 @@ Changed how permissions worked for bot.
                 if (x.Type == InteractionType.ApplicationCommand)
                 {
                     Program.LogMsg($"Executing slash command {x.Id}", LogSeverity.Debug, "Interactions");
-                    result = await slsh.ExecuteAsync(x as SocketSlashCommand, Program.Services);
+                    result = await slsh.ExecuteAsync(x as SocketSlashCommand, Program.Services).ConfigureAwait(false);
                 }
                 else if (x.Type == InteractionType.MessageComponent)
                 {
                     Program.LogMsg($"Executing message componenet {x.Id}", LogSeverity.Debug, "Interactions");
-                    result = components.ExecuteAsync(x as SocketMessageComponent);
+                    result = await components.ExecuteAsync(x as SocketMessageComponent).ConfigureAwait(false);
                 }
                 else
                 {

@@ -223,6 +223,13 @@ namespace DiscordBot.Commands.Modules
             await PagedReplyAsync(paginator);
             return new BotResult();
         }
+
+        [Command("slash"), Summary("Toggles whether this instance ignores slash commands")]
+        public async Task IgnoreCommandsToggle()
+        {
+            Program.ignoringCommands = !Program.ignoringCommands;
+            await ReplyAsync("We are " + (Program.ignoringCommands ? "ignoring" : "not ignoring") + " slash commands");
+        }
     
         [Command("log")]
         [Summary("Gets invite to logging guild")]

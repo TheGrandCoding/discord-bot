@@ -27,7 +27,9 @@ namespace DiscordBot.Services
             
         }
 
-        public void Register(IUserMessage message, EventHandler<CallbackEventArgs> callback, string state = null, bool doSave = true)
+        public delegate Task ButtonClicked(CallbackEventArgs e);
+
+        public void Register(IUserMessage message, ButtonClicked callback, string state = null, bool doSave = true)
         {
             var msg = new CallbackMessage()
             {
@@ -53,7 +55,7 @@ namespace DiscordBot.Services
             messages.Remove(message.Id);
         }
 
-        public IResult ExecuteAsync(SocketMessageComponent arg)
+        public async Task<IResult> ExecuteAsync(SocketMessageComponent arg)
         {
             if(!messages.TryGetValue(arg.Message?.Id ?? 0, out var data))
                 return ExecuteResult.FromError(CommandError.Unsuccessful, "No state data found, unknown callback");
@@ -68,7 +70,8 @@ namespace DiscordBot.Services
             };
             try
             {
-                data.Method.Invoke(args);
+                var result = await data.Method.Invoke(args).ConfigureAwait(false);
+                return result;
             } catch(Exception ex)
             {
                 return ExecuteResult.FromError(ex);
@@ -92,7 +95,7 @@ namespace DiscordBot.Services
         public string Class { get; set; }
         public string MethodName { get; set; }
 
-        EventHandler<CallbackEventArgs> _eh;
+        Delegate _eh;
 
         MethodInfo GetMethod()
         {
@@ -100,17 +103,27 @@ namespace DiscordBot.Services
             return type.GetMethod(MethodName);
         }
 
-        public void Invoke(CallbackEventArgs args)
+        public async Task<IResult> Invoke(CallbackEventArgs args)
         {
+            Task task;
             if (_eh != null)
             {
-                _eh.Invoke(this, args);
+                task = _eh.DynamicInvoke(new object[] { args }) as Task ?? Task.Delay(0);
             }
             else
             {
-                GetMethod().Invoke(null, new object[] { this, args });
+                task = GetMethod().Invoke(null, new object[] { args }) as Task ?? Task.Delay(0);
             }
 
+            if (task is Task<RuntimeResult> resultTask)
+            {
+                return await resultTask.ConfigureAwait(false);
+            }
+            else
+            {
+                await task.ConfigureAwait(false);
+                return ExecuteResult.FromSuccess();
+            }
         }
 
         public CallbackMethod(MethodInfo info)
@@ -123,7 +136,7 @@ namespace DiscordBot.Services
             MethodName = info.Name;
         }
 
-        public CallbackMethod(EventHandler<CallbackEventArgs> handler)
+        public CallbackMethod(Delegate handler)
         {
             _eh = handler;
             Class = handler.Method.DeclaringType.AssemblyQualifiedName;
