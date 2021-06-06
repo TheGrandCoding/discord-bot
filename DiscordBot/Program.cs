@@ -37,7 +37,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.17.3"; 
+        public const string VERSION = "0.17.4"; 
         public const string CHANGELOG = VERSION + @"
 == Permissions changes
 Changed how permissions worked for bot.
@@ -610,14 +610,6 @@ Changed how permissions worked for bot.
                         try
                         {
                             await x.RespondAsync(":x: Internal exception occured whilst handling this command: " + exec.Exception.Message);
-                        }
-                        catch { }
-                    }
-                    else
-                    {
-                        try
-                        {
-                            await x.RespondAsync($":x: Interaction failed: {result.Error} {result.ErrorReason}");
                         }
                         catch { }
                     }

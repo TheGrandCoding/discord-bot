@@ -20,9 +20,6 @@ namespace DiscordBot.Commands.Modules
     [Name("Bot Commands")]
     public sealed class BotCmdModule : BotBase
     {
-
-        public Interactivity.InteractivityService InteractivityService { get; set; }
-
         List<char> allowed_chars;
         public BotCmdModule()
         {

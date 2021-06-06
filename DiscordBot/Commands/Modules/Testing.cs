@@ -37,6 +37,16 @@ namespace DiscordBot.Commands.Modules
             var srv = Program.Services.GetRequiredService<MessageComponentService>();
             srv.Register(msg, handleButton);
         }
+
+        [Command("confirm")]
+        public async Task Confirm()
+        {
+            var result = await ConfirmAsync("Are you sure?");
+            if (result == null)
+                await ReplyAsync("You didn't reply");
+            else
+                await ReplyAsync($"You are {(result.Value ? "sure" : "not sure")}");
+        }
         public static async Task handleButton(CallbackEventArgs args)
         {
             var token = args.Interaction;

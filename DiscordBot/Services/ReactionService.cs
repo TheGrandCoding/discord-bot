@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 
 namespace DiscordBot.Services
 {
+    [Obsolete("MessageComponentService should be used instead")]
     public class ReactionService : SavedService
     {
         Dictionary<ulong, ReactionMessage> messages = new Dictionary<ulong, ReactionMessage>();

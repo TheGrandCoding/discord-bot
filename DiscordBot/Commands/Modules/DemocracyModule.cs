@@ -1,10 +1,13 @@
 ﻿using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
+using DiscordBot.Classes.Attributes;
 using DiscordBot.Services;
+using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -30,19 +33,33 @@ namespace DiscordBot.Commands.Modules
             foreach(var x in Service.Items)
             {
                 string value;
-                if (x.Value.StatusMessage != null)
-                    value = $"[Link]({x.Value.StatusMessage.GetJumpUrl()})";
+                if (x.StatusMessage != null)
+                    value = $"[Link]({x.StatusMessage.GetJumpUrl()})";
                 else
-                    value = $"Message Removed, id: {x.Key}";
+                    value = $"Message Removed, will be purged when bot next restarts";
                 value += $"\r\n";
-                value += $"Ayes: {x.Value.Ayes.Count}\r\n" +
-                    $"Noes: {x.Value.Noes.Count}\r\n" +
-                    $"Not voted: {x.Value.Abstained.Count}";
-                builder.AddField(x.Value.getTitle(), value);
+                value += $"Ayes: {x.Ayes.Count}\r\n" +
+                    $"Noes: {x.Noes.Count}\r\n" +
+                    $"Not voted: {x.Abstained.Count}";
+                builder.AddField(x.getTitle(), value);
             }
             if (builder.Fields.Count == 0)
                 builder.AddField("Nothing", "There are no current active votes.");
             await ReplyAsync(embed: builder.Build());
+        }
+
+
+        [Command("question")]
+        [Summary("Initiates a vote on a yes/no question")]
+        [RequireContext(ContextType.Guild)]
+        public async Task Question(string question)
+        {
+            if (question.EndsWith("?"))
+                question = question[..^1];
+            var msg = await ReplyAsync("[...]");
+            var vq = new VoteQuestion(question, Context.Guild, Context.User as SocketGuildUser, msg);
+            Service.Register(vq);
+            await vq.Update("Initialising...");
         }
 
         [Command("kick")]
@@ -80,13 +97,7 @@ namespace DiscordBot.Commands.Modules
                 await vk.Update();
                 await ReplyAsync("Using roles:\r\n" + string.Join("\r\n", vk.WhitelistedRoles.Select(x => x.Name)));
             }
-            Task _ = Task.Run(async () =>
-            {
-                await msg.AddReactionAsync(Emotes.THUMBS_UP);
-                await msg.AddReactionAsync(Emotes.THUMBS_DOWN);
-            });
-            Service.Items[msg.Id] = vk;
-            Service.OnSave();
+            Service.Register(vk);
             await vk.Update("Initialising...");
             return new BotResult();
         }
@@ -127,13 +138,7 @@ namespace DiscordBot.Commands.Modules
                 await vk.Update();
                 await ReplyAsync("Using roles:\r\n" + string.Join("\r\n", vk.WhitelistedRoles.Select(x => x.Name)));
             }
-            Task _ = Task.Run(async () =>
-            {
-                await msg.AddReactionAsync(Emotes.THUMBS_UP);
-                await msg.AddReactionAsync(Emotes.THUMBS_DOWN);
-            });
-            Service.Items[msg.Id] = vk;
-            Service.OnSave();
+            Service.Register(vk);
             await vk.Update("Initialising...");
             return new BotResult();
         }
@@ -142,15 +147,14 @@ namespace DiscordBot.Commands.Modules
         [Summary("Removes a given proposal vote")]
         public async Task Remove(ulong id)
         {
-            if(!Service.Items.TryGetValue(id, out var item))
+            if(!Service.TryGetValue(id, out var item))
             {
                 await ReplyAsync("No such proposal exists.");
                 return;
             }
             if(Context.User.Id == item.Submitter.Id || (Context.User as IGuildUser).GuildPermissions.Administrator)
             {
-                Service.Items.Remove(id);
-                Service.OnSave();
+                Service.Unregister(item);
                 await ReplyAsync("Removed.");
             } else
             {
@@ -159,65 +163,106 @@ namespace DiscordBot.Commands.Modules
         }
     }
 
+    [RequireService(typeof(MessageComponentService))]
     public class DemocracyService : SavedService
     {
-        public Dictionary<ulong, VoteItem> Items { get; set; }
+        MessageComponentService Service { get; set; }
+        Dictionary<ulong, VoteItem> VoteItems { get; set; } = new Dictionary<ulong, VoteItem>();
 
         public override string GenerateSave()
         {
-            return Program.Serialise(Items, TypeNameHandling.Auto);
+            return Program.Serialise(VoteItems, TypeNameHandling.Auto);
         }
 
         public override void OnLoaded()
         {
-            Items = Program.Deserialise<Dictionary<ulong, VoteItem>>(ReadSave());
-            Catchup().Wait();
-            Program.Client.ReactionAdded += Client_ReactionAdded;
-            Program.Client.ReactionRemoved += Client_ReactionRemoved;
+            var loaded = Program.Deserialise<Dictionary<ulong, VoteItem>>(ReadSave());
+            Service = Program.Services.GetRequiredService<MessageComponentService>();
+            foreach(var item in loaded)
+            {
+                if(item.Value.StatusMessage != null)
+                {
+                    Register(item.Value);
+                    VoteItems[item.Key] = item.Value;
+                }
+            }
         }
 
-        private async Task Client_ReactionRemoved(Cacheable<IUserMessage, ulong> arg1, Cacheable<IMessageChannel, ulong> arg2, SocketReaction arg3)
+        public bool TryGetValue(ulong id, out VoteItem item) => VoteItems.TryGetValue(id, out item);
+
+        public IReadOnlyCollection<VoteItem> Items => VoteItems.Values.ToImmutableArray();
+
+        public void Register(VoteItem item)
         {
-            if (!Items.TryGetValue(arg1.Id, out var item))
-                return;
-            var user = item.Guild.GetUser(arg3.UserId);
-            if (user == null || user.IsBot)
-                return;
-            var emote = arg3.Emote.Name;
-            if (!(emote == Emotes.THUMBS_UP.Name || emote == Emotes.THUMBS_DOWN.Name))
-                return;
-            if(!item.HasVoted(user))
+            VoteItems[item.StatusMessage.Id] = item;
+            Service.Register(item.StatusMessage, handleButtonClick, item.StatusMessage.Id.ToString(), doSave: false); // since we'll register every startup anyway
+            OnSave();
+        }
+
+        public void Unregister(VoteItem item)
+        {
+            VoteItems.Remove(item.StatusMessage.Id);
+            Service.Unregister(item.StatusMessage);
+            OnSave();
+        }
+
+        async Task handleButtonClick(CallbackEventArgs e)
+        {
+            await e.Interaction.AcknowledgeAsync();
+            var msgId = ulong.Parse(e.State);
+            if(!VoteItems.TryGetValue(msgId, out var item))
             {
-                await user.SendMessageAsync($"You have not voted for this proposal");
+                await e.Interaction.FollowupAsync("No proposal exists on the message. Weird.",
+                    ephemeral: true);
                 return;
             }
-            if(!item.CanVote(user))
+            var user = e.User as IGuildUser;
+
+            if (item.HasVoted(user))
             {
-                await user.SendMessageAsync($"You are unable to vote on this proposal");
+                await e.Interaction.FollowupAsync("You have already voted in this proposal",
+                    ephemeral: true);
                 return;
             }
-            if(emote == Emotes.THUMBS_UP.Name)
+            if (!item.CanVote(user))
             {
-                item.Ayes.RemoveAll(x => x.Id == user.Id);
-                item.Abstained.Add(user);
-            } else if (emote == Emotes.THUMBS_DOWN.Name)
+                await e.Interaction.FollowupAsync($"You are unable to vote in this proposal",
+                    ephemeral: true);
+                return;
+            }
+            var value = bool.Parse(e.ComponentId);
+            if (value)
             {
-                item.Noes.RemoveAll(x => x.Id == user.Id);
-                item.Abstained.Add(user);
+                item.Ayes.Add(user);
+                await e.Interaction.FollowupAsync("Your **aye** vote has been recorded.",
+                    ephemeral: true);
+            }
+            else 
+            {
+                item.Noes.Add(user);
+                await e.Interaction.FollowupAsync("Your **noe** vote has been recorded.",
+                    ephemeral: true);
+            }
+            item.Abstained.RemoveAll(x => x.Id == user.Id);
+            await item.Update();
+            var remove = await ShouldRemove(item);
+            if (remove)
+            {
+                Unregister(item);
+                await item.StatusMessage.Channel.SendMessageAsync($"The question \"{item.getQuestion()}?\" has been answered; {item.StatusMessage.Content}");
             }
             OnSave();
-            await item.Update();
         }
 
         public async Task<bool> ShouldRemove(VoteItem item)
         {
             if(item.NoesHaveIt)
             {
-                await item.Update($"**The noes have it, the noes have it**! Unlock!");
+                await item.Update($"**The noes have it, the noes have it!** Unlock!");
                 return true;
             } else if (item.AyesHaveIt)
             {
-                await item.Update($"**The ayes have it, the ayes have it! Unlock!**");
+                await item.Update($"**The ayes have it, the ayes have it!** Unlock!");
                 var result = await item.PerformAction();
                 if(!result.IsSuccess)
                     await item.StatusMessage.Channel.SendMessageAsync($"Unable to perform action for {item.getTitle()}: {result.Reason}");
@@ -229,83 +274,20 @@ namespace DiscordBot.Commands.Modules
             }
             return false;
         }
-
-        private async System.Threading.Tasks.Task Client_ReactionAdded(Cacheable<IUserMessage, ulong> arg1, Cacheable<IMessageChannel, ulong> arg2, SocketReaction arg3)
-        {
-            if(Items.TryGetValue(arg1.Id, out var item))
-            {
-                var user = item.Guild.GetUser(arg3.UserId);
-                if (user == null || user.IsBot)
-                    return;
-                if(item.HasVoted(user))
-                {
-                    await item.StatusMessage.RemoveReactionAsync(arg3.Emote, user);
-                    await user.SendMessageAsync($"You have already voted for this proposal.");
-                    return;
-                }
-                if(!item.CanVote(user))
-                {
-                    await item.StatusMessage.RemoveReactionAsync(arg3.Emote, user);
-                    await user.SendMessageAsync($"You are unable to vote for this proposal.");
-                    return;
-                }
-                if(arg3.Emote.Name == Emotes.THUMBS_UP.Name)
-                {
-                    item.Ayes.Add(user);
-                } else if (arg3.Emote.Name == Emotes.THUMBS_DOWN.Name)
-                {
-                    item.Noes.Add(user);
-                } else
-                {
-                    await item.StatusMessage.RemoveReactionAsync(arg3.Emote, user);
-                    await user.SendMessageAsync($"Reaction must be one of {Emotes.THUMBS_UP} or {Emotes.THUMBS_DOWN}");
-                    return;
-                }
-                item.Abstained.RemoveAll(x => x.Id == user.Id);
-                await item.Update();
-                var remove = await ShouldRemove(item);
-                if (remove)
-                {
-                    Items.Remove(arg1.Id);
-                    await item.StatusMessage.Channel.SendMessageAsync($"The question \"{item.getQuestion()}?\" has been answered; {item.StatusMessage.Content}");
-                }
-                OnSave();
-            }
-        }
-    
-        async Task<List<IGuildUser>> getFor(VoteItem item, IEmote emote)
-        {
-            var reacted = await item.StatusMessage.GetReactionUsersAsync(emote, 100).FlattenAsync();
-            var guildReacted = reacted.Where(x => !x.IsBot).Select(x => item.Guild.GetUser(x.Id));
-            return guildReacted.Cast<IGuildUser>().Where(x => item.CanVote(x)).ToList();
-        }
-
-        public async Task Catchup()
-        {
-            var toRemove = new List<ulong>();
-            foreach(var keypair in Items)
-            {
-                var item = keypair.Value;
-                if(item.StatusMessage == null)
-                {
-                    toRemove.Add(keypair.Key);
-                    continue;
-                }
-                item.Ayes = await getFor(item, Emotes.THUMBS_UP);
-                item.Noes = await getFor(item, Emotes.THUMBS_DOWN);
-                item.Abstained = new List<IGuildUser>();
-                item.Abstained = item.Guild.Users.Cast<IGuildUser>().Where(x => x.IsBot == false && item.CanVote(x)).ToList();
-                var remove = await ShouldRemove(item);
-                if (remove)
-                    toRemove.Add(keypair.Key);
-            }
-            foreach (var id in toRemove)
-                Items.Remove(id);
-        }
     }
 
     public abstract class VoteItem
     {
+        [JsonConstructor]
+        protected VoteItem() { }
+
+        public VoteItem(SocketGuild guild, IGuildUser submitter, IUserMessage message)
+        {
+            Guild = guild;
+            Submitter = submitter;
+            StatusMessage = message;
+        }
+
         public abstract string Type { get; }
         public SocketGuild Guild { get; set; }
         public IGuildUser Submitter { get; set; }
@@ -327,10 +309,9 @@ namespace DiscordBot.Commands.Modules
         {
             if (Abstained.Any(x => x.Id == user.Id))
                 return true;
-            var can = user.RoleIds.Any(x => WhitelistedRoles.Any(y => y.Id == x));
-            if (can)
-                Abstained.Add(user);
-            return can;
+            if (WhitelistedRoles.Count == 0)
+                return user.IsBot == false; // no whitelist, so any users can
+            return user.RoleIds.Any(x => WhitelistedRoles.Any(y => y.Id == x));
         }
 
         public int Required { get; set; }
@@ -354,8 +335,21 @@ namespace DiscordBot.Commands.Modules
                 return AyesHaveIt == false && NoesHaveIt == false && Abstained.Count == 0;
             } }
 
+        [JsonIgnore]
+        public bool HasEnded => AyesHaveIt || NoesHaveIt || Deadlocked;
+
+
         public abstract string getTitle();
         public abstract string getQuestion();
+
+        public virtual void LoadAbstained()
+        {
+            var chnl = StatusMessage.Channel as SocketTextChannel;
+            Abstained = chnl.Users
+                .Where(x => CanVote(x))
+                .Cast<IGuildUser>().ToList();
+            Required = (int)Math.Floor(Abstained.Count / 2.0) + 1;
+        }
 
         public abstract Task<BotResult> PerformAction();
 
@@ -387,20 +381,49 @@ namespace DiscordBot.Commands.Modules
             {
                 x.Content = content;
                 x.Embed = ToEmbed().Build();
+                x.Components = new ComponentBuilder()
+                    .WithButton("Aye", "true", ButtonStyle.Success, Emotes.THUMBS_UP, disabled: HasEnded)
+                    .WithButton("Noe", "false", ButtonStyle.Primary, Emotes.THUMBS_DOWN, disabled: HasEnded).Build();
             });
         }
 
     }
 
+    public class VoteQuestion : VoteItem
+    {
+        [JsonConstructor]
+        protected VoteQuestion() { }
+
+        public VoteQuestion(string question, SocketGuild guild, SocketGuildUser submitter, IUserMessage msg)
+            : base(guild, submitter, msg)
+        {
+            Question = question;
+            LoadAbstained();
+        }
+
+        public override string Type => nameof(VoteQuestion);
+
+        public string Question { get; set; }
+
+        public override string getQuestion()
+            => Question;
+
+        public override string getTitle()
+            => "Vote on a Question";
+
+        public override Task<BotResult> PerformAction()
+        {
+            return Task.FromResult(new BotResult());
+        }
+    }
+
     public class VoteKick : VoteItem
     {
         [JsonConstructor]
-        private VoteKick() { }
+        protected VoteKick() { }
         public VoteKick(SocketGuild guild, SocketGuildUser submitter, SocketGuildUser target, string reason, IUserMessage msg)
+            : base(guild, submitter, msg)
         {
-            Guild = guild;
-            Submitter = submitter;
-            StatusMessage = msg;
             Target = target;
             Reason = reason;
             WhitelistedRoles = guild.Roles
@@ -411,14 +434,6 @@ namespace DiscordBot.Commands.Modules
             LoadAbstained();
         }
 
-        public void LoadAbstained()
-        {
-            Abstained = Guild.Users
-                .Where(x => x.IsBot == false && x.Roles.Any(x => WhitelistedRoles.Any(y => x.Id == y.Id)))
-                .Cast<IGuildUser>()
-                .ToList();
-            Required = (int)Math.Floor(Abstained.Count / 2.0) + 1;
-        }
 
         public override string Type => nameof(VoteKick);
         public SocketGuildUser Target { get; set; }
@@ -439,7 +454,7 @@ namespace DiscordBot.Commands.Modules
                 await Target?.KickAsync(Reason, new RequestOptions() { AuditLogReason = $"Vote: aye/nay/abs {Ayes.Count}/{Noes.Count}/{Abstained.Count}" });
             } catch (Exception ex)
             {
-                Program.LogMsg("Kick", ex);
+                Program.LogError(ex, "VoteKick");
                 return new BotResult(ex.ToString());
             }
             return new BotResult();
@@ -449,12 +464,10 @@ namespace DiscordBot.Commands.Modules
     public class VoteBan : VoteItem
     {
         [JsonConstructor]
-        private VoteBan() { }
+        protected VoteBan() { }
         public VoteBan(SocketGuild guild, SocketGuildUser submitter, SocketGuildUser target, string reason, IUserMessage msg)
+            : base(guild, submitter, msg)
         {
-            Guild = guild;
-            Submitter = submitter;
-            StatusMessage = msg;
             Target = target;
             Reason = reason;
             WhitelistedRoles = guild.Roles
@@ -465,14 +478,6 @@ namespace DiscordBot.Commands.Modules
             LoadAbstained();
         }
 
-        public void LoadAbstained()
-        {
-            Abstained = Guild.Users
-                .Where(x => x.IsBot == false && x.Roles.Any(x => WhitelistedRoles.Any(y => x.Id == y.Id)))
-                .Cast<IGuildUser>()
-                .ToList();
-            Required = (int)Math.Floor(Abstained.Count / 2.0) + 1;
-        }
 
         public override string Type => nameof(VoteBan);
         public SocketGuildUser Target { get; set; }
@@ -495,7 +500,7 @@ namespace DiscordBot.Commands.Modules
             }
             catch (Exception ex)
             {
-                Program.LogMsg("Ban", ex);
+                Program.LogError(ex, "VoteBan");
                 return new BotResult(ex.ToString());
             }
             return new BotResult();
