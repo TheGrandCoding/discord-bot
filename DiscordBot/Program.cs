@@ -37,7 +37,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.17.4"; 
+        public const string VERSION = "0.18.0"; 
         public const string CHANGELOG = VERSION + @"
 == Permissions changes
 Changed how permissions worked for bot.
@@ -341,11 +341,13 @@ Changed how permissions worked for bot.
         public static void LogMsg(string message, LogSeverity sev = LogSeverity.Info, string source = "App")
             => LogMsg(new LogMessage(sev, source, message));
 
+        public static void LogDebug(string message, string source, Exception error = null) => LogMsg(new LogMessage(LogSeverity.Debug, source, message, error));
+        public static void LogVerbose(string message, string source, Exception error = null) => LogMsg(new LogMessage(LogSeverity.Verbose, source, message, error));
         public static void LogInfo(string message, string source, Exception error = null) => LogMsg(new LogMessage(LogSeverity.Info, source, message, error));
         public static void LogWarning(string message, string source, Exception error = null) => LogMsg(new LogMessage(LogSeverity.Warning, source, message, error));
         public static void LogError(Exception error, string source) => LogMsg(new LogMessage(LogSeverity.Error, source, null, error));
         public static void LogError(string message, string source, Exception error = null) => LogMsg(new LogMessage(LogSeverity.Error, source, message, error));
-        public static void LogDebug(string message, string source, Exception error = null) => LogMsg(new LogMessage(LogSeverity.Debug, source, message, error));
+        public static void LogCritical(string message, string source, Exception error = null) => LogMsg(new LogMessage(LogSeverity.Critical, source, message, error));
 
 
         private static Task LogAsync(LogMessage log)
@@ -433,7 +435,7 @@ Changed how permissions worked for bot.
 
         public static void Close(int code)
         {
-            if(Service.State != "Started")
+            if(Service.GlobalState != ServiceState.None)
             {
                 Service.SendClose();
                 Program.Save(true);

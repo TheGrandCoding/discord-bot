@@ -1,4 +1,5 @@
-﻿using Discord;
+﻿#if INCLUDE_EDULINK
+using Discord;
 using EduLinkDLL;
 using EduLinkDLL.Exceptions;
 using Newtonsoft.Json.Linq;
@@ -13,6 +14,8 @@ namespace DiscordBot.Services
     public class EduLinkService : EncryptedService, ISARProvider
     {
         protected override string KeyLocation => "edulink_service";
+
+        public override bool IsEnabled => false;
 
         public override string GenerateSave()
         {
@@ -41,19 +44,6 @@ namespace DiscordBot.Services
         {
             if(m.Severity == EduLinkDLL.LogSeverity.Debug && (m.Source == "Response" || m.Source == "Request"))
             {
-                /*var path = Path.Combine(Program.BASE_PATH, "data", "logs", "edulink", cl.CurrentUser?.Username ?? cl.UserName ?? "nouser");
-                if(!Directory.Exists(path))
-                    Directory.CreateDirectory(path);
-                path = Path.Combine(path, $"{DateTime.Now:yyyy-MM-dd}.txt");
-                var id = Guid.NewGuid();
-                var chr = m.Source == "Request" ? '>' : '<';
-                var pad = new string(chr, 3);
-                string header = pad + id.ToString() + pad;
-                string full = header + "\r\n" + m.Message + "\r\n" + new string(chr, header.Length) + "\r\n";
-                if (m.Source == "Response")
-                    full += "\r\n";
-                File.AppendAllText(path, full);
-                Program.LogMsg($"Logged as {id}", Discord.LogSeverity.Verbose, "EL:" + m.Source);*/
                 return;
             }
             var conv = new Discord.LogMessage((Discord.LogSeverity)m.Severity, $"EL:{(cl?.CurrentUser?.UserName ?? "")}:" + (m.Source ?? ""), m.Message, m.Exception);
@@ -105,3 +95,4 @@ namespace DiscordBot.Services
         }
     }
 }
+#endif

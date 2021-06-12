@@ -30,10 +30,15 @@ namespace DiscordBot.Services.BuiltIn
                         SetDisabled(module, $"Relies on {service.Name} which has encountered an issue");
                         return $"Required service {service.Name} is unavailable";
                     }
+                    if (service.State == ServiceState.Disabled)
+                    {
+                        SetDisabled(module, $"Relies on {service.Name} which has been disabled");
+                        return $"Required service {service.Name} is no longer supported";
+                    }
                 }
             }
             if (module.Parent != null)
-                getDisabled(module.Parent);
+                return getDisabled(module.Parent);
             return null;
         }
         string getDisabled(CommandInfo cmd)

@@ -1,4 +1,5 @@
-﻿using DiscordBot.Classes;
+﻿#if INCLUDE_EDULINK
+using DiscordBot.Classes;
 using DiscordBot.Classes.Attributes;
 using EduLinkDLL;
 using Microsoft.Extensions.DependencyInjection;
@@ -13,6 +14,7 @@ namespace DiscordBot.Services.EduLink
     [RequireService(typeof(EduLinkService))]
     public class ELTimetableService : Service
     {
+        public override bool IsEnabled => false;
         public EduLinkService EduLink { get; set; }
 
         public override void OnLoaded()
@@ -47,3 +49,4 @@ namespace DiscordBot.Services.EduLink
         }
     }
 }
+#endif

@@ -1,4 +1,5 @@
-﻿using Discord;
+﻿#if INCLUDE_EDULINK
+using Discord;
 using Discord.WebSocket;
 using DiscordBot.Classes;
 using DiscordBot.Classes.Attributes;
@@ -18,6 +19,7 @@ namespace DiscordBot.Services.EduLink
     [RequireService(typeof(ReactionService), typeof(ELTimetableService))]
     public class ELHomeworkService : SavedService, ISARProvider
     {
+        public override bool IsEnabled => false;
         private static ELHomeworkService instance;
         public ELHomeworkService()
         {
@@ -293,3 +295,4 @@ namespace DiscordBot.Services.EduLink
 
 
 }
+#endif

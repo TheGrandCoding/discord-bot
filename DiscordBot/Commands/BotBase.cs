@@ -28,6 +28,11 @@ namespace DiscordBot.Commands
         public InteractivityService InteractivityService { get; set; }
         public MessageComponentService ComponentService { get; set; }
         static CmdDisableService cmdDisableService { get; set; }
+
+
+        /// <summary>
+        /// ENSURE THAT YOU CALL base.BeforeExecute! This function handles disabled commands!
+        /// </summary>
         protected override void BeforeExecute(CommandInfo command)
         {
             cmdDisableService ??= Program.Services.GetRequiredService<CmdDisableService>();

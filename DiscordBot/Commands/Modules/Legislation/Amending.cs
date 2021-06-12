@@ -34,6 +34,7 @@ namespace DiscordBot.Commands.Modules.Legislation
         static Dictionary<ulong, SaveInfo> saves = new Dictionary<ulong, SaveInfo>();
         protected override void BeforeExecute(CommandInfo command)
         {
+            base.BeforeExecute(command);
             if (!saves.ContainsKey(Context.User.Id))
                 saves[Context.User.Id] = new SaveInfo();
             var info = saves[Context.User.Id];

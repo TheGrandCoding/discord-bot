@@ -50,6 +50,7 @@ namespace DiscordBot.Services
             if (!message.HasCharPrefix(Program.Prefix, ref argPos)) return;
 
             var context = new BotCommandContext(_discord, message);
+
             await _commands.ExecuteAsync(context, argPos, _services);
         }
 

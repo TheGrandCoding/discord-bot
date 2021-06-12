@@ -1,4 +1,5 @@
-﻿using Discord.Commands;
+﻿#if INCLUDE_EDULINK
+using Discord.Commands;
 using DiscordBot.Commands;
 using DiscordBot.Commands.Attributes;
 using DiscordBot.Services;
@@ -63,3 +64,4 @@ namespace DiscordBot.Commands.Modules.EduLink
         }
     }
 }
+#endif

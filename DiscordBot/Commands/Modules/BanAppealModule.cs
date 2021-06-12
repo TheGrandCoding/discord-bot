@@ -20,6 +20,7 @@ namespace DiscordBot.Commands.Modules
 
         protected override void BeforeExecute(CommandInfo command)
         {
+            base.BeforeExecute(command);
             Appeal = Service.GetAppeal(Context.Guild, ulong.Parse((Context.Channel as ITextChannel).Topic));
         }
 

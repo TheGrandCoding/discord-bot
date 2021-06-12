@@ -26,12 +26,16 @@ namespace DiscordBot.Services
         /// </summary>
         public virtual bool IsCritical => false;
         public virtual bool IsEnabled => true;
-        public bool HasFailed { get; private set; }
         
         public virtual int Priority => 0;
 
+        public ServiceState State { get; private set; }
+        public bool HasFailed => State == ServiceState.Failed;
+
         public virtual int DefaultTimeout => 10_000;
         public virtual int CloseTimeout => DefaultTimeout / 2;
+
+
 
         public static DateTime? lastDailyTick = null;
 
@@ -57,15 +61,15 @@ namespace DiscordBot.Services
             return ls.ToImmutableArray();
         }
 
-        public static string State {  get
+        public static ServiceState GlobalState {  get
             {
-                if (doneFunctions.ContainsKey("OnClose"))
-                    return "Closed";
-                if (doneFunctions.ContainsKey("OnLoaded"))
-                    return "Loaded";
-                if (doneFunctions.ContainsKey("OnReady"))
-                    return "Ready";
-                return "Started";
+                if (doneFunctions.ContainsKey(ServiceState.Close))
+                    return ServiceState.Close;
+                if (doneFunctions.ContainsKey(ServiceState.Loaded))
+                    return ServiceState.Loaded;
+                if (doneFunctions.ContainsKey(ServiceState.Ready))
+                    return ServiceState.Ready;
+                return ServiceState.None;
             } }
 
         static void sendErrorToOwner(Service failed, string fName, Exception ex)
@@ -96,7 +100,7 @@ namespace DiscordBot.Services
         }
         protected void MarkFailed(Exception ex)
         {
-            this.HasFailed = true;
+            this.State = ServiceState.Failed;
             MarkFailed(this, "General", ex);
         }
 
@@ -109,30 +113,31 @@ namespace DiscordBot.Services
             return ex;
         }
 
-        static Dictionary<string, bool> doneFunctions = new Dictionary<string, bool>();
-        static void sendFunction(object obj)
+        static Dictionary<ServiceState, bool> doneFunctions = new Dictionary<ServiceState, bool>();
+        static void sendFunction(ServiceState state)
         {
-            if(!(obj is string name))
-            {
-                Program.LogMsg($"sendFunction recieved non-string input: {obj.GetType()}", LogSeverity.Warning);
+            if (doneFunctions.TryGetValue(state, out var d) && d)
                 return;
-            }
-            if (doneFunctions.TryGetValue(name, out var d) && d)
-                return;
-            doneFunctions[name] = true;
+            doneFunctions[state] = true;
+            var name = $"On{state}";
             try
             {
                 var stop = new Stopwatch();
                 foreach (var srv in zza_services)
                 {
-                    if (!srv.IsEnabled || srv.HasFailed)
+                    if (srv.HasFailed)
                         continue;
+                    if(!srv.IsEnabled)
+                    {
+                        srv.State = ServiceState.Disabled;
+                        continue;
+                    }
                     var method = srv.GetType().GetMethod(name);
                     try
                     {
                         if (method.IsOverride())
                         {
-                            Program.LogMsg($"Sending {name}", LogSeverity.Debug, srv.Name);
+                            Program.LogDebug($"Sending {name}", srv.Name);
                             //var source = new CancellationTokenSource();
                             //srv.CancelToken = source.Token;
                             var task = new Task(() =>
@@ -144,32 +149,34 @@ namespace DiscordBot.Services
                                 catch (Exception exception)
                                 {
                                     Exception ex = findTrueException(exception);
-                                    MarkFailed(srv, name, ex);
-                                    Program.LogMsg(ex, srv.Name);
+                                    MarkFailed(srv, $"{state}", ex);
+                                    Program.LogError(ex, srv.Name);
                                     if (srv.IsCritical)
                                         throw ex;
                                 }
                             });
                             stop.Restart();
-                            int timeout = name == "OnClose" ? srv.CloseTimeout : srv.DefaultTimeout;
+                            int timeout = state == ServiceState.Close ? srv.CloseTimeout : srv.DefaultTimeout;
                             task.Start();
                             bool completed = task.Wait(timeout);
                             stop.Stop();
                             //source.Cancel(false);
                             if(completed)
                             {
-                                Program.LogMsg($"Finished {name} in {stop.ElapsedMilliseconds}ms", Discord.LogSeverity.Verbose, srv.Name);
+                                Program.LogVerbose($"Finished {name} in {stop.ElapsedMilliseconds}ms", srv.Name);
                             } else
                             {
-                                Program.LogMsg($"Failed to complete {name} in {stop.ElapsedMilliseconds}ms; continuing...", LogSeverity.Warning, srv.Name);
+                                Program.LogWarning($"Failed to complete {name} in {stop.ElapsedMilliseconds}ms; continuing...", srv.Name);
                             }
+                            if (state > srv.State)
+                                srv.State = state;
                         }
                     }
                     catch (TargetInvocationException tie)
                     {
                         var ex = tie.InnerException;
-                        Program.LogMsg(ex, srv.Name);
-                        srv.HasFailed = true;
+                        Program.LogError(ex, srv.Name);
+                        srv.State = ServiceState.Failed;
                         if (srv.IsCritical)
                             throw ex;
                     }
@@ -177,7 +184,7 @@ namespace DiscordBot.Services
             }
             catch (Exception ex)
             {
-                Program.LogMsg($"Critical failure on service, must exit: {ex}", Discord.LogSeverity.Critical, name);
+                Program.LogCritical($"Critical failure on service, must exit: {ex}", name);
                 Program.Close(2);
                 return;
             }
@@ -191,17 +198,17 @@ namespace DiscordBot.Services
             zza_services = new List<Service>();
             zza_services.Add(backup);
             zza_services.AddRange(_servs);
-            sendFunction("OnReady");
+            sendFunction(ServiceState.Ready);
         }
     
         public static void SendLoad()
         {
-            sendFunction("OnLoaded");
+            sendFunction(ServiceState.Loaded);
             if (!doingDailyTick)
                 StartDailyTick();
         }
 
-        public static void SendSave() => sendFunction("OnSave");
+        public static void SendSave() => sendFunction(ServiceState.Save);
 
         static bool doingDailyTick = false;
         public static void StartDailyTick()
@@ -212,14 +219,14 @@ namespace DiscordBot.Services
         }
         public static void SendClose()
         {
-            sendFunction("OnClose");
+            sendFunction(ServiceState.Close);
         }
 
         public static void SendDailyTick()
         {
-            doneFunctions.Remove("OnDailyTick");
+            doneFunctions.Remove(ServiceState.DailyTick);
             lastDailyTick = DateTime.Now;
-            sendFunction("OnDailyTick");
+            sendFunction(ServiceState.DailyTick);
         }
 
         static void thread()
@@ -239,13 +246,13 @@ namespace DiscordBot.Services
                     var miliseconds = (int)Math.Floor(diff.TotalMilliseconds);
                     if (miliseconds < 2500)
                         miliseconds = 2500;
-                    Program.LogMsg($"Waiting for {miliseconds.ToString("#,0.00", nfi)}ms", LogSeverity.Info, "DailyTick");
+                    Program.LogInfo($"Waiting for {miliseconds.ToString("#,0.00", nfi)}ms", "DailyTick");
                     Task.Delay(miliseconds, token).Wait(token);
                     SendDailyTick();
                 } while (!token.IsCancellationRequested);
             } catch(OperationCanceledException)
             {
-                Program.LogMsg("DailyTick thread cancalled, exiting.", LogSeverity.Warning, "DailyTick");
+                Program.LogWarning("DailyTick thread cancalled, exiting.", "DailyTick");
             }
         }
 
@@ -283,5 +290,40 @@ namespace DiscordBot.Services
                 return 0;
             }
         }
+    }
+
+    /// <summary>
+    /// Indicates the state of a service
+    /// </summary>
+    public enum ServiceState
+    {
+        /// <summary>
+        /// No state set.
+        /// </summary>
+        None,
+        /// <summary>
+        /// Service has been disabled and will not function
+        /// </summary>
+        Disabled,
+        DailyTick,
+        Save,
+
+        /// <summary>
+        /// Service has executed the OnReady function without error
+        /// </summary>
+        Ready,
+        /// <summary>
+        /// Service has executed the OnLoaded function without error
+        /// </summary>
+        Loaded,
+        /// <summary>
+        /// Service has executed the OnClose function without error
+        /// </summary>
+        Close,
+
+        /// <summary>
+        /// Service has failed
+        /// </summary>
+        Failed
     }
 }

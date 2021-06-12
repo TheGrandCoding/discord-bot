@@ -86,6 +86,7 @@ namespace DiscordBot.Commands.Modules.Legislation
 
         protected override void BeforeExecute(CommandInfo command)
         {
+            base.BeforeExecute(command);
             if (!saves.ContainsKey(Context.User.Id))
                 saves[Context.User.Id] = new SaveInfo();
             var info = saves[Context.User.Id];
