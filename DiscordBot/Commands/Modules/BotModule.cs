@@ -90,14 +90,13 @@ namespace DiscordBot.Commands.Modules
                 await ReplyAsync($"Last daily tick: {Service.lastDailyTick.Value.ToString("yyyy/MM/dd hh:mm:ss.fff")}");
             } else
             {
-                var rs = Program.Services.GetRequiredService<ReactionService>();
-                var msg = await ReplyAsync($"No daily tick recorded. Use `{Program.Prefix}bot dtick true` or react to perform one.");
-                await msg.AddReactionAsync(Emotes.HAMMER);
-                rs.Register(msg, EventAction.Added, async (object sender, ReactionEventArgs e) =>
+                var rs = Program.Services.GetRequiredService<MessageComponentService>();
+
+                var result = await ConfirmAsync("No daily tick recorded. Do you want to perform one now?");
+                if(result.GetValueOrDefault(false))
                 {
-                    rs.Unregister(msg);
                     await DoDailyTick(true);
-                }, doSave: false);
+                }
             }
         }
 

@@ -264,6 +264,23 @@ namespace DiscordBot.Services
 
         class serviceComparer : IComparer<Service>
         {
+
+            Type[] getReliedOnServices(Service x)
+            {
+                var type = x.GetType();
+                var ls = (type.GetCustomAttribute<RequireServiceAttribute>()
+                    ?? new RequireServiceAttribute()).Types.ToList();
+
+                foreach(var property in type.GetProperties())
+                {
+                    var pType = property.PropertyType;
+                    if (type.IsAssignableFrom(pType) && !ls.Any(x => x.Name == pType.Name))
+                        ls.Add(pType);
+                }
+
+                return ls.ToArray();
+            }
+
             public int Compare([AllowNull] Service x, [AllowNull] Service y)
             {
                 // -1 -> x precedes y
@@ -277,14 +294,14 @@ namespace DiscordBot.Services
                     return 1;
                 var xType = x.GetType();
                 var yType = y.GetType();
-                var aAttribute = xType.GetCustomAttribute<RequireServiceAttribute>() ?? new RequireServiceAttribute();
-                var bAttribute = yType.GetCustomAttribute<RequireServiceAttribute>() ?? new RequireServiceAttribute();
+                var aAttribute = getReliedOnServices(x);
+                var bAttribute = getReliedOnServices(y);
 
-                if (aAttribute.Types.Contains(yType))
+                if (aAttribute.Contains(yType))
                 {
                     return "y".CompareTo("x");
                 }
-                if (bAttribute.Types.Contains(xType))
+                if (bAttribute.Contains(xType))
                 {
                     return "x".CompareTo("y");
                 }

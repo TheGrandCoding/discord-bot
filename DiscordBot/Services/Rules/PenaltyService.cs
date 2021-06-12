@@ -26,7 +26,7 @@ namespace DiscordBot.Services.Rules
 {
     [RequireService(typeof(LoggingService), 
                     typeof(UserChangeService),
-                    typeof(ReactionService))]
+                    typeof(MessageComponentService))]
     public class PenaltyService : SavedService, ISARProvider
     {
         private static int _id;

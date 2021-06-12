@@ -11,9 +11,10 @@ using System.Threading.Tasks;
 
 namespace DiscordBot.Services
 {
-    [Obsolete("MessageComponentService should be used instead")]
+    [Obsolete("MessageComponentService should be used instead", true)]
     public class ReactionService : SavedService
     {
+        public override bool IsEnabled => false;
         Dictionary<ulong, ReactionMessage> messages = new Dictionary<ulong, ReactionMessage>();
 
         public override string GenerateSave()

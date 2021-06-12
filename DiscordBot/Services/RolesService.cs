@@ -82,15 +82,6 @@ namespace DiscordBot.Services
             OnDailyTick();
         }
 
-        public override void OnDailyTick()
-        {
-            var oldService = Program.Services.GetRequiredService<ReactionService>();
-            foreach (var x in Messages)
-            { // since it may be removed.
-                Service.Register(x.Value.Message, handleReact, x.Key.ToString());
-                oldService.Unregister(x.Value.Message);
-            }
-        }
 
         public void Register(IGuild guild, IUserMessage message, Action<EmojiStore> action)
         {

@@ -17,16 +17,6 @@ namespace DiscordBot.Commands.Modules
     [Summary("Testing Commands")]
     public class Testing : BotBase
     {
-        public ReactionService React { get; set; }
-
-        [Command("react")]
-        public async Task Thing()
-        {
-            var msg = await ReplyAsync("Testing 123.");
-            await msg.AddReactionAsync(Emotes.THUMBS_UP);
-            React.Register(msg, EventAction.Added, response, Context.User.Id.ToString());
-        }
-
         [Command("buttons")]
         public async Task Buttons()
         {

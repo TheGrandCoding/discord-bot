@@ -13,7 +13,6 @@ using System.Threading.Tasks;
 
 namespace DiscordBot.Services
 {
-    [RequireService(typeof(ReactionService))]
     public class TranslationService : SavedService, ISARProvider
     {
         public TranslationService()
