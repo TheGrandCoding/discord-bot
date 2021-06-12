@@ -340,14 +340,14 @@ namespace DiscordBot
         {
             if(e.Error != null)
             {
-                LogMsg($"No download {e.UserState}: {e.Error}", LogSeverity.Error, "downloadFile");
+                LogError($"No download {e.UserState}: {e.Error}", "downloadFile");
             }
             else if (e.Cancelled)
             {
-                LogMsg($"Cancelled download {e.UserState}", LogSeverity.Warning, "downloadFile");
+                LogWarning($"Cancelled download {e.UserState}", "downloadFile");
             } else
             {
-                LogMsg($"Finished downloading {e.UserState}", LogSeverity.Info, "downloadFile");
+                LogInfo($"Finished downloading {e.UserState}", "downloadFile");
             }
         }
         private static void Wc_DownloadProgressChanged(object sender, DownloadProgressChangedEventArgs e)

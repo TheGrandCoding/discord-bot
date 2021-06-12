@@ -1,4 +1,5 @@
-﻿using DiscordBot.Classes;
+﻿#if INCLUDE_CHESS
+using DiscordBot.Classes;
 using DiscordBot.Classes.Chess;
 using DiscordBot.Classes.Chess.Online;
 using DiscordBot.Classes.Chess.TimedOnline;
@@ -90,3 +91,4 @@ namespace DiscordBot.Websockets
         }
     }
 }
+#endif

@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
+#if INCLUDE_CHESS
 using System.Threading;
 
 namespace DiscordBot.Classes.Chess
@@ -100,7 +101,7 @@ namespace DiscordBot.Classes.Chess
             getLock();
             try
             {
-                Program.LogMsg($"Game {Id} ended; loser: {TickingFor}", Discord.LogSeverity.Verbose);
+                Program.LogVerbose($"Game {Id} ended; loser: {TickingFor}", "ChessTimedGame");
                 var p = Program.Services.GetRequiredService<ChessService>();
                 p.EndTimedGame(this);
             }
@@ -186,7 +187,7 @@ namespace DiscordBot.Classes.Chess
             getLock();
             try
             {
-                Program.LogMsg($"{Paused} {Ended} {TickingFor} {WhiteTime} {BlackTime}", Discord.LogSeverity.Debug);
+                Program.LogDebug($"{Paused} {Ended} {TickingFor} {WhiteTime} {BlackTime}", "ChessTimedGame");
                 var rm = new List<ChessTimeWS>();
                 foreach (var x in ListeningWS)
                 {
@@ -222,3 +223,4 @@ namespace DiscordBot.Classes.Chess
         }
     }
 }
+#endif

@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿#if INCLUDE_CHESS
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -302,3 +303,4 @@ namespace DiscordBot.Classes.Chess
         public const string Seal = "Motion to seal";
     }
 }
+#endif

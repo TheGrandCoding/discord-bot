@@ -1,4 +1,5 @@
-﻿using DiscordBot.Classes.Chess;
+﻿#if INCLUDE_CHESS
+using DiscordBot.Classes.Chess;
 using DiscordBot.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
@@ -36,3 +37,4 @@ namespace DiscordBot.Classes.Converters
         }
     }
 }
+#endif

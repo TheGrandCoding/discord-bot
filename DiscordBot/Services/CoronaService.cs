@@ -183,7 +183,7 @@ namespace DiscordBot.Services
                 var notify = bUser?.Options.WhenToNotifyIsolation ?? Classes.IsolationNotify.Never;
                 var diffRemain = end - DateTime.Now;
                 int hoursRemain = (int)Math.Round(diffRemain.TotalHours);
-                Program.LogMsg($"{bUser.Name} has {hoursRemain} hours left of their isolation", LogSeverity.Info, "Corona");
+                Info($"{bUser.Name} has {hoursRemain} hours left of their isolation");
                 var prefix = getPrefix(hoursRemain);
                 var anyValid = bUser.FirstValidUser;
                 if(prefix == null)
@@ -234,7 +234,7 @@ namespace DiscordBot.Services
                 withinTryWork();
             } catch (Exception ex)
             {
-                Program.LogMsg("CoronaService", ex);
+                Program.LogError(ex, "CoronaService");
                 MarkFailed(ex);
             }
             Console.WriteLine("Corona thread has ended!");
@@ -306,7 +306,7 @@ namespace DiscordBot.Services
                         {
                             var jobj = JObject.Parse(text);
                             var message = jobj["message"];
-                            Program.LogMsg($"Failed to operate {entry.Code} {entry.Channel.Guild.Name}: {message}");
+                            Warning($"Failed to operate {entry.Code} {entry.Channel.Guild.Name}: {message}");
                             entry.Channel.SendMessageAsync($"Failed to fetch {entry.Code} coronavirus stats: `{message}`");
                             continue;
                         }
@@ -322,13 +322,13 @@ namespace DiscordBot.Services
                             if(ls.Count == 0 || ls.Last() < data.Data.UpdatedAt)
                             {
                                 ls.Add(data.Data.UpdatedAt);
-                                Program.LogMsg($"Update {entry.Code} at {data.Data.UpdatedAt.TimeOfDay}", LogSeverity.Info, "CoronaAPI");
+                                Info($"Update {entry.Code} at {data.Data.UpdatedAt.TimeOfDay}", "CoronaAPI");
                             }
                         }
                         dataDict[entry.Code] = data.Data;
                         if (stamp.ElapsedMilliseconds < 1500)
                         {
-                            Program.LogMsg("Invoking pre-emptive rate-limit", LogSeverity.Info, "CoronaAPI");
+                            Info("Invoking pre-emptive rate-limit", "CoronaAPI");
                             Thread.Sleep(1500);
                         }
                     }

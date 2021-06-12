@@ -1,4 +1,5 @@
-﻿using System;
+﻿#if INCLUDE_CHESS
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -57,7 +58,7 @@ namespace DiscordBot.Classes.Chess
             positions++;
             if(positions % 100 == 0)
             {
-                Program.LogMsg($"Evaluate {positions.ToString("000000")}", Discord.LogSeverity.Debug, "Quiesce");
+                Program.LogDebug($"Evaluate {positions.ToString("000000")}", "Quiesce");
             }
             var stand_pat = game.get_board_value();
             if (stand_pat >= beta)
@@ -123,7 +124,7 @@ namespace DiscordBot.Classes.Chess
                 var bestMove = minmaxRoot(RunDepth, g);
                 var end = DateTime.Now;
                 var diff = end - startEvalTime;
-                Program.LogMsg($"Evaluated {RunDepth} depth, {positions} positions {Side} in {diff} time.", Discord.LogSeverity.Critical, "ASDAQ");
+                Program.LogInfo($"Evaluated {RunDepth} depth, {positions} positions {Side} in {diff} time.", "ASDAQ");
                 return bestMove;
             }
         }
@@ -145,7 +146,7 @@ namespace DiscordBot.Classes.Chess
         void aiMakeMove(Move mv)
         {
             engine.BestMoveFound -= Engine_BestMoveFound;
-            Program.LogMsg($"Selected move {mv.DebuggerDisplay}", Discord.LogSeverity.Info, $"AI-{Side}");
+            Program.LogInfo($"Selected move {mv.DebuggerDisplay}", $"AI-{Side}");
             ChessService.CurrentGame.InnerGame.make_move(mv);
             ChessService.CurrentGame.InnerGame.registerMoveMade(); // keeps track of actual proper moves made for repetition checking
             ChessService.CurrentGame.updateBoard();
@@ -228,3 +229,4 @@ namespace DiscordBot.Classes.Chess
         }
     }
 }
+#endif

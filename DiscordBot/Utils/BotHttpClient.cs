@@ -25,12 +25,12 @@ namespace DiscordBot.Utils
                 source = $"{method.DeclaringType.Name}:{method.Name}#{x.GetFileLineNumber()}";
             }
             var sending = $"{request.Method} {request.RequestUri}";
-            Program.LogMsg(sending, Discord.LogSeverity.Verbose, $"{source}-Send");
+            Program.LogVerbose(sending, $"{source}-Send");
             var ms = new Stopwatch();
             ms.Start();
             var response = await base.SendAsync(request, completionOption, cancellationToken);
             ms.Stop();
-            Program.LogMsg($"{response.StatusCode} {sending}", Discord.LogSeverity.Verbose, $"{source}-{response.StatusCode}");
+            Program.LogVerbose($"{response.StatusCode} {sending}", $"{source}-{response.StatusCode}");
             return response;
         }
     }

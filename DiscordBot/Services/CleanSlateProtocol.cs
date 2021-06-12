@@ -37,7 +37,7 @@ namespace DiscordBot.Services
                     if(msg.Author.Id == 133622884122886144 && msg.Attachments.Count > 0)
                     {
                         deleted++;
-                        Program.LogMsg($"{deleted:000}/{total:000} Would remove {msg.Id}, {msg.CreatedAt}", LogSeverity.Debug, "CleanSlate");
+                        Debug($"{deleted:000}/{total:000} Would remove {msg.Id}, {msg.CreatedAt}", "CleanSlate");
                         blk.Add(msg.Id);
                     }
                     last = msg;
@@ -53,7 +53,7 @@ namespace DiscordBot.Services
                 blk = blk.Skip(100).ToList();
             }
 #endif
-            Program.LogMsg($"{deleted:000}/{total:000} removed", LogSeverity.Info, "CleanSlate");
+            Info($"{deleted:000}/{total:000} removed", "CleanSlate");
         }
     }
 }

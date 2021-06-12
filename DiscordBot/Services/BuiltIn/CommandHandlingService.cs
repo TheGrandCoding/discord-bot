@@ -105,7 +105,7 @@ namespace DiscordBot.Services
             }
 
             var thing = getExecuted(command.Value, context.Message.Content);
-            Program.LogMsg($"{context.User.Username}#{context.User.Discriminator}: {Program.Prefix}{thing}", LogSeverity.Info, "Cmd");
+            Program.LogInfo($"{context.User.Username}#{context.User.Discriminator}: {Program.Prefix}{thing}", "Cmd");
 
 
             // the command was successful, we don't care about this result, unless we want to log that a command succeeded.

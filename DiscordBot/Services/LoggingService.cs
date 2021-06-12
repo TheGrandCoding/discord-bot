@@ -188,9 +188,9 @@ namespace DiscordBot.Services
         }
         public async Task<ITextChannel> GetChannel(IGuild guild, string action)
         {
-            Program.LogMsg($"Entering lock for {guild.Name}", LogSeverity.Info, action);
+            Info($"Entering lock for {guild.Name}", action);
             Lock.WaitOne();
-            Program.LogMsg($"Achieved lock for {guild.Name}", LogSeverity.Info, action);
+            Info($"Achieved lock for {guild.Name}", action);
             try
             {
                 if(GuildMap.TryGetValue(guild.Id, out var guildSave))
@@ -218,7 +218,7 @@ namespace DiscordBot.Services
             finally
             {
                 Lock.Release();
-                Program.LogMsg($"Released lock for {guild.Name}", LogSeverity.Info, action);
+                Info($"Released lock for {guild.Name}", action);
             }
         }
 #endregion

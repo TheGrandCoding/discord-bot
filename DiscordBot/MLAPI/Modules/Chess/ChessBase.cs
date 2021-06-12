@@ -1,4 +1,5 @@
-﻿using DiscordBot.Classes.Chess;
+﻿#if INCLUDE_CHESS
+using DiscordBot.Classes.Chess;
 using DiscordBot.Classes.HTMLHelpers.Objects;
 using DiscordBot.MLAPI.Attributes;
 using DiscordBot.Services;
@@ -124,3 +125,4 @@ namespace DiscordBot.MLAPI.Modules
         }
     }
 }
+#endif

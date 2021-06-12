@@ -19,35 +19,29 @@ namespace DiscordBot.MLAPI.Modules
 
         void request(Uri path)
         {
-            Program.LogMsg($"{Context.Method} {path}");
             var request = (HttpWebRequest)WebRequest.CreateHttp(path);
             request.Method = Context.Method;
             request.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
             request.CookieContainer = new CookieContainer();
             foreach(Cookie ck in Context.Request.Cookies)
             {
-                Program.LogMsg($"Add-Cookie: {ck}");
                 request.CookieContainer.Add(ck);
             }
             request.Headers = new WebHeaderCollection();
             foreach(var name in Context.Request.Headers.AllKeys)
             {
-                Program.LogMsg($"Add-Header: {name}={Context.Request.Headers[name]}");
                 request.Headers.Add(name, Context.Request.Headers[name]);
             }
             request.Headers["Host"] = path.Host;
             using var response = (HttpWebResponse)request.GetResponseWithoutException();
-            Program.LogMsg($"Response: {response.StatusCode}");
 
             using var responseStream = response.GetResponseStream();
             var RESPONSEARRAY = new List<byte>();
-            Program.LogMsg($"Content-Type: {response.ContentType}");
             Context.HTTP.Response.ContentType = response.ContentType;
             if (response.ContentEncoding != null)
                 Context.HTTP.Response.ContentEncoding = Encoding.GetEncoding(response.ContentEncoding);
             if (response.ContentType.Contains("text") || response.ContentType.Contains("css"))
             {
-                Program.LogMsg("Doing string checks");
                 //var stack = new StringStack("https://".Length);
                 var buffer = new StringStack("xhttps://".Length);
                 using var reader = new StreamReader(responseStream, Encoding.UTF8);
@@ -76,7 +70,6 @@ namespace DiscordBot.MLAPI.Modules
             }
             else if(response.ContentLength > 0)
             {
-                Program.LogMsg("Copying entire thing");
                 var buffer = new byte[1024];
                 int read;
                 do
@@ -100,7 +93,6 @@ namespace DiscordBot.MLAPI.Modules
                 }
                 if (hd == "Content-Length")
                     continue;
-                Program.LogMsg($"Response-Header: {hd}={val}");
                 Context.HTTP.Response.AppendHeader(hd, val);
             }
             int retries = 0;
@@ -111,7 +103,7 @@ namespace DiscordBot.MLAPI.Modules
             }
             catch(InvalidOperationException ex)
             {
-                Program.LogMsg("Failed to close stream " + ex.ToString(), Discord.LogSeverity.Warning, "Proxy");
+                Program.LogWarning("Failed to close stream " + ex.ToString(), "Proxy");
                 retries++;
                 if(retries < 20)
                 {
@@ -119,7 +111,6 @@ namespace DiscordBot.MLAPI.Modules
                     goto start;
                 }
             }
-            Program.LogMsg($"Done with {StatusSent}");
         }
 
         [Method("GET")]

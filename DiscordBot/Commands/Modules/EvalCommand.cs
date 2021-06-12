@@ -161,7 +161,7 @@ namespace DiscordBot.Commands.Modules
                     propObj = getJson(property.GetValue(o), dupeChecker, depth + 1);
                 } catch(Exception ex)
                 {
-                    Program.LogMsg(ex, type.Name + ":" + property.Name + ":" + depth.ToString());
+                    Program.LogError(ex, type.Name + ":" + property.Name + ":" + depth.ToString());
                     var errObj = new JObject();
                     errObj["_err"] = ex.Message;
                     propObj = errObj;

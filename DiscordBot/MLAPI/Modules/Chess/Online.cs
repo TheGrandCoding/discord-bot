@@ -1,4 +1,5 @@
-﻿using DiscordBot.Classes.Chess.Online;
+﻿#if INCLUDE_CHESS
+using DiscordBot.Classes.Chess.Online;
 using DiscordBot.Services;
 using Newtonsoft.Json.Linq;
 using System;
@@ -113,7 +114,7 @@ namespace DiscordBot.MLAPI.Modules
                 }
             catch (Exception ex)
             {
-                Program.LogMsg("Online_Game", ex);
+                Program.LogError(ex, "Online_Game");
             }
             finally
             {
@@ -262,7 +263,7 @@ namespace DiscordBot.MLAPI.Modules
             RespondRaw("Saved");
         }
 
-        #region Image Uploading
+#region Image Uploading
         [Method("POST"), Path("/chess/api/online/screen")]
         [RequireChess(Classes.Chess.ChessPerm.Player)]
         [RequireValidHTTPAgent(false)]
@@ -402,6 +403,7 @@ namespace DiscordBot.MLAPI.Modules
             }
             return -1;
         }
-        #endregion
+#endregion
     }
 }
+#endif

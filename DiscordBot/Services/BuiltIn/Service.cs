@@ -256,10 +256,11 @@ namespace DiscordBot.Services
             }
         }
 
-        protected void Info(string message) => Program.LogInfo(message, Name);
-        protected void Warning(string message) => Program.LogWarning(message, Name);
-        protected void Error(Exception ex) => Program.LogError(ex, Name);
-        protected void Debug(string message) => Program.LogDebug(message, Name);
+        protected void Info(string message, string source = null) => Program.LogInfo(message, Name + (source == null ? "" : ":" + source));
+        protected void Warning(string message, string source = null) => Program.LogWarning(message, Name + (source == null ? "" : ":" + source));
+        protected void Error(Exception ex, string source = null) => Program.LogError(ex, Name + (source == null ? "" : ":" + source));
+        protected void Error(string exMessage, string source = null) => Program.LogError(exMessage, Name + (source == null ? "" : ":" + source));
+        protected void Debug(string message, string source = null) => Program.LogDebug(message, Name + (source == null ? "" : ":" + source));
 
         class serviceComparer : IComparer<Service>
         {

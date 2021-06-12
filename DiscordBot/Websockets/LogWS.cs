@@ -38,7 +38,7 @@ namespace DiscordBot.Websockets
         protected override void OnClose(CloseEventArgs e)
         {
             Program.Log -= Handle;
-            Program.LogMsg($"{User.Name} is no longer watching the logs via WS", LogSeverity.Info, IP);
+            Program.LogInfo($"{User.Name} is no longer watching the logs via WS", IP);
         }
         protected override void OnOpen()
         {
@@ -49,18 +49,18 @@ namespace DiscordBot.Websockets
             strToken ??= Context.Headers.Get($"X-{AuthToken.SessionToken.ToUpper()}");
             if(!Handler.findToken(strToken, out var usr, out _))
             {
-                Program.LogMsg($"{IP} attempted unknown WS log.", LogSeverity.Debug, "WSLog");
+                Program.LogDebug($"{IP} attempted unknown WS log.", "WSLog");
                 Context.WebSocket.Close(CloseStatusCode.Normal, "Unauthorized");
                 return;
             }
             if(!PermChecker.UserHasPerm(usr, Perms.Bot.Developer.SeeLatestLog))
             {
-                Program.LogMsg($"{IP}, {usr.Name} attempted forbidden log connection", LogSeverity.Warning, "WsLog");
+                Program.LogWarning($"{IP}, {usr.Name} ({usr.Id}) attempted forbidden log connection", "WsLog");
                 Context.WebSocket.Close(CloseStatusCode.Normal, "Forbidden");
                 return;
             }
             User = usr;
-            Program.LogMsg($"{User.Name} has begun watching the logs via WS", LogSeverity.Info, IP);
+            Program.LogInfo($"{User.Name} has begun watching the logs via WS", IP);
             lock (Program._lockObj)
             {
                 foreach(var log in Program.lastLogs)

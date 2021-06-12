@@ -39,7 +39,7 @@ namespace DiscordBot.MLAPI
             var node = pService.FindNode(perm);
             if (node == null)
             {
-                Program.LogMsg($"Attempted checking invalid perm: {Path}, '{perm}'");
+                Program.LogInfo($"Attempted checking invalid perm: {Path}, '{perm}'", IP);
                 return false;
             }
             return PermChecker.HasPerm(this, node);

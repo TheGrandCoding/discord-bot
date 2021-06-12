@@ -26,9 +26,9 @@ namespace DiscordBot.MLAPI.Modules
                 RespondRaw("Internal error occurer; service has failed.", 500);
                 return;
             }
-            Program.LogMsg($"Received webhook", Discord.LogSeverity.Info, "OnGrab");
+            Program.LogInfo($"Received webhook", "SonarrPOST");
             var sonarrEvent = JsonConvert.DeserializeObject<SonarrEvent>(Context.Body);
-            Program.LogMsg($"Parsed {sonarrEvent.EventType}", Discord.LogSeverity.Info, "OnGrab");
+            Program.LogInfo($"Parsed {sonarrEvent.EventType}", "SonarrPOST");
             try
             {
                 var towrite = JsonConvert.SerializeObject(sonarrEvent, Formatting.Indented);
@@ -47,9 +47,9 @@ namespace DiscordBot.MLAPI.Modules
                 RespondRaw("Internal error occurer; service has failed.", 500);
                 return;
             }
-            Program.LogMsg($"Received webhook", Discord.LogSeverity.Info, "OnGrab");
+            Program.LogInfo($"Received webhook", "RadarrPOST");
             var radarrEvent = JsonConvert.DeserializeObject<RadarrEvent>(Context.Body);
-            Program.LogMsg($"Parsed {radarrEvent.EventType}", Discord.LogSeverity.Info, "OnGrab");
+            Program.LogInfo($"Parsed {radarrEvent.EventType}", "RadarrPOST");
             try
             {
                 var towrite = JsonConvert.SerializeObject(radarrEvent, Formatting.Indented);

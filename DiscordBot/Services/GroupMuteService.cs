@@ -85,7 +85,7 @@ namespace DiscordBot.Services
                     }
                     catch (Exception ex)
                     {
-                        Program.LogMsg($"GM:{ws.BotUser?.Name}", ex);
+                        Program.LogError(ex, $"GM:{ws.BotUser?.Name}");
                         rm.Add(ws);
                     }
                 }

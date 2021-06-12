@@ -46,7 +46,11 @@ namespace DiscordBot.Services
             Client = new qBittorrentClient(new Uri("http://localhost:8080"));
             Client.Log += (message) =>
             {
-                Program.LogMsg((message.Exception?.ToString() ?? "") + message.Message, (Discord.LogSeverity)message.Severity, "VidTor" + message.Source);
+                var msg = new Discord.LogMessage(
+                    (Discord.LogSeverity)message.Severity,
+                    message.Source, message.Message, message.Exception
+                    );
+                Program.LogMsg(msg);
                 return Task.CompletedTask;
             };
             startup().Wait();
@@ -59,10 +63,10 @@ namespace DiscordBot.Services
                 await Client.LoginAsync("admin", Program.Configuration["tokens:qbit"] ?? "adminadmin");
                 var qVersion = await Client.GetApplicationVersionAsync();
                 var apiVersion = await Client.GetWebApiVersion();
-                Program.LogMsg($"Running {qVersion} with API {apiVersion}", Discord.LogSeverity.Info, "VidTorqBit");
+                Info($"Running {qVersion} with API {apiVersion}", "VidTorqBit");
             } catch(Exception ex)
             {
-                Program.LogMsg(ex, "VidTorService");
+                Error(ex, "VidTorService");
                 MarkFailed(ex);
             }
         }
@@ -91,7 +95,7 @@ namespace DiscordBot.Services
                         await exists.UploadedBy.FirstValidUser.SendMessageAsync($"Uploading of lesson {exists.Lesson} failed or was cancelled.");
                     } catch (Exception ex)
                     {
-                        Program.LogMsg(ex, "VidTorService");
+                        Program.LogError(ex, "VidTorService");
                     }
                 }
                 DirectSave(InternalGenerateSave());
@@ -111,7 +115,7 @@ namespace DiscordBot.Services
                     return;
                 if (exists.Hash == null)
                 {
-                    Program.LogMsg($"Setting {exists.Name} hash to {arg.Hash} | {Tracking.Count}");
+                    Debug($"Setting {exists.Name} hash to {arg.Hash} | {Tracking.Count}");
                     change = true;
                     exists.Hash = arg.Hash;
                     try
@@ -136,7 +140,7 @@ namespace DiscordBot.Services
                     }
                     catch (Exception ex)
                     {
-                        Program.LogMsg(ex, "VidTor");
+                        Program.LogError(ex, "VidTor");
                         try
                         {
                             await exists.UploadedBy.FirstValidUser.SendMessageAsync($"Failed to remove torrent from download client; must be manually removed.\r\n {ex.Message}");

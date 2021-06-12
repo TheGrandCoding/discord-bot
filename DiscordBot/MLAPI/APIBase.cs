@@ -23,7 +23,7 @@ namespace DiscordBot.MLAPI
         {
             if(path.StartsWith('/') && path != "/")
             {
-                Program.LogMsg($"{this.GetType().Name}'s path should not begin with a '/'.", Discord.LogSeverity.Warning, "API");
+                Program.LogWarning($"{this.GetType().Name}'s path should not begin with a '/'.", "API");
                 path = path[1..];
             }
             Context = context;
@@ -94,7 +94,7 @@ namespace DiscordBot.MLAPI
                 var key = match.Groups[1].Value;
                 if(!replace.TryGetValue(key, out var obj))
                 {
-                    Program.LogMsg($"Failed to replace '{key}'", Discord.LogSeverity.Warning, $"API:{Context.Path}");
+                    Program.LogWarning($"Failed to replace '{key}'", $"API:{Context.Path}");
                 }
                 var value = obj?.ToString() ?? "";
                 input = input.Replace(match.Groups[0].Value, value);

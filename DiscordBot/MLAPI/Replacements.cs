@@ -17,6 +17,7 @@ namespace DiscordBot.MLAPI
         {
         }
 
+#if INCLUDE_CHESS
         Div getCoAContainer(AppealsHearing h)
         {
             var main = new Div(cls: "container");
@@ -69,6 +70,8 @@ namespace DiscordBot.MLAPI
             Add("holding", h.Holding == null ? "" : $"<p><em>{h.Holding}</em></p><hr/>");
             Add("appealInfo", h.AppealOf.HasValue ? $"<p>Pursuant to an appeal of <a href='/chess/cases/{h.AppealOf.Value}'>No. {h.AppealOf.Value:0000}</a><hr/>" : "");
         }
+
+#endif
 
 
         public Dictionary<string, object> objs = new Dictionary<string, object>();

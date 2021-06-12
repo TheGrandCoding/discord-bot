@@ -32,7 +32,7 @@ namespace DiscordBot.Websockets
 
         protected override void OnError(ErrorEventArgs e)
         {
-            Program.LogMsg(e.Exception, "WSGroup");
+            Program.LogError(e.Exception, "WSGroup");
         }
 
         protected override void OnMessage(MessageEventArgs e)

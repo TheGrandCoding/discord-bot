@@ -119,7 +119,7 @@ namespace DiscordBot.MLAPI
                 Modules.Add(mod);
             }
             foreach (var keypair in Endpoints)
-                Program.LogMsg($"Loaded {keypair.Value.Count} {keypair.Key} endpoints", source:"API", sev:LogSeverity.Debug);
+                Program.LogDebug($"Loaded {keypair.Value.Count} {keypair.Key} endpoints", "API");
         }
 
         public static bool findToken(string t, out BotUser user, out AuthToken token)
@@ -210,7 +210,7 @@ namespace DiscordBot.MLAPI
                     }
                     if (!isValidConnection(req.Request.LocalEndPoint))
                     {
-                        Program.LogMsg($"Invalid REST connection: {req.Request.LocalEndPoint}: {req.Request.QueryString}", source:"RESTHandler", sev:LogSeverity.Warning);
+                        Program.LogWarning($"Invalid REST connection: {req.Request.LocalEndPoint}: {req.Request.QueryString}", "RESTHandler");
                         req.Response.StatusCode = 400;
                         req.Response.Close();
                         continue;
@@ -225,11 +225,11 @@ namespace DiscordBot.MLAPI
                 }
                 catch (Exception ex)
                 {
-                    Program.LogMsg(ex.ToString(), source:"REST-New", sev:LogSeverity.Error);
+                    Program.LogError(ex, "REST-New");
                     exceptions++;
                     if (exceptions > 2)
                     {
-                        Program.LogMsg($"Maximum retries met, API handler shutting down", source:"REST-Listener", sev:LogSeverity.Critical);
+                        Program.LogCritical($"Maximum retries met, API handler shutting down", "REST-Listener");
                         Listening = false;
                         break;
                     }
@@ -315,14 +315,6 @@ namespace DiscordBot.MLAPI
         static void handleRequest(APIContext context)
         {
             context.Id = Guid.NewGuid();
-            if(context == null)
-            {
-                Program.LogMsg("context is null");
-            }
-            if (context.Request == null)
-                Program.LogMsg("context.Request is null");
-            if (context.Request.RemoteEndPoint == null)
-                Program.LogMsg("context.Request.RemoteEndPoint is null");
             Console.WriteLine($"{(context?.Id.ToString() ?? "null")}: {(context.Request?.RemoteEndPoint?.ToString() ?? "null")} {(context?.Request?.Url.ToString() ?? "null")}");
             var idSplit = context.Id.ToString().Split('-');
             var logger = new RequestLogger(context);
@@ -409,7 +401,7 @@ namespace DiscordBot.MLAPI
             }
             catch (HaltExecutionException ex)
             {
-                Program.LogMsg(ex, $"{context.Id}");
+                Program.LogError(ex, $"{context.Id}");
                 commandBase.ResponseHalted(ex);
                 logger.End(HttpStatusCode.InternalServerError, ex.Message);
                 return;
@@ -426,7 +418,7 @@ namespace DiscordBot.MLAPI
                 {
                     sendError(new ErrorJson(ex.Message), 500);
                 } catch { }
-                Program.LogMsg(ex, "Handler");
+                Program.LogError(ex, "Handler");
             } catch (Exception ex)
             {
                 try
@@ -434,7 +426,7 @@ namespace DiscordBot.MLAPI
                     sendError(new ErrorJson(ex.Message), 500);
                 }
                 catch { }
-                Program.LogMsg(ex, "ExHandler");
+                Program.LogError(ex, "ExHandler");
             }
             commandBase.AfterExecute();
             Console.WriteLine($"{context.Id}: Returned {commandBase.StatusSent}");

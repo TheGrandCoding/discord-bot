@@ -1,4 +1,5 @@
-﻿using DiscordBot.Classes.Chess;
+﻿#if INCLUDE_CHESS
+using DiscordBot.Classes.Chess;
 using DiscordBot.Classes.HTMLHelpers.Objects;
 using DiscordBot.Services;
 using Microsoft.Extensions.DependencyInjection;
@@ -29,7 +30,7 @@ namespace DiscordBot.MLAPI.Modules
             }
         }
 
-        #region Browser Endpoints
+#region Browser Endpoints
 
         [Method("GET"), Path("/chess/cases")]
         public void ListCases()
@@ -110,7 +111,7 @@ namespace DiscordBot.MLAPI.Modules
             RespondRaw(LoadRedirectFile("/chess"), System.Net.HttpStatusCode.Redirect);
         }
 
-        #region View Hearing
+#region View Hearing
 
         string getHearingOutcome(AppealsHearing h)
         {
@@ -268,7 +269,7 @@ namespace DiscordBot.MLAPI.Modules
                 .Add("witnesses", witnesses)
             );
         }
-        #endregion
+#endregion
 
         [Method("GET")]
         [Path("/chess/cases/{n}/motions/{mn}")]
@@ -551,11 +552,11 @@ namespace DiscordBot.MLAPI.Modules
             ReplyFile("newruling.html", 200, new Replacements(hearing));
         }
 
-        #endregion
+#endregion
         
-        #region API Endpoints
+#region API Endpoints
 
-        #region New Hearing
+#region New Hearing
         [Method("POST"), Path("/chess/api/cases")]
         public void CreateHearing(string type, string[] respondents)
         {
@@ -632,7 +633,7 @@ namespace DiscordBot.MLAPI.Modules
             file.Data.CopyTo(fs);
             RespondRaw(LoadRedirectFile($"/chess/cases/{hearing.Id}"), System.Net.HttpStatusCode.Redirect);
         }
-        #endregion
+#endregion
 
         [Method("POST")]
         [Path("/chess/api/cases/{n}/rulings")]
@@ -1079,6 +1080,7 @@ namespace DiscordBot.MLAPI.Modules
             Context.HTTP.Response.Close();
         }
 
-        #endregion
+#endregion
     }
 }
+#endif

@@ -22,6 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
  */
 
+#if INCLUDE_CHESS
 using DiscordBot.Classes.Chess.Online;
 using System;
 using System.Collections.Generic;
@@ -56,7 +57,7 @@ namespace DiscordBot.Classes.Chess
 
         private Dictionary<ulong, Tuple<int, int, Move, int>> _transpositionTable;
 
-        #region Internal Properties
+#region Internal Properties
         /// <summary>
         /// If set to true, continue to calculate until stop has been issued by the program
         /// </summary>
@@ -106,7 +107,7 @@ namespace DiscordBot.Classes.Chess
         /// If set to a positive value, this is the number of moves remaining until the time controls change. 
         /// </summary>
         internal int MovesUntilNextTimeControl { get; set; }
-        #endregion
+#endregion
 
         private Move[] _principalVariation;
 
@@ -357,3 +358,4 @@ namespace DiscordBot.Classes.Chess
         internal void ErrorFormat(string s) => Log("[ERROR] " + s);
     }
 }
+#endif

@@ -99,7 +99,7 @@ namespace DiscordBot.Classes
             {
                 if (Program.Client == null)
                 {
-                    Program.LogMsg($"Attempted to access FirstValidUser before Client is set", source:"BotUser", sev:LogSeverity.Warning);
+                    Program.LogWarning($"Attempted to access FirstValidUser before Client is set", "BotUser");
                     return null;
                 }
                 foreach (var g in Program.Client.Guilds)

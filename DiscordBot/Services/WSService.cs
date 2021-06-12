@@ -1,6 +1,8 @@
 ﻿using Discord;
 using DiscordBot.Websockets;
+#if INCLUDE_CHESS
 using DiscordBot.WebSockets;
+#endif
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
@@ -19,16 +21,18 @@ namespace DiscordBot.Services
                 return;
             Server = new WebSocketServer(System.Net.IPAddress.Any, 4650);
             // Server.AddWebSocketService<Chat>("/Chat"); // add a '/Feedback' for the Pi-Hole at Marj's?
+#if INCLUDE_CHESS
             Server.AddWebSocketService<ChessConnection>("/chess");
-            Server.AddWebSocketService<MLServer>("/masterlist", x =>
-            {
-                x.Service = Program.Services.GetRequiredService<MLService>();
-            });
             Server.AddWebSocketService<ChessNotifyWS>("/chess-monitor", x =>
             {
                 x.Service = Program.Services.GetRequiredService<ChessService>();
             });
             Server.AddWebSocketService<ChessTimeWS>("/chess-timer");
+            Server.AddWebSocketService<MLServer>("/masterlist", x =>
+            {
+                x.Service = Program.Services.GetRequiredService<MLService>();
+            });
+#endif
             Server.AddWebSocketService<GroupGameWS>("/group-game");
             Server.AddWebSocketService<LogWS>("/log");
             Server.AddWebSocketService<BanAppealsWS>("/ban-appeal");
@@ -37,15 +41,16 @@ namespace DiscordBot.Services
             //Server.Log.Level = LogLevel.Trace;
             Server.Log.Output = (x, y) =>
             {
-                Program.LogMsg($"{x.Message}\r\n=> {y}", (LogSeverity)x.Level, "WS-" + x.Caller.ToString());
+                var msg = new LogMessage((LogSeverity)x.Level, x.Caller.ToString(), $"{x.Message}\r\n=> {y}");
+                Program.LogMsg(msg);
             };
             Server.Start();
             if (Server.IsListening)
             {
-                Program.LogMsg($"Listening on port {Server.Port} and proving WebSocket services");
+                Program.LogInfo($"Listening on port {Server.Port} and proving WebSocket services", "WSS");
                 foreach (var path in Server.WebSocketServices.Paths)
                 {
-                    Program.LogMsg("- " + path);
+                    Program.LogInfo("- " + path, "WSS");
                 }
             }
         }

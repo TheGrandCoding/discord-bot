@@ -23,7 +23,7 @@ namespace DiscordBot.Services
     {
         public LogContext()
         {
-            Program.LogMsg($"Creating LogContext", LogSeverity.Info, "Log-DB");
+            Program.LogInfo($"Creating LogContext", "Log-DB");
         }
 
 
@@ -309,7 +309,7 @@ namespace DiscordBot.Services
 
         public static LogContext DB()
         {
-            Program.LogMsg(Program.GetStackTrace(), LogSeverity.Info, $"Log-_db_");
+            Program.LogInfo(Program.GetStackTrace(), $"Log-_db_");
             return Program.Services.GetRequiredService<LogContext>();
         }
 
@@ -326,14 +326,14 @@ namespace DiscordBot.Services
                     await Catchup(guild, _db_);
                 } catch(Exception ex)
                 {
-                    Program.LogMsg(ex, "Cch-" + guild.Id.ToString());
+                    Program.LogError(ex, "Cch-" + guild.Id.ToString());
                 }
             }
-            Program.LogMsg($"Done catchup, disposing of DB");
+            Info($"Done catchup, disposing of DB");
         }
         async Task Catchup(SocketGuild guild, LogContext _db_)
         {
-            Program.LogMsg($"Doing guild {guild.Name} - {guild.Id}", LogSeverity.Verbose, "Catchup");
+            Debug($"Doing guild {guild.Name} - {guild.Id}", "Catchup");
             foreach(var txt in guild.TextChannels)
             {
                 try
@@ -342,7 +342,7 @@ namespace DiscordBot.Services
                 }
                 catch (Exception ex)
                 {
-                    Program.LogMsg(ex, $"{guild.Id}-{txt.Id}");
+                    Program.LogError(ex, $"{guild.Id}-{txt.Id}");
                 }
             }
         }
@@ -351,7 +351,7 @@ namespace DiscordBot.Services
 #if DEBUG
             int count = 0;
 #endif
-            Program.LogMsg($"Doing #{txt.Name} - {txt.Id}", LogSeverity.Verbose, "Catchup");
+            Debug($"Doing #{txt.Name} - {txt.Id}", "Catchup");
             bool exit = false;
             ulong? before = null;
             int max = 25;
@@ -464,20 +464,20 @@ namespace DiscordBot.Services
                 Info($"Getting lock on thread {Thread.CurrentThread.Name} | {Thread.CurrentThread.ManagedThreadId}");
                 downloadLock.WaitOne();
                 Info($"Got lock on thread {Thread.CurrentThread.Name} | {Thread.CurrentThread.ManagedThreadId}");
-                Program.LogMsg($"Downloading {data.Attachment.Url}", LogSeverity.Info, "Attch");
+                Info($"Downloading {data.Attachment.Url}", "Attch");
                 using var cl = new WebClient();
                 cl.DownloadProgressChanged += (object sender, DownloadProgressChangedEventArgs e) =>
                 {
-                    Program.LogMsg($"Progress {data.Attachment.Url}: {e.ProgressPercentage}%, {e.BytesReceived}");
+                    Info($"Progress {data.Attachment.Url}: {e.ProgressPercentage}%, {e.BytesReceived}");
                 };
                 var path = Path.Combine(Path.GetTempPath(), $"{data.MessageId}_{data.Attachment.Filename}");
                 cl.DownloadFile(data.Attachment.Url, path);
-                Program.LogMsg($"Downloaded {data.Attachment.Url}");
+                Info($"Downloaded {data.Attachment.Url}");
                 var service = Program.Services.GetRequiredService<LoggingService>();
                 var chnl = service.GetChannel(data.Guild, "attachment").Result;
-                Program.LogMsg($"Uploading {data.Attachment.Url}");
+                Info($"Uploading {data.Attachment.Url}");
                 var message = chnl.SendFileAsync(path, $"{data.Guild.Id}-{data.MessageId}").Result;
-                Program.LogMsg($"Uploaded {data.Attachment.Url}");
+                Info($"Uploaded {data.Attachment.Url}");
                 using var _db_ = DB();
                 MsgModel dbMsg;
                 int tries = 0;
@@ -488,22 +488,22 @@ namespace DiscordBot.Services
                     {
                         if (tries > 20)
                         {
-                            Program.LogMsg($"Cancel - Could not locate message {data.MessageId} for setting new attachment url.", LogSeverity.Error, "LogAtt");
+                            Error($"Cancel - Could not locate message {data.MessageId} for setting new attachment url.", "LogAtt");
                             return;
                         }
                         tries++;
-                        Program.LogMsg($"{tries:00} - Could not locate message {data.MessageId} for setting new attachment url.", LogSeverity.Warning, "LogAtt");
+                        Warning($"{tries:00} - Could not locate message {data.MessageId} for setting new attachment url.", "LogAtt");
                         Thread.Sleep(1000 * tries);
                     }
                 } while (dbMsg == null);
                 dbMsg.Attachments = dbMsg.Attachments.Replace(data.Attachment.Url, message.Attachments.First().Url);
                 _db_.SaveChanges();
                 NewAttachmentMap[data.MessageId] = message.Id;
-                Program.LogMsg($"Completed all {data.Attachment.Url}", LogSeverity.Warning, "Attch");
+                Warning($"Completed all {data.Attachment.Url}", "Attch");
             }
             catch (Exception ex)
             {
-                Program.LogMsg("DownloadAttch", ex);
+                Program.LogError(ex, "DownloadAttch");
             }
             finally
             {

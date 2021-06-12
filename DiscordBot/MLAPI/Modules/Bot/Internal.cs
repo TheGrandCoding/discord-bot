@@ -69,8 +69,6 @@ namespace DiscordBot.MLAPI.Modules.Bot
             var password = combined.Split(':')[1];
             if (password == Program.Configuration["tokens:github:internal"])
             {
-                Program.LogMsg("Updating NEA files...", Discord.LogSeverity.Warning, "NEA");
-                Program.LogMsg(Bash("/bot/dl_nea.sh"), Discord.LogSeverity.Verbose, "NEA");
                 RespondRaw("OK", 200);
             }
             else

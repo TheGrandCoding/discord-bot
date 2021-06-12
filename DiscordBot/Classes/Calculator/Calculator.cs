@@ -124,7 +124,7 @@ namespace DiscordBot.Classes.Calculator
                         }
                         catch (Exception ex)
                         {
-                            Program.LogMsg(ex, "Calc");
+                            Program.LogError(ex, "Calc");
                             AddStep("<> Error: " + ex.Message);
                             throw;
                         }

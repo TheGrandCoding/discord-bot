@@ -1,4 +1,5 @@
-﻿using Discord;
+﻿#if INCLUDE_CHESS
+using Discord;
 using Discord.WebSocket;
 using DiscordBot.Classes;
 using DiscordBot.Classes.Chess;
@@ -199,14 +200,14 @@ namespace DiscordBot.Services
             }
             catch (Exception ex)
             {
-                Program.LogMsg("ChessActualLog", ex);
+                Program.LogError(ex, "ChessActualLog");
             }
             try
             {
                 ChangedOccured?.Invoke(this, embed.Title);
             } catch (Exception ex)
             {
-                Program.LogMsg("ChessRaiseChange", ex);
+                Program.LogError(ex, "ChessRaiseChange");
             }
         }
 
@@ -796,7 +797,7 @@ namespace DiscordBot.Services
             }
             catch (Exception ex)
             {
-                Program.LogMsg($"Failed to load Chess", ex);
+                Program.LogError(ex, $"Failed to load Chess");
                 LoadException = ex.Message;
                 
             }
@@ -804,26 +805,15 @@ namespace DiscordBot.Services
 
         public override void OnDailyTick()
         {
-            int i = 0;
-            Program.LogMsg($"OnDailyTick: {i++:00}", LogSeverity.Warning, "ChessService");
             using var db = DB();
-            Program.LogMsg($"OnDailyTick: {i++:00}", LogSeverity.Warning, "ChessService");
             SetBuiltInRoles(db);
-            Program.LogMsg($"OnDailyTick: {i++:00}", LogSeverity.Warning, "ChessService");
             CheckLastDatePlayed(db);
-            Program.LogMsg($"OnDailyTick: {i++:00}", LogSeverity.Warning, "ChessService");
             SendRatingChanges(db);
-            Program.LogMsg($"OnDailyTick: {i++:00}", LogSeverity.Warning, "ChessService");
             setElectedArbiter(db);
-            Program.LogMsg($"OnDailyTick: {i++:00}", LogSeverity.Warning, "ChessService");
             SetConnectedRoles(db);
-            Program.LogMsg($"OnDailyTick: {i++:00}", LogSeverity.Warning, "ChessService");
             SetNickNames(db);
-            Program.LogMsg($"OnDailyTick: {i++:00}", LogSeverity.Warning, "ChessService");
             CheckExpiredNotes(db);
-            Program.LogMsg($"OnDailyTick: {i++:00}", LogSeverity.Warning, "ChessService");
             RemoveExpiredPending(db);
-            Program.LogMsg($"OnDailyTick: {i++:00}", LogSeverity.Warning, "ChessService");
             setOnlineTokens(db);
             try
             {
@@ -831,11 +821,9 @@ namespace DiscordBot.Services
             }
             catch (Exception ex)
             {
-                Program.LogMsg("ChessService", ex);
+                Program.LogError(ex, "ChessService");
             }
-            Program.LogMsg($"OnDailyTick: {i++:00}", LogSeverity.Warning, "ChessService");
             db.SaveChanges();
-            Program.LogMsg($"OnDailyTick: {i++:00}", LogSeverity.Warning, "ChessService");
         }
 
         public override void OnReady()
@@ -874,3 +862,4 @@ namespace DiscordBot.Services
         }
     }
 }
+#endif

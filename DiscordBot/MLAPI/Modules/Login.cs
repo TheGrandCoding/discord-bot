@@ -24,15 +24,12 @@ namespace DiscordBot.MLAPI.Modules
 
         void handleLogin(object sender, object[] stateArgs)
         {
-            Program.LogMsg("Entered OauthLogin");
             // Funky C#8, disposed at end of this function
             var oauth = new DiscordOauth("identify", Context.GetQuery("code"));
             var userInfo = oauth.GetUserInformation().Result;
-            Program.LogMsg($"Found user info: {userInfo.Username}#{userInfo.Discriminator} ({userInfo.Id})");
             try
             {
                 var usr = handleUserInfo(userInfo);
-                Program.LogMsg($"Handled user: {usr.Name}, {usr.Id}");
                 setSessionTokens(usr);
                 string redirectTo = Context.Request.Cookies["redirect"]?.Value;
                 if (string.IsNullOrWhiteSpace(redirectTo))
@@ -62,7 +59,7 @@ namespace DiscordBot.MLAPI.Modules
             }
             catch (Exception ex)
             {
-                Program.LogMsg(ex, "LoginOauth");
+                Program.LogError(ex, "LoginOauth");
                 HTTPError(HttpStatusCode.InternalServerError, "", ex.Message);
             }
         }

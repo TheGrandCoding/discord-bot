@@ -1,4 +1,5 @@
-﻿using Discord;
+﻿#if INCLUDE_CHESS
+using Discord;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,7 +20,7 @@ namespace DiscordBot.Classes.Chess
     {
         public ChessDbContext CreateDbContext(string[] args)
         {
-            Program.LogMsg(Program.GetStackTrace(), LogSeverity.Info, $"Chs-Factory");
+            Program.LogInfo(Program.GetStackTrace(), $"Chs-Factory");
             var builder = new DbContextOptionsBuilder<ChessDbContext>();
             builder.UseSqlServer("Server=(localdb)\\mssqllocaldb;Database=chsData;MultipleActiveResultSets=true");
             builder.EnableSensitiveDataLogging();
@@ -138,16 +139,16 @@ namespace DiscordBot.Classes.Chess
         public IQueryable<ChessNote> GetNotesAgainst(int id)
             => Notes.AsQueryable().Where(x => x.TargetId == id);
 
-        #region Appeals
+#region Appeals
 
         public IQueryable<AppealsMember> GetMembersInCase(int id)
             => AppealsRelations.AsQueryable().Where(x => x.AppealHearingId == id);
 
-        #endregion
+#endregion
     
         public override void Dispose()
         {
-            Program.LogMsg("Disposing ChessDB", LogSeverity.Info, "ChessDbContext");
+            Program.LogInfo("Disposing ChessDB", "ChessDbContext");
             base.Dispose();
         }
 
@@ -437,3 +438,4 @@ namespace DiscordBot.Classes.Chess
         public bool IsActive => DateTime.Now > GivenAt && ExpiresAt > DateTime.Now;
     }
 }
+#endif

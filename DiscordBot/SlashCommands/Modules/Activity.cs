@@ -104,7 +104,7 @@ namespace DiscordBot.SlashCommands.Modules
                 await Interaction.FollowupAsync("Click to join below:\r\nhttps://discord.gg/" + invite.Code);
             } catch(Exception ex)
             {
-                Program.LogMsg(ex, "ActivityId");
+                Program.LogError(ex, "ActivityId");
                 await Interaction.FollowupAsync(":x: Exception: " + ex.Message);
 
             }

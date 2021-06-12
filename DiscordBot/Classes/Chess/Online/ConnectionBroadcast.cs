@@ -1,4 +1,5 @@
-﻿using System;
+﻿#if INCLUDE_CHESS
+using System;
 using System.Collections.Generic;
 using System.Text;
 using DiscordBot.WebSockets;
@@ -28,3 +29,4 @@ namespace DiscordBot.Classes.Chess.Online
         }
     }
 }
+#endif

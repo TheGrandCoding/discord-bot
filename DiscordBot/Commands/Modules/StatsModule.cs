@@ -158,7 +158,7 @@ namespace DiscordBot.Commands.Modules
                 threadLoop();
             } catch(Exception ex)
             {
-                Program.LogMsg("Stats", ex);
+                Program.LogError(ex, "Stats");
                 try
                 {
                     Status.ModifyAsync(x => x.Content = $"Erorr ocurred: {ex}");
@@ -210,7 +210,7 @@ namespace DiscordBot.Commands.Modules
                         break;
                 } catch(Exception ex)
                 {
-                    Program.LogMsg("Stats", ex);
+                    Program.LogError(ex, "Stats");
                     try
                     {
                         Status.ModifyAsync(x => x.Content = $"Error occured whilst handling this: {ex}");

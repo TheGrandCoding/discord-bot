@@ -135,7 +135,7 @@ namespace DiscordBot.Services.Rules
                     doLoop(Program.GetToken());
                 } catch(Exception ex)
                 {
-                    Program.LogMsg($"PenaltyThread", ex);
+                    Program.LogError(ex, $"PenaltyThread");
                     MarkFailed(ex);
                 }
             }).Start();

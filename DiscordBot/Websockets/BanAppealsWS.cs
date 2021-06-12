@@ -68,7 +68,7 @@ namespace DiscordBot.Websockets
         }
         protected override void OnMessage(MessageEventArgs e)
         {
-            Program.LogMsg(e.Data, LogSeverity.Verbose, "AppealsMsg");
+            Program.LogVerbose(e.Data, "AppealsMsg");
             var json = JObject.Parse(e.Data);
             var type = json["type"].ToString();
             if(type == "GetMessages")
@@ -93,7 +93,7 @@ namespace DiscordBot.Websockets
                         Appeal.SendMessageAsync(content, User.Name, User.GetAvatarUrl()).Wait();
                     } catch(Exception ex)
                     {
-                        Program.LogMsg(ex, "BanAppeal");
+                        Program.LogError(ex, "BanAppeal");
                         SendInfo($"Exception occured: {ex.Message}");
                     }
                 }

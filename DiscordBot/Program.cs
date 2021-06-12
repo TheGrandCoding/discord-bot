@@ -135,13 +135,13 @@ Changed how permissions worked for bot.
             var text = response.Content.ReadAsStringAsync().Result;
             if(!response.IsSuccessStatusCode)
             {
-                Program.LogMsg($"Failed to download: {response.StatusCode} {text}", LogSeverity.Error, fName);
+                Program.LogError($"Failed to download: {response.StatusCode} {text}", fName);
                 return;
             }
             var local = Path.Combine(BASE_PATH, "Saves", fName + ".new");
             File.WriteAllText(local, text);
             long length = new System.IO.FileInfo(local).Length;
-            Program.LogMsg($"Downloaded {length / 1000}kB", LogSeverity.Debug, fName);
+            Program.LogDebug($"Downloaded {length / 1000}kB", fName);
         }
 #else
         static void fetchFile(string fName)
@@ -149,12 +149,12 @@ Changed how permissions worked for bot.
             var from = string.Format(Configuration["urls:download"], fName);
             if(!File.Exists(from))
             {
-                Program.LogMsg($"File does not exist", LogSeverity.Error, fName);
+                Program.LogError($"File does not exist", fName);
                 return;
             }
             var to = Path.Join(BASE_PATH, "Saves", fName + ".new");
             File.Copy(from, to, true);
-            Program.LogMsg("Copied for debug use", LogSeverity.Debug, fName);
+            Program.LogDebug("Copied for debug use", fName);
         }
 #endif
 
@@ -188,7 +188,7 @@ Changed how permissions worked for bot.
             Log += fileLog;
             Log += cacheLogs;
 
-            Program.LogMsg($"Starting bot with v{VER_STR}");
+            Program.LogInfo($"Starting bot with v{VER_STR}", "App");
 
             Directory.SetCurrentDirectory(BASE_PATH);
             try
@@ -196,8 +196,8 @@ Changed how permissions worked for bot.
                 buildConfig();
             } catch (Exception ex)
             {
-                LogMsg(ex, "Config");
-                LogMsg("Failed to load configuration; we must exit.");
+                LogError(ex, "Config");
+                LogError("Failed to load configuration; we must exit.", "App");
                 Console.ReadLine();
                 Environment.Exit(1);
                 return;
@@ -333,14 +333,6 @@ Changed how permissions worked for bot.
             Log?.Invoke(null, msg);
         }
 
-        [Obsolete("Use other log functions")]
-        public static void LogMsg(Exception ex, string source) => LogMsg(new LogMessage(LogSeverity.Error, source, null, ex));
-        [Obsolete("Use other log functions")]
-        public static void LogMsg(string source, Exception ex) => LogMsg(ex, source);
-        [Obsolete("Use other log functions")]
-        public static void LogMsg(string message, LogSeverity sev = LogSeverity.Info, string source = "App")
-            => LogMsg(new LogMessage(sev, source, message));
-
         public static void LogDebug(string message, string source, Exception error = null) => LogMsg(new LogMessage(LogSeverity.Debug, source, message, error));
         public static void LogVerbose(string message, string source, Exception error = null) => LogMsg(new LogMessage(LogSeverity.Verbose, source, message, error));
         public static void LogInfo(string message, string source, Exception error = null) => LogMsg(new LogMessage(LogSeverity.Info, source, message, error));
@@ -348,6 +340,7 @@ Changed how permissions worked for bot.
         public static void LogError(Exception error, string source) => LogMsg(new LogMessage(LogSeverity.Error, source, null, error));
         public static void LogError(string message, string source, Exception error = null) => LogMsg(new LogMessage(LogSeverity.Error, source, message, error));
         public static void LogCritical(string message, string source, Exception error = null) => LogMsg(new LogMessage(LogSeverity.Critical, source, message, error));
+
 
 
         private static Task LogAsync(LogMessage log)
@@ -392,6 +385,7 @@ Changed how permissions worked for bot.
                 });
             coll.AddSingleton(new SlashCommandService());
             coll.AddDbContext<LogContext>(ServiceLifetime.Transient);
+#if INCLUDE_CHESS
             coll.AddDbContext<ChessDbContext>(options =>
             {
 #if WINDOWS
@@ -405,6 +399,7 @@ Changed how permissions worked for bot.
                     });
 #endif
             }, ServiceLifetime.Transient);
+#endif
             coll.AddDbContext<TimeTrackDb>(options =>
             {
 #if WINDOWS
@@ -462,7 +457,7 @@ Changed how permissions worked for bot.
             }
             catch (FileNotFoundException ex)
             {
-                Program.LogMsg("Save file was not present, attempting to continue..", LogSeverity.Warning, "Load");
+                Program.LogWarning("Save file was not present, attempting to continue..", "Load");
                 content = "{}";
             }
             var save = JsonConvert.DeserializeObject<BotSave>(content);
@@ -505,7 +500,7 @@ Changed how permissions worked for bot.
             }
             catch (Exception ex)
             {
-                LogMsg(ex, "BotLoad");
+                LogError(ex, "BotLoad");
                 Environment.Exit(1);
                 return;
             }
@@ -524,7 +519,7 @@ Changed how permissions worked for bot.
                 }
             } catch (Exception ex)
             {
-                LogMsg(ex, "SetOwnerDev");
+                LogError(ex, "SetOwnerDev");
             }
             Service.SendLoad();
             try
@@ -534,7 +529,7 @@ Changed how permissions worked for bot.
             }
             catch (Exception ex)
             {
-                LogMsg(ex, "StartHandler");
+                LogError(ex, "StartHandler");
                 Environment.Exit(2);
                 return;
             }
@@ -590,28 +585,28 @@ Changed how permissions worked for bot.
                 IResult result;
                 if (x.Type == InteractionType.ApplicationCommand)
                 {
-                    Program.LogMsg($"Executing slash command {x.Id}", LogSeverity.Debug, "Interactions");
+                    Program.LogDebug($"Executing slash command {x.Id}", "Interactions");
                     result = await slsh.ExecuteAsync(x as SocketSlashCommand, Program.Services).ConfigureAwait(false);
                 }
                 else if (x.Type == InteractionType.MessageComponent)
                 {
-                    Program.LogMsg($"Executing message componenet {x.Id}", LogSeverity.Debug, "Interactions");
+                    Program.LogDebug($"Executing message componenet {x.Id}", "Interactions");
                     result = await components.ExecuteAsync(x as SocketMessageComponent).ConfigureAwait(false);
                 }
                 else
                 {
-                    Program.LogMsg($"Unknown interaction type: {x.Type} {(int)x.Type}");
+                    Program.LogInfo($"Unknown interaction type: {x.Type} {(int)x.Type}", "Interactions");
                     result = MiscResult.FromError("Unknown interaction type");
                 }
-                Program.LogMsg($"Executed interaction {x.Id}: {result.IsSuccess} {result.Error} {result.ErrorReason}", LogSeverity.Info, "Interaction");
+                Program.LogInfo($"Executed interaction {x.Id}: {result.IsSuccess} {result.Error} {result.ErrorReason}", "Interactions");
                 if (!result.IsSuccess)
                 {
                     if (result is ExecuteResult exec && exec.Exception != null)
                     {
-                        Program.LogMsg("SlashCommandInvoke", exec.Exception);
+                        Program.LogError(exec.Exception, "InteractionInvoke");
                         try
                         {
-                            await x.RespondAsync(":x: Internal exception occured whilst handling this command: " + exec.Exception.Message);
+                            await x.RespondAsync(":x: Internal exception occured whilst handling this interaction: " + exec.Exception.Message);
                         }
                         catch { }
                     }
@@ -619,7 +614,7 @@ Changed how permissions worked for bot.
             }
             catch (Exception ex)
             {
-                Program.LogMsg($"{x.Id} {x.User?.Id ?? 0} {ex}", LogSeverity.Error, "InteractionCreated");
+                Program.LogError($"{x.Id} {x.User?.Id ?? 0} {ex}", "InteractionCreated");
                 try
                 {
                     await x.RespondAsync($":x: Encountered an internal error attempting that command: {ex.Message}");

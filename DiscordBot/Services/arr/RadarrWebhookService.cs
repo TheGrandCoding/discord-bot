@@ -94,7 +94,7 @@ namespace DiscordBot.Services.Radarr
                 HandleRadarrOnGrab(e).Wait();
             } catch(Exception ex)
             {
-                Program.LogMsg(ex, "Radarr " + e.DownloadId ?? "");
+                Program.LogError(ex, "Radarr " + e.DownloadId ?? "");
             }
         }
 
@@ -132,20 +132,20 @@ namespace DiscordBot.Services.Radarr
         async Task<RadarrGrabbedHistoryRecord> GetHistory(int movieId, int attempts = 0)
         {
             var url = apiUrl + $"/history/movie?movieId={movieId}&eventType={1}"; // 1=grabbed
-            Program.LogMsg($"GET{attempts} {url}", LogSeverity.Info, "RadarrGetHistory");
+            Info($"GET{attempts} {url}", "RadarrGetHistory");
             var response = await HTTP.GetAsync(url);
             var content = await response.Content.ReadAsStringAsync();
             var array = JsonConvert.DeserializeObject<List<RadarrHistoryRecord>>(content);
-            Program.LogMsg($"GET {url} :: {response.StatusCode}, {(array?.Count ?? -1)} items", LogSeverity.Info, "RadarrGetHistory");
+            Info($"GET {url} :: {response.StatusCode}, {(array?.Count ?? -1)} items", "RadarrGetHistory");
             foreach(var record in array.OrderByDescending(x => x.Date))
             {
                 if (record is RadarrGrabbedHistoryRecord gh)
                     return gh;
             }
-            Program.LogMsg($"Failed to find history for {movieId}, waiting then retrying.", LogSeverity.Info, "RadarrGetHistory");
+            Info($"Failed to find history for {movieId}, waiting then retrying.", "RadarrGetHistory");
             if (attempts > 10)
             {
-                Program.LogMsg($"{movieId} not retrying - too many attempts.", LogSeverity.Info, "RadarrGetHistory");
+                Info($"{movieId} not retrying - too many attempts.", "RadarrGetHistory");
                 return null;
             }
             Thread.Sleep(1000 * attempts);
@@ -168,7 +168,7 @@ namespace DiscordBot.Services.Radarr
             var request = new HttpRequestMessage(HttpMethod.Get, apiUrl + $"/movie/{movieId}");
             var response = await HTTP.SendAsync(request);
             var content = await response.Content.ReadAsStringAsync();
-            Program.LogMsg($"{movieId} :: {response.StatusCode}", LogSeverity.Info, "GetMovie");
+            Info($"{movieId} :: {response.StatusCode}", "GetMovie");
             var parsed = Program.Deserialise<MovieInfo>(content);
             return parsed;
         }
@@ -185,7 +185,7 @@ namespace DiscordBot.Services.Radarr
                 parsed.Add(label);
             }
             MovieTagsCache.Add(movieId, parsed.ToArray());
-            Program.LogMsg($"For {movieId}: [{string.Join(", ", parsed)}]", LogSeverity.Info, "GetMovieTags");
+            Info($"For {movieId}: [{string.Join(", ", parsed)}]", "GetMovieTags");
             return parsed.ToArray();
         }
 
@@ -215,17 +215,17 @@ namespace DiscordBot.Services.Radarr
 
         public void Handle(RadarrEvent type)
         {
-            Program.LogMsg($"Waiting lock for {type.EventType} | {typeof(RadarrEvent)}", Discord.LogSeverity.Info, "OnGrab");
+            Info($"Waiting lock for {type.EventType} | {typeof(RadarrEvent)}", "OnGrab");
             Lock.WaitOne();
-            Program.LogMsg($"Received lock for {type.EventType}", Discord.LogSeverity.Info, "OnGrab");
+            Info($"Received lock for {type.EventType}", "OnGrab");
             try
             {
                 if (type is OnTestRadarrEvent t)
                     OnTest?.Invoke(this, t);
                 else if (type is OnGrabRadarrEvent g)
                 {
-                    Program.LogMsg($"Invoking event for OnGrab", Discord.LogSeverity.Info, "OnGrab");
-                    Program.LogMsg($"{OnGrab?.GetInvocationList().Length} listeners #4", LogSeverity.Info, "OnGrab");
+                    Info($"Invoking event for OnGrab", "OnGrab");
+                    Info($"{OnGrab?.GetInvocationList().Length} listeners #4", "OnGrab");
                     OnGrab?.Invoke(this, g);
                 }
                 else if (type is OnDownloadRadarrEvent d)
@@ -234,7 +234,7 @@ namespace DiscordBot.Services.Radarr
             finally
             {
                 Lock.Release();
-                Program.LogMsg($"Released lock for {type.EventType}", Discord.LogSeverity.Info, "OnGrab");
+                Info($"Released lock for {type.EventType}", "OnGrab");
             }
         }
     }

@@ -67,7 +67,7 @@ namespace DiscordBot.Services.BuiltIn
             var files = Directory.GetFiles(latestFolder).Select(x => new InMemoryFile(x));
             if (files.Count() > 0)
             {
-                Program.LogMsg($"Backing up {files.Count()} save files", Discord.LogSeverity.Verbose, "Backup");
+                Debug($"Backing up {files.Count()} save files");
                 var zipTemp = Path.Combine(oldFolder, "temp.zip");
                 var compressed = GetZipArchive(files.ToList());
                 File.WriteAllBytes(zipTemp, compressed);
@@ -78,7 +78,7 @@ namespace DiscordBot.Services.BuiltIn
             }
             else
             {
-                Program.LogMsg("Skipping zip since empty");
+                Info("Skipping zip since empty");
             }
 
             // Step 2: Copy current saves into Latest folder
@@ -111,7 +111,7 @@ namespace DiscordBot.Services.BuiltIn
                     File.SetAttributes(fInfo.FullName, FileAttributes.Normal);
                     File.Move(fInfo.FullName, to, true);
                     File.SetAttributes(to, FileAttributes.Normal);
-                    Program.LogMsg($"Installed new DL file", Discord.LogSeverity.Debug, fInfo.Name);
+                    Debug($"Installed new DL file", fInfo.Name);
                 }
             }
         }

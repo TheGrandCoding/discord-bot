@@ -51,7 +51,7 @@ namespace DiscordBot.Services.Timing
                 } while (!token.IsCancellationRequested);
             } catch(Exception ex)
             {
-                Program.LogMsg("Countdown", ex);
+                Program.LogError(ex, "Countdown");
             }
         }
         void loop(CancellationToken token)

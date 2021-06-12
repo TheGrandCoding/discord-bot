@@ -560,11 +560,7 @@ namespace DiscordBot.MLAPI.Modules
             }
             catch (Exception ex)
             {
-                Program.LogMsg($"Failed with {msg.Id}", LogSeverity.Critical, "VPN");
-                Program.LogMsg($"{msg.Author == null}");
-                Program.LogMsg($"{msg.Content == null}");
-                Program.LogMsg($"{msg.CreatedAt == null}");
-                Program.LogMsg($"{msg.Timestamp == null}");
+                Program.LogCritical($"Failed with {msg.Id}", "VPN");
                 throw;
             }
             var attachments = getMsgAttachments(msg, doProxy);
@@ -928,7 +924,7 @@ namespace DiscordBot.MLAPI.Modules
             }
             catch (Exception ex)
             {
-                Program.LogMsg("VPN", ex);
+                Program.LogError(ex, "VPN");
                 RespondRaw(ex.Message, System.Net.HttpStatusCode.InternalServerError);
             }
         }

@@ -1,4 +1,5 @@
-﻿using ChessClient.Classes;
+﻿#if INCLUDE_CHESS
+using ChessClient.Classes;
 using ChessClient.Classes.Chess;
 using Discord;
 using DiscordBot.Services;
@@ -173,3 +174,4 @@ namespace DiscordBot.Classes.Chess.Online
         }
     }
 }
+#endif

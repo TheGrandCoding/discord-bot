@@ -125,7 +125,7 @@ namespace DiscordBot.Websockets
                 HandleMessage(packet);
             } catch (Exception ex)
             {
-                Program.LogMsg(ex, $"ML:{Server.Id}");
+                Program.LogError(ex, $"ML:{Server.Id}");
                 try
                 {
                     var err = new JObject();

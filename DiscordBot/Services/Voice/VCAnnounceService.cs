@@ -144,7 +144,7 @@ namespace DiscordBot.Services
                 Console.WriteLine($"{thing.arg1.Username} Performed action {waiting}");
             } catch (Exception ex)
             {
-                Program.LogMsg(ex, "vcAnnounce");
+                Program.LogError(ex, "vcAnnounce");
                 try
                 {
                     thing.arg1.SendMessageAsync($"Could not announce your entry, error ocurred: {ex.Message}");

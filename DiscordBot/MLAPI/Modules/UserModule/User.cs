@@ -149,7 +149,7 @@ namespace DiscordBot.MLAPI.Modules.UserModule
                     }
                     catch (Discord.Net.HttpException ex)
                     {
-                        Program.LogMsg("REST", ex);
+                        Program.LogError(ex, "REST");
                         RespondRaw(ex.Message, (int)ex.HttpCode);
                     }
                 }

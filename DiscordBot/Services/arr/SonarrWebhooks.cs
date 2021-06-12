@@ -85,7 +85,7 @@ namespace DiscordBot.Services.Sonarr
             var request = new HttpRequestMessage(HttpMethod.Get, apiUrl + $"/series/{seriesId}");
             var response = await HTTP.SendAsync(request);
             var content = await response.Content.ReadAsStringAsync();
-            Program.LogMsg($"{seriesId} :: {response.StatusCode}", LogSeverity.Info, "GetSeriesTags");
+            Info($"{seriesId} :: {response.StatusCode}");
             var jobj = JObject.Parse(content);
             var array = jobj["tags"].ToObject<string[]>();
             var parsed = new List<string>();
@@ -100,7 +100,7 @@ namespace DiscordBot.Services.Sonarr
                 parsed.Add(label);
             }
             SeriesTagsCache.Add(seriesId, parsed.ToArray());
-            Program.LogMsg($"For {seriesId}: [{string.Join(", ", parsed)}]", LogSeverity.Info, "GetSeriesTags");
+            Info($"For {seriesId}: [{string.Join(", ", parsed)}]");
             return parsed.ToArray();
         }
 
@@ -134,39 +134,39 @@ namespace DiscordBot.Services.Sonarr
         {
             if (!(o is OnGrabSonarrEvent e))
                 return;
-            Program.LogMsg($"Starting handler", Discord.LogSeverity.Info, "OnGrab");
+            Info($"Starting handler", "OnGrab");
             try
             {
                 HandleOnGrabAsync(e).Wait();
             }
             catch (Exception ex)
             {
-                Program.LogMsg(ex, "OnGrab:" + e.DownloadId ?? "");
+                Error(ex, "OnGrab:" + e.DownloadId ?? "");
             }
-            Program.LogMsg($"Finished handler", Discord.LogSeverity.Info, "OnGrab");
+            Info($"Finished handler", "OnGrab");
         }
 
         public async Task<SonarrHistoryGrabbedRecord> GetHistory(int episodeId, int seriesId, int attempts = 0)
         {
             var url = apiUrl + $"/history?sortKey=date&episodeId={episodeId}";
-            Program.LogMsg($"Sending GET{attempts} {url}", LogSeverity.Info, "OnGrab");
+            Info($"Sending GET{attempts} {url}", "OnGrab");
             var request = new HttpRequestMessage(HttpMethod.Get, url);
             var response = await HTTP.SendAsync(request);
-            Program.LogMsg($"{episodeId} :: {response.StatusCode}");
+            Info($"{episodeId} :: {response.StatusCode}");
             var content = await response.Content.ReadAsStringAsync();
-            Program.LogMsg($"Parsed content to string", Discord.LogSeverity.Info, "OnGrab");
+            Info($"Parsed content to string", "OnGrab");
             var history = JsonConvert.DeserializeObject<SonarrHistoryCollection>(content);
-            Program.LogMsg($"Got {history.Records.Length}/{history.TotalRecords} records", Discord.LogSeverity.Info, "OnGrab");
+            Info($"Got {history.Records.Length}/{history.TotalRecords} records", "OnGrab");
 
             var recentGrab = history.Records
                 .Where(x => x.Series.Id == seriesId)
                 .FirstOrDefault(x => x is SonarrHistoryGrabbedRecord) as SonarrHistoryGrabbedRecord;
             if (recentGrab != null)
                 return recentGrab;
-            Program.LogMsg($"Failed to get history for {episodeId}, waiting then retrying");
+            Info($"Failed to get history for {episodeId}, waiting then retrying");
             if(attempts > 10)
             {
-                Program.LogMsg("Too many attempts, exiting");
+                Info("Too many attempts, exiting");
                 return null;
             }
             Thread.Sleep(1000 * attempts);
@@ -175,7 +175,7 @@ namespace DiscordBot.Services.Sonarr
 
         public async Task HandleOnGrabAsync(OnGrabSonarrEvent e)
         {
-            Program.LogMsg($"Handling {e.Series.Title}", LogSeverity.Info, "OnGrab");
+            Info($"Handling {e.Series.Title}", "OnGrab");
             //var episodes = new Dictionary<int, bool>();
             var releases = new List<SonarrGrabbedData>();
             var builder = new EmbedBuilder();
@@ -200,7 +200,7 @@ namespace DiscordBot.Services.Sonarr
                     builder.ImageUrl = (recentGrab.Series.Images.FirstOrDefault(x => x.CoverType == "poster")
                         ?? recentGrab.Series.Images.First()).Url;
                 }
-                Program.LogMsg($"{episode.Id} :: {recentGrab.Series.Title} {recentGrab.data.guid}");
+                Info($"{episode.Id} :: {recentGrab.Series.Title} {recentGrab.data.guid}");
                 if (!existing)
                     releases.Add(recentGrab.data);
                 if(builder.Fields.Count < 23)
@@ -276,7 +276,7 @@ namespace DiscordBot.Services.Sonarr
                                 } catch (Exception ex)
                                 {
                                     toRemove.Add(chnl);
-                                    Program.LogMsg("Sonarr", ex);
+                                    Error(ex);
                                 }
                             }
                             rem.Add(keypair.Key);
@@ -299,11 +299,11 @@ namespace DiscordBot.Services.Sonarr
                 }
                 catch (Exception ex)
                 {
-                    Program.LogMsg("SonarrLoop", ex);
+                    Error(ex);
                     return;
                 }
             }
-            Program.LogMsg("Exited loop", LogSeverity.Debug, "SonarWebhooks");
+            Debug("Exited loop");
         }
 
 
@@ -314,17 +314,17 @@ namespace DiscordBot.Services.Sonarr
 
         public void Handle(SonarrEvent type)
         {
-            Program.LogMsg($"Waiting lock for {type.EventType} | {typeof(SonarrEvent)}", Discord.LogSeverity.Info, "OnGrab");
+            Info($"Waiting lock for {type.EventType} | {typeof(SonarrEvent)}", "Handle");
             Lock.WaitOne();
-            Program.LogMsg($"Received lock for {type.EventType}", Discord.LogSeverity.Info, "OnGrab");
+            Info($"Received lock for {type.EventType}", "Handle");
             try
             {
                 if (type is OnTestSonarrEvent t)
                     OnTest?.Invoke(this, t);
                 else if (type is OnGrabSonarrEvent g)
                 {
-                    Program.LogMsg($"Invoking event for OnGrab", Discord.LogSeverity.Info, "OnGrab");
-                    Program.LogMsg($"{OnGrab?.GetInvocationList().Length} listeners #4", LogSeverity.Info, "OnGrab");
+                    Info($"Invoking event for OnGrab", "OnGrab");
+                    Info($"{OnGrab?.GetInvocationList().Length} listeners #4", "OnGrab");
                     OnGrab?.Invoke(this, g);
                 }
                 else if (type is OnDownloadSonarrEvent d)
@@ -332,7 +332,7 @@ namespace DiscordBot.Services.Sonarr
             } finally
             {
                 Lock.Release();
-            Program.LogMsg($"Released lock for {type.EventType}", Discord.LogSeverity.Info, "OnGrab");
+                Info($"Released lock for {type.EventType}", "OnGrab");
             }
         }
     }

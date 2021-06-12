@@ -368,9 +368,11 @@ namespace DiscordBot.MLAPI.Modules
         {
             string summary;
             string type = module ? "This module " : "This command ";
+#if INCLUDE_CHESS
             if (attribute is RequireChess rc)
                 summary = $"must be executed by Chess user with <code>{rc._perm}</code> permission";
-            else if (attribute is RequireAuthentication ra)
+#endif
+            if (attribute is RequireAuthentication ra)
                 summary = explainAuthentication(ra);
             else if (attribute is RequireApprovalAttribute raa)
                 summary = raa._require ? "must be executed by a user who has been approved to use this website" : "does not need any approval";
@@ -628,7 +630,7 @@ namespace DiscordBot.MLAPI.Modules
             return main;
         }
 
-        #endregion
+#endregion
 
         [Method("GET"), Path("/docs")]
         [Name("View documentation")]

@@ -107,7 +107,7 @@ namespace DiscordBot.Websockets
             strToken ??= Context.Headers.Get($"X-{AuthToken.SessionToken.ToUpper()}");
             if (!Handler.findToken(strToken, out var usr, out _))
             {
-                Program.LogMsg($"{IP} attempted unauthorized time tracking", LogSeverity.Debug, "WSTT");
+                Program.LogDebug($"{IP} attempted unauthorized time tracking", "WSTT");
                 Context.WebSocket.Close(CloseStatusCode.Normal, "Unauthorized");
                 return;
             }
@@ -216,7 +216,7 @@ namespace DiscordBot.Websockets
         Cached<bool> sentError = new Cached<bool>(false);
         protected override void OnMessage(MessageEventArgs e)
         {
-            Program.LogMsg(e.Data, LogSeverity.Debug, $"TTWS-{IP}");
+            Program.LogDebug(e.Data, $"TTWS-{IP}");
             var packet = new TTPacket(JObject.Parse(e.Data));
 
             using var db = Program.Services.GetRequiredService<TimeTrackDb>();
@@ -225,7 +225,7 @@ namespace DiscordBot.Websockets
                 handlePacket(packet, db);
             } catch(Exception ex)
             {
-                Program.LogMsg(ex, $"TimeTrack-{User.Name}");
+                Program.LogError(ex, $"TimeTrack-{User.Name}");
                 if (sentError.GetValueOrDefault(false))
                     return;
                 sentError.Value = true;

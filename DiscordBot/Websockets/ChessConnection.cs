@@ -1,4 +1,5 @@
-﻿using ChessClient.Classes;
+﻿#if INCLUDE_CHESS
+using ChessClient.Classes;
 using ChessClient.Classes.Chess;
 using DiscordBot.Classes.Chess;
 using DiscordBot.Classes.Chess.Online;
@@ -107,7 +108,7 @@ namespace DiscordBot.WebSockets
                     }
                     catch(Exception ex) 
                     {
-                        Program.LogMsg($"{ex}", Discord.LogSeverity.Warning, $"Send-{pl.ID}-{pl.Player?.Name ?? ""}");
+                        Program.LogWarning($"{ex}", $"Send-{pl.ID}-{pl.Player?.Name ?? ""}");
                     }
                 }
             }
@@ -120,7 +121,7 @@ namespace DiscordBot.WebSockets
         void handleClose(string reason)
         {
             log($"Socket connection closed: {reason}");
-            Program.LogMsg($"Closed: {reason}", Discord.LogSeverity.Critical, $"{(Player?.Name ?? "")}-{this.ID}");
+            Program.LogWarning($"Closed: {reason}", $"{(Player?.Name ?? "")}-{this.ID}");
             if(Player != null && ChessService.CurrentGame != null)
             { // no point sending message if player never joined, or game not started
                 var jobj = new JObject();
@@ -218,7 +219,7 @@ namespace DiscordBot.WebSockets
                 }
                 g.InnerGame.make_move(legalMove.Value);
                 g.InnerGame.registerMoveMade();
-                Program.LogMsg("Player made move", Discord.LogSeverity.Error, "Player");
+                Program.LogError("Player made move", "Player");
                 ChessService.CurrentGame.updateBoard();
                 Broadcast(new ChessPacket(PacketId.MoveMade, ping.Content));
                 CheckGameEnd();
@@ -434,29 +435,26 @@ namespace DiscordBot.WebSockets
 
         protected override void OnMessage(MessageEventArgs e)
         {
-            Program.LogMsg($"Getting Lock..", Discord.LogSeverity.Critical, $"Con::{REF}");
             if (!OnlineLock.WaitOne(6 * 1000))
             {
-                Program.LogMsg($"Failed Lock..", Discord.LogSeverity.Critical, $"Con::{REF}");
                 Context.WebSocket.Close(CloseStatusCode.ServerError, "Unable to get lock");
                 return;
             }
-            Program.LogMsg($"Got Lock..", Discord.LogSeverity.Critical, $"Con::{REF}");
             try
             {
                 log($"{REF} >>> {e.Data}");
-                Program.LogMsg($"{e.Data}", Discord.LogSeverity.Critical, REF);
+                Program.LogVerbose($"{e.Data}", REF);
                 var jobj = JObject.Parse(e.Data);
                 var packet = new ChessPacket(jobj);
                 handleMessage(packet);
             } catch (Exception ex)
             {
-                Program.LogMsg($"ChessCon:{Player?.Name ?? "na"}", ex);
+                Program.LogError(ex, $"ChessCon:{Player?.Name ?? "na"}");
             } finally
             {
                 OnlineLock.Release();
-                Program.LogMsg($"Released Lock..", Discord.LogSeverity.Critical, $"Con::{REF}");
             }
         }
     }
 }
+#endif

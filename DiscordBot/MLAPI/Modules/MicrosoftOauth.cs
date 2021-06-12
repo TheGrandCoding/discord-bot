@@ -66,6 +66,7 @@ namespace DiscordBot.MLAPI.Modules
             {
                 Context.User.OverrideName = jobj["displayName"].ToObject<string>();
             }
+#if INCLUDE_CHESS
             var service = Program.Services.GetRequiredService<ChessService>();
             if (service != null && !Context.User.ServiceUser && !Context.User.GeneratedUser)
             {
@@ -86,6 +87,7 @@ namespace DiscordBot.MLAPI.Modules
                 }
                 service.OnSave();
             }
+#endif
             return true;
         }
 

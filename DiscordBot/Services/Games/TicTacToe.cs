@@ -106,7 +106,7 @@ namespace DiscordBot.Services.Games
                 await Handle(game, user, arg2.VoiceChannel, arg3.VoiceChannel);
             } catch(Exception ex)
             {
-                Program.LogMsg("VCTTT", ex);
+                Program.LogError(ex, "VCTTT");
             } finally
             {
                 await user.ModifyAsync(x => x.Channel = arg2.VoiceChannel);

@@ -50,7 +50,7 @@ namespace DiscordBot.Websockets
 
         protected override void OnMessage(MessageEventArgs e)
         {
-            Program.LogMsg(e.Data, LogSeverity.Debug, $"TTWS-{IP}");
+            Program.LogDebug(e.Data, $"TTWS-{IP}");
         }
     }
 }

@@ -1201,7 +1201,7 @@ namespace DiscordBot.Classes.Chess.Online
             var old = history.Count == 0 ? null : history.Pop();
             if (old == null)
             {
-                Program.LogMsg("Reverted a null state", Discord.LogSeverity.Debug, "UndoMove");
+                Program.LogDebug("Reverted a null state", "UndoMove");
                 return null;
             }
 

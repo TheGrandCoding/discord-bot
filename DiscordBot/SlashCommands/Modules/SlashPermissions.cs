@@ -52,7 +52,7 @@ namespace DiscordBot.SlashCommands.Modules
             }
             catch (Exception ex)
             {
-                Program.LogMsg("CmdList", ex);
+                Program.LogError(ex, "CmdList");
                 throw ex;
             }
         }
@@ -151,7 +151,7 @@ namespace DiscordBot.SlashCommands.Modules
                 }
                 catch (Exception ex)
                 {
-                    Program.LogMsg(ex, "ListSlash");
+                    Program.LogError(ex, "ListSlash");
                 }
             }
 
@@ -193,7 +193,7 @@ namespace DiscordBot.SlashCommands.Modules
                 }
                 catch (Exception ex)
                 {
-                    Program.LogMsg(ex, "a");
+                    Program.LogError(ex, "a");
                 }
             }
 

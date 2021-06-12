@@ -1,4 +1,5 @@
-﻿using Discord;
+﻿#if INCLUDE_CHESS
+using Discord;
 using Discord.Rest;
 using DiscordBot.Classes;
 using DiscordBot.Classes.Chess;
@@ -354,7 +355,7 @@ namespace DiscordBot.MLAPI.Modules
                 .Add("discord_link", link));
         }
 
-        #region Joining Chess Server
+#region Joining Chess Server
 
         void handleJoinCallback(object sender, object[] args)
         {
@@ -382,7 +383,7 @@ namespace DiscordBot.MLAPI.Modules
                 .Add("scope", "guilds.join");
             RespondRaw(LoadRedirectFile(uri), HttpStatusCode.Redirect);
         }
-        #endregion
+#endregion
 
         [Method("GET"), Path("/chess/register")]
         public void MultiplePresent()
@@ -507,7 +508,7 @@ namespace DiscordBot.MLAPI.Modules
                 .Add("colm", debug ? "<th>debug</th>" : ""));
         }
 
-        #region Chess Clock
+#region Chess Clock
 
 #if DEBUG
         const int chessClockMinimum = 10;
@@ -1890,3 +1891,4 @@ namespace DiscordBot.MLAPI.Modules
 #endregion
     }
 }
+#endif
