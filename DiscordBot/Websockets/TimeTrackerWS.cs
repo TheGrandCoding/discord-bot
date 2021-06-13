@@ -29,6 +29,7 @@ namespace DiscordBot.Websockets
 
         public BotUser User { get; set; }
         public Cached<bool> WatchingVideo { get; private set; }
+        public int APIVersion { get; private set; }
 
         public int GetInterval = 0;
         public int SetInterval = 0;
@@ -112,6 +113,9 @@ namespace DiscordBot.Websockets
                 return;
             }
             User = usr;
+            if (!int.TryParse(Context.QueryString.Get("v"), out var x))
+                x = 1;
+            APIVersion = x;
             using var db = Program.Services.GetRequiredService<TimeTrackDb>();
             WatchingVideo = new Cached<bool>(false, 2);
             SendAllClientRatelimits();
@@ -185,11 +189,21 @@ namespace DiscordBot.Websockets
                 foreach (JToken token in content)
                 {
                     var id = token.ToObject<string>();
-                    var thing = DB.GetThread(User.Id, id);
-                    if (thing == null)
+                    var threads = DB.GetThread(User.Id, id);
+                    if (threads == null || threads.Length == 0)
                         continue;
+                    var thing = threads.Last();
                     var threadObj = new JObject();
-                    threadObj["when"] = new DateTimeOffset(thing.LastUpdated).ToUnixTimeMilliseconds();
+                    if(APIVersion == 2)
+                    {
+                        var jar = new JArray();
+                        foreach (var x in threads)
+                            jar.Add(new DateTimeOffset(x.LastUpdated).ToUnixTimeMilliseconds());
+                        threadObj["when"] = jar;
+                    } else
+                    {
+                        threadObj["when"] = new DateTimeOffset(thing.LastUpdated).ToUnixTimeMilliseconds();
+                    }
                     threadObj["count"] = thing.Comments;
                     jobj[id] = threadObj;
                 }

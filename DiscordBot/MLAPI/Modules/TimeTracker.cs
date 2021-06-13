@@ -122,17 +122,7 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
                 Comments = comments,
                 LastUpdated = DateTime.Now
             };
-            var existing = Threads.Find(rtd._userId, rtd.ThreadId);
-            if (existing == null)
-            {
-                Threads.Add(rtd);
-            }
-            else
-            {
-                existing.LastUpdated = DateTime.Now;
-                existing.Comments = comments;
-                Threads.Update(existing);
-            }
+            Threads.Add(rtd);
         }
         public void AddIgnored(ulong user, string id, bool isIgnored)
         {
@@ -163,12 +153,16 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
                 return v;
             }
         }
-        public RedditData GetThread(ulong user, string thread)
+        public RedditData[] GetThread(ulong user, string thread)
         {
             unchecked
             {
-                var v = Threads.FirstOrDefault(x => x._userId == (long)user && x.ThreadId == thread);
-                return v;
+                var v = Threads
+                    .AsAsyncEnumerable()
+                    .Where(x => x._userId == (long)user && x.ThreadId == thread)
+                    .OrderBy(x => x.LastUpdated)
+                    .ToArrayAsync();
+                return v.Result;
             }
         }
         public IgnoreData[] GetIgnoreDatas(ulong user)
@@ -185,7 +179,7 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
             modelBuilder.Entity<VideoData>()
                 .HasKey(x => new { x._userId, x.VideoId  });
             modelBuilder.Entity<RedditData>()
-                .HasKey(x => new { x._userId, x.ThreadId });
+                .HasKey(x => new { x._userId, x.ThreadId, x.LastUpdated });
             modelBuilder.Entity<IgnoreData>()
                 .HasKey(x => new { x._userId, x.VideoId  });
 
@@ -340,16 +334,30 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
         }
 
         [Method("GET"), Path("/api/tracker/threads")]
-        public void GetThreads(string ids)
+        public void GetThreads(string ids, int v = 2)
         {
             var jobj = new JObject();
             foreach (var id in ids.Split(';', ','))
             {
                 if (string.IsNullOrWhiteSpace(id))
                     continue;
-                var thing = DB.GetThread(Context.User.Id, id);
+                var threads = DB.GetThread(Context.User.Id, id);
                 var threadObj = new JObject();
-                threadObj["time"] = new DateTimeOffset(thing.LastUpdated).ToUnixTimeMilliseconds();
+                var thing = threads.LastOrDefault();
+                if (thing == null)
+                    continue;
+                if(v == 2)
+                {
+                    var jar = new JArray();
+                    foreach(var x in threads)
+                    {
+                        jar.Add(new DateTimeOffset(x.LastUpdated).ToUnixTimeMilliseconds());
+                    }
+                    threadObj["time"] = jar;
+                } else
+                {
+                    threadObj["time"] = new DateTimeOffset(thing.LastUpdated).ToUnixTimeMilliseconds();
+                }
                 threadObj["count"] = thing.Comments;
                 jobj[id] = threadObj;
             }
