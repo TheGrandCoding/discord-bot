@@ -93,6 +93,11 @@ namespace DiscordBot.Services.Events
                 return;
             if (!ulong.TryParse(split[1], out var userId))
                 return;
+            if(userId == e.User.Id)
+            {
+                await e.Interaction.RespondAsync(":x: You cannot interact with these buttons!", ephemeral: true);
+                return;
+            }
             if (!This.GuildData.TryGetValue(guildId, out var save))
                 return;
             var guild = Program.Client.GetGuild(guildId);
@@ -140,6 +145,21 @@ namespace DiscordBot.Services.Events
             } else
             {
                 var roleId = ulong.Parse(e.ComponentId);
+                var role = guild.GetRole(roleId);
+                if (role == null)
+                    return;
+
+                if(!user.GuildPermissions.Administrator)
+                {
+                    var missing = role.Permissions.ToList().Where(x => !user.GuildPermissions.Has(x)).ToList();
+                    if (missing.Count > 0)
+                    {
+                        await e.Interaction.FollowupAsync(":x: You are missing the following permissions:\r\n- " + string.Join("\r\n- ", missing),
+                            ephemeral: true);
+                        return;
+                    }
+                }
+
                 if (!user.Roles.Any(x => x.Id == roleId))
                 {
                     await user.AddRoleAsync(roleId, new RequestOptions() { AuditLogReason = $"Given by joinlog-buttons, by {alu}" });

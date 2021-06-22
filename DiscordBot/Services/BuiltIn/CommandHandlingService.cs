@@ -100,7 +100,8 @@ namespace DiscordBot.Services
             if (!command.IsSpecified)
             {
                 var builder = await Commands.Modules.Help.getBuilder(context, context.Message.Content.Substring(1)); 
-                await context.Channel.SendMessageAsync($":question: Unknown command", embed: builder.Build());
+                await context.Channel.SendMessageAsync($":question: Unknown command", embed: builder.Build(),
+                    allowedMentions: AllowedMentions.None);
                 return;
             }
 
@@ -113,7 +114,8 @@ namespace DiscordBot.Services
                 return;
 
             // the command failed, let's notify the user that something happened.
-            await context.Channel.SendMessageAsync($":warning: {result}");
+            await context.Channel.SendMessageAsync($":warning: {result}",
+                allowedMentions: AllowedMentions.None);
         }
     }
 }

@@ -161,6 +161,30 @@ namespace DiscordBot.Commands.Modules
                 await ReplyAsync("Only the person who submitted the proposal may rescind it.");
             }
         }
+    
+        const ulong roleId = 455776786513657866;
+        [Command("membership"), Alias("member")]
+        [Summary("Initiates a vote to give or take a role to or from the user")]
+        public async Task<RuntimeResult> Membership(SocketGuildUser target, SocketRole role = null)
+        {
+            role ??= Context.Guild.GetRole(roleId);
+            var oper = Context.User as SocketGuildUser;
+            if (!oper.Roles.Any(x => x.Id == role.Id))
+                return new BotResult("You do not, yourself, have the " + role.Mention + " role");
+            var txt = Context.Channel as ITextChannel;
+            var everyone = txt.GetPermissionOverwrite(Context.Guild.EveryoneRole);
+            if (everyone.GetValueOrDefault().ViewChannel != PermValue.Deny)
+                return new BotResult("This channel must be private to " + role.Mention);
+            var selected = txt.GetPermissionOverwrite(role);
+            if (selected.GetValueOrDefault().ViewChannel != PermValue.Allow)
+                return new BotResult($"This channel must be private for " + role.Mention);
+
+            var msg = await ReplyAsync("[...]");
+            var vq = new VoteRole(Context.Guild, oper, role, target, !target.Roles.Any(x => x.Id == role.Id), msg);
+            Service.Register(vq);
+            await vq.Update("Initialising...");
+            return new BotResult();
+        }
     }
 
     [RequireService(typeof(MessageComponentService))]
@@ -307,6 +331,8 @@ namespace DiscordBot.Commands.Modules
         }
         public bool CanVote(IGuildUser user)
         {
+            if (user.IsBot)
+                return false;
             if (Abstained.Any(x => x.Id == user.Id))
                 return true;
             if (WhitelistedRoles.Count == 0)
@@ -387,6 +413,44 @@ namespace DiscordBot.Commands.Modules
             });
         }
 
+    }
+
+    public class VoteRole : VoteItem
+    {
+        [JsonConstructor]
+        private VoteRole() { }
+
+        public VoteRole(SocketGuild guild, SocketGuildUser submitter, SocketRole role, SocketGuildUser target, bool adding, IUserMessage msg)
+            : base(guild, submitter, msg)
+        {
+            Target = target;
+            Adding = adding;
+            Role = role;
+            WhitelistedRoles = new List<IRole>() { Role };
+            LoadAbstained();
+        }
+
+        public override string Type => nameof(VoteRole);
+
+        public bool Adding { get; set; } // whether we are adding the role or removing it
+        public IGuildUser Target { get; set; }
+
+        public IRole Role { get; set; }
+
+        public override string getQuestion()
+            => $"Should {Target.Mention} {(Adding ? "be given the" : "be stripped of the")} {Role.Mention} role";
+
+        public override string getTitle()
+            => $"Vote for Whitelist";
+
+        public async override Task<BotResult> PerformAction()
+        {
+            if (Adding)
+                await Target?.AddRoleAsync(Role, new RequestOptions() { AuditLogReason = "Voted" });
+            else
+                await Target?.RemoveRoleAsync(Role, new RequestOptions() { AuditLogReason = "I love democracy" });
+            return new BotResult();
+        }
     }
 
     public class VoteQuestion : VoteItem
