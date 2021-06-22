@@ -303,7 +303,11 @@ namespace DiscordBot
         public static string FormatTimeSpan(TimeSpan ts, bool shortForm = false, bool includeMs = false)
         {
             var builder = new StringBuilder();
-            appendN(builder, ts.Days, shortForm ? "d" : "day");
+            int days = ts.Days;
+            int years = days / 365;
+            days -= years * 365;
+            appendN(builder, years, shortForm ? "y" : "year");
+            appendN(builder, days, shortForm ? "d" : "day");
             appendN(builder, ts.Hours, shortForm ? "h" : "hour");
             appendN(builder, ts.Minutes, shortForm ? "m" : "minute");
             appendN(builder, ts.Seconds, shortForm ? "s" : "second");

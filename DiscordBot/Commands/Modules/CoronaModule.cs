@@ -93,7 +93,7 @@ namespace DiscordBot.Commands.Modules
             Service.Isolation[Context.User.Id] = expire.ToLastSecond();
             Service.OnSave();
             Service.OnDailyTick();
-            return Success($"Marked you as isolating until {expire:dd/MM/yy hh:mm:ss}");
+            return await Success($"Marked you as isolating until {expire:dd/MM/yy hh:mm:ss}");
         }
 
         [Command("isolate"), Alias("self-isolate")]
@@ -117,7 +117,7 @@ namespace DiscordBot.Commands.Modules
             Service.Isolation[usr.Id] = expire.ToLastSecond();
             Service.OnSave();
             Service.OnDailyTick();
-            return Success($"Marked that user as isolating until {expire:dd/MM/yy hh:mm:ss}");
+            return await Success($"Marked that user as isolating until {expire:dd/MM/yy hh:mm:ss}");
         }
     }
 }

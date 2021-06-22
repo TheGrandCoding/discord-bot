@@ -198,6 +198,25 @@ namespace DiscordBot.Services
             zza_services = new List<Service>();
             zza_services.Add(backup);
             zza_services.AddRange(_servs);
+
+            var serviceBaseType = typeof(Service);
+            foreach(var service in zza_services)
+            {
+                var type = service.GetType();
+                var properties = type.GetProperties().Where(x => serviceBaseType.IsAssignableFrom(x.PropertyType));
+                foreach(var property in properties)
+                {
+                    var value = zza_services.First(x => x.GetType().FullName == property.PropertyType.FullName);
+                    if(property.CanWrite)
+                    {
+                        Console.WriteLine($"Injecting {property.Name} with {property.PropertyType.Name} for {service.Name}");
+                        property.SetValue(service, value);
+                    }
+                }
+
+            }
+
+
             sendFunction(ServiceState.Ready);
         }
     
@@ -262,24 +281,25 @@ namespace DiscordBot.Services
         protected void Error(string exMessage, string source = null) => Program.LogError(exMessage, Name + (source == null ? "" : ":" + source));
         protected void Debug(string message, string source = null) => Program.LogDebug(message, Name + (source == null ? "" : ":" + source));
 
+        static Type[] getReliedOnServices(Service x)
+        {
+            var type = x.GetType();
+            var ls = (type.GetCustomAttribute<RequireServiceAttribute>()
+                             ?? new RequireServiceAttribute()).Types.ToList();
+
+            var serviceBaseType = typeof(Service);
+            foreach (var property in type.GetProperties())
+            {
+                var pType = property.PropertyType;
+                if (serviceBaseType.IsAssignableFrom(pType) && !ls.Any(y => y.Name == pType.Name))
+                    ls.Add(pType);
+            }
+
+            return ls.ToArray();
+        }
+
         class serviceComparer : IComparer<Service>
         {
-
-            Type[] getReliedOnServices(Service x)
-            {
-                var type = x.GetType();
-                var ls = (type.GetCustomAttribute<RequireServiceAttribute>()
-                    ?? new RequireServiceAttribute()).Types.ToList();
-
-                foreach(var property in type.GetProperties())
-                {
-                    var pType = property.PropertyType;
-                    if (type.IsAssignableFrom(pType) && !ls.Any(x => x.Name == pType.Name))
-                        ls.Add(pType);
-                }
-
-                return ls.ToArray();
-            }
 
             public int Compare([AllowNull] Service x, [AllowNull] Service y)
             {

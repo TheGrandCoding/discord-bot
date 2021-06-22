@@ -75,7 +75,7 @@ namespace DiscordBot.Commands.Modules
                 x.UploadedBy = Context.BotUser;
             });
 
-            return Success("Torrent has been sent to download client. You will receive messages as it progresses.");
+            return await Success("Torrent has been sent to download client. You will receive messages as it progresses.");
         }
 
         [Command("whitelist")]

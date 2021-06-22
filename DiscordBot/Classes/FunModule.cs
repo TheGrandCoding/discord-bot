@@ -29,7 +29,7 @@ namespace DiscordBot.Classes
         public async Task Add(string trigger, Uri image)
         {
             Service.ImageTriggers.AddInner(trigger, image.ToString());
-            Success("Added.");
+            await Success("Added.");
         }
 
         [Command("remove")]

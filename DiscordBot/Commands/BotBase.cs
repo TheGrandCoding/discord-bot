@@ -40,10 +40,12 @@ namespace DiscordBot.Commands
                 throw new Exception($"{reason}");
         }
 
-        public RuntimeResult Success(string message = null, bool isTTS = false, Embed embed = null)
+        public async Task<RuntimeResult> Success(string message = null, bool isTTS = false, Embed embed = null)
         {
             if(message != null || embed != null)
-                ReplyAsync("✅ " + message, isTTS, embed).Wait();
+            {
+                await ReplyAsync("✅ " + message, isTTS, embed);
+            }
             return new BotResult();
         }
         public RuntimeResult Error(string message)

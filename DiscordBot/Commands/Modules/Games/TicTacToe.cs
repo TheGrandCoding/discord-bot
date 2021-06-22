@@ -49,7 +49,7 @@ namespace DiscordBot.Commands.Modules.Games
                 await vc.ModifyAsync(x => x.Name = $"ttt-{i}-{invite.Code}");
 
             }
-            return Success("Server has been setup for tic tac toe.");
+            return await Success ("Server has been setup for tic tac toe.");
         }
 
         [Command("start")]
@@ -76,7 +76,7 @@ namespace DiscordBot.Commands.Modules.Games
             if (other != null)
                 await other.AddRoleAsync(role);
             Service.Games.Add(game);
-            return Success();
+            return await Success();
         }
     
         [Command("stop")]
@@ -88,7 +88,7 @@ namespace DiscordBot.Commands.Modules.Games
                 return Error("No game is currently happening in this channel");
             Service.Games.Remove(inChannel);
             await inChannel.Message.DeleteAndTrackAsync("game has ended");
-            return Success("Game removed.");
+            return await Success("Game removed.");
         }
     }
 }
