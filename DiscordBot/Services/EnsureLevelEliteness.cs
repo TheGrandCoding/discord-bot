@@ -97,20 +97,13 @@ namespace DiscordBot.Services
             var respStr = responsible?.Username ?? $"An administrator for `{user.Guild.Name}`";
             await user.RemoveRoleAsync(save.VerifyRole, new RequestOptions()
             {
-                AuditLogReason = responsible == null ? "Role added only by verification" : $"User must verify via website"
+                AuditLogReason = responsible == null ? "Role added only by vote" : $"User must be voted into that role"
             });
             if (responsible != null)
                 save.Fails[responsible.Id] = save.Fails.GetValueOrDefault(responsible.Id, 0) + 1;
             bUser.IsApproved = true; // prevent them being locked from verifing
             var url = new UrlBuilder(Handler.LocalAPIUrl + "/verify");
             url.Add(AuthToken.SessionToken, getSession(bUser));
-            await user.SendMessageAsync(embed: new EmbedBuilder()
-                .WithTitle("Verification")
-                .WithDescription($"{respStr} has attempted to give you " +
-                $"a role which requires verification to recieve. To verify, you will require a valid email address " +
-                $"registered to {Program.Configuration["ms_auth:name"]}\r\n" +
-                $"To verify, [click here]({url})")
-                .Build());
         }
 
         public override string GenerateSave()

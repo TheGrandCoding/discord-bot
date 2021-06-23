@@ -446,9 +446,13 @@ namespace DiscordBot.Commands.Modules
         public async override Task<BotResult> PerformAction()
         {
             if (Adding)
-                await Target?.AddRoleAsync(Role, new RequestOptions() { AuditLogReason = "Voted" });
+                await Target?.AddRoleAsync(Role, new RequestOptions() { AuditLogReason = "I love democracy" });
             else
-                await Target?.RemoveRoleAsync(Role, new RequestOptions() { AuditLogReason = "I love democracy" });
+                await Target?.RemoveRoleAsync(Role, new RequestOptions() { AuditLogReason = "Voted" });
+            var bUser = Program.GetUser(Target);
+            bUser.IsVerified = Adding;
+            bUser.IsApproved = (bUser.IsApproved ?? false) || Adding;
+            Program.Save();
             return new BotResult();
         }
     }

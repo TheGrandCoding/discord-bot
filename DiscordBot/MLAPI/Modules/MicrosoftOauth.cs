@@ -1,4 +1,5 @@
-﻿using Discord;
+﻿#if INCLUDE_MS_OAUTH_VERIFICATION
+using Discord;
 using DiscordBot.Classes;
 using DiscordBot.Classes.Chess;
 using DiscordBot.Services;
@@ -180,3 +181,4 @@ namespace DiscordBot.MLAPI.Modules
     
     }
 }
+#endif
