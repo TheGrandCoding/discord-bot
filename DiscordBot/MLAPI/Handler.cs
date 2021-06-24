@@ -168,7 +168,7 @@ namespace DiscordBot.MLAPI
             if (endpoint.Port != 8887)
                 return false;
             var str = endpoint.ToString();
-            return str.StartsWith("127.0.0.1") || str.StartsWith("192.168.");
+            return str.StartsWith("127.0.0.1") || str.StartsWith("192.168.") || str.Contains("::1");
         }
 
         static void listenLoop()

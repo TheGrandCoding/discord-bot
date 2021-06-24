@@ -76,7 +76,6 @@ namespace DiscordBot.Services
             {
                 return ExecuteResult.FromError(ex);
             }
-            return ExecuteResult.FromSuccess();
         }
     }
 
