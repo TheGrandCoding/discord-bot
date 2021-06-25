@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -58,14 +59,10 @@ namespace DiscordBot.Classes.Calender
         }
 
 
-        public async Task<List<CalenderEvent>> GetWeeksEvents(DateTime monday)
+        public async Task<List<CalenderEvent>> GetEventsBetween(DateTime start, DateTime end)
         {
-            if (monday.DayOfWeek != DayOfWeek.Monday)
-                throw new ArgumentException("Monday is not monday.");
-            monday = monday.Date;
-            var end = monday.AddDays(8);
             var events = await Events.AsAsyncEnumerable()
-                .Where(x => x.Start >= monday && (x.Start.Add(x.Duration)) < end)
+                .Where(x => x.Start >= start && (x.Start.Add(x.Duration)) < end)
                 .ToListAsync();
             return events;
         }
@@ -141,6 +138,18 @@ namespace DiscordBot.Classes.Calender
             clone.Attendees = this.Attendees;
             clone.Public = this.Public;
             return clone;
+        }
+
+        public JObject ToJson()
+        {
+            var jobj = new JObject();
+            jobj["id"] = Id;
+            jobj["start"] = new DateTimeOffset(Start).ToUnixTimeMilliseconds();
+            jobj["end"] = new DateTimeOffset(Start.Add(Duration)).ToUnixTimeMilliseconds();
+            jobj["title"] = Name;
+            if (Priority == CalenderPriority.Illegal)
+                jobj["backgroundColor"] = "black";
+            return jobj;
         }
     }
 
