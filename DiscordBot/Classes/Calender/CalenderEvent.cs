@@ -1,24 +1,68 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Discord;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Design;
+using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace DiscordBot.Classes.Calender
 {
+    public class CalenderFactory : IDesignTimeDbContextFactory<CalenderDb>
+    {
+        public CalenderDb CreateDbContext(string[] args)
+        {
+            var builder = new DbContextOptionsBuilder<CalenderDb>();
+            builder.UseSqlServer("Server=(localdb)\\mssqllocaldb;Database=calendar;MultipleActiveResultSets=true");
+            builder.EnableSensitiveDataLogging();
+            return new CalenderDb(builder.Options);
+        }
+    }
     public class CalenderDb : DbContext
     {
+        public CalenderDb([NotNullAttribute] DbContextOptions options) : base(options)
+        {
+        }
+
+
         public DbSet<CalenderEvent> Events { get; set; }
         public DbSet<Attendee> Attendees { get; set; }
 
-        public List<CalenderEvent> AddEvent(Action<CalenderEvent> action, bool doSave = true)
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            modelBuilder.Entity<Attendee>()
+                .HasKey(x => new { x.EventId, x._userId });
+            modelBuilder.Entity<CalenderEvent>()
+                .HasMany(x => x.Attendees)
+                .WithOne(x => x.Event)
+                .HasForeignKey(x => x.EventId);
+
+            modelBuilder.Entity<CalenderEvent>()
+                .Navigation(x => x.Attendees)
+                .AutoInclude()
+                .UsePropertyAccessMode(PropertyAccessMode.Property);
+        }
+
+        public CalenderEvent AddEvent(Action<CalenderEvent> action, bool doSave = true)
+        {
+
             var evnt = new CalenderEvent();
             action(evnt);
-            var ls = new List<CalenderEvent>();
+
+            Events.Add(evnt);
+            if (doSave)
+                SaveChanges();
+
+            return evnt;
+
+            /*var ls = new List<CalenderEvent>();
             DateTime finishDate;
             do
             {
@@ -32,12 +76,12 @@ namespace DiscordBot.Classes.Calender
                     var duration = endOfDay - evnt.Start;
                     var firstEvent = evnt.Clone();
                     firstEvent.Start = evnt.Start;
-                    firstEvent.Duration = duration;
+                    firstEvent.End = firstEvent.Start.Add(duration);
 
                     var secondEvent = evnt.Clone();
                     secondEvent.Start = evnt.Start.Date.AddDays(1); // next day
                     var remainder = evnt.Duration - duration;
-                    secondEvent.Duration = remainder;
+                    secondEvent.End = secondEvent.Start.Add(remainder);
 
                     ls.Add(firstEvent);
                     ls.Add(secondEvent);
@@ -55,14 +99,21 @@ namespace DiscordBot.Classes.Calender
             Events.AddRange(ls);
             if (doSave)
                 SaveChanges();
-            return ls;
+            return ls;*/
         }
 
 
+        static bool first = false;
         public async Task<List<CalenderEvent>> GetEventsBetween(DateTime start, DateTime end)
         {
+            if(!first)
+            {
+                first = true;
+                AddDefaultEvents();
+            }
             var events = await Events.AsAsyncEnumerable()
-                .Where(x => x.Start >= start && (x.Start.Add(x.Duration)) < end)
+                .Where(x => (x.Start >= start && x.Start < end) || (x.End >= start && x.End < end))
+                // if start is between range, OR the end is between range, then we care about it
                 .ToListAsync();
             return events;
         }
@@ -70,36 +121,50 @@ namespace DiscordBot.Classes.Calender
 #if DEBUG
         public List<CalenderEvent> AddDefaultEvents()
         {
+            Events.ToList().ForEach(x => Events.Remove(x));
+            SaveChanges();
             var events = new List<CalenderEvent>();
-            var monday = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day);
+            var monday = DateTime.Now.Date;
             while (monday.DayOfWeek != DayOfWeek.Monday)
                 monday = monday.AddDays(-1);
-            int id = 0;
-            for (int i = 0; i < 6; i++)
+            ulong id = 144462654201790464;
+            var sleep = AddEvent(x =>
             {
-                var sleep = AddEvent(x =>
-                {
-                    x.Name = "Sleep";
-                    x.Priority = CalenderPriority.Illegal;
-                    x.Duration = TimeSpan.FromHours(8);
-                    x.Start = monday.AddHours(20);
-                    x.Public = true;
-                    x.Attendees = new List<Attendee>();
-                });
-                events.AddRange(sleep);
-                if (i <= 4)
-                {
-                    var work = AddEvent(x =>
-                    {
-                        x.Name = "Work";
-                        x.Priority = CalenderPriority.Illegal;
-                        x.Duration = TimeSpan.FromHours(10);
-                        x.Start = monday.AddHours(7.5);
-                        x.Public = true;
-                    });
-                    events.AddRange(work);
-                }
-            }
+                x.Name = "Sleep";
+                x.Priority = CalenderPriority.Illegal;
+                x.Start = monday.AddHours(22).ToUniversalTime();
+                x.End = monday.AddHours(22 + 9).ToUniversalTime();
+                x.Public = true;
+                x.Attendees = new List<Attendee>();
+                x.CreatedById = id;
+            }, doSave: false);
+            events.Add(sleep);
+            var work = AddEvent(x =>
+            {
+                x.Name = "Work";
+                x.Priority = CalenderPriority.Illegal;
+                x.Start = monday.AddHours(8).ToUniversalTime();
+                x.End = monday.AddHours(8 + 9).ToUniversalTime();
+                x.Public = true;
+                x.CreatedById = id;
+            }, doSave: false);
+            events.Add(work);
+            monday = monday.AddDays(5);
+            // sunday by now
+            var otherUser = AddEvent(x =>
+            {
+                x.Name = "Hangout";
+                x.Priority = CalenderPriority.Disliked;
+                x.Start = monday.AddHours(10).ToUniversalTime();
+                x.End = monday.AddHours(10 + 3).ToUniversalTime();
+                x.Public = true;
+                x.CreatedById = 753669933635993711;
+            });
+            SaveChanges();
+            var attn = new Attendee(otherUser.Id, id);
+            Attendees.Add(attn);
+            otherUser.Attendees.Add(attn);
+            SaveChanges();
             return events;
         }
 #endif
@@ -107,13 +172,28 @@ namespace DiscordBot.Classes.Calender
 
     public class CalenderEvent
     {
+        public CalenderEvent()
+        {
+        }
+        private CalenderEvent(CalenderDb db, int id)
+        {
+            Id = id;
+            /*var x = db.Events.FirstOrDefault(x => x.Id == id + 1);
+            Attendees = db.Attendees
+                .AsQueryable()
+                .Where(x => x.EventId == Id)
+                .ToList();*/
+        }
+        
+
+
         public int Id { get; set; }
 
         [NotMapped]
         public ulong CreatedById { get; set; }
 
         [Column("CreatedById")]
-        long _createdById { get => (long)CreatedById; set => CreatedById = (ulong)value; }
+        public long _createdById { get => (long)CreatedById; set => CreatedById = (ulong)value; }
 
         public string Name { get; set; }
 
@@ -121,46 +201,115 @@ namespace DiscordBot.Classes.Calender
 
         public DateTime Start { get; set; }
 
-        public TimeSpan Duration { get; set; }
+        public DateTime End { get; set; }
 
-        public List<Attendee> Attendees { get; set; } = new List<Attendee>();
+        [NotMapped]
+        public TimeSpan Duration => End - Start;
+
+        public List<Attendee> Attendees { get; set; }
 
         public bool Public { get; set; }
 
-        public CalenderEvent Clone()
+        string priorityColor {  get
+            {
+                switch(this.Priority)
+                {
+                    case CalenderPriority.Illegal:
+                        return "black";
+                    case CalenderPriority.Disliked:
+                        return "grey";
+                    case CalenderPriority.Preferred:
+                        return "blue";
+                    case CalenderPriority.StronglyPreferred:
+                        return "green";
+                    default:
+                        return "white";
+                }
+            } }
+
+        int getCount(string x, Func<int, bool> act)
         {
-            var clone = new CalenderEvent();
-            clone.CreatedById = this.CreatedById;
-            clone.Name = this.Name;
-            clone.Priority = this.Priority;
-            clone.Start = this.Start;
-            clone.Duration = this.Duration;
-            clone.Attendees = this.Attendees;
-            clone.Public = this.Public;
-            return clone;
+            int i = 0;
+            foreach(var c in x)
+            {
+                var p = int.Parse(c.ToString());
+                if (act(p))
+                    i++;
+            }
+            return i;
+        } 
+
+        string userColor {  get
+            {
+                var id = CreatedById.ToString();
+                int r = (int)(getCount(id, i => i >= 0 && i <= 3) / 10d) * 255;
+                int g = (int)(getCount(id, i => i > 3 && i <= 6) / 10d) * 255;
+                int b = (int)(getCount(id, i => i > 9 && i <= 9) / 10d) * 255;
+                return $"#{r:X2}{g:X2}{b:X2}";
+            }
         }
 
-        public JObject ToJson()
+        public JObject ToJson(BotUser user)
         {
             var jobj = new JObject();
             jobj["id"] = Id;
-            jobj["start"] = new DateTimeOffset(Start).ToUnixTimeMilliseconds();
-            jobj["end"] = new DateTimeOffset(Start.Add(Duration)).ToUnixTimeMilliseconds();
+            var start = new DateTimeOffset(Start.Ticks, TimeSpan.Zero);
+            var end = new DateTimeOffset(End.Ticks, TimeSpan.Zero);
+            jobj["start"] = start.ToUnixTimeMilliseconds();
+            jobj["end"] = end.ToUnixTimeMilliseconds();
             jobj["title"] = Name;
-            if (Priority == CalenderPriority.Illegal)
-                jobj["backgroundColor"] = "black";
+            jobj["editable"] = user.Id == CreatedById;
+
+            jobj["backgroundColor"] = userColor;
+            jobj["borderColor"] = priorityColor;
+
+            if (Name.Contains("sleep", StringComparison.OrdinalIgnoreCase))
+                jobj["display"] = "background";
+
+            var extended = new JObject();
+            extended["creator"] = CreatedById.ToString();
+            var attending = new JArray();
+            foreach (var attendee in Attendees)
+            {
+                attending.Add(attendee.UserId.ToString());
+            }
+            extended["attendees"] = attending;
+
+            if(Priority == CalenderPriority.Illegal)
+            {
+                extended["priority"] = "illegal";
+            } else
+            {
+                extended["priority"] = (int)Priority;
+            }
+
+            jobj["extendedProps"] = extended;
+
             return jobj;
         }
     }
 
     public class Attendee
     {
+        public Attendee(int eventId, ulong userId)
+        {
+            EventId = eventId;
+            UserId = userId;
+        }
+        private Attendee(CalenderDb db, int eventId)
+        {
+            EventId = eventId;
+        }
+
+        public int EventId { get; set; }
+        [ForeignKey("EventId")]
         public CalenderEvent Event { get; set; }
+
         [NotMapped]
         public ulong UserId { get; set; }
 
         [Column("UserId")]
-        long _userId { get => (long)UserId; set => UserId = (ulong)value; }
+        public long _userId { get => (long)UserId; set => UserId = (ulong)value; }
     }
 
     public enum CalenderPriority

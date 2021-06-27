@@ -90,7 +90,7 @@ namespace DiscordBot.Websockets
                     var content = json["content"].ToString();
                     try
                     {
-                        Appeal.SendMessageAsync(content, User.Name, User.GetAvatarUrl()).Wait();
+                        Appeal.SendMessageAsync(content, User.Name, User.GetAnyAvatarUrl()).Wait();
                     } catch(Exception ex)
                     {
                         Program.LogError(ex, "BanAppeal");

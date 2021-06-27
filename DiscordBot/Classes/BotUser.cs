@@ -124,7 +124,7 @@ namespace DiscordBot.Classes
         public DateTimeOffset CreatedAt => ((IUser)FirstValidUser).CreatedAt;
         public string Mention => MentionUtils.MentionUser(Id);
         public UserStatus Status => ((IUser)FirstValidUser).Status;
-        public string GetAvatarUrl(ImageFormat format = ImageFormat.Auto, ushort size = 128)
+        public string GetAnyAvatarUrl(ImageFormat format = ImageFormat.Auto, ushort size = 128)
         {
             return ((IUser)FirstValidUser)?.GetAvatarUrl(format, size) ?? GetDefaultAvatarUrl();
         }

@@ -13,6 +13,7 @@ namespace DiscordBot.Services
 {
     public class VidTorService : SavedService
     {
+        public override bool IsEnabled => false;
         public override int DefaultTimeout => base.DefaultTimeout * 3;
         public const string NamePattern = @"(\d{4})-(\d{2})-(\d{2})_([PM])([1-6])";
         public const string LessonPattern = @"1[1-4][ABCDE][A-Z][a-z][1-5]";

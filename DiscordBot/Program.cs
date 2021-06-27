@@ -31,6 +31,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using DiscordBot.Classes.Calender;
 
 [assembly: AssemblyVersion(DiscordBot.Program.VERSION)]
 namespace DiscordBot
@@ -413,6 +414,19 @@ Changed how permissions worked for bot.
                     });
 #endif
             }, ServiceLifetime.Transient);
+            coll.AddDbContext<CalenderDb>(options =>
+            {
+#if WINDOWS
+                options.UseSqlServer(getDbString("calendar"));
+                options.EnableSensitiveDataLogging();
+#else
+                options.UseMySql(getDbString("calendar"), 
+                    new MariaDbServerVersion(new Version(10, 3, 25)), mysqlOptions =>
+                    {
+                        mysqlOptions.CharSet(CharSet.Utf8Mb4);
+                    });
+#endif
+            }, ServiceLifetime.Transient);
             var yClient = new Google.Apis.YouTube.v3.YouTubeService(new Google.Apis.Services.BaseClientService.Initializer()
             {
                 ApiKey = Program.Configuration["tokens:youtubeApi"],
@@ -439,7 +453,7 @@ Changed how permissions worked for bot.
         }
 
 #region Save Info
-        public static List<BotUser> Users { get; set; }
+        public static ConcurrentBag<BotUser> Users { get; set; }
         public const string saveName = "new_bot_save.json";
 
         class BotSave
@@ -461,7 +475,7 @@ Changed how permissions worked for bot.
                 content = "{}";
             }
             var save = JsonConvert.DeserializeObject<BotSave>(content);
-            Users = save.users ?? new List<BotUser>();
+            Users = new ConcurrentBag<BotUser>(save.users ?? new List<BotUser>());
             states = save.states ?? new Dictionary<string, int>();
         }
 
@@ -469,7 +483,7 @@ Changed how permissions worked for bot.
         {
             var bSave = new BotSave()
             {
-                users = Users,
+                users = Users.ToList(),
                 states = states,
             };
             var str = JsonConvert.SerializeObject(bSave);
