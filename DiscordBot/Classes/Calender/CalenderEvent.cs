@@ -34,18 +34,28 @@ namespace DiscordBot.Classes.Calender
 
         public DbSet<CalenderEvent> Events { get; set; }
         public DbSet<Attendee> Attendees { get; set; }
+        public DbSet<CalenderSeries> Series { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Attendee>()
                 .HasKey(x => new { x.EventId, x._userId });
+
             modelBuilder.Entity<CalenderEvent>()
                 .HasMany(x => x.Attendees)
                 .WithOne(x => x.Event)
                 .HasForeignKey(x => x.EventId);
-
             modelBuilder.Entity<CalenderEvent>()
                 .Navigation(x => x.Attendees)
+                .AutoInclude()
+                .UsePropertyAccessMode(PropertyAccessMode.Property);
+
+            modelBuilder.Entity<CalenderSeries>()
+                .HasMany(x => x.Events)
+                .WithOne(x => x.Series)
+                .HasForeignKey(x => x.SeriesId);
+            modelBuilder.Entity<CalenderSeries>()
+                .Navigation(x => x.Events)
                 .AutoInclude()
                 .UsePropertyAccessMode(PropertyAccessMode.Property);
         }
@@ -102,6 +112,69 @@ namespace DiscordBot.Classes.Calender
             return ls;*/
         }
 
+        async Task<List<CalenderEvent>> getSingleEventsBetween(DateTime start, DateTime end)
+        {
+            var events = await Events.AsAsyncEnumerable()
+                .Where(x => 
+                        ((x.Start >= start && x.Start < end) || (x.End >= start && x.End < end)) // either side within range
+                    ||  (x.Start < start && x.End > end) // event straddles range
+                )
+                .ToListAsync();
+            return events;
+        }
+
+        async Task<List<CalenderEvent>> getNewRecurrenceEventsBetween(DateTime start, DateTime end)
+        {
+            var manySeri = await Series.AsAsyncEnumerable()
+                .Where(x => ((x.StartRecur >= start && x.StartRecur < end) || (x.EndRecur >= start && x.EndRecur < end))
+                    || (x.StartRecur < start && x.EndRecur > end)
+                )
+                .ToListAsync();
+            var events = new List<CalenderEvent>();
+
+            foreach(var series in manySeri)
+            {
+                var existingEvents = series.Events;
+                var template = existingEvents.FirstOrDefault();
+                var recursOn = series.RecursOn.Split(",").Select(x => (DayOfWeek)int.Parse(x)).ToArray();
+                if(template == null)
+                {
+                    Program.LogWarning($"Series {series.Id} has no events to use as a template", "Calendar");
+                    continue;
+                }
+                var firstDate = start.Date;
+                while(firstDate < end.Date)
+                {
+                    if(recursOn.Contains(firstDate.DayOfWeek))
+                    {
+                        var existing = existingEvents.FirstOrDefault(x => x.Start.Date == firstDate);
+                        if(existing == null)
+                        {
+                            existing = new CalenderEvent()
+                            {
+                                CreatedById = template.CreatedById,
+                                Start = template.Start,
+                                End = template.End,
+                                Name = template.Name,
+                                Priority = template.Priority,
+                                Public = template.Public,
+                                Series = series,
+                                SeriesId = series.Id,
+                            };
+                            events.Add(existing);
+                        }
+                    }
+                    firstDate = firstDate.AddDays(1);
+                }
+            }
+
+            if(events.Count > 0)
+            {
+                Events.AddRange(events);
+                SaveChanges();
+            }
+            return events;
+        }
 
         static bool first = false;
         public async Task<List<CalenderEvent>> GetEventsBetween(DateTime start, DateTime end)
@@ -111,19 +184,28 @@ namespace DiscordBot.Classes.Calender
                 first = true;
                 AddDefaultEvents();
             }
-            var events = await Events.AsAsyncEnumerable()
-                .Where(x => (x.Start >= start && x.Start < end) || (x.End >= start && x.End < end))
-                // if start is between range, OR the end is between range, then we care about it
-                .ToListAsync();
+            var events = await getSingleEventsBetween(start, end);
+            events.AddRange(await getNewRecurrenceEventsBetween(start, end));
             return events;
         }
 
 #if DEBUG
-        public List<CalenderEvent> AddDefaultEvents()
+        public void AddDefaultEvents()
         {
             Events.ToList().ForEach(x => Events.Remove(x));
+            Series.ToList().ForEach(x => Series.Remove(x));
             SaveChanges();
-            var events = new List<CalenderEvent>();
+
+            var sleepSeries = new CalenderSeries()
+            {
+                RecursOn = "0,1,2,3,4",
+                StartRecur = DateTime.UtcNow.Date.AddDays(-7),
+                EndRecur = DateTime.UtcNow.Date.AddDays(7)
+            };
+            Series.Add(sleepSeries);
+            SaveChanges();
+
+
             var monday = DateTime.Now.Date;
             while (monday.DayOfWeek != DayOfWeek.Monday)
                 monday = monday.AddDays(-1);
@@ -137,8 +219,13 @@ namespace DiscordBot.Classes.Calender
                 x.Public = true;
                 x.Attendees = new List<Attendee>();
                 x.CreatedById = id;
+                x.Series = sleepSeries;
+                x.SeriesId = sleepSeries.Id;
             }, doSave: false);
-            events.Add(sleep);
+
+            sleepSeries.Events.Add(sleep);
+
+#if remove
             var work = AddEvent(x =>
             {
                 x.Name = "Work";
@@ -164,29 +251,24 @@ namespace DiscordBot.Classes.Calender
             var attn = new Attendee(otherUser.Id, id);
             Attendees.Add(attn);
             otherUser.Attendees.Add(attn);
+#endif
             SaveChanges();
-            return events;
         }
 #endif
-    }
+        }
 
     public class CalenderEvent
     {
         public CalenderEvent()
         {
         }
-        private CalenderEvent(CalenderDb db, int id)
+        private CalenderEvent(CalenderDb db, int id, DateTime start, DateTime end)
         {
             Id = id;
-            /*var x = db.Events.FirstOrDefault(x => x.Id == id + 1);
-            Attendees = db.Attendees
-                .AsQueryable()
-                .Where(x => x.EventId == Id)
-                .ToList();*/
+            Start = DateTime.SpecifyKind(start, DateTimeKind.Utc);
+            End = DateTime.SpecifyKind(end, DateTimeKind.Utc);
         }
         
-
-
         public int Id { get; set; }
 
         [NotMapped]
@@ -206,9 +288,14 @@ namespace DiscordBot.Classes.Calender
         [NotMapped]
         public TimeSpan Duration => End - Start;
 
-        public List<Attendee> Attendees { get; set; }
 
         public bool Public { get; set; }
+
+        public List<Attendee> Attendees { get; set; } = new List<Attendee>();
+        
+        public int? SeriesId { get; set; }
+        public CalenderSeries Series { get; set; }
+
 
         string priorityColor {  get
             {
@@ -258,7 +345,15 @@ namespace DiscordBot.Classes.Calender
             jobj["start"] = start.ToUnixTimeMilliseconds();
             jobj["end"] = end.ToUnixTimeMilliseconds();
             jobj["title"] = Name;
-            jobj["editable"] = user.Id == CreatedById;
+            if(Series != null)
+            {
+                jobj["groupId"] = SeriesId;
+                jobj["eventStartEditable"] = false; // prevent dragging
+                jobj["eventDurationEditable"] = user.Id == CreatedById;
+            } else
+            {
+                jobj["editable"] = user.Id == CreatedById;
+            }
 
             jobj["backgroundColor"] = userColor;
             jobj["borderColor"] = priorityColor;
@@ -269,7 +364,7 @@ namespace DiscordBot.Classes.Calender
             var extended = new JObject();
             extended["creator"] = CreatedById.ToString();
             var attending = new JArray();
-            foreach (var attendee in Attendees)
+            foreach (var attendee in (Attendees ?? new List<Attendee>()))
             {
                 attending.Add(attendee.UserId.ToString());
             }
@@ -310,6 +405,26 @@ namespace DiscordBot.Classes.Calender
 
         [Column("UserId")]
         public long _userId { get => (long)UserId; set => UserId = (ulong)value; }
+    }
+
+    public class CalenderSeries
+    {
+        public CalenderSeries()
+        {
+        }
+        private CalenderSeries(CalenderDb db, DateTime startRecur, DateTime endRecur)
+        {
+            StartRecur = DateTime.SpecifyKind(startRecur, DateTimeKind.Utc);
+            EndRecur = DateTime.SpecifyKind(endRecur, DateTimeKind.Utc);
+        }
+
+        public int Id { get; set; }
+
+        public string RecursOn { get; set; }
+        public DateTime StartRecur { get; set; }
+        public DateTime EndRecur { get; set; }
+
+        public List<CalenderEvent> Events { get; set; } = new List<CalenderEvent>();
     }
 
     public enum CalenderPriority

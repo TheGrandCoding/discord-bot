@@ -149,9 +149,49 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("POST"), Path("/api/calendar/series")]
-        public void APIModifySeries(int event_id, int series_id, string recursOn, DateTime startRecur, DateTime endRecur)
+        public void APIModifySeries(int event_id, int series_id, string recursOn, DateTime startRecur, DateTime endRecur,
+            string remove = null, string disconnect = null, string add = null)
         {
             using var db = Program.Services.GetRequiredService<CalenderDb>();
+
+            var series = db.Series.FirstOrDefault(x => x.Id == series_id);
+            var evnt = db.Events.FirstOrDefault(x => x.Id == event_id);
+
+            if (remove != null)
+            {
+                db.Series.Remove(series);
+            } else if (disconnect != null)
+            {
+                evnt.Series = null;
+                evnt.SeriesId = 0;
+                db.Events.Update(evnt);
+            } else
+            {
+                bool adding = false;
+                if(series == null)
+                {
+                    adding = true;
+                    series = new CalenderSeries();
+                }
+                series.RecursOn = recursOn;
+                series.StartRecur = startRecur.ToUniversalTime();
+                series.EndRecur = endRecur.ToUniversalTime();
+
+                evnt.Series = series;
+                if (adding)
+                {
+                    db.Series.Add(series);
+                    db.SaveChanges();
+                } else
+                {
+                    db.Series.Update(series);
+                }
+                evnt.SeriesId = series.Id;
+            }
+
+            db.SaveChanges();
+            RespondRaw("OK");
+
 
         }
 

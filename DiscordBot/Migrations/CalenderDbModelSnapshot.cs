@@ -43,9 +43,6 @@ namespace DiscordBot.Migrations
                     b.Property<DateTime>("End")
                         .HasColumnType("datetime2");
 
-                    b.Property<DateTime?>("EndRecur")
-                        .HasColumnType("datetime2");
-
                     b.Property<string>("Name")
                         .HasColumnType("nvarchar(max)");
 
@@ -55,14 +52,10 @@ namespace DiscordBot.Migrations
                     b.Property<bool>("Public")
                         .HasColumnType("bit");
 
-                    b.Property<string>("RecursOnString")
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("RecursOn");
+                    b.Property<int>("SeriesId")
+                        .HasColumnType("int");
 
                     b.Property<DateTime>("Start")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("StartRecur")
                         .HasColumnType("datetime2");
 
                     b.Property<long>("_createdById")
@@ -71,7 +64,30 @@ namespace DiscordBot.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("SeriesId");
+
                     b.ToTable("Events");
+                });
+
+            modelBuilder.Entity("DiscordBot.Classes.Calender.CalenderSeries", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .UseIdentityColumn();
+
+                    b.Property<DateTime>("EndRecur")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("RecursOn")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("StartRecur")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Series");
                 });
 
             modelBuilder.Entity("DiscordBot.Classes.Calender.Attendee", b =>
@@ -87,7 +103,23 @@ namespace DiscordBot.Migrations
 
             modelBuilder.Entity("DiscordBot.Classes.Calender.CalenderEvent", b =>
                 {
+                    b.HasOne("DiscordBot.Classes.Calender.CalenderSeries", "Series")
+                        .WithMany("Events")
+                        .HasForeignKey("SeriesId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Series");
+                });
+
+            modelBuilder.Entity("DiscordBot.Classes.Calender.CalenderEvent", b =>
+                {
                     b.Navigation("Attendees");
+                });
+
+            modelBuilder.Entity("DiscordBot.Classes.Calender.CalenderSeries", b =>
+                {
+                    b.Navigation("Events");
                 });
 #pragma warning restore 612, 618
         }
