@@ -21,15 +21,23 @@ namespace DiscordBot
     {
         public static BotUser GetUserOrDefault(ulong id)
         {
-            return Users.FirstOrDefault(x => x.Id == id);
+            var usr = Users.FirstOrDefault(x => x.Id == id);
+            if (usr != null)
+                return usr;
+            var dsUser = Program.Client.GetUser(id);
+            if (dsUser == null)
+                return null;
+            return GetUser(dsUser);
         }
-        public static BotUser GetUser(IUser user)
+        public static BotUser GetUser(IUser user, bool saveOnModify = true)
         {
+            bool changed = false;
             var existing = GetUserOrDefault(user.Id);
             if(existing == null)
             {
                 existing = new BotUser(user);
                 Program.Users.Add(existing);
+                changed = true;
             }
             if(existing.Permissions.Count == 0
                 && Program.AppInfo != null 
@@ -37,7 +45,10 @@ namespace DiscordBot
             )
             {
                 existing.Permissions.Add(Perm.Parse("bot.*"));
+                changed = true;
             }
+            if (changed && saveOnModify)
+                Save();
 
             return existing;
         }
@@ -189,6 +200,15 @@ namespace DiscordBot
                     array[i] = (dynamic)inner.BestMatch;
                 }
                 return TypeReaderResult.FromSuccess(array);
+            }
+            var nullableType = Nullable.GetUnderlyingType(desired);
+            if(nullableType != null)
+            {
+                // it's a nullable type, so we'll try to parse if the text isn't null or empty.
+                if (string.IsNullOrWhiteSpace(input))
+                    return TypeReaderResult.FromSuccess(null);
+                else
+                    return AttemptParseInput(input, nullableType);
             }
 
             var reader = combined[desired];
