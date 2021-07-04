@@ -155,7 +155,7 @@ namespace DiscordBot.SlashCommands.Modules
         [SlashCommand("after", "Moves the provided message, and all that follow it, to the channel")]
         [RequireUserPermission(ChannelPermission.ManageMessages)]
         public async Task MoveAfter(
-            [ParameterName("messageId")]
+            [ParameterName("message")]
             [Required]string strMsgId,
             [Required] SocketGuildChannel chnl)
         {

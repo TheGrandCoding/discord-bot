@@ -191,5 +191,15 @@ namespace DiscordBot.Classes
         {
             throw new NotImplementedException();
         }
+
+        public Task<IThreadChannel> CreateThread(ulong messageId, Action<CreateThreadProperties> func, RequestOptions options = null)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<IThreadChannel> CreateThread(Action<CreateThreadWithoutMessageProperties> func, RequestOptions options = null)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

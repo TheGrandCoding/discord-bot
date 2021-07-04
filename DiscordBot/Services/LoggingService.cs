@@ -103,6 +103,9 @@ namespace DiscordBot.Services
             Program.Client.MessageUpdated += Client_MessageUpdated;
             Program.Client.UserJoined += Client_UserJoined;
             Program.Client.UserVoiceStateUpdated += Client_UserVoiceStateUpdated;
+            Program.Client.ThreadCreated += Client_ThreadCreated;
+            Program.Client.ThreadUpdated += Client_ThreadUpdated;
+            Program.Client.ThreadDestroyed += Client_ThreadDestroyed;
             Program.Client.Disconnected += async x =>
             {
                 disconnected.Value = true;
@@ -411,7 +414,51 @@ namespace DiscordBot.Services
             await SendLog((arg2.VoiceChannel ?? arg3.VoiceChannel).Guild, "voice", builder, arg1.Id);
         }
 
-#endregion
+        #endregion
+
+        #region Threads
+        private async Task Client_ThreadCreated(SocketThreadChannel arg)
+        {
+            var builder = new EmbedBuilder();
+            builder.Title = "Thread Created";
+            builder.AddField($"Name", arg.Name + "\r\n" + arg.Mention, true);
+            builder.AddField("Created by", $"{arg.CreatorId}\r\n{(arg.Creator?.Mention ?? "")}", true);
+            builder.AddField("Channel", $"{arg.ChannelId}\r\n{MentionUtils.MentionChannel(arg.ChannelId)}", true);
+            await SendLog(arg.Guild, "threads", builder, arg.Id);
+        }
+
+        private async Task Client_ThreadUpdated(SocketThreadChannel arg1, SocketThreadChannel arg2)
+        {
+            var calc = DiffCalculator.Create(arg1, arg2);
+            var changes = calc.GetChanges();
+            var builder = new EmbedBuilder();
+            builder.Title = $"Thread Updated";
+            builder.AddField($"Name", arg2.Name + "\r\n" + arg2.Mention, true);
+            builder.AddField("Created by", $"{arg2.CreatorId}\r\n{(arg2.Creator?.Mention ?? "")}", true);
+            builder.AddField("Channel", $"{arg2.ChannelId}\r\n{MentionUtils.MentionChannel(arg2.ChannelId)}", true);
+
+            foreach (var change in changes)
+            {
+                builder.AddField(change.Type, $"{change.Before} -> **{change.After}**", true);
+            }
+            await SendLog(arg1.Guild, "threads", builder, arg1.Id);
+        }
+
+        private async Task Client_ThreadDestroyed(SocketThreadChannel arg)
+        {
+            var builder = new EmbedBuilder();
+            builder.Title = "Thread Deleted";
+            builder.AddField($"Name", arg.Name + "\r\n" + arg.Mention, true);
+            builder.AddField("Created by", $"{arg.CreatorId}\r\n{(arg.Creator?.Mention ?? "")}", true);
+            builder.AddField("Channel", $"{arg.ChannelId}\r\n{MentionUtils.MentionChannel(arg.ChannelId)}", true);
+
+            await SendLog(arg.Guild, "threads", builder, arg.Id);
+        }
+
+        #endregion
+
+
+
     }
 
     class logSave

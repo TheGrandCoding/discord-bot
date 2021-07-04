@@ -221,7 +221,10 @@ namespace DiscordBot.SlashCommands.Modules
             public async Task ClearOverwrite(
                 [ParameterName("command")]
                 [Required]
-                string strId, [Required] string thingId)
+                string strId, 
+                [ParameterName("id")]
+                [Required] 
+                string thingId)
             {
                 await Interaction.AcknowledgeAsync(flags: InteractionResponseFlags.Ephemeral);
                 if(!ulong.TryParse(thingId, out var id))

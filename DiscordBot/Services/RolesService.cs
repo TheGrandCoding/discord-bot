@@ -36,6 +36,11 @@ namespace DiscordBot.Services
             foreach (var x in Messages)
             { // since it may be removed.
                 var guild = Program.Client.GetGuild(x.Key);
+                if(guild == null)
+                {
+                    Warning($"Could not find guild {x.Key}");
+                    continue;
+                }
                 // in case reactions were added whilst bot offline
                 if(!Permissions.AllNodes.ContainsKey($"roles.{guild.Id}.*"))
                 {
@@ -56,6 +61,11 @@ namespace DiscordBot.Services
                         emote = new Emoji(emoteStr);
                     }
                     var role = guild.GetRole(x.Value.Roles[emoteStr]);
+                    if(role == null)
+                    {
+                        Warning($"Could not find role {x.Value.Roles[emoteStr]} for guild {guild.Id}");
+                        return;
+                    }
                     var rolePerm = new NodeInfo(
                         $"roles.{guild.Id}.{role.Id}",
                         $"Use button to get/remove {role.Name} for {guild.Name}")
