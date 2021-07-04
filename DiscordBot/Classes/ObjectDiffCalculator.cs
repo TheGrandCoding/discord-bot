@@ -9,16 +9,60 @@ using System.Text;
 
 namespace DiscordBot.Classes
 {
-    public class ObjectDiffCalculator<T>
+    public abstract class DiffCalculator
+    {
+        public abstract List<Change> GetChanges();
+
+        public static DiffCalculator Create<K>(K before, K after)
+        {
+            return Create(typeof(K), before, after, new AlreadyDoneSet());
+        }
+
+        private static ConstructorInfo GetAttributeConstructor(Type objectType)
+        {
+            IEnumerator<ConstructorInfo> en = objectType.GetConstructors(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).Where(c => c.IsDefined(typeof(MarkConstructor), true)).GetEnumerator();
+
+            if (en.MoveNext())
+            {
+                ConstructorInfo conInfo = en.Current;
+                return conInfo;
+            }
+
+            return null;
+        }
+
+        public static DiffCalculator Create(Type type, object before, object after, AlreadyDoneSet done, int depth = 0)
+        {
+
+            var genericType = typeof(ObjectDiffCalculator<>).MakeGenericType(new Type[] { type });
+
+            var constructor = GetAttributeConstructor(genericType);
+
+
+            dynamic instance = constructor.Invoke(new object[] { before, after, done, depth + 1 });
+            return instance;
+        }
+    }
+
+    public class MarkConstructor : Attribute
+    {
+    }
+
+    public class ObjectDiffCalculator<T> : DiffCalculator
     {
         public T Before { get; set; }
         public T After { get; set; }
         public int Depth { get;  }
-        public ObjectDiffCalculator(T before, T after, int depth = 0)
+
+        [MarkConstructor]
+        private ObjectDiffCalculator(T before, T after, AlreadyDoneSet done, int depth = 0)
         {
             Before = before;
             After = after;
             Depth = depth;
+            alreadyDone = done;
+            if(after is IEntity<ulong> e)
+                alreadyDone.Add(e);
         }
 
         /*public List<Change> GetChanges()
@@ -31,7 +75,8 @@ namespace DiscordBot.Classes
             return ls.Where(x => x != null).ToList();
         }*/
 
-        public List<Change> GetChangesReflection()
+        private AlreadyDoneSet alreadyDone;
+        public override List<Change> GetChanges()
         {
             if (Depth > 5)
                 return new List<Change>();
@@ -39,16 +84,6 @@ namespace DiscordBot.Classes
             var ls = new List<Change>();
             foreach (var property in properties)
             {
-                if (property.Name == "Guild")
-                    continue;
-                if (property.Name == "VoiceChannel"
-                    || property.Name == "VoiceSessionId"
-                    || property.Name == "VoiceState")
-                    continue;
-                if (property.Name == "MutualGuilds")
-                    continue;
-                if (typeof(T) == property.PropertyType && property.Name.EndsWith("Now"))
-                    continue;
                 if (IsPropertyACollection(property))
                     ls.AddRange(getChangesList(property));
                 else
@@ -57,14 +92,14 @@ namespace DiscordBot.Classes
             return ls;
         }
 
-        bool IsPropertyACollection(PropertyInfo property)
+        protected bool IsPropertyACollection(PropertyInfo property)
         {
             if (property.PropertyType == typeof(string))
                 return false;
             return property.PropertyType.GetInterface(typeof(IEnumerable<>).FullName) != null;
         }
 
-        string toStr(IEnumerable list)
+        protected string toStr(IEnumerable list)
         {
             if (list == null)
                 return "null";
@@ -75,7 +110,7 @@ namespace DiscordBot.Classes
             sb.Append("]");
             return sb.ToString();
         }
-        string toStr(object thing)
+        protected string toStr(object thing)
         {
             if (thing == null)
                 return "null";
@@ -89,7 +124,7 @@ namespace DiscordBot.Classes
             }
         }
 
-        List<Change> getChangesList(PropertyInfo property)
+        protected List<Change> getChangesList(PropertyInfo property)
         {
             var before = ((IEnumerable)property.GetValue(Before)).Cast<object>();
             var after = ((IEnumerable)property.GetValue(After)).Cast<object>();
@@ -104,7 +139,7 @@ namespace DiscordBot.Classes
                 ls.Add(new Change("-" + property.Name, null, toStr(removed)));
             return ls;
         }
-        List<Change> getChangesSingular(PropertyInfo property)
+        protected List<Change> getChangesSingular(PropertyInfo property)
         {
             var before = property.GetValue(Before);
             var after = property.GetValue(After);
@@ -132,14 +167,69 @@ namespace DiscordBot.Classes
                 return before.Equals(after)
                     ? new List<Change>()
                     : new Change(property.Name, toStr(before), toStr(after));
+            if(property.PropertyType == typeof(DateTime))
+            {
+                var bef = (DateTime)before;
+                var aft = (DateTime)after;
+                return bef.Ticks == aft.Ticks
+                    ? new List<Change>()
+                    : new Change(property.Name, toStr(bef), toStr(aft));
+
+            }
+            if(property.PropertyType == typeof(DateTimeOffset))
+            {
+                var bef = (DateTimeOffset)before;
+                var aft = (DateTimeOffset)after;
+                return bef.Ticks == aft.Ticks
+                    ? new List<Change>()
+                    : new Change(property.Name, toStr(bef), toStr(aft));
+            }
+            if(typeof(Discord.IEntity<ulong>).IsAssignableFrom(property.PropertyType))
+            {
+                var bef = (IEntity<ulong>)before;
+                var aft = (IEntity<ulong>)after;
+                return bef.Id == aft.Id
+                    ? new List<Change>()
+                    : new Change(property.Name, toStr(bef), toStr(aft));
+            }
             // Complex object, so we want to go deeper.
-            var genericType = typeof(ObjectDiffCalculator<>).MakeGenericType(new Type[] { property.PropertyType });
-            dynamic instance = Activator.CreateInstance(genericType, new object[] { before, after, Depth + 1 });
+            var instance = DiffCalculator.Create(property.PropertyType, before, after, alreadyDone, Depth + 1);
             Console.WriteLine(new string(' ', Depth * 3) + $"Deeper dive into {property.Name} of {property.PropertyType.Name}");
-            List<Change> changes = instance.GetChangesReflection();
+            List<Change> changes = instance.GetChanges();
             foreach (var x in changes)
                 x.Type = property.Name + "." + x.Type;
             return changes;
+        }
+    }
+
+    public class AlreadyDoneSet
+    {
+        private HashSet<ulong> _doneIds = new HashSet<ulong>();
+
+        public void Add(ulong id)
+        {
+            _doneIds.Add(id);
+        }
+        public bool Contains(ulong id)
+        {
+            return _doneIds.Contains(id);
+        }
+        public void Add<T>(T obj) where T : IEntity<ulong>
+        {
+            Add(obj.Id);
+        }
+        public void Add(object obj, out ulong? value)
+        {
+            value = null;
+            if(obj is IEntity<ulong> thing)
+            {
+                Add(thing);
+                value = thing.Id;
+            }
+        }
+        public override string ToString()
+        {
+            return "[" + string.Join(", ", _doneIds) + "]";
         }
     }
 

@@ -38,7 +38,8 @@ namespace DiscordBot.SlashCommands.Modules
                 ComponentBuilder builder = new ComponentBuilder();
                 builder.WithButton("Test button 1", "btn1", ButtonStyle.Danger);
                 builder.WithButton("Test button 2", "btn2", ButtonStyle.Danger);
-                var msg = await Interaction.RespondAsync("Click below", component: builder.Build());
+                await Interaction.RespondAsync("Click below", component: builder.Build());
+                var msg = await Interaction.GetOriginalResponseAsync();
                 var srv = Program.Services.GetRequiredService<MessageComponentService>();
                 srv.Register(msg, handleButton);
             }

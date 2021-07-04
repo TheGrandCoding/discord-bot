@@ -1,5 +1,6 @@
 ﻿using Discord;
 using Discord.Commands;
+using Discord.WebSocket;
 using DiscordBot.Classes;
 using DiscordBot.Commands;
 using DiscordBot.Commands.Attributes;
@@ -41,6 +42,18 @@ namespace DiscordBot.Commands.Modules
         {
             var token = args.Interaction;
             await token.RespondAsync(text: $"Clicked {args.ComponentId}", type: InteractionResponseType.UpdateMessage);
+        }
+
+        [Command("thread")]
+        public async Task Thread()
+        {
+            var chnl = Context.Channel as SocketTextChannel;
+            var thread = await chnl.CreateThread(Context.Message.Id, x =>
+            {
+                x.Name = "Test Thread";
+                x.AutoArchiveDuration = 60;
+            });
+            await thread.SendMessageAsync($"A new thread has been opened!");
         }
 
         [Command("emote")]

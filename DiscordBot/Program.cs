@@ -38,7 +38,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.18.3"; 
+        public const string VERSION = "0.19.0"; 
         public const string CHANGELOG = VERSION + @"
 == Permissions changes
 Changed how permissions worked for bot.
@@ -381,7 +381,11 @@ Changed how permissions worked for bot.
             var coll = new ServiceCollection()
                 .AddSingleton(new DiscordSocketClient(new DiscordSocketConfig
                 {
+#if DEBUG
                     LogLevel = LogSeverity.Debug,
+#else
+                    LogLevel = LogSeverity.Info,
+#endif
                     MessageCacheSize = 1000,
                     AlwaysAcknowledgeInteractions = false,
                     AlwaysDownloadUsers = true,
@@ -582,12 +586,21 @@ Changed how permissions worked for bot.
             AppInfo = await Client.GetApplicationInfoAsync();
             var slsh = Services.GetRequiredService<SlashCommandService>();
             var components = Services.GetRequiredService<MessageComponentService>();
-#if !DEBUG
+#if DEBUG
             var guildIds = new List<ulong>() { 420240046428258304 };
 #else
             var guildIds = Client.Guilds.Select(x => x.Id).ToList();
 #endif
-            await slsh.RegisterCommandsAsync(Client, guildIds, new CommandRegistrationOptions(OldCommandOptions.DELETE_UNUSED, ExistingCommandOptions.OVERWRITE));
+            try
+            {
+                await slsh.RegisterCommandsAsync(Client, guildIds, new CommandRegistrationOptions(OldCommandOptions.DELETE_UNUSED, ExistingCommandOptions.OVERWRITE));
+            } catch(Discord.Net.HttpException http)
+            {
+                LogError(http, "RegisterCommands");
+                LogError($"Request: {http.Request.ToString()}", "RegisterCommands");
+                LogError($"Response: {http.Error.ToString()}", "RegisterCommands");
+                Close(1);
+            }
             Client.InteractionCreated += (SocketInteraction x) =>
             {
                 var task = Task.Run(() => executeInteraction(x));

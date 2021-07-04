@@ -64,9 +64,14 @@ namespace DiscordBot.Commands
         ButtonComponent getButton(MessageComponent component, string id)
         {
             foreach (var row in component.Components)
-                foreach (var btn in row.Components)
-                    if (btn.CustomId == id)
-                        return btn;
+            {
+                foreach (var cmp in row.Components)
+                {
+                    if (cmp is ButtonComponent btn)
+                        if (btn.CustomId == id)
+                            return btn;
+                }
+            }
             return null;
         }
 
@@ -136,10 +141,13 @@ namespace DiscordBot.Commands
                     int i = 0;
                     foreach(var row in builder.ActionRows)
                     {
-                        foreach(var btn in row.Components)
+                        foreach(var cmp in row.Components)
                         {
-                            disabledBuilder.WithButton(btn.Label,
-                                btn.CustomId, btn.Style, btn.Emote, btn.Url, true, i);
+                            if(cmp is ButtonComponent btn)
+                            {
+                                disabledBuilder.WithButton(btn.Label,
+                                    btn.CustomId, btn.Style, btn.Emote, btn.Url, true, i);
+                            }
                         }
                         i++;
                     }
