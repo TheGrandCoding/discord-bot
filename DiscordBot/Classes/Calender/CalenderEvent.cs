@@ -31,6 +31,8 @@ namespace DiscordBot.Classes.Calender
         {
         }
 
+        public static Semaphore Lock = new Semaphore(1, 1);
+
 
         public DbSet<CalenderEvent> Events { get; set; }
         public DbSet<Attendee> Attendees { get; set; }
@@ -127,7 +129,7 @@ namespace DiscordBot.Classes.Calender
         {
             var manySeri = await Series.AsAsyncEnumerable()
                 .Where(x => ((x.StartRecur >= start && x.StartRecur < end) || (x.EndRecur >= start && x.EndRecur < end))
-                    || (x.StartRecur < start && x.EndRecur > end)
+                    || (x.StartRecur <= start && x.EndRecur >= end)
                 )
                 .ToListAsync();
             var events = new List<CalenderEvent>();
@@ -150,14 +152,15 @@ namespace DiscordBot.Classes.Calender
                         var existing = existingEvents.FirstOrDefault(x => x.Start.Date == firstDate);
                         if(existing == null)
                         {
+                            var startTime = firstDate.Add(template.Start.TimeOfDay);
                             existing = new CalenderEvent()
                             {
                                 CreatedById = template.CreatedById,
-                                Start = template.Start,
-                                End = template.End,
+                                Start = startTime,
+                                End = startTime.Add(template.Duration),
                                 Name = template.Name,
                                 Priority = template.Priority,
-                                Public = template.Public,
+                                Visibility = template.Visibility,
                                 Series = series,
                                 SeriesId = series.Id,
                             };
@@ -182,7 +185,7 @@ namespace DiscordBot.Classes.Calender
             if(!first)
             {
                 first = true;
-                AddDefaultEvents();
+                //AddDefaultEvents();
             }
             var events = await getSingleEventsBetween(start, end);
             events.AddRange(await getNewRecurrenceEventsBetween(start, end));
@@ -216,7 +219,7 @@ namespace DiscordBot.Classes.Calender
                 x.Priority = CalenderPriority.Illegal;
                 x.Start = monday.AddHours(22).ToUniversalTime();
                 x.End = monday.AddHours(22 + 9).ToUniversalTime();
-                x.Public = true;
+                x.Visibility = EventVisibility.Full;
                 x.Attendees = new List<Attendee>();
                 x.CreatedById = id;
                 x.Series = sleepSeries;
@@ -289,7 +292,7 @@ namespace DiscordBot.Classes.Calender
         public TimeSpan Duration => End - Start;
 
 
-        public bool Public { get; set; }
+        public EventVisibility Visibility { get; set; }
 
         public List<Attendee> Attendees { get; set; } = new List<Attendee>();
         
@@ -336,17 +339,50 @@ namespace DiscordBot.Classes.Calender
             }
         }
 
+        public bool IsVisibleTo(BotUser user)
+        {
+            if (Visibility == EventVisibility.Full)
+                return true;
+            if (Visibility == EventVisibility.AvailabilityOnly)
+                return true;
+
+            return DoesAttend(user);
+        }
+
+        public bool CanSeeInfo(BotUser user)
+        {
+            if (Visibility == EventVisibility.Full)
+                return true;
+
+            return DoesAttend(user);
+        }
+
+        public bool DoesAttend(BotUser user)
+        {
+            return CreatedById == user.Id || (Attendees ?? new List<Attendee>()).Any(x => x?.UserId == user.Id);
+        }
+
         public JObject ToJson(BotUser user)
         {
+            bool seeinfo = CanSeeInfo(user);
             var jobj = new JObject();
             jobj["id"] = Id;
             var start = new DateTimeOffset(Start.Ticks, TimeSpan.Zero);
             var end = new DateTimeOffset(End.Ticks, TimeSpan.Zero);
             jobj["start"] = start.ToUnixTimeMilliseconds();
             jobj["end"] = end.ToUnixTimeMilliseconds();
-            jobj["title"] = Name;
-            if(Series != null)
+            jobj["title"] = seeinfo ? Name : "";
+            var extended = new JObject();
+            extended["visibility"] = (int)Visibility;
+            if(seeinfo && Series != null)
             {
+                var seriesInfo = new JObject();
+                seriesInfo["id"] = SeriesId;
+                seriesInfo["daysOfWeek"] = new JArray(Series.RecursOn.Split(",").Select(x => int.Parse(x)).ToList());
+                seriesInfo["startRecur"] = new DateTimeOffset(Series.StartRecur, TimeSpan.Zero).ToUnixTimeMilliseconds();
+                seriesInfo["endRecur"] = new DateTimeOffset(Series.EndRecur, TimeSpan.Zero).ToUnixTimeMilliseconds();
+                extended["series"] = seriesInfo;
+
                 jobj["groupId"] = SeriesId;
                 jobj["eventStartEditable"] = false; // prevent dragging
                 jobj["eventDurationEditable"] = user.Id == CreatedById;
@@ -358,15 +394,17 @@ namespace DiscordBot.Classes.Calender
             jobj["backgroundColor"] = userColor;
             jobj["borderColor"] = priorityColor;
 
-            if (Name.Contains("sleep", StringComparison.OrdinalIgnoreCase))
+            if (seeinfo == false || Name.Contains("sleep", StringComparison.OrdinalIgnoreCase))
                 jobj["display"] = "background";
 
-            var extended = new JObject();
             extended["creator"] = CreatedById.ToString();
             var attending = new JArray();
-            foreach (var attendee in (Attendees ?? new List<Attendee>()))
+            if(seeinfo)
             {
-                attending.Add(attendee.UserId.ToString());
+                foreach (var attendee in (Attendees ?? new List<Attendee>()))
+                {
+                    attending.Add(attendee.UserId.ToString());
+                }
             }
             extended["attendees"] = attending;
 
@@ -424,6 +462,20 @@ namespace DiscordBot.Classes.Calender
         public DateTime StartRecur { get; set; }
         public DateTime EndRecur { get; set; }
 
+        public bool IsValidEvent(CalenderEvent evnt) 
+        {
+            if (evnt.SeriesId != Id)
+                return false;
+            if (evnt.Start < StartRecur)
+                return false;
+            if (evnt.End > EndRecur)
+                return false;
+            var recurs = RecursOn.Split(",").Select(x => int.Parse(x));
+            if (!recurs.Contains((int)evnt.Start.DayOfWeek))
+                return false;
+            return true;
+        }
+
         public List<CalenderEvent> Events { get; set; } = new List<CalenderEvent>();
     }
 
@@ -434,5 +486,21 @@ namespace DiscordBot.Classes.Calender
         Neutral = 0,
         Preferred = 1,
         StronglyPreferred = 2
+    }
+
+    public enum EventVisibility
+    {
+        /// <summary>
+        /// Event name/etc is fully visible to everyone
+        /// </summary>
+        Full = 0,
+        /// <summary>
+        /// Availability for duration is visible to everyone, but name is withheld for attendees.
+        /// </summary>
+        AvailabilityOnly = 1,
+        /// <summary>
+        /// Event information only visible for attendees.
+        /// </summary>
+        Private = 2
     }
 }

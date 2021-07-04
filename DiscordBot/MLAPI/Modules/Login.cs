@@ -198,20 +198,7 @@ namespace DiscordBot.MLAPI.Modules
 
         BotUser handleUserInfo(IUser user)
         {
-            var webUser = new WebUser()
-            {
-                Id = user.Id,
-                Discriminator = user.DiscriminatorValue,
-                Username = user.Username
-            };
-            var bUser = Program.GetUserOrDefault(webUser.Id);
-            if(bUser == null)
-            {
-                bUser = new BotUser(webUser);
-                Program.Users.Add(bUser);
-                Program.Save();
-            }
-            return bUser;
+            return Program.GetUser(user);
         }
 
         [Method("GET"), Path("/oauth2/discord")]

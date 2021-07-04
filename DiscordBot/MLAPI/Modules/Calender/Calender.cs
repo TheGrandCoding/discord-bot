@@ -13,10 +13,9 @@ namespace DiscordBot.MLAPI.Modules
     {
         public Calender(APIContext c) : base(c, "calender") { }
 
-        static Semaphore lck = new Semaphore(1, 1);
         public override void BeforeExecute()
         {
-            if(!lck.WaitOne(1000 * 5))
+            if(!CalenderDb.Lock.WaitOne(1000 * 5))
             {
                 RespondRaw("Failed to achieve lock", 429);
                 throw new HaltExecutionException("Failed to achieve lock");
@@ -24,7 +23,7 @@ namespace DiscordBot.MLAPI.Modules
         }
         public override void AfterExecute()
         {
-            lck.Release();
+            CalenderDb.Lock.Release();
         }
 
         [Method("GET"), Path("/calender")]
@@ -47,7 +46,10 @@ namespace DiscordBot.MLAPI.Modules
             var events = DB.GetEventsBetween(start, end).Result;
             var jarray = new JArray();
             foreach (var e in events)
-                jarray.Add(e.ToJson(Context.User));
+            {
+                if(e.IsVisibleTo(Context.User))
+                    jarray.Add(e.ToJson(Context.User));
+            }
 
             RespondRaw(jarray.ToString());
         }
@@ -70,11 +72,24 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("DELETE"), Path("/api/calendar/attendee")]
-        public void APIRemvoveAttendance(int eventId)
+        public void APIRemvoveAttendance(int eventId, ulong? userId = null)
         {
             using var db = Program.Services.GetRequiredService<CalenderDb>();
 
-            var existing = db.Attendees.FirstOrDefault(x => x.EventId == eventId && x._userId == (long)Context.User.Id);
+
+            if(userId.HasValue)
+            {
+                if(userId.Value != Context.User.Id)
+                {
+                    var evnt = db.Events.FirstOrDefault(x => x.Id == eventId);
+                    if(evnt.CreatedById != Context.User.Id)
+                    {
+                        RespondRaw("Forbidden", System.Net.HttpStatusCode.Forbidden);
+                        return;
+                    }
+                }
+            }
+            var existing = db.Attendees.FirstOrDefault(x => x.EventId == eventId && x._userId == (long)userId.GetValueOrDefault(Context.User.Id));
             if(existing != null)
             {
                 db.Attendees.Remove(existing);
@@ -99,7 +114,7 @@ namespace DiscordBot.MLAPI.Modules
 
         [Method("POST"), Path("/api/calendar/events")]
         public void APIModifyEvent(string id, string name, DateTime start, int duration, string priority, 
-            bool isPublic = true,
+            EventVisibility? visibility = null,
             string remove = null, string submit = null)
         {
             using var DB = Program.Services.GetRequiredService<CalenderDb>();
@@ -122,13 +137,15 @@ namespace DiscordBot.MLAPI.Modules
                 existing = new CalenderEvent()
                 {
                     CreatedById = Context.User.Id,
+                    Series = null,
+                    SeriesId = null
                 };
             }
 
             existing.Name = name;
             existing.Start = start.ToUniversalTime();
             existing.End = start.AddMinutes(duration).ToUniversalTime();
-            existing.Public = isPublic;
+            existing.Visibility = visibility.GetValueOrDefault(existing.Visibility);
 
             if(priority == "illegal")
             {
@@ -149,12 +166,17 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("POST"), Path("/api/calendar/series")]
-        public void APIModifySeries(int event_id, int series_id, string recursOn, DateTime startRecur, DateTime endRecur,
+        public void APIModifySeries(int event_id, string recursOn, DateTime startRecur, DateTime endRecur,
+            string series_id,
             string remove = null, string disconnect = null, string add = null)
         {
             using var db = Program.Services.GetRequiredService<CalenderDb>();
 
-            var series = db.Series.FirstOrDefault(x => x.Id == series_id);
+            CalenderSeries series = null;
+            if(int.TryParse(series_id, out var seriesId))
+            {
+                series = db.Series.FirstOrDefault(x => x.Id == seriesId);
+            }
             var evnt = db.Events.FirstOrDefault(x => x.Id == event_id);
 
             if (remove != null)
@@ -163,7 +185,7 @@ namespace DiscordBot.MLAPI.Modules
             } else if (disconnect != null)
             {
                 evnt.Series = null;
-                evnt.SeriesId = 0;
+                evnt.SeriesId = null;
                 db.Events.Update(evnt);
             } else
             {
@@ -189,8 +211,27 @@ namespace DiscordBot.MLAPI.Modules
                 evnt.SeriesId = series.Id;
             }
 
+            // We must now apply this change to any events within the series.
+
+            foreach(var sEvent in series.Events)
+            {
+                if(remove != null)
+                { // purge events
+                    db.Events.Remove(sEvent);
+                } else if (disconnect == null)
+                { // ensure event is still valid within series.
+                    // e.g. series no longer recurs on Monday, ensure event isn't one that recurs on monday.
+                    if(series.IsValidEvent(sEvent) == false)
+                    {
+                        db.Events.Remove(sEvent);
+                    }
+                    // it doesn't really matter if we remove an event too zealously - it'll just be re-added later.
+                    // the issue is if we *don't* remove an event, then it'll be out of sync.
+                }
+            }
+
             db.SaveChanges();
-            RespondRaw("OK");
+            RespondRaw(LoadRedirectFile("/calendar"), 302);
 
 
         }

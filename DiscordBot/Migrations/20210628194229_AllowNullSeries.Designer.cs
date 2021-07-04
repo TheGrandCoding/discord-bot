@@ -4,14 +4,16 @@ using DiscordBot.Classes.Calender;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace DiscordBot.Migrations
 {
     [DbContext(typeof(CalenderDb))]
-    partial class CalenderDbModelSnapshot : ModelSnapshot
+    [Migration("20210628194229_AllowNullSeries")]
+    partial class AllowNullSeries
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -49,14 +51,14 @@ namespace DiscordBot.Migrations
                     b.Property<int>("Priority")
                         .HasColumnType("int");
 
+                    b.Property<bool>("Public")
+                        .HasColumnType("bit");
+
                     b.Property<int?>("SeriesId")
                         .HasColumnType("int");
 
                     b.Property<DateTime>("Start")
                         .HasColumnType("datetime2");
-
-                    b.Property<int>("Visibility")
-                        .HasColumnType("int");
 
                     b.Property<long>("_createdById")
                         .HasColumnType("bigint")

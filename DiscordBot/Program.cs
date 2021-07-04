@@ -183,6 +183,22 @@ Changed how permissions worked for bot.
             }
         }
 
+        static bool inheritsGeneric(Type generic, Type obj)
+        {
+            Type type2 = obj; // type is your type, like typeof(ClassA)
+
+            while (type2 != null)
+            {
+                if (type2.IsGenericType &&
+                    type2.GetGenericTypeDefinition() == generic)
+                {
+                    return true;
+                }
+                type2 = type2.BaseType;
+            }
+            return false;
+        }
+
         public static async Task MainAsync()
         {
             Log += consoleLog;
@@ -217,7 +233,7 @@ Changed how permissions worked for bot.
                 foreach (Type type in
                     Assembly.GetAssembly(genericType).GetTypes()
                     .Where(myType => myType.IsClass && !myType.IsAbstract 
-                        && myType.BaseType.IsGenericType && myType.BaseType.GetGenericTypeDefinition() == genericType))
+                        && inheritsGeneric(genericType, myType.BaseType)))
                 {
                     dynamic instance = Activator.CreateInstance(type);
                     instance.Register(Commands);
