@@ -145,7 +145,7 @@ namespace DiscordBot.Classes.Calender
                     continue;
                 }
                 var firstDate = start.Date;
-                while(firstDate < end.Date)
+                while(firstDate < end.Date && firstDate < series.EndRecur)
                 {
                     if(recursOn.Contains(firstDate.DayOfWeek))
                     {
@@ -164,7 +164,8 @@ namespace DiscordBot.Classes.Calender
                                 Series = series,
                                 SeriesId = series.Id,
                             };
-                            events.Add(existing);
+                            if(series.IsValidEvent(existing)) 
+                                events.Add(existing);
                         }
                     }
                     firstDate = firstDate.AddDays(1);
@@ -179,14 +180,8 @@ namespace DiscordBot.Classes.Calender
             return events;
         }
 
-        static bool first = false;
         public async Task<List<CalenderEvent>> GetEventsBetween(DateTime start, DateTime end)
         {
-            if(!first)
-            {
-                first = true;
-                //AddDefaultEvents();
-            }
             var events = await getSingleEventsBetween(start, end);
             events.AddRange(await getNewRecurrenceEventsBetween(start, end));
             return events;
@@ -467,6 +462,8 @@ namespace DiscordBot.Classes.Calender
             if (evnt.SeriesId != Id)
                 return false;
             if (evnt.Start < StartRecur)
+                return false;
+            if (evnt.Start > EndRecur)
                 return false;
             if (evnt.End > EndRecur)
                 return false;
