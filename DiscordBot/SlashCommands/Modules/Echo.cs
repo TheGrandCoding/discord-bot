@@ -16,7 +16,7 @@ namespace DiscordBot.SlashCommands.Modules
         [SlashCommand("text", "Repeats what you send")]
         public async Task EchoCmd([Required]string text)
         {
-            await Interaction.RespondAsync(text, ephemeral: true);
+            await Interaction.RespondAsync(text, ephemeral: true, embeds: null);
         }
 
         [SlashCommand("embed", "Repeats what you send, but fancy")]
@@ -38,7 +38,7 @@ namespace DiscordBot.SlashCommands.Modules
                 ComponentBuilder builder = new ComponentBuilder();
                 builder.WithButton("Test button 1", "btn1", ButtonStyle.Danger);
                 builder.WithButton("Test button 2", "btn2", ButtonStyle.Danger);
-                await Interaction.RespondAsync("Click below", component: builder.Build());
+                await Interaction.RespondAsync("Click below", component: builder.Build(), embeds: null);
                 var msg = await Interaction.GetOriginalResponseAsync();
                 var srv = Program.Services.GetRequiredService<MessageComponentService>();
                 srv.Register(msg, handleButton);
@@ -52,7 +52,7 @@ namespace DiscordBot.SlashCommands.Modules
         public static async Task handleButton(CallbackEventArgs args)
         {
             var token = args.Interaction;
-            await token.RespondAsync(text: $"Clicked {args.ComponentId}", type: InteractionResponseType.UpdateMessage);
+            await token.RespondAsync(text: $"Clicked {args.ComponentId}", type: InteractionResponseType.UpdateMessage, embeds: null);
         }
     }
 }

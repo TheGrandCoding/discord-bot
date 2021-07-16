@@ -36,13 +36,13 @@ namespace DiscordBot.SlashCommands.Modules
             if(vc == null)
             {
                 await Interaction.RespondAsync(":x: You must be in a voice channel to run this command",
-                    ephemeral: true);
+                    ephemeral: true, embeds: null);
                 return;
             }
             if(activity < 0 || activity > 3)
             {
                 await Interaction.RespondAsync(":x: Invalid choice",
-                    ephemeral: true);
+                    ephemeral: true, embeds: null);
                 return;
             }
             await Interaction.AcknowledgeAsync();
@@ -72,7 +72,7 @@ namespace DiscordBot.SlashCommands.Modules
                     invite = null;
                     break;
             }
-            await Interaction.FollowupAsync($"Click on the link below to join **{name}**:\r\nhttps://discord.gg/{invite.Code}");
+            await Interaction.FollowupAsync($"Click on the link below to join **{name}**:\r\nhttps://discord.gg/{invite.Code}", embeds: null);
         }
 
         [SlashCommand("id", "Sends an invite to begin an application of the provided ID")]
@@ -87,25 +87,25 @@ namespace DiscordBot.SlashCommands.Modules
             if(!(chnl is SocketVoiceChannel vc))
             {
                 await Interaction.RespondAsync(":x: Channel must be a voice channel",
-                    ephemeral: true);
+                    ephemeral: true, embeds: null);
                 return;
             }
 
             if(!ulong.TryParse(strid, out var id))
             {
                 await Interaction.RespondAsync(":x: Input was not a valid ulong. Must be a number",
-                    ephemeral: true);
+                    ephemeral: true, embeds: null);
                 return;
             }
             await Interaction.AcknowledgeAsync(Discord.InteractionResponseFlags.Ephemeral);
             try
             {
                 var invite = await createActivity(id, vc);
-                await Interaction.FollowupAsync("Click to join below:\r\nhttps://discord.gg/" + invite.Code);
+                await Interaction.FollowupAsync("Click to join below:\r\nhttps://discord.gg/" + invite.Code, embeds: null);
             } catch(Exception ex)
             {
                 Program.LogError(ex, "ActivityId");
-                await Interaction.FollowupAsync(":x: Exception: " + ex.Message);
+                await Interaction.FollowupAsync(":x: Exception: " + ex.Message, embeds: null);
 
             }
         }

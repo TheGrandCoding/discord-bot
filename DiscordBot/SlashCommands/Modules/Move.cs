@@ -119,7 +119,7 @@ namespace DiscordBot.SlashCommands.Modules
             if (!(chnl is SocketTextChannel to))
             {
                 await Interaction.RespondAsync(":x: You must select a text channel.",
-                    ephemeral: true);
+                    ephemeral: true, embeds: null);
                 return;
             }
             var from = Interaction.Channel as ITextChannel;
@@ -127,13 +127,13 @@ namespace DiscordBot.SlashCommands.Modules
             if (!fromPerms.ManageMessages)
             {
                 await Interaction.RespondAsync($":x: You do not have permission to move messages to {to.Mention}", type: InteractionResponseType.ChannelMessageWithSource, 
-                    ephemeral: true);
+                    ephemeral: true, embeds: null);
                 return;
             }
             await Interaction.AcknowledgeAsync();
             var date = DateTimeOffset.Now.AddHours(-maximumHoursAgo);
             var messages = await fetchMessages(from, Math.Min(amount, maximumMoveCount), Discord.SnowflakeUtils.ToSnowflake(date));
-            var response = await Interaction.FollowupAsync($"Moving {messages.Count} messages.") as IUserMessage;
+            var response = await Interaction.FollowupAsync($"Moving {messages.Count} messages.", embeds: null) as IUserMessage;
             DateTime last = DateTime.Now;
             int done = 0;
             foreach (var msg in messages.OrderBy(x => x.Id))
@@ -162,7 +162,7 @@ namespace DiscordBot.SlashCommands.Modules
             if (!(chnl is SocketTextChannel to))
             {
                 await Interaction.RespondAsync(":x: You must select a text channel.", 
-                    ephemeral: true);
+                    ephemeral: true, embeds: null);
                 return;
             }
             var from = Interaction.Channel as ITextChannel;
@@ -170,20 +170,20 @@ namespace DiscordBot.SlashCommands.Modules
             if (!ulong.TryParse(strMsgId, out var messageId))
             {
                 await Interaction.RespondAsync(":x: You must enter a message id - a long number.", 
-                    ephemeral: true);
+                    ephemeral: true, embeds: null);
                 return;
             }
             if (!fromPerms.ManageMessages)
             {
                 await Interaction.RespondAsync($":x: You do not have permission to move mesages to {to.Mention}", 
-                    ephemeral: true);
+                    ephemeral: true, embeds: null);
                 return;
             }
             var date = Discord.SnowflakeUtils.FromSnowflake(messageId);
             if (Math.Abs((DateTime.Now - date).TotalHours) > maximumHoursAgo)
             {
                 await Interaction.RespondAsync(":x: Message was sent too long ago.", 
-                    ephemeral: true);
+                    ephemeral: true, embeds: null);
                 return;
             }
             await Interaction.AcknowledgeAsync();
@@ -193,10 +193,10 @@ namespace DiscordBot.SlashCommands.Modules
             var messages = await fetchMessages(from, maximumMoveCount * 2, messageId);
             if (messages.Count > maximumMoveCount)
             {
-                await Interaction.FollowupAsync(":x: Too many messages to move.");
+                await Interaction.FollowupAsync(":x: Too many messages to move.", embeds: null);
                 return;
             }
-            var response = await Interaction.FollowupAsync($"Moving {messages.Count} messages.") as IUserMessage;
+            var response = await Interaction.FollowupAsync($"Moving {messages.Count} messages.", embeds: null) as IUserMessage;
             DateTime last = DateTime.Now;
             int done = 0;
             foreach (var msg in messages.OrderBy(x => x.Id))
@@ -222,7 +222,7 @@ namespace DiscordBot.SlashCommands.Modules
             if (!(chnl is SocketTextChannel to))
             {
                 await Interaction.RespondAsync(":x: You must select a text channel.", 
-                    ephemeral: true);
+                    ephemeral: true, embeds: null);
                 return;
             }
             var from = Interaction.Channel as ITextChannel;
@@ -230,24 +230,24 @@ namespace DiscordBot.SlashCommands.Modules
             if (!ulong.TryParse(message, out var messageId))
             {
                 await Interaction.RespondAsync(":x: You must enter a message id - a long number.", 
-                    ephemeral: true);
+                    ephemeral: true, embeds: null);
                 return;
             }
             if (!fromPerms.ManageMessages)
             {
                 await Interaction.RespondAsync($":x: You do not have permission to move mesages to {to.Mention}", 
-                    ephemeral: true);
+                    ephemeral: true, embeds: null);
                 return;
             }
             await Interaction.AcknowledgeAsync();
             var msg = await from.GetMessageAsync(messageId);
             if(msg == null || !(msg is IUserMessage umsg))
             {
-                await Interaction.FollowupAsync(":x: That message does not exist");
+                await Interaction.FollowupAsync(":x: That message does not exist", embeds: null);
                 return;
             }
             await MoveMsg(umsg, to);
-            await Interaction.FollowupAsync("Moved one message");
+            await Interaction.FollowupAsync("Moved one message", embeds: null);
         }
     }
 }

@@ -138,13 +138,13 @@ namespace DiscordBot.Services
             {
                 await user.RemoveRoleAsync(role);
                 await e.Interaction.FollowupAsync($"You no longer have the {role.Name} role",
-                    ephemeral: true);
+                    ephemeral: true, embeds: null);
             }
             else
             {
                 await user.AddRoleAsync(role);
                 await e.Interaction.FollowupAsync($"You now have the {role.Name} role",
-                    ephemeral: true);
+                    ephemeral: true, embeds: null);
             }
             return new BotResult();
         }
@@ -155,7 +155,7 @@ namespace DiscordBot.Services
             var result = runReactions(e).Result;
             if(!result.IsSuccess)
             {
-                await e.Interaction.FollowupAsync($"Failed to change your role: {result.Reason}",  ephemeral: true);
+                await e.Interaction.FollowupAsync($"Failed to change your role: {result.Reason}", ephemeral: true, embeds: null);
             }
             if (Inspection != null)
             {

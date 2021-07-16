@@ -36,6 +36,10 @@ namespace DiscordBot.Classes
                 counter = counter + 1;
             return counter;
         } 
+        protected uint getNext()
+        {
+            return getNext(counter);
+        }
 
         public Packet(JObject jObj)
         {

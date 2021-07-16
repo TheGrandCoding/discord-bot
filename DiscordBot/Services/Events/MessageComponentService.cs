@@ -13,7 +13,11 @@ namespace DiscordBot.Services
 {
     public class MessageComponentService : SavedService
     {
-        Dictionary<ulong, CallbackMessage> messages { get; set; } = new Dictionary<ulong, CallbackMessage>();
+        public MessageComponentService()
+        {
+            Warning($"Created message component service", "cntr");
+        }
+        Dictionary<string, CallbackMessage> messages { get; set; } = new Dictionary<string, CallbackMessage>();
 
         public override string GenerateSave()
         {
@@ -23,14 +27,17 @@ namespace DiscordBot.Services
         public override void OnLoaded()
         {
             var sv = ReadSave();
-            messages = Program.Deserialise<Dictionary<ulong, CallbackMessage>>(sv);
+            messages = Program.Deserialise<Dictionary<string, CallbackMessage>>(sv);
             
         }
 
-        public delegate Task ButtonClicked(CallbackEventArgs e);
+        public delegate Task InteractionEvent(CallbackEventArgs e);
 
-        public void Register(IUserMessage message, ButtonClicked callback, string state = null, bool doSave = true)
+        public void Register(string customId, IUserMessage message, InteractionEvent callback, string state = null, bool doSave = true)
         {
+            Debug($"Registering callback {callback.Method.Name} for {customId}\r\n" +
+                $"Current callbacks: \r\n" +
+                $"- " + string.Join("\r\n- ", messages.Keys));
             var msg = new CallbackMessage()
             {
                 Message = message,
@@ -46,19 +53,25 @@ namespace DiscordBot.Services
             {
                 msg.Method = new CallbackMethod(callback);
             }
-            messages[message.Id] = msg;
+            messages[customId] = msg;
             if (doSave)
                 OnSave();
         }
-        public void Unregister(IUserMessage message)
+        public void Unregister(string customId)
         {
-            messages.Remove(message.Id);
+            messages.Remove(customId);
+            Debug($"Unregistered {customId}, {messages.Count} remain");
         }
+
+        public void Register(IUserMessage message, InteractionEvent callback, string state = null, bool doSave = true)
+            => Register(message.Id.ToString(), message, callback, state, doSave);
+        public void Unregister(IUserMessage message) => Unregister(message.Id.ToString());
 
         public async Task<IResult> ExecuteAsync(SocketMessageComponent arg)
         {
-            if(!messages.TryGetValue(arg.Message?.Id ?? 0, out var data))
-                return ExecuteResult.FromError(CommandError.Unsuccessful, "No state data found, unknown callback");
+            if(!messages.TryGetValue($"{arg.Message?.Id ?? 0}", out var data))
+                if(!messages.TryGetValue(arg.Data.CustomId, out data))
+                    return ExecuteResult.FromError(CommandError.Unsuccessful, $"No state data found, unknown callback ({arg.Message?.Id ?? 0}, {arg.Data.CustomId})");
 
             var args = new CallbackEventArgs()
             {

@@ -47,6 +47,7 @@
       }
     },
     "internal-bot": "<string>",
+    "jackett": "<string>",
     "jellyfin": "<string>",
     "mw-name": "<string>",
     "mw-pwd": "<string>",
@@ -67,7 +68,8 @@
     "youtubeApi": "<string>"
   },
   "urls": {
-    "download": "<uri>"
+    "download": "<uri>",
+    "jackett": "<uri>"
   },
   "vote": {
     "adminEmail": "<string>"

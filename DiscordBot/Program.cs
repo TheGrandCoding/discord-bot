@@ -38,7 +38,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.19.1"; 
+        public const string VERSION = "0.19.2"; 
         public const string CHANGELOG = VERSION + @"
 == Permissions changes
 Changed how permissions worked for bot.
@@ -649,7 +649,8 @@ Changed how permissions worked for bot.
                         Program.LogError(exec.Exception, "InteractionInvoke");
                         try
                         {
-                            await x.RespondAsync(":x: Internal exception occured whilst handling this interaction: " + exec.Exception.Message);
+                            await x.RespondAsync(":x: Internal exception occured whilst handling this interaction: " + exec.Exception.Message,
+                                ephemeral: true, embed: null);
                         }
                         catch { }
                     }
@@ -660,13 +661,15 @@ Changed how permissions worked for bot.
                 Program.LogError($"{x.Id} {x.User?.Id ?? 0} {ex}", "InteractionCreated");
                 try
                 {
-                    await x.RespondAsync($":x: Encountered an internal error attempting that command: {ex.Message}");
+                    await x.RespondAsync($":x: Encountered an internal error attempting that command: {ex.Message}",
+                        ephemeral: true, embed: null);
                 }
                 catch
                 {
                     try
                     {
-                        await x.FollowupAsync($":x: Encountered an internal error attempting that command: {ex.Message}");
+                        await x.FollowupAsync($":x: Encountered an internal error attempting that command: {ex.Message}",
+                            ephemeral: true, embed: null);
                     }
                     catch { }
                 }

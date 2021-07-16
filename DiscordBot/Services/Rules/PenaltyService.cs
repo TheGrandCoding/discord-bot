@@ -261,34 +261,34 @@ namespace DiscordBot.Services.Rules
                     x.Components = new ComponentBuilder().Build();
                 });
                 await e.Interaction.FollowupAsync("This mute has already been removed and cannot be modified further",
-                    ephemeral: true);
+                    ephemeral: true, embeds: null);
                 return;
             }
             switch(actionType)
             {
                 case 0:
                     penalty.Duration = new TimeSpan(1, 0, 0);
-                    await e.Interaction.FollowupAsync($"{e.User.Mention} has set duration of mute for {penalty.Target.Mention} to one hour");
+                    await e.Interaction.FollowupAsync($"{e.User.Mention} has set duration of mute for {penalty.Target.Mention} to one hour", embeds: null);
                     break;
                 case 1:
                     penalty.Duration = penalty.Duration.GetValueOrDefault(TimeSpan.FromHours(0)).Add(TimeSpan.FromHours(1));
                     await e.Interaction.FollowupAsync($"{e.User.Mention} has increased duration of mute for {penalty.Target.Mention}" +
-                        $" to {Program.FormatTimeSpan(penalty.Duration.Value)}");
+                        $" to {Program.FormatTimeSpan(penalty.Duration.Value)}", embeds: null);
                     break;
                 case 2:
                     if(!penalty.Duration.HasValue || penalty.Duration.Value.TotalHours < 1)
                     {
                         await e.Interaction.FollowupAsync("Duration is already lower than one hour, cannot reduce by one.",
-                            ephemeral: true);
+                            ephemeral: true, embeds: null);
                         return;
                     }
                     penalty.Duration = penalty.Duration.GetValueOrDefault(TimeSpan.FromHours(0)).Add(TimeSpan.FromHours(-1));
                     await e.Interaction.FollowupAsync($"{e.User.Mention} has decreased duration of mute for {penalty.Target.Mention}" +
-                        $" to {Program.FormatTimeSpan(penalty.Duration.Value)}");
+                        $" to {Program.FormatTimeSpan(penalty.Duration.Value)}", embeds: null);
                     break;
                 case 3:
                     This.RemovePenalty(penaltyId);
-                    await e.Interaction.FollowupAsync($"{e.User.Mention} removed the mute of {penalty.Target.Mention}");
+                    await e.Interaction.FollowupAsync($"{e.User.Mention} removed the mute of {penalty.Target.Mention}", embeds: null);
                     await e.Message.ModifyAsync(x =>
                     {
                         x.Content = "*This mute has been removed*";
@@ -296,7 +296,7 @@ namespace DiscordBot.Services.Rules
                     });
                     return;
                 default:
-                    await e.Interaction.FollowupAsync($"Unknown action: {actionType}.");
+                    await e.Interaction.FollowupAsync($"Unknown action: {actionType}.", embeds: null);
                     return;
 
             }
