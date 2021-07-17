@@ -244,7 +244,7 @@ namespace DiscordBot.Websockets
                 TTPacket response;
                 if(IndempotencyCache.TryGetValue(packet.Sequence, out response))
                 {
-                    Program.LogWarning($"Answering packet {packet.Sequence} with previously sent packet, perhaps we disconnected?", "TTWS-" + IP);
+                    Program.LogWarning($"Answering packet {packet.Sequence} with previously sent packet ({response.Response}, {response.ResentCount}), perhaps we disconnected?", "TTWS-" + IP);
                     response.ResentCount += 1;
                 } else
                 {
@@ -254,9 +254,13 @@ namespace DiscordBot.Websockets
                         var smallest = IndempotencyCache.Keys.OrderByDescending(x => x).First();
                         IndempotencyCache.TryRemove(smallest, out _);
                     }
-                    IndempotencyCache[packet.Sequence] = packet;
+                    IndempotencyCache[packet.Sequence] = response;
                 }
-                Send(response.ToString());
+                var str = response.ToString();
+#if DEBUG
+                Program.LogDebug($"Response: " + str, $"TTWS-{IP}");
+#endif
+                Send(str);
             } catch(Exception ex)
             {
                 Program.LogError(ex, $"TimeTrack-{User.Name}");
