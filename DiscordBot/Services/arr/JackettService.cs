@@ -21,7 +21,7 @@ namespace DiscordBot.Services
         public async Task<FeedItem[]> SearchAsync(string site, string text, TorrentCategory[] categories)
         {
             var url = getUrl(site, string.Join(",", categories.Select(x => (int)x)), Uri.EscapeDataString(text));
-            var feed = await FeedReader.ReadAsync(text);
+            var feed = await FeedReader.ReadAsync(url);
             return feed.Items.ToArray();
         }
 
