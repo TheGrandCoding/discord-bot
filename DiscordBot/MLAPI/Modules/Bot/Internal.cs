@@ -22,8 +22,14 @@ namespace DiscordBot.MLAPI.Modules.Bot
         {
             RespondRaw("OK");
             Program.Close(0);
-            Thread.Sleep(10_000);
-            Environment.Exit(0);
+        }
+
+        [Method("GET"), Path("/bot/restart")]
+        [RequireOwner]
+        public void RestartBot()
+        {
+            RespondRaw("OK");
+            Program.Close(1);
         }
 
 
