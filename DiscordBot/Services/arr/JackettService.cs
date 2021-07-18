@@ -10,7 +10,6 @@ namespace DiscordBot.Services
 {
     public class JackettService : Service
     {
-
         string getUrl(string site, string categories, string query)
         {
             var baseUrl = Program.Configuration["urls:jackett"];

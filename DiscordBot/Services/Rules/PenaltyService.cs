@@ -460,13 +460,9 @@ namespace DiscordBot.Services.Rules
 
         #region Penalties
         public async Task<MutePenalty> AddMute(SocketGuildUser op, SocketGuildUser target, string reason, TimeSpan? duration)
-        {
-            return await AddPenalty(new MutePenalty(op.Guild, op, target, reason, duration)) as MutePenalty;
-        }
-        public async Task<Penalty> AddTempBan(SocketGuildUser op, SocketGuildUser target, string reason, TimeSpan? duration)
-        {
-            return await AddPenalty(new TempBanPenalty(op.Guild, op, target, reason, duration));
-        }
+            => (await AddPenalty(new MutePenalty(op.Guild, op, target, reason, duration))) as MutePenalty;
+        public async Task<TempBanPenalty> AddTempBan(SocketGuildUser op, SocketGuildUser target, string reason, TimeSpan? duration)
+            => await AddPenalty(new TempBanPenalty(op.Guild, op, target, reason, duration)) as TempBanPenalty;
         public async Task<Penalty> AddTopicBlock(SocketGuildUser op, SocketGuildUser target, string reason, TimeSpan? duration, string regex, bool ignoreNsfw = false, bool guildwide = false)
         {
             return await AddPenalty(new TopicBlockPenalty(op.Guild, op, target, reason, duration, regex)
@@ -751,7 +747,7 @@ namespace DiscordBot.Services.Rules
                 var adjusted = current - 4;
                 // so that current = 4 -> adjusted = 0
                 var duration = TimeSpan.FromMinutes(Math.Pow(5, adjusted)); // such that first is 5^0 = 1m
-                await Service.AddTempBan(Guild.CurrentUser, user, $"Auto-escalation for violation of {Id}", duration);
+                await Service.AddTempBan(Guild.CurrentUser, user, reason, duration);
             }
         }
     }
@@ -834,6 +830,7 @@ namespace DiscordBot.Services.Rules
                 .Build());
         }
 
+        static string[] supported = new[] { "jpg", "jpeg", "png", "bmp", "gif" };
         public override async Task OnMessageReceived(IUserMessage message, ITextChannel channel)
         {
             if (IgnoreNSFW && channel.IsNsfw)
@@ -841,6 +838,9 @@ namespace DiscordBot.Services.Rules
             if (message.Attachments.Count == 0)
                 return;
             var attachment = message.Attachments.First();
+            var extension = Path.GetExtension(attachment.Filename)[1..]; // removes .
+            if (!supported.Contains(extension))
+                return;
             var path = Path.Combine(Path.GetTempPath(), $"{message.Id}_{attachment.Filename}");
             if (File.Exists(path) == false)
             {
