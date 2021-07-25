@@ -18,6 +18,7 @@ using static DiscordBot.Services.JackettService;
 namespace DiscordBot.SlashCommands.Modules
 {
     [CommandGroup("torrents")]
+    [Global]
     public class Torrents : BotSlashBase
     {
         public MessageComponentService Components { get; set; }
@@ -26,7 +27,18 @@ namespace DiscordBot.SlashCommands.Modules
 
         static ConcurrentDictionary<string, TorrentSearchInfo> state = new ConcurrentDictionary<string, TorrentSearchInfo>();
         [SlashCommand("search", "Initialises a search for a torrent with the specified name")]
-        public async Task Search([Required]string text, [ParameterName("private")]bool isPrivate = false)
+        [Global]
+        public async Task Search([Required]string text, 
+            [ParameterName("order")]
+            [Choice(nameof(TorrentOrderBy.Ratio), (int)TorrentOrderBy.Ratio)]
+            [Choice(nameof(TorrentOrderBy.Seeds), (int)TorrentOrderBy.Seeds)]
+            [Choice(nameof(TorrentOrderBy.Leechers), (int)TorrentOrderBy.Leechers)]
+            [Choice(nameof(TorrentOrderBy.Time), (int)TorrentOrderBy.Time)]
+            int orderByInt,
+            [Choice("Descending", 0)]
+            [Choice("Ascending", 1)]
+            int direction,
+            [ParameterName("private")]bool isPrivate = false)
         {
             await Interaction.AcknowledgeAsync(isPrivate ? InteractionResponseFlags.Ephemeral : InteractionResponseFlags.None);
             var builder = new ComponentBuilder();
@@ -51,7 +63,8 @@ namespace DiscordBot.SlashCommands.Modules
             {
                 Query = text,
                 Ephemeral = isPrivate,
-                Message = msg
+                Message = msg,
+                OrderBy = (TorrentOrderBy)orderByInt
             };
             state[slc.CustomId] = info;
             Components.Register(slc.CustomId, msg, categorySelected, doSave: false);
@@ -117,6 +130,33 @@ namespace DiscordBot.SlashCommands.Modules
         }
 
         const int pageLength = 10;
+
+        IOrderedEnumerable<TorrentInfo> getOrderedInfos(TorrentSearchInfo info, IEnumerable<TorrentInfo> torrents)
+        {
+            var ord = info.OrderBy;
+            var asc = info.Ascending;
+            switch(ord)
+            {
+                case TorrentOrderBy.Time:
+                    Func<TorrentInfo, DateTime> f = (TorrentInfo x) => x.FeedItem.PublishingDate.GetValueOrDefault(DateTime.MinValue);
+                    return asc
+                        ? torrents.OrderBy(f)
+                        : torrents.OrderByDescending(f);
+                case TorrentOrderBy.Seeds:
+                    return asc
+                        ? torrents.OrderBy(x => x.Seeders)
+                        : torrents.OrderByDescending(x => x.Seeders);
+                case TorrentOrderBy.Leechers:
+                    return asc
+                        ? torrents.OrderBy(x => x.Peers)
+                        : torrents.OrderByDescending(x => x.Peers);
+                default:
+                    return asc
+                        ? torrents.OrderBy(x => x.Score)
+                        : torrents.OrderByDescending(x => x.Score);
+            }
+        }
+
         async Task handle(TorrentSearchInfo info, SocketMessageComponent interaction)
         {
             await interaction.ModifyOriginalResponseAsync(x =>
@@ -125,8 +165,9 @@ namespace DiscordBot.SlashCommands.Modules
                 x.Components = new ComponentBuilder().Build();
             });
             var items = await Jackett.SearchAsync(info.Site, info.Query, info.Categories);
-            var torrents = items.Select(x => new TorrentInfo(x.SpecificItem as Rss20FeedItem))
-                                .OrderByDescending(x => x.Score).ToArray();
+            var torrents = getOrderedInfos(info, items.Select(x => new TorrentInfo(x.SpecificItem as Rss20FeedItem)))
+                .ToArray();
+                                
             var builder = await getBuilder(info, torrents);
             var max = int.Parse(builder.Footer.Text.Split('/')[1]);
             var idPrefix = Interaction.User.Id.ToString() + "." + AuthToken.Generate(12);
@@ -169,6 +210,8 @@ namespace DiscordBot.SlashCommands.Modules
             public bool Ephemeral { get; set; }
             public RestFollowupMessage Message { get; set; }
             public int Page { get; set; } = 0;
+            public TorrentOrderBy OrderBy { get; set; }
+            public bool Ascending { get; set; }
         }
 
         class TorrentInfo

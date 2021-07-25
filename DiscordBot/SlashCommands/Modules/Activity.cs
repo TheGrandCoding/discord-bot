@@ -16,6 +16,7 @@ namespace DiscordBot.SlashCommands.Modules
         public const ulong BetrayalIO = 773336526917861400;
         public const ulong YoutubeTogether = 755600276941176913;
         public const ulong FishingtonIO = 814288819477020702;
+        public const ulong ChessInThePark = 832012774040141894;
 
         public async Task<IInviteMetadata> createActivity(ulong id, SocketVoiceChannel vc)
         {
@@ -28,6 +29,7 @@ namespace DiscordBot.SlashCommands.Modules
             [Choice("Betrayal.io", 1)]
             [Choice("Youtube Together", 2)]
             [Choice("Fishington.io", 3)]
+            [Choice("Chess in the Park", 4)]
             [Required]
             int activity)
         {
@@ -39,7 +41,7 @@ namespace DiscordBot.SlashCommands.Modules
                     ephemeral: true, embeds: null);
                 return;
             }
-            if(activity < 0 || activity > 3)
+            if(activity < 0 || activity > 4)
             {
                 await Interaction.RespondAsync(":x: Invalid choice",
                     ephemeral: true, embeds: null);
@@ -66,6 +68,10 @@ namespace DiscordBot.SlashCommands.Modules
                 case 3:
                     name = "Fishington.io";
                     invite = await createActivity(FishingtonIO, vc);
+                    break;
+                case 4:
+                    name = "Chess in the Park";
+                    invite = await createActivity(ChessInThePark, vc);
                     break;
                 default:
                     name = null;

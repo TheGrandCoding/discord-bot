@@ -38,5 +38,15 @@ namespace DiscordBot.Services
             TV_SD = 5030,
             TV_HD = 5040
         }
+
+        public enum TorrentOrderBy
+        {
+            Ratio = 0,
+            Time,
+            Seeds,
+            Leechers,
+
+
+        }
     }
 }
