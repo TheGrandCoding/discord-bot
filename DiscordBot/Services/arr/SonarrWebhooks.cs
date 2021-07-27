@@ -293,7 +293,7 @@ namespace DiscordBot.Services.Sonarr
 #if DEBUG
                     Task.Delay(Time.Ms.Minute * 2, token)
 #else
-                    Task.Delay(Time.Minute * 15, token)
+                    Task.Delay(Time.Ms.Minute * 15, token)
 #endif
                         .Wait();
                 }
