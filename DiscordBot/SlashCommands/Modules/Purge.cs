@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace DiscordBot.SlashCommands.Modules
 {
-    [CommandGroup("purge")]
+    [CommandGroup("purge", "Remove many messages at once")]
     [DefaultDisabled]
     public class Purge : BotSlashBase
     {

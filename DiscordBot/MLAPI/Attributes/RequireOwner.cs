@@ -14,7 +14,7 @@ namespace DiscordBot.MLAPI
 
         public override PreconditionResult Check(APIContext context)
         {
-            return (context.User?.Id ?? 0) == 144462654201790464 
+            return (context.User?.Id ?? 0) == (Program.AppInfo?.Owner?.Id ?? 1) 
                 ? PreconditionResult.FromSuccess() 
                 : PreconditionResult.FromError("Only the bot's owner may access this");
         }

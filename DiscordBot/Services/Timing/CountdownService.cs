@@ -56,7 +56,7 @@ namespace DiscordBot.Services.Timing
         }
         void loop(CancellationToken token)
         {
-            int waitTime = Time.Second * 5;
+            int waitTime = Time.Ms.Second * 5;
             Lock(() =>
             {
                 var done = new List<Countdown>();
@@ -77,7 +77,7 @@ namespace DiscordBot.Services.Timing
                                 break;
                             } else if (x.SecondsRemaining <= 5)
                                 chnl.SendMessageAsync(x.SecondsRemaining.ToString());
-                            Thread.Sleep(Time.Second);
+                            Thread.Sleep(Time.Ms.Second);
                         } while (!sentFinal);
                         done.Add(x);
                         continue;

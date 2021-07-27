@@ -157,5 +157,9 @@ namespace DiscordBot.Classes.HTMLHelpers
         public string Style { get => get(nameof(Style)); set => set(nameof(Style), value); }
 
         public string OnClick { get => get(nameof(OnClick)); set => set(nameof(OnClick), value); }
+        public string OnMouseOver { get => get(nameof(OnMouseOver)); set => set(nameof(OnMouseOver), value); }
+        public string OnMouseEnter { get => get(nameof(OnMouseEnter)); set => set(nameof(OnMouseEnter), value); }
+        public string OnMouseLeave { get => get(nameof(OnMouseLeave)); set => set(nameof(OnMouseLeave), value); }
+        public string OnMouseOut { get => get(nameof(OnMouseOut)); set => set(nameof(OnMouseOut), value); }
     }
 }
