@@ -22,9 +22,8 @@ namespace DiscordBot.Utils
             LoggingService.MessagesDeletedByBot[message.Id] = reason;
         }
 
-        public static async Task BulkDeleteAndTrackAsync(this IEnumerable<IMessage> messages, ITextChannel channel, string reason, RequestOptions options = null)
+        public static async Task BulkDeleteAndTrackAsync(this IEnumerable<ulong> ids, ITextChannel channel, string reason, RequestOptions options = null)
         {
-            var ids = messages.Select(x => x.Id);
             foreach (var id in ids)
                 LoggingService.MessagesDeletedByBot[id] = reason;
             try
@@ -35,13 +34,16 @@ namespace DiscordBot.Utils
                         AuditLogReason = reason
                     };
                 await channel.DeleteMessagesAsync(ids, options);
-            } catch
+            }
+            catch
             {
                 foreach (var id in ids) // atomic
                     LoggingService.MessagesDeletedByBot.Remove(id);
                 throw;
             }
-
         }
+
+        public static Task BulkDeleteAndTrackAsync(this IEnumerable<IMessage> messages, ITextChannel channel, string reason, RequestOptions options = null)
+            => BulkDeleteAndTrackAsync(messages.Select(x => x.Id), channel, reason, options);
     }
 }
