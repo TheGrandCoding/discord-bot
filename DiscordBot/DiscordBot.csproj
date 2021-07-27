@@ -40,9 +40,14 @@
   <ItemGroup>
     <PackageReference Include="BencodeNET" Version="4.0.0" />
     <PackageReference Include="CheAle14.EduLinkDLL" Version="0.0.4-alpha06" />
+    <PackageReference Include="CodeHollow.FeedReader" Version="1.2.1" />
     <PackageReference Include="CoenM.ImageSharp.ImageHash" Version="1.0.0" />
     <PackageReference Include="Discord.InteractivityAddon" Version="3.0.0-alpha01" />
-    <PackageReference Include="Discord.Net.Labs" Version="3.0.0-alpha09" />
+    <PackageReference Include="Discord.Net.Labs.Commands" Version="3.0.0-alpha13" />
+    <PackageReference Include="Discord.Net.Labs.Core" Version="3.0.0-alpha13" />
+    <PackageReference Include="Discord.Net.Labs.Rest" Version="3.0.0-alpha13" />
+    <PackageReference Include="Discord.Net.Labs.Webhook" Version="3.0.0-alpha13" />
+    <PackageReference Include="Discord.Net.Labs.WebSocket" Version="3.0.0-alpha13" />
     <PackageReference Include="Google.Apis.YouTube.v3" Version="1.50.0.2238" />
     <PackageReference Include="Google.Cloud.Translation.V2" Version="2.0.0" />
     <PackageReference Include="Html2Markdown" Version="4.0.0.427" />

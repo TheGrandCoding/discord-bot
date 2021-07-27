@@ -41,10 +41,10 @@ namespace DiscordBot.Commands.Modules
         public async Task Close(int code = 0)
         {
             var confirm = await ConfirmAsync("Are you sure you wish to close this bot?\r\n" +
-                "It will automatically restart due to it running as a service.");
+                "A non-zero error code (default 0) will result in a restart.");
             if(confirm.GetValueOrDefault(false))
             {
-                Success("Closing");
+                await Success("Closing");
                 Program.Close(code);
             }
         }

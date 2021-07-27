@@ -41,7 +41,7 @@ namespace DiscordBot.Commands.Modules
         public static async Task handleButton(CallbackEventArgs args)
         {
             var token = args.Interaction;
-            await token.RespondAsync(text: $"Clicked {args.ComponentId}", type: InteractionResponseType.UpdateMessage);
+            await token.RespondAsync(text: $"Clicked {args.ComponentId}", type: InteractionResponseType.UpdateMessage, embeds: null);
         }
 
         [Command("thread")]

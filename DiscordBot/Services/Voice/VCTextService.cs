@@ -20,13 +20,19 @@ namespace DiscordBot.Services
 
         public override string GenerateSave()
         {
-            return Program.Serialise(Pairings);
+            var dict = new Dictionary<ulong, syncSave>();
+            var t = Pairings;
+            foreach (var keypair in t)
+                dict[keypair.Key.Id] = keypair.Value;
+            return Program.Serialise(dict);
         }
 
         public override void OnLoaded()
         {
-            var sv = Program.Deserialise<Dictionary<SocketVoiceChannel, syncSave>>(ReadSave());
-            Pairings = new ConcurrentDictionary<SocketVoiceChannel, syncSave>(sv);
+            var sv = Program.Deserialise<Dictionary<ulong, syncSave>>(ReadSave());
+            Pairings = new ConcurrentDictionary<SocketVoiceChannel, syncSave>();
+            foreach (var keypair in sv)
+                Pairings[Program.Client.GetChannel(keypair.Key) as SocketVoiceChannel] = keypair.Value;
             catchup().Wait();
             Program.Client.UserVoiceStateUpdated += Client_UserVoiceStateUpdated;
         }

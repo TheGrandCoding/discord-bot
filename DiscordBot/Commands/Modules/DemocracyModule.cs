@@ -237,7 +237,7 @@ namespace DiscordBot.Commands.Modules
             if(!VoteItems.TryGetValue(msgId, out var item))
             {
                 await e.Interaction.FollowupAsync("No proposal exists on the message. Weird.",
-                    ephemeral: true);
+                    ephemeral: true, embeds: null);
                 return;
             }
             var user = e.User as IGuildUser;
@@ -245,13 +245,13 @@ namespace DiscordBot.Commands.Modules
             if (item.HasVoted(user))
             {
                 await e.Interaction.FollowupAsync("You have already voted in this proposal",
-                    ephemeral: true);
+                    ephemeral: true, embeds: null);
                 return;
             }
             if (!item.CanVote(user))
             {
                 await e.Interaction.FollowupAsync($"You are unable to vote in this proposal",
-                    ephemeral: true);
+                    ephemeral: true, embeds: null);
                 return;
             }
             var value = bool.Parse(e.ComponentId);
@@ -259,13 +259,13 @@ namespace DiscordBot.Commands.Modules
             {
                 item.Ayes.Add(user);
                 await e.Interaction.FollowupAsync("Your **aye** vote has been recorded.",
-                    ephemeral: true);
+                    ephemeral: true, embeds: null);
             }
             else 
             {
                 item.Noes.Add(user);
                 await e.Interaction.FollowupAsync("Your **noe** vote has been recorded.",
-                    ephemeral: true);
+                    ephemeral: true, embeds: null);
             }
             item.Abstained.RemoveAll(x => x.Id == user.Id);
             await item.Update();

@@ -16,6 +16,9 @@ namespace DiscordBot.Classes
             return objectType == typeof(ITextChannel)
                 || objectType == typeof(SocketTextChannel)
                 || objectType == typeof(RestTextChannel)
+                || objectType == typeof(IThreadChannel)
+                || objectType == typeof(SocketThreadChannel)
+                || objectType == typeof(RestThreadChannel)
                 || objectType == typeof(IVoiceChannel)
                 || objectType == typeof(SocketVoiceChannel)
                 || objectType == typeof(RestVoiceChannel)
@@ -59,6 +62,8 @@ namespace DiscordBot.Classes
                 return guild.GetUser(id);
             if (objectType == typeof(SocketUser) || objectType == typeof(IUser))
                 return guild != null ? guild.GetUser(id) : Program.Client.GetUser(id);
+            if (objectType == typeof(SocketThreadChannel) || objectType == typeof(IThreadChannel))
+                return Program.Client.GetChannel(id) as SocketThreadChannel;
             if (objectType == typeof(SocketTextChannel) || objectType == typeof(ITextChannel))
                 return (ITextChannel)guild.GetTextChannel(id) ?? new NullTextChannel(id, gid);
             if (objectType == typeof(SocketCategoryChannel) || objectType == typeof(ICategoryChannel))
@@ -88,7 +93,10 @@ namespace DiscordBot.Classes
 
         public string GetValue(object value)
         {
-            if (value is IGuildChannel gc)
+            if (value is IThreadChannel th)
+            {
+                return $"{th.GuildId}.{th.Id}";
+            } else if (value is IGuildChannel gc)
             {
                 return $"{gc.GuildId}.{gc.Id}";
             }

@@ -59,9 +59,7 @@ namespace DiscordBot.Services
         {
             try
             {
-                Server?.RemoveWebSocketService("/chess");
-                Server?.RemoveWebSocketService("/masterlist");
-                Server?.Stop();
+                Server?.Stop(WebSocketSharp.CloseStatusCode.Away, "Exiting");
             } catch { }
         }
 

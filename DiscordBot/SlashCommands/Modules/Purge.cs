@@ -18,7 +18,7 @@ namespace DiscordBot.SlashCommands.Modules
         async Task<IUserMessage> sendOrModify(IUserMessage message, string content)
         {
             if (message == null)
-                return await Interaction.FollowupAsync(content) as IUserMessage;
+                return await Interaction.FollowupAsync(content, embeds: null) as IUserMessage;
             await message.ModifyAsync(x => x.Content = content);
             return message;
         }

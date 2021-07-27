@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -36,6 +37,10 @@ namespace DiscordBot.Classes
                 counter = counter + 1;
             return counter;
         } 
+        protected uint getNext()
+        {
+            return getNext(counter);
+        }
 
         public Packet(JObject jObj)
         {
@@ -55,16 +60,16 @@ namespace DiscordBot.Classes
         {
             var jobj = new JObject();
             jobj["seq"] = Sequence;
-            if (Response != null)
-                jobj["res"] = Response;
+            if (Response.HasValue)
+                jobj["res"] = Response.Value;
             jobj["id"] = Id.ToString();
             jobj["content"] = Content;
             return jobj;
         }
 
+        public string ToString(Formatting formatting)
+            => ToJson().ToString(formatting);
         public override string ToString()
-        {
-            return ToJson().ToString();
-        }
+            => this.ToString(Formatting.None);
     }
 }

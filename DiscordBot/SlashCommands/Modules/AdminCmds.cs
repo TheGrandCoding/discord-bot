@@ -18,7 +18,7 @@ namespace DiscordBot.SlashCommands.Modules
             if(adminRole == null)
             {
                 await Interaction.RespondAsync(":x: No admin role setup for this guild.",
-                    ephemeral: true);
+                    ephemeral: true, embeds: null);
                 return;
             }
             await Interaction.AcknowledgeAsync(Discord.InteractionResponseFlags.Ephemeral);
@@ -26,12 +26,12 @@ namespace DiscordBot.SlashCommands.Modules
             if(member.Roles.Any(x => x.Id == adminRole.Id))
             {
                 await member.RemoveRoleAsync(adminRole, new Discord.RequestOptions() { AuditLogReason = "Toggled admin duty" });
-                await Interaction.FollowupAsync("Your admin rights have been revoked.");
+                await Interaction.FollowupAsync("Your admin rights have been revoked.", embeds: null);
             }
             else
             {
                 await member.AddRoleAsync(adminRole, new Discord.RequestOptions() { AuditLogReason = "Toggled admin duty." });
-                await Interaction.FollowupAsync("Your admin rights have been reinstated.");
+                await Interaction.FollowupAsync("Your admin rights have been reinstated.", embeds: null);
             }
         } 
     }

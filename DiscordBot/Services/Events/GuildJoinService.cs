@@ -95,7 +95,7 @@ namespace DiscordBot.Services.Events
                 return;
             if(userId == e.User.Id)
             {
-                await e.Interaction.RespondAsync(":x: You cannot interact with these buttons!", ephemeral: true);
+                await e.Interaction.RespondAsync(":x: You cannot interact with these buttons!", ephemeral: true, embeds: null);
                 return;
             }
             if (!This.GuildData.TryGetValue(guildId, out var save))
@@ -124,7 +124,7 @@ namespace DiscordBot.Services.Events
                     });
                 } else
                 {
-                    await e.Interaction.FollowupAsync(":x: You do not have permission to kick this user", ephemeral: true);
+                    await e.Interaction.FollowupAsync(":x: You do not have permission to kick this user", ephemeral: true, embeds: null);
                 }
             } else if (e.ComponentId == "ban")
             {
@@ -140,7 +140,7 @@ namespace DiscordBot.Services.Events
                 }
                 else
                 {
-                    await e.Interaction.FollowupAsync(":x: You do not have permission to ban this user", ephemeral: true);
+                    await e.Interaction.FollowupAsync(":x: You do not have permission to ban this user", ephemeral: true, embeds: null);
                 }
             } else
             {
@@ -155,7 +155,7 @@ namespace DiscordBot.Services.Events
                     if (missing.Count > 0)
                     {
                         await e.Interaction.FollowupAsync(":x: You are missing the following permissions:\r\n- " + string.Join("\r\n- ", missing),
-                            ephemeral: true);
+                            ephemeral: true, embeds: null);
                         return;
                     }
                 }
@@ -169,7 +169,7 @@ namespace DiscordBot.Services.Events
                     await user.RemoveRoleAsync(roleId, new RequestOptions() { AuditLogReason = $"Taken by joinlog-buttons, by {alu}" });
                 }
                 await e.Interaction.FollowupAsync($"Role {Discord.MentionUtils.MentionRole(roleId)} has been toggled", 
-                    ephemeral: true, allowedMentions: AllowedMentions.None);
+                    ephemeral: true, allowedMentions: AllowedMentions.None, embeds: null);
             }
 
         }

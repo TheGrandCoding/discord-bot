@@ -1,4 +1,5 @@
-﻿using Discord.SlashCommands;
+﻿using Discord;
+using Discord.SlashCommands;
 using DiscordBot.Utils;
 using Google.Cloud.Translation.V2;
 using System;
@@ -19,7 +20,7 @@ namespace DiscordBot.SlashCommands.Modules
                 fromLanguage = LanguageCodesUtils.ToCode(language);
                 if (fromLanguage == null)
                 {
-                    await Interaction.RespondAsync(":x: Language not recognised", ephemeral: true);
+                    await Interaction.RespondAsync(":x: Language not recognised", ephemeral: true, embeds: null);
                     return;
                 }
             }
@@ -28,7 +29,10 @@ namespace DiscordBot.SlashCommands.Modules
             var response = await client.TranslateTextAsync(message, LanguageCodes.English, fromLanguage);
             var actualFrom = response.DetectedSourceLanguage == null ? fromLanguage : response.DetectedSourceLanguage;
             var name = LanguageCodesUtils.ToName(actualFrom);
-            await Interaction.FollowupAsync($"Translate from {name}\r\n>>> {response.TranslatedText}");
+            var embed = new EmbedBuilder();
+            embed.Title = "Translated from " + name;
+            embed.Description = response.TranslatedText;
+            await Interaction.FollowupAsync(embed: embed.Build());
         }
     }
 }

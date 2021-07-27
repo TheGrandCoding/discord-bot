@@ -5,6 +5,7 @@ using DiscordBot.MLAPI.Modules.TimeTracking;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json.Linq;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
@@ -29,6 +30,7 @@ namespace DiscordBot.Websockets
 
         public BotUser User { get; set; }
         public Cached<bool> WatchingVideo { get; private set; }
+        public ConcurrentDictionary<uint, TTPacket> IndempotencyCache { get; private set; } = new ConcurrentDictionary<uint, TTPacket>();
         public int APIVersion { get; private set; }
 
         public int GetInterval = 0;
@@ -122,7 +124,7 @@ namespace DiscordBot.Websockets
             SendIgnoredDatas(db);
         }
 
-        void handlePacket(TTPacket packet, TimeTrackDb DB)
+        TTPacket getResponse(TTPacket packet, TimeTrackDb DB)
         {
             JObject jobj;
             if (packet.Id == TTPacketId.GetTimes)
@@ -135,7 +137,7 @@ namespace DiscordBot.Websockets
                     var thing = DB.GetVideo(User.Id, id);
                     jobj[id] = thing?.WatchedTime ?? 0d;
                 }
-                Send(packet.ReplyWith(jobj));
+                return packet.ReplyWith(jobj);
             }
             else if (packet.Id == TTPacketId.SetTimes)
             {
@@ -146,14 +148,14 @@ namespace DiscordBot.Websockets
                     DB.AddVideo(User.Id, token.Name, val);
                 }
                 DB.SaveChanges();
-                Send(packet.ReplyWith(JValue.FromObject("OK")));
                 WatchingVideo.Value = true;
                 SendAllClientRatelimits();
+                return packet.ReplyWith(JValue.CreateNull());
             }
             else if (packet.Id == TTPacketId.GetVersion)
             {
                 string version = TimeTrackDb.GetExtensionVersion();
-                Send(packet.ReplyWith(JValue.FromObject(version)));
+                return packet.ReplyWith(JValue.FromObject(version));
             }
             else if (packet.Id == TTPacketId.GetLatest)
             {
@@ -173,14 +175,14 @@ namespace DiscordBot.Websockets
                     }
                     jobj[vid.VideoId] = vidObj;
                 }
-                Send(packet.ReplyWith(jobj));
+                return packet.ReplyWith(jobj);
             }
             else if (packet.Id == TTPacketId.VisitedThread)
             {
                 var threadId = packet.Content["id"].ToObject<string>();
                 var comments = packet.Content["count"].ToObject<int>();
                 DB.AddThread(User.Id, threadId, comments);
-                Send(packet.ReplyWith(JValue.FromObject("OK")));
+                return packet.ReplyWith(JValue.CreateNull());
             }
             else if (packet.Id == TTPacketId.GetThreads)
             {
@@ -207,7 +209,7 @@ namespace DiscordBot.Websockets
                     threadObj["count"] = thing.Comments;
                     jobj[id] = threadObj;
                 }
-                Send(packet.ReplyWith(jobj));
+                return packet.ReplyWith(jobj);
             }
             else if (packet.Id == TTPacketId.UpdateIgnored)
             {
@@ -217,13 +219,16 @@ namespace DiscordBot.Websockets
                     var isIgnored = item.Value.ToObject<bool>();
                     DB.AddIgnored(User.Id, id, isIgnored);
                 }
-                Send(packet.ReplyWith(JToken.FromObject("OK")));
                 foreach (var wsConn in GetSameUsers())
                 {
                     if (wsConn.ID == this.ID)
                         continue;
                     wsConn.Send(packet);
                 }
+                return packet.ReplyWith(JValue.CreateNull());
+            } else
+            {
+                return packet.ReplyWith(JValue.CreateString("Unknown packet type"));
             }
         }
 
@@ -236,7 +241,26 @@ namespace DiscordBot.Websockets
             using var db = Program.Services.GetRequiredService<TimeTrackDb>();
             try
             {
-                handlePacket(packet, db);
+                TTPacket response;
+                if(IndempotencyCache.TryGetValue(packet.Sequence, out response))
+                {
+                    Program.LogWarning($"Answering packet {packet.Sequence} with previously sent packet ({response.Response}, {response.ResentCount}), perhaps we disconnected?", "TTWS-" + IP);
+                    response.ResentCount += 1;
+                } else
+                {
+                    response = getResponse(packet, db);
+                    if(IndempotencyCache.Count > 4)
+                    { // clear oldest cached item
+                        var smallest = IndempotencyCache.Keys.OrderByDescending(x => x).First();
+                        IndempotencyCache.TryRemove(smallest, out _);
+                    }
+                    IndempotencyCache[packet.Sequence] = response;
+                }
+                var str = response.ToString();
+#if DEBUG
+                Program.LogDebug($"Response: " + str, $"TTWS-{IP}");
+#endif
+                Send(str);
             } catch(Exception ex)
             {
                 Program.LogError(ex, $"TimeTrack-{User.Name}");
@@ -266,6 +290,26 @@ namespace DiscordBot.Websockets
 
         public TTPacket(TTPacketId id, JToken token) : base(id, token)
         {
+        }
+    
+        public new TTPacket ReplyWith(JToken content)
+        {
+            var pong = new TTPacket(Id, content);
+            pong.Sequence = getNext();
+            pong.Response = Sequence;
+            return pong;
+        }
+
+        public int ResentCount { get; set; } = 0;
+
+        public override JObject ToJson()
+        {
+            var json = base.ToJson();
+            if(ResentCount > 0)
+            {
+                json["retry"] = ResentCount;
+            }
+            return json;
         }
     }
 

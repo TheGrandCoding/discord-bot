@@ -38,7 +38,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.19.1"; 
+        public const string VERSION = "0.19.4"; 
         public const string CHANGELOG = VERSION + @"
 == Permissions changes
 Changed how permissions worked for bot.
@@ -83,7 +83,7 @@ Changed how permissions worked for bot.
 
         #endregion
 
-        static void Main(string[] args)
+        static int Main(string[] args)
         {
             _braille = new List<char>();
             foreach (var chr in "⠀⠁⠂⠃⠄⠅⠆⠇⠈⠉⠊⠋⠌⠍⠎⠏⠐⠑⠒⠓⠔⠕⠖⠗⠘⠙⠚⠛⠜⠝⠞⠟⠠⠡⠢⠣⠤⠥⠦⠧⠨⠩⠪⠫⠬⠭⠮⠯⠰⠱⠲⠳⠴⠵⠶⠷⠸⠹⠺⠻⠼⠽⠾⠿⡀⡁⡂⡃⡄⡅⡆⡇⡈⡉⡊⡋⡌⡍⡎⡏⡐⡑⡒⡓⡔⡕⡖" +
@@ -93,18 +93,19 @@ Changed how permissions worked for bot.
             endToken = new CancellationTokenSource();
             Console.CancelKeyPress += (object sender, ConsoleCancelEventArgs e) =>
             {
+                e.Cancel = true; // we'll handle this in our own time
                 Console.WriteLine("[Console:CancelKeyPress]");
-                Thread.Sleep(1000);
                 Program.Close(0);
-                Thread.Sleep(2500);
-                Environment.Exit(0);
             };
             AppDomain.CurrentDomain.ProcessExit += (object sender, EventArgs e) => 
             {
                 Console.WriteLine("[ProcessExit]");
-                Program.Close(1);
+                Program.Close(0);
             };
-            Program.MainAsync().GetAwaiter().GetResult();
+            var code = Program.MainAsync().GetAwaiter().GetResult();
+            Console.WriteLine($"Exiting with code {code}");
+            Environment.Exit(code);
+            return code;
         }
 
         public static CancellationToken GetToken() => endToken.Token;
@@ -199,7 +200,7 @@ Changed how permissions worked for bot.
             return false;
         }
 
-        public static async Task MainAsync()
+        public static async Task<int> MainAsync()
         {
             Log += consoleLog;
             Log += fileLog;
@@ -216,8 +217,7 @@ Changed how permissions worked for bot.
                 LogError(ex, "Config");
                 LogError("Failed to load configuration; we must exit.", "App");
                 Console.ReadLine();
-                Environment.Exit(1);
-                return;
+                return 1;
             }
             using (Services = ConfigureServices())
             {
@@ -260,6 +260,7 @@ Changed how permissions worked for bot.
                     Console.WriteLine("MainAsync has ended.");
                 }
             }
+            return exitCode ?? 0;
         }
 
         public struct LogWithTime
@@ -462,8 +463,10 @@ Changed how permissions worked for bot.
             return coll.BuildServiceProvider();
         }
 
+        private static int? exitCode = null;
         public static void Close(int code)
         {
+            exitCode = code;
             if(Service.GlobalState != ServiceState.None)
             {
                 Service.SendClose();
@@ -649,7 +652,8 @@ Changed how permissions worked for bot.
                         Program.LogError(exec.Exception, "InteractionInvoke");
                         try
                         {
-                            await x.RespondAsync(":x: Internal exception occured whilst handling this interaction: " + exec.Exception.Message);
+                            await x.RespondAsync(":x: Internal exception occured whilst handling this interaction: " + exec.Exception.Message,
+                                ephemeral: true, embed: null);
                         }
                         catch { }
                     }
@@ -660,13 +664,15 @@ Changed how permissions worked for bot.
                 Program.LogError($"{x.Id} {x.User?.Id ?? 0} {ex}", "InteractionCreated");
                 try
                 {
-                    await x.RespondAsync($":x: Encountered an internal error attempting that command: {ex.Message}");
+                    await x.RespondAsync($":x: Encountered an internal error attempting that command: {ex.Message}",
+                        ephemeral: true, embed: null);
                 }
                 catch
                 {
                     try
                     {
-                        await x.FollowupAsync($":x: Encountered an internal error attempting that command: {ex.Message}");
+                        await x.FollowupAsync($":x: Encountered an internal error attempting that command: {ex.Message}",
+                            ephemeral: true, embed: null);
                     }
                     catch { }
                 }

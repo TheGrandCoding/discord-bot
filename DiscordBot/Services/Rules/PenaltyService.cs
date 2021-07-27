@@ -261,34 +261,34 @@ namespace DiscordBot.Services.Rules
                     x.Components = new ComponentBuilder().Build();
                 });
                 await e.Interaction.FollowupAsync("This mute has already been removed and cannot be modified further",
-                    ephemeral: true);
+                    ephemeral: true, embeds: null);
                 return;
             }
             switch(actionType)
             {
                 case 0:
                     penalty.Duration = new TimeSpan(1, 0, 0);
-                    await e.Interaction.FollowupAsync($"{e.User.Mention} has set duration of mute for {penalty.Target.Mention} to one hour");
+                    await e.Interaction.FollowupAsync($"{e.User.Mention} has set duration of mute for {penalty.Target.Mention} to one hour", embeds: null);
                     break;
                 case 1:
                     penalty.Duration = penalty.Duration.GetValueOrDefault(TimeSpan.FromHours(0)).Add(TimeSpan.FromHours(1));
                     await e.Interaction.FollowupAsync($"{e.User.Mention} has increased duration of mute for {penalty.Target.Mention}" +
-                        $" to {Program.FormatTimeSpan(penalty.Duration.Value)}");
+                        $" to {Program.FormatTimeSpan(penalty.Duration.Value)}", embeds: null);
                     break;
                 case 2:
                     if(!penalty.Duration.HasValue || penalty.Duration.Value.TotalHours < 1)
                     {
                         await e.Interaction.FollowupAsync("Duration is already lower than one hour, cannot reduce by one.",
-                            ephemeral: true);
+                            ephemeral: true, embeds: null);
                         return;
                     }
                     penalty.Duration = penalty.Duration.GetValueOrDefault(TimeSpan.FromHours(0)).Add(TimeSpan.FromHours(-1));
                     await e.Interaction.FollowupAsync($"{e.User.Mention} has decreased duration of mute for {penalty.Target.Mention}" +
-                        $" to {Program.FormatTimeSpan(penalty.Duration.Value)}");
+                        $" to {Program.FormatTimeSpan(penalty.Duration.Value)}", embeds: null);
                     break;
                 case 3:
                     This.RemovePenalty(penaltyId);
-                    await e.Interaction.FollowupAsync($"{e.User.Mention} removed the mute of {penalty.Target.Mention}");
+                    await e.Interaction.FollowupAsync($"{e.User.Mention} removed the mute of {penalty.Target.Mention}", embeds: null);
                     await e.Message.ModifyAsync(x =>
                     {
                         x.Content = "*This mute has been removed*";
@@ -296,7 +296,7 @@ namespace DiscordBot.Services.Rules
                     });
                     return;
                 default:
-                    await e.Interaction.FollowupAsync($"Unknown action: {actionType}.");
+                    await e.Interaction.FollowupAsync($"Unknown action: {actionType}.", embeds: null);
                     return;
 
             }
@@ -460,13 +460,9 @@ namespace DiscordBot.Services.Rules
 
         #region Penalties
         public async Task<MutePenalty> AddMute(SocketGuildUser op, SocketGuildUser target, string reason, TimeSpan? duration)
-        {
-            return await AddPenalty(new MutePenalty(op.Guild, op, target, reason, duration)) as MutePenalty;
-        }
-        public async Task<Penalty> AddTempBan(SocketGuildUser op, SocketGuildUser target, string reason, TimeSpan? duration)
-        {
-            return await AddPenalty(new TempBanPenalty(op.Guild, op, target, reason, duration));
-        }
+            => (await AddPenalty(new MutePenalty(op.Guild, op, target, reason, duration))) as MutePenalty;
+        public async Task<TempBanPenalty> AddTempBan(SocketGuildUser op, SocketGuildUser target, string reason, TimeSpan? duration)
+            => await AddPenalty(new TempBanPenalty(op.Guild, op, target, reason, duration)) as TempBanPenalty;
         public async Task<Penalty> AddTopicBlock(SocketGuildUser op, SocketGuildUser target, string reason, TimeSpan? duration, string regex, bool ignoreNsfw = false, bool guildwide = false)
         {
             return await AddPenalty(new TopicBlockPenalty(op.Guild, op, target, reason, duration, regex)
@@ -751,7 +747,7 @@ namespace DiscordBot.Services.Rules
                 var adjusted = current - 4;
                 // so that current = 4 -> adjusted = 0
                 var duration = TimeSpan.FromMinutes(Math.Pow(5, adjusted)); // such that first is 5^0 = 1m
-                await Service.AddTempBan(Guild.CurrentUser, user, $"Auto-escalation for violation of {Id}", duration);
+                await Service.AddTempBan(Guild.CurrentUser, user, reason, duration);
             }
         }
     }
@@ -834,6 +830,7 @@ namespace DiscordBot.Services.Rules
                 .Build());
         }
 
+        static string[] supported = new[] { "jpg", "jpeg", "png", "bmp", "gif" };
         public override async Task OnMessageReceived(IUserMessage message, ITextChannel channel)
         {
             if (IgnoreNSFW && channel.IsNsfw)
@@ -841,6 +838,9 @@ namespace DiscordBot.Services.Rules
             if (message.Attachments.Count == 0)
                 return;
             var attachment = message.Attachments.First();
+            var extension = Path.GetExtension(attachment.Filename)[1..]; // removes .
+            if (!supported.Contains(extension))
+                return;
             var path = Path.Combine(Path.GetTempPath(), $"{message.Id}_{attachment.Filename}");
             if (File.Exists(path) == false)
             {

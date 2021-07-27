@@ -16,6 +16,7 @@ namespace DiscordBot.SlashCommands.Modules
         public const ulong BetrayalIO = 773336526917861400;
         public const ulong YoutubeTogether = 755600276941176913;
         public const ulong FishingtonIO = 814288819477020702;
+        public const ulong ChessInThePark = 832012774040141894;
 
         public async Task<IInviteMetadata> createActivity(ulong id, SocketVoiceChannel vc)
         {
@@ -28,6 +29,7 @@ namespace DiscordBot.SlashCommands.Modules
             [Choice("Betrayal.io", 1)]
             [Choice("Youtube Together", 2)]
             [Choice("Fishington.io", 3)]
+            [Choice("Chess in the Park", 4)]
             [Required]
             int activity)
         {
@@ -36,13 +38,13 @@ namespace DiscordBot.SlashCommands.Modules
             if(vc == null)
             {
                 await Interaction.RespondAsync(":x: You must be in a voice channel to run this command",
-                    ephemeral: true);
+                    ephemeral: true, embeds: null);
                 return;
             }
-            if(activity < 0 || activity > 3)
+            if(activity < 0 || activity > 4)
             {
                 await Interaction.RespondAsync(":x: Invalid choice",
-                    ephemeral: true);
+                    ephemeral: true, embeds: null);
                 return;
             }
             await Interaction.AcknowledgeAsync();
@@ -67,12 +69,16 @@ namespace DiscordBot.SlashCommands.Modules
                     name = "Fishington.io";
                     invite = await createActivity(FishingtonIO, vc);
                     break;
+                case 4:
+                    name = "Chess in the Park";
+                    invite = await createActivity(ChessInThePark, vc);
+                    break;
                 default:
                     name = null;
                     invite = null;
                     break;
             }
-            await Interaction.FollowupAsync($"Click on the link below to join **{name}**:\r\nhttps://discord.gg/{invite.Code}");
+            await Interaction.FollowupAsync($"Click on the link below to join **{name}**:\r\nhttps://discord.gg/{invite.Code}", embeds: null);
         }
 
         [SlashCommand("id", "Sends an invite to begin an application of the provided ID")]
@@ -87,25 +93,25 @@ namespace DiscordBot.SlashCommands.Modules
             if(!(chnl is SocketVoiceChannel vc))
             {
                 await Interaction.RespondAsync(":x: Channel must be a voice channel",
-                    ephemeral: true);
+                    ephemeral: true, embeds: null);
                 return;
             }
 
             if(!ulong.TryParse(strid, out var id))
             {
                 await Interaction.RespondAsync(":x: Input was not a valid ulong. Must be a number",
-                    ephemeral: true);
+                    ephemeral: true, embeds: null);
                 return;
             }
             await Interaction.AcknowledgeAsync(Discord.InteractionResponseFlags.Ephemeral);
             try
             {
                 var invite = await createActivity(id, vc);
-                await Interaction.FollowupAsync("Click to join below:\r\nhttps://discord.gg/" + invite.Code);
+                await Interaction.FollowupAsync("Click to join below:\r\nhttps://discord.gg/" + invite.Code, embeds: null);
             } catch(Exception ex)
             {
                 Program.LogError(ex, "ActivityId");
-                await Interaction.FollowupAsync(":x: Exception: " + ex.Message);
+                await Interaction.FollowupAsync(":x: Exception: " + ex.Message, embeds: null);
 
             }
         }
