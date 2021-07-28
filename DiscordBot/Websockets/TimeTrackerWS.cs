@@ -244,7 +244,13 @@ namespace DiscordBot.Websockets
                 TTPacket response;
                 if(IndempotencyCache.TryGetValue(packet.Sequence, out response))
                 {
-                    Program.LogWarning($"Answering packet {packet.Sequence} with previously sent packet ({response.Response}, {response.ResentCount}), perhaps we disconnected?", "TTWS-" + IP);
+                    if(response.ResentCount > 3)
+                    {
+                        Program.LogWarning($"Closing Websocket connection: packet {packet.Sequence} has been requested too many times ({response.Response}, {response.ResentCount})", "TTWS-" + IP);
+                        this.Context.WebSocket.Close(CloseStatusCode.Normal, "Too many retries");
+                        return;
+                    }
+                    Program.LogInfo($"Answering packet {packet.Sequence} with previously sent packet ({response.Response}, {response.ResentCount}), perhaps we disconnected?", "TTWS-" + IP);
                     response.ResentCount += 1;
                 } else
                 {
