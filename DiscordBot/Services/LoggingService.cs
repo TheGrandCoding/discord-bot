@@ -229,7 +229,8 @@ namespace DiscordBot.Services
 #region Helper Functions
         public async Task<IUserMessage> SendLog(IGuild guild, string action, EmbedBuilder builder, ulong? context = null)
         {
-            builder.WithCurrentTimestamp();
+            if(!builder.Timestamp.HasValue)
+                builder.WithCurrentTimestamp();
             if(context.HasValue)
             {
                 var footer = builder.Footer ?? new EmbedFooterBuilder();
@@ -240,27 +241,47 @@ namespace DiscordBot.Services
             var msg = await chnl.SendMessageAsync(embed: builder.Build());
             return msg;
         }
+        public async Task<IThreadChannel> GetThreadAsync(IGuild guild, string action, string name, IUserMessage message)
+        {
+            var chnl = await GetChannel(guild, action);
+            return await chnl.CreateThread(message.Id, x =>
+            {
+                x.Name = name;
+                x.AutoArchiveDuration = 60;
+            });
+        }
 #endregion
 
 #region Messages
+
+        async Task<(EmbedBuilder, DbMsg)> getEmbedForDeletedMessage(Cacheable<IMessage, ulong> arg1, ITextChannel txt)
+        {
+            var service = Program.Services.GetRequiredService<MsgService>();
+            var content = service.GetLatestContent(arg1.Id);
+            var dbMsg = await service.GetMessageAsync(arg1.Id);
+            var builder = new EmbedBuilder()
+                .WithTitle("Message Deleted")
+                .WithColor(Color.Red)
+                .WithDescription(content?.Content ?? "[unknown last content]");
+            builder.AddField("Channel", $"{txt.Mention}", true);
+            if (dbMsg == null)
+            {
+                builder.AddField("No record", "Message could not be found in database.", true);
+            } else 
+            { 
+                builder.AddField("Author", $"{dbMsg.Author.Id}\r\n<@{dbMsg.Author.Id}>", true);
+            }
+            builder.AddField("Original Sent", Discord.SnowflakeUtils.FromSnowflake(arg1.Id).ToString("dd/MM/yy HH:mm:ss.fff"), true);
+            return (builder, dbMsg);
+        }
+
         private async Task Client_MessageDeleted(Cacheable<IMessage, ulong> arg1, Cacheable<IMessageChannel, ulong> cached)
         {
             var when = DateTime.Now;
             var arg2 = await cached.GetOrDownloadAsync();
             if (!(arg2 is ITextChannel txt))
                 return;
-            var service = Program.Services.GetRequiredService<MsgService>();
-            var content = service.GetLatestContent(arg1.Id);
-            var dbMsg = await service.GetMessageAsync(arg1.Id);
-            if (dbMsg == null)
-                return;
-            var builder = new EmbedBuilder()
-                .WithTitle("Message Deleted")
-                .WithColor(Color.Red)
-                .WithDescription(content?.Content ?? "[unknown last content]");
-            builder.AddField("Channel", $"{txt.Mention}", true);
-            builder.AddField("Author", $"{dbMsg.Author.Id}\r\n<@{dbMsg.Author.Id}>", true);
-            builder.AddField("Original Sent", Discord.SnowflakeUtils.FromSnowflake(arg1.Id).ToString("dd/MM/yy HH:mm:ss.fff"), true);
+            (EmbedBuilder builder, DbMsg dbMsg) = await getEmbedForDeletedMessage(arg1, txt);
             var message = await SendLog(txt.Guild, "messages", builder, arg1.Id);
             if (isDirty)
                 OnSave();
@@ -275,36 +296,54 @@ namespace DiscordBot.Services
             new Thread(threadCheckDeleter).Start(data);
         }
 
+        async Task bulkDeleteOtherThread(IReadOnlyCollection<Cacheable<IMessage, ulong>> arg1, ITextChannel channel)
+        {
+            var when = DateTimeOffset.Now;
+            var desc = $"{arg1.Count} messages bulk deleted";
+            string reason = null;
+            foreach (var x in arg1)
+            {
+                if (reason == null)
+                    reason = MessagesDeletedByBot.GetValueOrDefault(x.Id, null);
+                var row = "\r\n" + x.Id.ToString();
+                if (desc.Length + row.Length >= (EmbedBuilder.MaxDescriptionLength - 50))
+                {
+                    desc += "\r\n(+ more)";
+                    break;
+                }
+                desc += row;
+            }
+            var starterMessage = await SendLog(channel.Guild, "bulkdelete", new EmbedBuilder()
+                .WithTitle("Messages Bulk Deleted")
+                .WithDescription(desc)
+                .WithTimestamp(when)
+                .AddField("Reason", reason ?? "[unknown]"));
+            var thread = await GetThreadAsync(channel.Guild, "bulkdelete", $"Bulk delete in {channel.Name}", starterMessage);
+            foreach (var x in arg1)
+            {
+                (EmbedBuilder builder, DbMsg _) = await getEmbedForDeletedMessage(x, channel);
+                await thread.SendMessageAsync(embed: builder
+                    .WithFooter($"{x.Id}")
+                    .Build());
+            }
+        }
+
         private async Task Client_MessagesBulkDeleted(IReadOnlyCollection<Cacheable<IMessage, ulong>> arg1, Cacheable<IMessageChannel, ulong> cached)
         {
             var arg2 = await cached.GetOrDownloadAsync();
             if (arg2 is ITextChannel channel)
             {
-                var desc = $"{arg1.Count} messages bulk deleted; ids:";
-                string reason = null;
-                var pages = new List<string>();
-                foreach (var x in arg1)
+                var _ = Task.Run(async () =>
                 {
-                    if (reason == null)
-                        reason = MessagesDeletedByBot.GetValueOrDefault(x.Id, null);
-                    var row = "\r\n" + x.Id.ToString();
-                    if(desc.Length + row.Length > 2000)
+                    try
                     {
-                        desc = "[Part 1] " + desc;
-                        pages.Add(desc);
-                        desc = "";
+                        await bulkDeleteOtherThread(arg1, channel);
                     }
-                    desc += row;
-                }
-                foreach(var page in pages)
-                {
-                    var embed = new EmbedBuilder()
-                        .WithTitle("Messages Bulk Deleted")
-                        .WithDescription(page);
-                    if (reason != null)
-                        embed.AddField("Reason", reason);
-                    await SendLog(channel.Guild, "bulkdelete", embed);
-                }
+                    catch (Exception ex)
+                    {
+                        Error(ex, "BulkDelete");
+                    }
+                });
             }
         }
 
