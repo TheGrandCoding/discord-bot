@@ -301,7 +301,8 @@ namespace DiscordBot.Services
             var when = DateTimeOffset.Now;
             var desc = $"{arg1.Count} messages bulk deleted";
             string reason = null;
-            foreach (var x in arg1)
+            var messages = arg1.OrderBy(x => x.Id);
+            foreach (var x in messages)
             {
                 if (reason == null)
                     reason = MessagesDeletedByBot.GetValueOrDefault(x.Id, null);
@@ -319,7 +320,7 @@ namespace DiscordBot.Services
                 .WithTimestamp(when)
                 .AddField("Reason", reason ?? "[unknown]"));
             var thread = await GetThreadAsync(channel.Guild, "bulkdelete", $"Bulk delete in {channel.Name}", starterMessage);
-            foreach (var x in arg1)
+            foreach (var x in messages)
             {
                 (EmbedBuilder builder, DbMsg _) = await getEmbedForDeletedMessage(x, channel);
                 await thread.SendMessageAsync(embed: builder
