@@ -152,8 +152,16 @@ namespace DiscordBot.Services
                     if (summary.EndsWith(">"))
                         summary = summary.Substring(0, summary.Length - 1);
 
-
-                    await thread.SendMessageAsync($"> {summary}\r\n Reduced by {resp.ReducedPercentage}");
+                    summary = $"> {summary} Reduced by {resp.ReducedPercentage}";
+                    if (summary.Length > 2000)
+                    {
+                        summary = summary.Replace(">", "");
+                        await thread.SendMessageAsync(embed: new EmbedBuilder()
+                            .WithDescription(summary).Build());
+                    } else
+                    {
+                        await thread.SendMessageAsync(summary);
+                    }
                 }
             }
         }
