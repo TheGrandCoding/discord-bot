@@ -22,10 +22,10 @@ namespace DiscordBot.SlashCommands.Modules
         [SlashCommand("embed", "Repeats what you send, but fancy")]
         public async Task EmbedEcho([Required]string text, bool ephemeral = true)
         {
-            await Interaction.RespondAsync("Response:", embed: new EmbedBuilder()
+            await Interaction.RespondAsync("Response:", embeds: new[] { new EmbedBuilder()
                 .WithTitle("Echo")
                 .WithAuthor(Interaction.User)
-                .WithDescription(text).Build(),
+                .WithDescription(text).Build() },
                 ephemeral: ephemeral
                 );
         }
@@ -52,7 +52,10 @@ namespace DiscordBot.SlashCommands.Modules
         public static async Task handleButton(CallbackEventArgs args)
         {
             var token = args.Interaction;
-            await token.RespondAsync(text: $"Clicked {args.ComponentId}", type: InteractionResponseType.UpdateMessage, embeds: null);
+            await token.UpdateAsync(x =>
+            {
+                x.Content = $"Clicked {args.ComponentId}";
+            });
         }
     }
 }

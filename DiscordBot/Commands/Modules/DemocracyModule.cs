@@ -406,10 +406,10 @@ namespace DiscordBot.Commands.Modules
             await StatusMessage.ModifyAsync(x =>
             {
                 x.Content = content;
-                x.Embed = ToEmbed().Build();
+                x.Embeds = new[] { ToEmbed().Build() };
                 x.Components = new ComponentBuilder()
                     .WithButton("Aye", "true", ButtonStyle.Success, Emotes.THUMBS_UP, disabled: HasEnded)
-                    .WithButton("Noe", "false", ButtonStyle.Primary, Emotes.THUMBS_DOWN, disabled: HasEnded).Build();
+                    .WithButton("No", "false", ButtonStyle.Primary, Emotes.THUMBS_DOWN, disabled: HasEnded).Build();
             });
         }
 

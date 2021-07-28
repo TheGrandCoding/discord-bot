@@ -48,7 +48,7 @@ namespace DiscordBot.Services
                     dirty = true;
                     continue;
                 }
-                message.ModifyAsync(x => x.Embed = embed.Build()).Wait();
+                message.ModifyAsync(x => x.Embeds = new[] { embed.Build() }).Wait();
             }
             var excess = set.Messages.Skip(i);
             foreach (var thing in excess)

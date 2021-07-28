@@ -345,7 +345,7 @@ namespace DiscordBot.Services
                     {
                         entry.Message.ModifyAsync(x =>
                         {
-                            x.Embed = builder.Build();
+                            x.Embeds = new[] { builder.Build() };
                         });
                     }
                 }

@@ -40,11 +40,10 @@ namespace DiscordBot.SlashCommands.Modules
             int direction,
             [ParameterName("private")]bool isPrivate = false)
         {
-            await Interaction.AcknowledgeAsync(isPrivate ? InteractionResponseFlags.Ephemeral : InteractionResponseFlags.None);
+            await Interaction.DeferAsync(isPrivate);
             var builder = new ComponentBuilder();
             var values = Enum.GetValues(typeof(TorrentCategory));
             var slc = new SelectMenuBuilder()
-                .WithLabel("Torrent Category(s)")
                 .WithCustomId($"{Interaction.User.Id}.{AuthToken.Generate(12)}")
                 .WithMinValues(1)
                 .WithMaxValues(values.Length)
@@ -78,8 +77,7 @@ namespace DiscordBot.SlashCommands.Modules
                     ephemeral: true, embeds: null);
                 return;
             }
-            await e.Interaction.RespondAsync(type: InteractionResponseType.DeferredUpdateMessage, 
-                embeds: null, ephemeral: info.Ephemeral);
+            await e.Interaction.DeferAsync(info.Ephemeral);
             Components.Unregister(e.Message);
             Components.Unregister(e.ComponentId);
             var values = e.Interaction.Data.Values;
@@ -179,11 +177,11 @@ namespace DiscordBot.SlashCommands.Modules
                     info.Page = Math.Max(0, info.Page - 1);
                 else
                     info.Page = Math.Min(max, info.Page + 1);
-                await e.Interaction.AcknowledgeAsync(InteractionResponseFlags.Ephemeral);
+                await e.Interaction.DeferAsync(true);
                 var builder = await getBuilder(info, torrents);
                 await e.Interaction.ModifyOriginalResponseAsync(x =>
                 {
-                    x.Embed = builder.Build();
+                    x.Embeds = new[] { builder.Build() };
                     x.Components = getComponents(info, idPrefix, max).Build();
                 });
             };
@@ -194,7 +192,7 @@ namespace DiscordBot.SlashCommands.Modules
             await interaction.ModifyOriginalResponseAsync(x =>
             {
                 x.Content = "";
-                x.Embed = builder.Build();
+                x.Embeds = new[] { builder.Build() };
                 x.Components = components.Build();
             });
 

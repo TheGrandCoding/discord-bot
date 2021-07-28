@@ -151,7 +151,7 @@ namespace DiscordBot.Services
 
         public static async Task handleReact(CallbackEventArgs e)
         {
-            await e.Interaction.AcknowledgeAsync(InteractionResponseFlags.Ephemeral);
+            await e.Interaction.DeferAsync(true);
             var result = runReactions(e).Result;
             if(!result.IsSuccess)
             {

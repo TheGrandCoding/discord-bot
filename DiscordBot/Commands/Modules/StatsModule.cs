@@ -58,7 +58,7 @@ namespace DiscordBot.Commands.Modules
                 Token = src.Token,
                 IncludeBots = includeBots
             };
-            await msg.ModifyAsync(x => x.Embed = stats.ToEmbed().Build());
+            await msg.ModifyAsync(x => x.Embeds = new[] { stats.ToEmbed().Build() });
             RunningStats[channel.Id] = stats;
             AllStats[stats.Id] = stats;
             stats.Start();
@@ -257,7 +257,7 @@ namespace DiscordBot.Commands.Modules
 
             var _ = Task.Run(async () =>
             {
-                await Status.ModifyAsync(x => x.Embed = ToEmbed().Build());
+                await Status.ModifyAsync(x => x.Embeds = new[] { ToEmbed().Build() });
                 if (Token.IsCancellationRequested || Remaining <= 0)
                 {
                     await Status.Channel.SendMessageAsync($"Stats checks have finished. See {Status.GetJumpUrl()}");

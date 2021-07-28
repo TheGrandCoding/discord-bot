@@ -38,7 +38,7 @@ namespace DiscordBot.Classes
         {
             throw new NotImplementedException();
         }
-        public Task<IInviteMetadata> CreateInviteAsync(int? maxAge = 86400, int? maxUses = null, bool isTemporary = false, bool isUnique = false, ulong? streamUserId = null, ulong? applicationId = null, RequestOptions options = null)
+        public Task<IInviteMetadata> CreateInviteAsync(int? maxAge = 86400, int? maxUses = null, bool isTemporary = false, bool isUnique = false, RequestOptions options = null)
         {
             throw new NotImplementedException();
         }
@@ -187,17 +187,22 @@ namespace DiscordBot.Classes
             throw new NotImplementedException();
         }
 
-        public Task<IInviteMetadata> CreateInviteAsync(int? maxAge = 86400, int? maxUses = null, bool isTemporary = false, bool isUnique = false, RequestOptions options = null)
-        {
-            throw new NotImplementedException();
-        }
-
         public Task<IThreadChannel> CreateThread(ulong messageId, Action<CreateThreadProperties> func, RequestOptions options = null)
         {
             throw new NotImplementedException();
         }
 
         public Task<IThreadChannel> CreateThread(Action<CreateThreadWithoutMessageProperties> func, RequestOptions options = null)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<IInviteMetadata> CreateInviteToApplicationAsync(ulong applicationId, int? maxAge = 86400, int? maxUses = null, bool isTemporary = false, bool isUnique = false, RequestOptions options = null)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<IInviteMetadata> CreateInviteToStreamAsync(IUser user, int? maxAge = 86400, int? maxUses = null, bool isTemporary = false, bool isUnique = false, RequestOptions options = null)
         {
             throw new NotImplementedException();
         }

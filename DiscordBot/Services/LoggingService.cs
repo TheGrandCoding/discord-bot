@@ -335,7 +335,7 @@ namespace DiscordBot.Services
             var built = data.builder
                 .AddField("Potential Causes", value, true)
                 .Build();
-            data.log.ModifyAsync(x => x.Embed = built).Wait();
+            data.log.ModifyAsync(x => x.Embeds = new[] { built }).Wait();
         }
 
         private async Task Client_MessageUpdated(Cacheable<IMessage, ulong> arg1, SocketMessage arg2, ISocketMessageChannel arg3)

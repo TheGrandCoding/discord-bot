@@ -521,7 +521,7 @@ Changed how permissions worked for bot.
         {
             var timerOverall = new Stopwatch();
             timerOverall.Start();
-            Client.SetActivityAsync(new Game($"code v{Program.VER_STR}", ActivityType.Playing));
+            //Client.SetGameAsync($"code v{Program.VER_STR}");
             var servicesTypes = ReflectiveEnumerator.GetEnumerableOfType<Service>(null).Select(x => x.GetType());
             var services = new List<Service>();
             foreach (var type in servicesTypes)
@@ -653,7 +653,7 @@ Changed how permissions worked for bot.
                         try
                         {
                             await x.RespondAsync(":x: Internal exception occured whilst handling this interaction: " + exec.Exception.Message,
-                                ephemeral: true, embed: null);
+                                ephemeral: true);
                         }
                         catch { }
                     }
@@ -665,14 +665,14 @@ Changed how permissions worked for bot.
                 try
                 {
                     await x.RespondAsync($":x: Encountered an internal error attempting that command: {ex.Message}",
-                        ephemeral: true, embed: null);
+                        ephemeral: true);
                 }
                 catch
                 {
                     try
                     {
                         await x.FollowupAsync($":x: Encountered an internal error attempting that command: {ex.Message}",
-                            ephemeral: true, embed: null);
+                            ephemeral: true);
                     }
                     catch { }
                 }

@@ -244,7 +244,7 @@ namespace DiscordBot.Services.Rules
 
         public static async Task handleMuteChange(CallbackEventArgs e)
         {
-            await e.Interaction.AcknowledgeAsync(InteractionResponseFlags.Ephemeral);
+            await e.Interaction.DeferAsync(true);
             var This = Program.Services.GetRequiredService<PenaltyService>();
             var array = e.ComponentId.Split('-').Select(x => int.Parse(x));
             var penaltyId = array.ElementAt(0);
@@ -300,7 +300,7 @@ namespace DiscordBot.Services.Rules
                     return;
 
             }
-            await e.Message.ModifyAsync(x => x.Embed = This.getRoleMuteBuilder(penalty.Target as SocketGuildUser, penalty).Build());
+            await e.Message.ModifyAsync(x => x.Embeds = new[] { This.getRoleMuteBuilder(penalty.Target as SocketGuildUser, penalty).Build() });
             This.OnSave();
         }
 

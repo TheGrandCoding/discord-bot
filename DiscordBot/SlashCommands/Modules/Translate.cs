@@ -24,7 +24,7 @@ namespace DiscordBot.SlashCommands.Modules
                     return;
                 }
             }
-            await Interaction.AcknowledgeAsync(Discord.InteractionResponseFlags.Ephemeral);
+            await Interaction.DeferAsync(true);
             var client = TranslationClient.Create();
             var response = await client.TranslateTextAsync(message, LanguageCodes.English, fromLanguage);
             var actualFrom = response.DetectedSourceLanguage == null ? fromLanguage : response.DetectedSourceLanguage;
@@ -32,7 +32,7 @@ namespace DiscordBot.SlashCommands.Modules
             var embed = new EmbedBuilder();
             embed.Title = "Translated from " + name;
             embed.Description = response.TranslatedText;
-            await Interaction.FollowupAsync(embed: embed.Build());
+            await Interaction.FollowupAsync(embeds: new[] { embed.Build() });
         }
     }
 }

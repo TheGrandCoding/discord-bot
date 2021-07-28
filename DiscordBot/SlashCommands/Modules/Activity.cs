@@ -20,7 +20,7 @@ namespace DiscordBot.SlashCommands.Modules
 
         public async Task<IInviteMetadata> createActivity(ulong id, SocketVoiceChannel vc)
         {
-            return await vc.CreateInviteAsync(applicationId: id);
+            return await vc.CreateInviteToApplicationAsync(applicationId: id, Time.S.Day);
         }
 
         [SlashCommand("start", "Sends an invite for the selected activity")]
@@ -103,7 +103,7 @@ namespace DiscordBot.SlashCommands.Modules
                     ephemeral: true, embeds: null);
                 return;
             }
-            await Interaction.AcknowledgeAsync(Discord.InteractionResponseFlags.Ephemeral);
+            await Interaction.DeferAsync(true);
             try
             {
                 var invite = await createActivity(id, vc);

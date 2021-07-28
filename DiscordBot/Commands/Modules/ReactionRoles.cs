@@ -68,7 +68,7 @@ namespace DiscordBot.Commands.Modules
             builder.Description = "Use the buttons below to toggle certain roles controlling your access to parts of this server.";
             await setup.Message.ModifyAsync(x =>
             {
-                x.Embed = builder.Build();
+                x.Embeds = new[] { builder.Build() };
                 x.Components = GetButtons(setup).Build();
             });
         }

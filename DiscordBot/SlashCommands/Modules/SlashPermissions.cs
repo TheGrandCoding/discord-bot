@@ -21,7 +21,7 @@ namespace DiscordBot.SlashCommands.Modules
         {
             try
             {
-                await Interaction.AcknowledgeAsync(flags: InteractionResponseFlags.Ephemeral);
+                await Interaction.DeferAsync(true);
                 var commands = await Program.Client.Rest.GetGuildApplicationCommands(Interaction.Guild.Id);
                 var pages = new List<EmbedBuilder>();
                 var embed = new EmbedBuilder();
@@ -48,7 +48,7 @@ namespace DiscordBot.SlashCommands.Modules
                     await Interaction.FollowupAsync($":x: Index out of range: [0:{pages.Count - 1}]", embeds: null);
                     return;
                 }
-                await Interaction.FollowupAsync(embed: pages[page].Build());
+                await Interaction.FollowupAsync(embeds: new[] { pages[page].Build() });
             }
             catch (Exception ex)
             {
@@ -113,7 +113,7 @@ namespace DiscordBot.SlashCommands.Modules
             {
                 try
                 {
-                    await Interaction.AcknowledgeAsync(flags: InteractionResponseFlags.Ephemeral);
+                    await Interaction.DeferAsync(true);
                     var cmd = await getCommand(strId);
                     if(cmd == null)
                     {
@@ -138,7 +138,7 @@ namespace DiscordBot.SlashCommands.Modules
                     sb.Append("Default: " + emote(cmd.DefaultPermission) + "\r\n");
                     foreach (var thing in cmdPerms.Permissions)
                     {
-                        if (thing.TargetType == PermissionTarget.User)
+                        if (thing.TargetType == ApplicationCommandPermissionTarget.User)
                             sb.Append($"User <@!{thing.TargetId}>");
                         else
                             sb.Append($"Role <@&{thing.TargetId}>");
@@ -146,7 +146,7 @@ namespace DiscordBot.SlashCommands.Modules
                         sb.Append("\r\n");
                     }
                     embed.Description = sb.ToString();
-                    await Interaction.FollowupAsync(embed: embed.Build(),
+                    await Interaction.FollowupAsync(embeds: new[] { embed.Build() },
                         allowedMentions: AllowedMentions.None);
                 }
                 catch (Exception ex)
@@ -155,9 +155,9 @@ namespace DiscordBot.SlashCommands.Modules
                 }
             }
 
-            async Task manageThing(string strId, ulong thingId, PermissionTarget thingType, bool? value)
+            async Task manageThing(string strId, ulong thingId, ApplicationCommandPermissionTarget thingType, bool? value)
             {
-                await Interaction.AcknowledgeAsync(flags: InteractionResponseFlags.Ephemeral);
+                await Interaction.DeferAsync(true);
                 try
                 {
                     RestApplicationCommand command = await getCommand(strId);
@@ -207,7 +207,7 @@ namespace DiscordBot.SlashCommands.Modules
                 string strId,
                 [Required] SocketGuildUser user, bool? value = null)
             {
-                await manageThing(strId, user.Id, PermissionTarget.User, value);
+                await manageThing(strId, user.Id, ApplicationCommandPermissionTarget.User, value);
             }
         
             [SlashCommand("role", "Get or set the permission for a role to use the command")]
@@ -217,7 +217,7 @@ namespace DiscordBot.SlashCommands.Modules
                 string strId,
                 [Required] SocketRole role, bool? value = null)
             {
-                await manageThing(strId, role.Id, PermissionTarget.Role, value);
+                await manageThing(strId, role.Id, ApplicationCommandPermissionTarget.Role, value);
             }
 
             [SlashCommand("clear", "Removes the overwrite for the provided thing (user or role)")]
@@ -229,7 +229,7 @@ namespace DiscordBot.SlashCommands.Modules
                 [Required] 
                 string thingId)
             {
-                await Interaction.AcknowledgeAsync(flags: InteractionResponseFlags.Ephemeral);
+                await Interaction.DeferAsync(true);
                 if(!ulong.TryParse(thingId, out var id))
                 {
                     await Interaction.FollowupAsync(":x: `thingId` must be a valid ulong of the user or role.", embeds: null);
@@ -255,7 +255,7 @@ namespace DiscordBot.SlashCommands.Modules
                 [Required]
                 string strId, [Required] bool value)
             {
-                await Interaction.AcknowledgeAsync(flags: InteractionResponseFlags.Ephemeral);
+                await Interaction.DeferAsync(true);
                 var cmd = await getCommand(strId);
                 if (cmd == null)
                 {
@@ -266,7 +266,7 @@ namespace DiscordBot.SlashCommands.Modules
                 {
                     await glb.ModifyCommandPermissions(Interaction.Guild.Id,
                         new SlashCommandPermsBuilder()
-                            .With(Interaction.Guild.Id, PermissionTarget.Role, value) // @everyone role
+                            .With(Interaction.Guild.Id, ApplicationCommandPermissionTarget.Role, value) // @everyone role
                             .Build().ToArray());
                     await Interaction.FollowupAsync("Done!\r\nNote: due to a Discord bug, the command will appear greyed out but will still be executable.", embeds: null);
                 } else if(cmd is RestGuildCommand gld)

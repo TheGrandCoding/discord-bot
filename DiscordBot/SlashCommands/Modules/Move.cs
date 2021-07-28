@@ -126,11 +126,11 @@ namespace DiscordBot.SlashCommands.Modules
             var fromPerms = (Interaction.User as SocketGuildUser).GetPermissions(from);
             if (!fromPerms.ManageMessages)
             {
-                await Interaction.RespondAsync($":x: You do not have permission to move messages to {to.Mention}", type: InteractionResponseType.ChannelMessageWithSource, 
-                    ephemeral: true, embeds: null);
+                await Interaction.RespondAsync($":x: You do not have permission to move messages to {to.Mention}", 
+                    ephemeral: true);
                 return;
             }
-            await Interaction.AcknowledgeAsync();
+            await Interaction.DeferAsync();
             var date = DateTimeOffset.Now.AddHours(-maximumHoursAgo);
             var messages = await fetchMessages(from, Math.Min(amount, maximumMoveCount), Discord.SnowflakeUtils.ToSnowflake(date));
             var response = await Interaction.FollowupAsync($"Moving {messages.Count} messages.", embeds: null) as IUserMessage;

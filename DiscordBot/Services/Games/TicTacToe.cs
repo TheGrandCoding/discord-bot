@@ -84,7 +84,7 @@ namespace DiscordBot.Services.Games
                 game.Crosses = user;
             else
                 game.Naughts = user;
-            await game.Message.ModifyAsync(x => x.Embed = game.ToEmbed());
+            await game.Message.ModifyAsync(x => x.Embeds = new[] { game.ToEmbed() });
             var role = game.Guild.Roles.FirstOrDefault(x => x.Name == TTTService.RoleName);
             await user.AddRoleAsync(role);
             await game.Message.Channel.SendMessageAsync($"{user.Mention} has joined as {game.GetPlayer(user)}s");
@@ -144,7 +144,7 @@ namespace DiscordBot.Services.Games
             }
             await game.Message.Channel.SendMessageAsync($"{user.Mention} goes [{coords.x}, {coords.y}]");
             game.Turn = game.Turn == Position.Cross ? Position.Naught : Position.Cross;
-            await game.Message.ModifyAsync(x => x.Embed = game.ToEmbed());
+            await game.Message.ModifyAsync(x => x.Embeds = new[] { game.ToEmbed() });
             var winner = game.GetWinnerType();
             if (winner != Position.Empty)
             {

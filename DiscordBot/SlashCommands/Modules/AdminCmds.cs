@@ -21,7 +21,7 @@ namespace DiscordBot.SlashCommands.Modules
                     ephemeral: true, embeds: null);
                 return;
             }
-            await Interaction.AcknowledgeAsync(Discord.InteractionResponseFlags.Ephemeral);
+            await Interaction.DeferAsync(true);
             var member = Interaction.User as SocketGuildUser;
             if(member.Roles.Any(x => x.Id == adminRole.Id))
             {

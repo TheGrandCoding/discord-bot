@@ -17,6 +17,12 @@ namespace DiscordBot
                 return string.Concat(hash.Select(b => b.ToString("X2")));
             }
         }
+        public static string GetSHA256(string plain)
+        {
+            using var sha = SHA256.Create();
+            var hash = sha.ComputeHash(Encoding.UTF8.GetBytes(plain));
+            return string.Concat(hash.Select(b => b.ToString("X2")));
+        }
         public static string GetPbkdf2(string plain) => PasswordHash.HashPassword(plain);
     }
 }
