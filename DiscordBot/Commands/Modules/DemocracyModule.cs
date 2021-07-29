@@ -52,7 +52,7 @@ namespace DiscordBot.Commands.Modules
         [Command("question")]
         [Summary("Initiates a vote on a yes/no question")]
         [RequireContext(ContextType.Guild)]
-        public async Task Question(string question)
+        public async Task Question([Remainder]string question)
         {
             if (question.EndsWith("?"))
                 question = question[..^1];
@@ -232,7 +232,7 @@ namespace DiscordBot.Commands.Modules
 
         async Task handleButtonClick(CallbackEventArgs e)
         {
-            await e.Interaction.AcknowledgeAsync();
+            await e.Interaction.DeferAsync();
             var msgId = ulong.Parse(e.State);
             if(!VoteItems.TryGetValue(msgId, out var item))
             {
@@ -242,38 +242,52 @@ namespace DiscordBot.Commands.Modules
             }
             var user = e.User as IGuildUser;
 
-            if (item.HasVoted(user))
+            /*if (item.HasVoted(user))
             {
                 await e.Interaction.FollowupAsync("You have already voted in this proposal",
                     ephemeral: true, embeds: null);
                 return;
-            }
+            }*/
             if (!item.CanVote(user))
             {
                 await e.Interaction.FollowupAsync($"You are unable to vote in this proposal",
                     ephemeral: true, embeds: null);
                 return;
             }
+
+            var previous = item.RemoveVotes(user); // and removes abstained
             var value = bool.Parse(e.ComponentId);
             if (value)
-            {
                 item.Ayes.Add(user);
-                await e.Interaction.FollowupAsync("Your **aye** vote has been recorded.",
-                    ephemeral: true, embeds: null);
-            }
             else 
-            {
                 item.Noes.Add(user);
-                await e.Interaction.FollowupAsync("Your **noe** vote has been recorded.",
-                    ephemeral: true, embeds: null);
+
+            var votestr = value ? "aye" : "no";
+            if (previous.HasValue)
+            {
+                if (previous.Value == value)
+                    await e.Interaction.FollowupAsync($"You have already voted *{votestr}*; your vote remains recorded",
+                        ephemeral: true);
+                else
+                    await item.DiscussionThread.SendMessageAsync($"{user.Mention} has changed their vote from {(previous.Value ? "aye" : "no")} to **{votestr}**");
+
             }
-            item.Abstained.RemoveAll(x => x.Id == user.Id);
+            else
+            {
+                await item.DiscussionThread.SendMessageAsync($"{user.Mention} has voted **{votestr}**");
+            }
+
             await item.Update();
             var remove = await ShouldRemove(item);
             if (remove)
             {
                 Unregister(item);
-                await item.StatusMessage.Channel.SendMessageAsync($"The question \"{item.getQuestion()}?\" has been answered; {item.StatusMessage.Content}");
+                await item.DiscussionThread.SendMessageAsync($"The question \"{item.getQuestion()}?\" has been answered; {item.StatusMessage.Content}");
+                await (item.DiscussionThread as SocketThreadChannel).ModifyAsync(x =>
+                {
+                    x.Archived = true;
+                    x.Locked = true;
+                }, new RequestOptions() { AuditLogReason = $"Vote has ended" });
             }
             OnSave();
         }
@@ -289,7 +303,7 @@ namespace DiscordBot.Commands.Modules
                 await item.Update($"**The ayes have it, the ayes have it!** Unlock!");
                 var result = await item.PerformAction();
                 if(!result.IsSuccess)
-                    await item.StatusMessage.Channel.SendMessageAsync($"Unable to perform action for {item.getTitle()}: {result.Reason}");
+                    await item.DiscussionThread.SendMessageAsync($"Unable to perform action for {item.getTitle()}: {result.Reason}");
                 return true;
             } else if (item.Deadlocked)
             {
@@ -316,6 +330,7 @@ namespace DiscordBot.Commands.Modules
         public SocketGuild Guild { get; set; }
         public IGuildUser Submitter { get; set; }
         public IUserMessage StatusMessage { get; set; }
+        public IThreadChannel DiscussionThread { get; set; }
         public List<IRole> WhitelistedRoles { get; set; } = new List<IRole>();
         public List<IGuildUser> Ayes { get; set; } = new List<IGuildUser>();
         public List<IGuildUser> Noes { get; set; } = new List<IGuildUser>();
@@ -377,6 +392,20 @@ namespace DiscordBot.Commands.Modules
             Required = (int)Math.Floor(Abstained.Count / 2.0) + 1;
         }
 
+        /// <summary>
+        /// Removes the user from <see cref="Ayes"/>, <see cref="Noes"/> and <see cref="Abstained"/>; 
+        /// returns true, false or null for whether they were in that list, respectively.
+        /// </summary>
+        public bool? RemoveVotes(IUser user)
+        {
+            if (Ayes.RemoveAll(x => x.Id == user.Id) > 0)
+                return true;
+            if (Noes.RemoveAll(x => x.Id == user.Id) > 0)
+                return false;
+            Abstained.RemoveAll(x => x.Id == user.Id);
+            return null;
+        }
+
         public abstract Task<BotResult> PerformAction();
 
         string collate(IList<IGuildUser> users)
@@ -393,9 +422,9 @@ namespace DiscordBot.Commands.Modules
             builder.Description =
                 $"The question is: **{getQuestion()}?**\r\n" +
                 $"As many that of of that opinion, do say {Emotes.THUMBS_UP}; of the contray, {Emotes.THUMBS_DOWN}";
-            builder.AddField("Noes", collate(Noes), true);
-            builder.AddField("Abstained", collate(Abstained), true);
             builder.AddField("Ayes", collate(Ayes), true);
+            builder.AddField("Abstained", collate(Abstained), true);
+            builder.AddField("Noes", collate(Noes), true);
             builder.AddField("Threshold", $"For this measure to pass, it must achieve {Required} ayes");
             builder.WithFooter($"Submitted by {Submitter.Username}");
             return builder;
@@ -411,6 +440,13 @@ namespace DiscordBot.Commands.Modules
                     .WithButton("Aye", "true", ButtonStyle.Success, Emotes.THUMBS_UP, disabled: HasEnded)
                     .WithButton("No", "false", ButtonStyle.Primary, Emotes.THUMBS_DOWN, disabled: HasEnded).Build();
             });
+            if(DiscussionThread == null)
+            {
+                DiscussionThread = await (StatusMessage.Channel as SocketTextChannel).CreateThread(StatusMessage.Id,
+                    x => { x.Name = Program.Clamp(getQuestion(), 100); x.AutoArchiveDuration = 1440; });
+                foreach (var usr in Abstained)
+                    await DiscussionThread.AddMemberAsync(usr.Id, null);
+            }
         }
 
     }
