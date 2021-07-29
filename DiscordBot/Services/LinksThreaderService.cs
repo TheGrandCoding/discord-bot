@@ -139,18 +139,14 @@ namespace DiscordBot.Services
                 if (summary.EndsWith(">"))
                     summary = summary.Substring(0, summary.Length - 1);
 
-                summary = $"> {summary} Reduced by {resp.ReducedPercentage}";
-                if (summary.Length > 2000)
-                {
-                    summary = summary.Replace(">", "");
-                    await thread.SendMessageAsync(messageReference: messageRef,
-                        embed: new EmbedBuilder()
-                        .WithDescription(summary).Build());
-                }
-                else
-                {
-                    await thread.SendMessageAsync(summary, messageReference: messageRef);
-                }
+                var embed = new EmbedBuilder();
+                embed.Title = $"{resp.ReducedPercentage} Reduced Summary";
+                embed.Description = summary;
+                embed.Footer = new EmbedFooterBuilder()
+                    .WithText(string.Join(",", (resp.Keywords ?? new string[] { })));
+
+                await thread.SendMessageAsync(messageReference: messageRef,
+                    embed: embed.Build());
             }
         }
 
