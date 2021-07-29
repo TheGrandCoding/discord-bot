@@ -7,6 +7,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Security.Cryptography;
@@ -27,7 +28,7 @@ namespace DiscordBot.Services
         {
             return API_URL +
                 "?SM_API_KEY=" + Program.Configuration["tokens:smmry"] +
-                "&SM_KEYWORD_COUNT=3" + 
+                "&SM_KEYWORD_COUNT=5" + 
                 "&SM_WITH_BREAK=" +
                 // URL MUST BE LAST
                 "&SM_URL=" + Uri.EscapeDataString(newsUrl);
@@ -142,9 +143,11 @@ namespace DiscordBot.Services
 
                 var embed = new EmbedBuilder();
                 embed.Title = $"{resp.ReducedPercentage} Reduced Summary";
-                embed.Description = summary;
+                embed.Description = "> " + summary;
                 embed.Footer = new EmbedFooterBuilder()
-                    .WithText(string.Join(",", (resp.Keywords ?? new string[] { })));
+                    .WithText("Keywords: " + 
+                        string.Join(" ", (resp.Keywords ?? new string[] { })
+                        .Select(x => x.ToLower())));
 
                 await thread.SendMessageAsync(messageReference: messageRef,
                     embed: embed.Build());
