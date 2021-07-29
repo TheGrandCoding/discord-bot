@@ -283,7 +283,7 @@ namespace DiscordBot.Commands.Modules
             {
                 Unregister(item);
                 await item.DiscussionThread.SendMessageAsync($"The question \"{item.getQuestion()}?\" has been answered; {item.StatusMessage.Content}");
-                await (item.DiscussionThread as SocketThreadChannel).ModifyAsync(x =>
+                await item.DiscussionThread.ModifyAsync(x =>
                 {
                     x.Archived = true;
                     x.Locked = true;

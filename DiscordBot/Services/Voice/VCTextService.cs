@@ -16,23 +16,28 @@ namespace DiscordBot.Services
 {
     public class VCTextService : SavedService
     {
-        public ConcurrentDictionary<SocketVoiceChannel, syncSave> Pairings { get; set; } = new ConcurrentDictionary<SocketVoiceChannel, syncSave>();
+        public ConcurrentDictionary<SocketVoiceChannel, IThreadChannel> Threads { get; set; } = new ConcurrentDictionary<SocketVoiceChannel, IThreadChannel>();
+        public ConcurrentDictionary<SocketVoiceChannel, ITextChannel> PairedChannels { get; set; } = new ConcurrentDictionary<SocketVoiceChannel, ITextChannel>();
 
         public override string GenerateSave()
         {
-            var dict = new Dictionary<ulong, syncSave>();
-            var t = Pairings;
-            foreach (var keypair in t)
-                dict[keypair.Key.Id] = keypair.Value;
-            return Program.Serialise(dict);
+            var save = new syncSave()
+            {
+                threads = new Dictionary<ulong, IThreadChannel>(Threads.Select(x => new KeyValuePair<ulong, IThreadChannel>(x.Key.Id, x.Value))),
+                texts = new Dictionary<ulong, ITextChannel>(PairedChannels.Select(x => new KeyValuePair<ulong, ITextChannel>(x.Key.Id, x.Value)))
+            };
+            return Program.Serialise(save);
         }
 
         public override void OnLoaded()
         {
-            var sv = Program.Deserialise<Dictionary<ulong, syncSave>>(ReadSave());
-            Pairings = new ConcurrentDictionary<SocketVoiceChannel, syncSave>();
-            foreach (var keypair in sv)
-                Pairings[Program.Client.GetChannel(keypair.Key) as SocketVoiceChannel] = keypair.Value;
+            var sv = Program.Deserialise<syncSave>(ReadSave());
+            Threads = new ConcurrentDictionary<SocketVoiceChannel, IThreadChannel>();
+            foreach (var keypair in (sv.threads ?? new Dictionary<ulong, IThreadChannel>()))
+                Threads[Program.Client.GetChannel(keypair.Key) as SocketVoiceChannel] = keypair.Value;
+            PairedChannels = new ConcurrentDictionary<SocketVoiceChannel, ITextChannel>();
+            foreach (var keypair in (sv.texts ?? new Dictionary<ulong, ITextChannel>()))
+                PairedChannels[Program.Client.GetChannel(keypair.Key) as SocketVoiceChannel] = keypair.Value;
             catchup().Wait();
             Program.Client.UserVoiceStateUpdated += Client_UserVoiceStateUpdated;
         }
@@ -71,59 +76,63 @@ namespace DiscordBot.Services
                 );
         }
 
-        const string feature = "PRIVATE_THREADS";
+        const string PRIVATE_THREADS = "PRIVATE_THREADS";
         async Task UserJoinedVc(SocketGuildUser user, SocketVoiceState state)
         {
             var voice = state.VoiceChannel;
-            syncSave save;
             bool manage = false;
-            if(Pairings.TryGetValue(voice, out save))
+            if(!PairedChannels.TryGetValue(voice, out var pairedChannel))
+            {
+                var txts = user.Guild.TextChannels.Where(x => x.CategoryId == voice.CategoryId.GetValueOrDefault(0));
+                pairedChannel = txts.FirstOrDefault();
+            }
+            if (pairedChannel == null)
+                return;
+
+            if(Threads.TryGetValue(voice, out var thread))
             {
             } else if(hasEnabledPairing(user, state.IsSelfMuted))
             {
                 manage = true;
-                var ls = new List<Overwrite>();
-                ls.Add(new Overwrite(user.Guild.EveryoneRole.Id, PermissionTarget.Role, new OverwritePermissions(viewChannel: PermValue.Deny)));
-                foreach(var x in voice.Users)
-                {
-                    ls.Add(new Overwrite(x.Id, PermissionTarget.User, perms(x.Id == user.Id)));
-                }
-                save = new syncSave();
-                save.TextChannel = await user.Guild.CreateTextChannelAsync("pair-" + voice.Name, x =>
-                {
-                    x.PermissionOverwrites = ls;
-                    x.CategoryId = voice.CategoryId;
-                    x.Position = 999;
-                    x.Topic = $"Paired channel with <#{voice.Id}>.";
-                });
-                Pairings[voice] = save;
-                var starterMessage = await save.TextChannel.SendMessageAsync(embed: new EmbedBuilder()
-                    .WithTitle("Paired Channel")
-                    .WithDescription("This channel will be deleted once the user leaves the paired voice channel.")
-                    .WithAuthor(user)
-                    .Build());
 
-                if(voice.Guild.Features.Contains(feature))
-                { // simple test to see whether threads are enabled
-                    var thread = await save.TextChannel.CreateThread(starterMessage.Id, x =>
+                var embed = new EmbedBuilder()
+                        .WithTitle("Paired Channel")
+                        .WithDescription("This thread can be used for discussions in the paired voice channel.")
+                        .WithAuthor(user)
+                        .Build();
+                if (voice.Guild.Features.Contains(PRIVATE_THREADS))
+                {
+                    thread = await pairedChannel.CreateThread(x =>
                     {
-                        x.Name = "Updates";
-                        x.AutoArchiveDuration = 1440;
+                        x.AutoArchiveDuration = 60;
+                        x.Name = "Paired VC discussion";
+                        x.Type = ChannelType.PrivateThread;
                     });
-                    save.Thread = thread;
+                    await thread.SendMessageAsync(embed: embed);
+                } else
+                {
+                    var starterMessage = await pairedChannel.SendMessageAsync(embed: embed);
+                    thread = await pairedChannel.CreateThread(starterMessage.Id, x =>
+                    {
+                        x.Name = $"Paired with {voice.Name}";
+                        x.AutoArchiveDuration = 60;
+                    });
+                }
+                Threads[voice] = thread;
+                foreach(var usr in voice.Users)
+                {
+                    await thread.AddMemberAsync(usr.Id, null);
                 }
 
                 OnSave();
             }
-            if (save == null)
-                return;
-            await save.TextChannel.AddPermissionOverwriteAsync(user, perms(manage));
+            await thread.AddMemberAsync(user.Id, null);
             if (!manage)
             {
-                await save.UpdateChannel.SendMessageAsync(embed: new EmbedBuilder()
+                await thread.SendMessageAsync(embed: new EmbedBuilder()
                     .WithTitle("User Joined Paired VC")
                     .WithDescription($"{user.GetName()} has joined the paired VC.\r\n" +
-                    $"They have been granted permission to access this channel.")
+                    $"They have been added to this thread.")
                     .WithAuthor(user)
                     .Build());
             }
@@ -131,13 +140,13 @@ namespace DiscordBot.Services
         async Task UserLeftVc(SocketGuildUser user, SocketVoiceState state)
         {
             var voice = state.VoiceChannel;
-            if(Pairings.TryGetValue(voice, out var save))
+            if(Threads.TryGetValue(voice, out var thread))
             {
                 var pairings = voice.Users.Count(x => x.Id != user.Id && hasEnabledPairing(x, state.IsSelfMuted));
                 var embed = new EmbedBuilder();
                 embed.Title = $"User Left Paired VC";
                 embed.Description = $"{user.GetName()} has left {voice.Name}, with {voice.Users.Count} remaining\r\n" +
-                    $"Their permission to access this channel has been removed.";
+                    $"They have been removed from this thread.";
                 embed.WithAuthor(user);
                 int hasEnabledPair = 0;
                 var debug = new List<string>();
@@ -151,15 +160,17 @@ namespace DiscordBot.Services
                         hasEnabledPair++;
                 }
                 embed.WithFooter(Program.ToEncoded(string.Join(",", debug)));
-                if (hasEnabledPair > 0)
+                await thread.RemoveMemberAsync(user.Id, null);
+                await thread.SendMessageAsync(embed: embed.Build());
+                if(hasEnabledPair == 0)
                 {
-                    await save.TextChannel.RemovePermissionOverwriteAsync(user);
-                    await save.UpdateChannel.SendMessageAsync(embed: embed.Build());
-                    return;
+                    await thread.ModifyAsync(x =>
+                    {
+                        x.Archived = true;
+                        x.Locked = false;
+                    });
                 }
-                await Program.AppInfo.Owner.SendMessageAsync(embed: embed.Build());
-                await save.TextChannel.DeleteAsync();
-                Pairings.TryRemove(voice, out _);
+                Threads.TryRemove(voice, out _);
                 OnSave();
             }
         }
@@ -167,25 +178,18 @@ namespace DiscordBot.Services
         {
             var from = fState.VoiceChannel;
             var to = tState.VoiceChannel;
-            if(Pairings.TryGetValue(from, out var thing))
+            if(Threads.TryGetValue(from, out var thread))
             {
                 var pairings = from.Users.Count(x => x.Id != user.Id && hasEnabledPairing(x, fState.IsSelfMuted || tState.IsSelfMuted));
                 if (pairings == 0)
                 {
-                    Pairings.TryRemove(from, out _);
-                    if(thing.TextChannel != null)
-                    { 
-                        await thing.TextChannel.ModifyAsync(x =>
-                        {
-                            x.CategoryId = to.CategoryId;
-                            x.Position = 999;
-                            x.Topic = $"Channel paired to <#{to.Id}>";
-                            x.Name = "pair-" + to.Name;
-                        });
-                        await thing.UpdateChannel.SendMessageAsync($"Channel is now paired to <#{to.Id}> as user moved.");
-                        Pairings.TryRemove(from, out _);
-                        Pairings[to] = thing;
-                    }
+                    Threads.TryRemove(from, out _);
+                    await thread.ModifyAsync(x =>
+                    {
+                        x.Name = $"Paired with {to.Name}";
+                    });
+                    await thread.SendMessageAsync($"Channel is now paired to <#{to.Id}> as the last user moved.");
+                    Threads[to] = thread;
                     OnSave();
                     return;
                 }
@@ -197,11 +201,11 @@ namespace DiscordBot.Services
         {
             var shouldSave = false;
             var toRemove = new List<SocketVoiceChannel>();
-            foreach (var keypair in Pairings)
+            foreach (var keypair in Threads)
             {
                 var voice = keypair.Key;
-                var save = keypair.Value;
-                if(save.TextChannel == null)
+                var thread = keypair.Value;
+                if(thread == null)
                 {
                     toRemove.Add(voice);
                     continue;
@@ -220,11 +224,18 @@ namespace DiscordBot.Services
                 if(!persist)
                 {
                     toRemove.Add(voice);
-                    await save.TextChannel.DeleteAsync(new RequestOptions() { AuditLogReason = $"Paired to vc; no users to permit existance" });
+                    if(thread.Archived == false)
+                    {
+                        await thread.ModifyAsync(x =>
+                        {
+                            x.Archived = true;
+                            x.Locked = false;
+                        }, new RequestOptions() { AuditLogReason = $"Paired to vc; no users to permit existance" });
+                    }
                 }
             }
             foreach (var vc in toRemove)
-                Pairings.TryRemove(vc, out _);
+                Threads.TryRemove(vc, out _);
 
             shouldSave = toRemove.Count > 0;
 #if !DEBUG
@@ -243,7 +254,7 @@ namespace DiscordBot.Services
             var doneAny = false;
             foreach(var vc in guild.VoiceChannels)
             {
-                if (Pairings.TryGetValue(vc, out _))
+                if (Threads.TryGetValue(vc, out _))
                     continue;
                 var createdDueTo = vc.Users.FirstOrDefault(x => hasEnabledPairing(x, x.IsSelfMuted));
                 if (createdDueTo == null)
@@ -259,13 +270,8 @@ namespace DiscordBot.Services
 
         public class syncSave
         {
-            [JsonProperty("channel")]
-            public ITextChannel TextChannel { get; set; }
-            [JsonProperty("thread", NullValueHandling = NullValueHandling.Ignore)]
-            public IThreadChannel Thread { get; set; }
-
-            [JsonIgnore]
-            public IMessageChannel UpdateChannel => (IMessageChannel)Thread ?? TextChannel;
+            public Dictionary<ulong, IThreadChannel> threads;
+            public Dictionary<ulong, ITextChannel> texts;
         }
     }
 }

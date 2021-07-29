@@ -50,16 +50,11 @@ namespace DiscordBot.Services
 
         public override void OnReady()
         {
+            EnsureConfiguration("tokens:smmry");
             var sv = Program.Deserialise<save>(ReadSave());
             Ratelimit = sv.ratelimit ?? new SmmyRatelimit();
             Channels = new ConcurrentDictionary<ulong, ChannelConfig>(sv.channels ?? new Dictionary<ulong, ChannelConfig>());
             Program.Client.MessageReceived += Client_MessageReceived;
-        }
-
-        string getProgressBar(int done)
-        {
-            var blocks = (int)((done / 100d) * 20);
-            return "[" + new string('█', blocks) + new string('░', 20 - blocks) + "]";
         }
 
         async Task<string> getTitle(Uri uri)
@@ -122,53 +117,82 @@ namespace DiscordBot.Services
             public int? ErrorCode { get; set; }
         }
 
-        async Task handle(ITextChannel text, SocketMessage msg, Uri uri, bool summarize)
+        async Task summarizeLink(IThreadChannel thread, Uri uri, MessageReference messageRef)
         {
-            var title = await getTitle(uri);
-            title = Program.Clamp(title, 100);
-            var thread = await text.CreateThread(msg.Id, x =>
+            if (Ratelimit.IsDayLimited)
             {
-                x.Name = title;
-                x.AutoArchiveDuration = 1440; // one day
-            });
-            if(summarize)
+                await thread.SendMessageAsync($"Could not summarize this article - I have hit the maximum 100 requests for the day.",
+                    messageReference: messageRef);
+                return;
+            }
+            if (Ratelimit.IsTimeLimited)
             {
-                if(Ratelimit.IsDayLimited)
-                {
-                    await thread.SendMessageAsync($"Could not summarize this article - I have hit the maximum 100 requests for the day.");
-                    return;
-                }
-                if(Ratelimit.IsTimeLimited)
-                {
-                    var ts = DateTime.Now - Ratelimit.LastSent;
-                    Info("Pre-emptive ratelimit invoked; " + ts.Milliseconds + "ms");
-                    if (ts.TotalMilliseconds > 1) // don't want it to wait forever
-                        await Task.Delay(ts);
-                }
-                var resp = await getSummary(uri);
-                if(!resp.ErrorCode.HasValue)
-                {
-                    var summary = resp.Content.Replace("[BREAK]", "\r\n>");
-                    if (summary.EndsWith(">"))
-                        summary = summary.Substring(0, summary.Length - 1);
+                var ts = DateTime.Now - Ratelimit.LastSent;
+                Info("Pre-emptive ratelimit invoked; " + ts.Milliseconds + "ms");
+                if (ts.TotalMilliseconds > 1) // don't want it to wait forever
+                    await Task.Delay(ts);
+            }
+            var resp = await getSummary(uri);
+            if (!resp.ErrorCode.HasValue)
+            {
+                var summary = resp.Content.Replace("[BREAK]", "\r\n>");
+                if (summary.EndsWith(">"))
+                    summary = summary.Substring(0, summary.Length - 1);
 
-                    summary = $"> {summary} Reduced by {resp.ReducedPercentage}";
-                    if (summary.Length > 2000)
-                    {
-                        summary = summary.Replace(">", "");
-                        await thread.SendMessageAsync(embed: new EmbedBuilder()
-                            .WithDescription(summary).Build());
-                    } else
-                    {
-                        await thread.SendMessageAsync(summary);
-                    }
+                summary = $"> {summary} Reduced by {resp.ReducedPercentage}";
+                if (summary.Length > 2000)
+                {
+                    summary = summary.Replace(">", "");
+                    await thread.SendMessageAsync(messageReference: messageRef,
+                        embed: new EmbedBuilder()
+                        .WithDescription(summary).Build());
+                }
+                else
+                {
+                    await thread.SendMessageAsync(summary, messageReference: messageRef);
                 }
             }
         }
 
+        async Task handle(ISocketMessageChannel channel, SocketMessage msg, Uri uri, bool summarize)
+        {
+            IThreadChannel thread;
+            MessageReference msgRef;
+            if(channel is ITextChannel text)
+            {
+                var title = await getTitle(uri);
+                title = Program.Clamp(title, 100);
+                thread = await text.CreateThread(msg.Id, x =>
+                {
+                    x.Name = title;
+                    x.AutoArchiveDuration = 1440; // one day
+                });
+                msgRef = null;
+            } else
+            {
+                thread = channel as IThreadChannel; // they're already in a thread, so we can only summarize.
+                // so we'll reply the message instead.
+                msgRef = new MessageReference(msg.Id);
+            }
+            if (summarize)
+                await summarizeLink(thread, uri, msgRef);
+        }
+
         private async Task Client_MessageReceived(Discord.WebSocket.SocketMessage arg)
         {
-            if (!(arg.Channel is ITextChannel text && Channels.TryGetValue(text.Id, out var setting)))
+            if(!(arg.Channel is ITextChannel text))
+            {
+                if(arg.Channel is IThreadChannel thread)
+                {
+                    text = Program.Client.GetChannel(thread.ChannelId) as ITextChannel;
+                } else
+                {
+                    text = null;
+                }
+            }
+            if (text == null)
+                return;
+            if (!Channels.TryGetValue(text.Id, out var setting))
                 return;
             if (!Uri.TryCreate(arg.Content.Trim(), UriKind.Absolute, out var uri))
                 return;
@@ -177,13 +201,13 @@ namespace DiscordBot.Services
             {
                 try
                 {
-                    await handle(text, arg, uri, setting == ChannelConfig.Summary);
+                    await handle(arg.Channel, arg, uri, setting == ChannelConfig.Summary);
                 } catch(Exception e)
                 {
                     Error(e);
                 }
             });
-            x.Start();
+            //x.Start();
 
             
         }

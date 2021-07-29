@@ -10,11 +10,18 @@ namespace DiscordBot.Services
 {
     public class JackettService : Service
     {
+        const string urls_jackett = "urls:jackett";
+        const string tokens_jackett = "tokens:jackett";
         string getUrl(string site, string categories, string query)
         {
-            var baseUrl = Program.Configuration["urls:jackett"];
-            var apikey = Program.Configuration["tokens:jackett"];
+            var baseUrl = Program.Configuration[urls_jackett];
+            var apikey = Program.Configuration[tokens_jackett];
             return baseUrl + $"api/v2.0/indexers/{site}/results/torznab/api?apikey={apikey}&t=search&cat={categories}&q={query}";
+        }
+        public override void OnReady()
+        {
+            EnsureConfiguration(urls_jackett);
+            EnsureConfiguration(tokens_jackett);
         }
 
         public async Task<FeedItem[]> SearchAsync(string site, string text, TorrentCategory[] categories)

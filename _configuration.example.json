@@ -63,6 +63,7 @@
       "secret": "<string>",
       "un": "<string>"
     },
+    "smmry": "<string>",
     "sonarr": "<string>",
     "tgc-github": "<string>",
     "youtubeApi": "<string>"

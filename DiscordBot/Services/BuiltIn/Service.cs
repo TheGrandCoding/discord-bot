@@ -35,8 +35,6 @@ namespace DiscordBot.Services
         public virtual int DefaultTimeout => 10_000;
         public virtual int CloseTimeout => DefaultTimeout / 2;
 
-
-
         public static DateTime? lastDailyTick = null;
 
         public virtual void OnReady() { }
@@ -280,6 +278,14 @@ namespace DiscordBot.Services
         protected void Error(Exception ex, string source = null) => Program.LogError(ex, Name + (source == null ? "" : ":" + source));
         protected void Error(string exMessage, string source = null) => Program.LogError(exMessage, Name + (source == null ? "" : ":" + source));
         protected void Debug(string message, string source = null) => Program.LogDebug(message, Name + (source == null ? "" : ":" + source));
+
+        protected void EnsureConfiguration(string configKey)
+        {
+            if(string.IsNullOrWhiteSpace(Program.Configuration[configKey]))
+            {
+                throw new Exception($"Missing configuration value '{configKey}'");
+            }
+        }
 
         static Type[] getReliedOnServices(Service x)
         {
