@@ -27,6 +27,7 @@ namespace DiscordBot.Services
         {
             return API_URL +
                 "?SM_API_KEY=" + Program.Configuration["tokens:smmry"] +
+                "&SM_KEYWORD_COUNT=3" + 
                 "&SM_WITH_BREAK=" +
                 // URL MUST BE LAST
                 "&SM_URL=" + Uri.EscapeDataString(newsUrl);
