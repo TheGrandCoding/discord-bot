@@ -26,7 +26,7 @@ namespace DiscordBot.Services
         /// </summary>
         public virtual bool IsCritical => false;
         public virtual bool IsEnabled => true;
-        
+
         public virtual int Priority => 0;
 
         public ServiceState State { get; private set; }
@@ -51,7 +51,7 @@ namespace DiscordBot.Services
         public static IReadOnlyCollection<TInterface> GetServices<TInterface>()
         {
             var ls = new List<TInterface>();
-            foreach(var sv in zza_services)
+            foreach (var sv in zza_services)
             {
                 if (sv is TInterface ti)
                     ls.Add(ti);
@@ -59,7 +59,7 @@ namespace DiscordBot.Services
             return ls.ToImmutableArray();
         }
 
-        public static ServiceState GlobalState {  get
+        public static ServiceState GlobalState { get
             {
                 if (doneFunctions.ContainsKey(ServiceState.Close))
                     return ServiceState.Close;
@@ -76,7 +76,7 @@ namespace DiscordBot.Services
             embed.Title = $"{failed.Name} {fName} Error";
             var errorText = ex?.ToString() ?? "null";
             embed.Color = failed.IsCritical ? Color.Red : Color.Orange;
-            if(errorText.Length > 2000)
+            if (errorText.Length > 4000)
             {
                 // send as file.
                 var path = Path.Combine(Path.GetTempPath(), "exception.txt");
@@ -125,7 +125,7 @@ namespace DiscordBot.Services
                 {
                     if (srv.HasFailed)
                         continue;
-                    if(!srv.IsEnabled)
+                    if (!srv.IsEnabled)
                     {
                         srv.State = ServiceState.Disabled;
                         continue;
@@ -159,7 +159,7 @@ namespace DiscordBot.Services
                             bool completed = task.Wait(timeout);
                             stop.Stop();
                             //source.Cancel(false);
-                            if(completed)
+                            if (completed)
                             {
                                 Program.LogVerbose($"Finished {name} in {stop.ElapsedMilliseconds}ms", srv.Name);
                             } else
@@ -198,14 +198,14 @@ namespace DiscordBot.Services
             zza_services.AddRange(_servs);
 
             var serviceBaseType = typeof(Service);
-            foreach(var service in zza_services)
+            foreach (var service in zza_services)
             {
                 var type = service.GetType();
                 var properties = type.GetProperties().Where(x => serviceBaseType.IsAssignableFrom(x.PropertyType));
-                foreach(var property in properties)
+                foreach (var property in properties)
                 {
                     var value = zza_services.First(x => x.GetType().FullName == property.PropertyType.FullName);
-                    if(property.CanWrite)
+                    if (property.CanWrite)
                     {
                         Console.WriteLine($"Injecting {property.Name} with {property.PropertyType.Name} for {service.Name}");
                         property.SetValue(service, value);
@@ -217,7 +217,7 @@ namespace DiscordBot.Services
 
             sendFunction(ServiceState.Ready);
         }
-    
+
         public static void SendLoad()
         {
             sendFunction(ServiceState.Loaded);
@@ -267,7 +267,7 @@ namespace DiscordBot.Services
                     Task.Delay(miliseconds, token).Wait(token);
                     SendDailyTick();
                 } while (!token.IsCancellationRequested);
-            } catch(OperationCanceledException)
+            } catch (OperationCanceledException)
             {
                 Program.LogWarning("DailyTick thread cancalled, exiting.", "DailyTick");
             }
@@ -277,6 +277,11 @@ namespace DiscordBot.Services
         protected void Warning(string message, string source = null) => Program.LogWarning(message, Name + (source == null ? "" : ":" + source));
         protected void Error(Exception ex, string source = null) => Program.LogError(ex, Name + (source == null ? "" : ":" + source));
         protected void Error(string exMessage, string source = null) => Program.LogError(exMessage, Name + (source == null ? "" : ":" + source));
+        protected void ErrorToOwner(Exception ex, string source = null)
+        {
+            Error(ex, source);
+            MarkFailed(this, source ?? "Log", ex);
+        }
         protected void Debug(string message, string source = null) => Program.LogDebug(message, Name + (source == null ? "" : ":" + source));
 
         protected void EnsureConfiguration(string configKey)

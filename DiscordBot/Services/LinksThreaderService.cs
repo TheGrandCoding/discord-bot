@@ -12,6 +12,7 @@ using System.Net;
 using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -20,7 +21,7 @@ namespace DiscordBot.Services
     public class LinksThreaderService : SavedService
     {
         public SmmyRatelimit Ratelimit { get; set; } = new SmmyRatelimit();
-        public ConcurrentDictionary<ulong, ChannelConfig> Channels { get; set; } = new ConcurrentDictionary<ulong, ChannelConfig>();
+        public ConcurrentDictionary<ulong, ChannelConfiguration> Channels { get; set; } = new ConcurrentDictionary<ulong, ChannelConfiguration>();
 
         public const string API_URL = @"https://api.smmry.com";
 
@@ -37,7 +38,15 @@ namespace DiscordBot.Services
         class save
         {
             public SmmyRatelimit ratelimit;
-            public Dictionary<ulong, ChannelConfig> channels;
+            public Dictionary<ulong, ChannelConfiguration> channels;
+        }
+        public class ChannelConfiguration
+        {
+            public ChannelFlags Flags { get; set; } = ChannelFlags.Summary;
+            public List<string> Blacklist { get; set; } = new List<string>();
+
+            [JsonIgnore]
+            public SemaphoreSlim Lock { get; set; } = new SemaphoreSlim(1, 1);
         }
         public override string GenerateSave()
         {
@@ -45,7 +54,7 @@ namespace DiscordBot.Services
             var sv = new save()
             {
                 ratelimit = Ratelimit,
-                channels = new Dictionary<ulong, ChannelConfig>(c.ToArray())
+                channels = new Dictionary<ulong, ChannelConfiguration>(c.ToArray())
             };
             return Program.Serialise(sv);
         }
@@ -53,9 +62,18 @@ namespace DiscordBot.Services
         public override void OnReady()
         {
             EnsureConfiguration("tokens:smmry");
-            var sv = Program.Deserialise<save>(ReadSave());
+            save sv;
+            try
+            {
+                sv = Program.Deserialise<save>(ReadSave());
+            }
+            catch (JsonSerializationException e)
+            {
+                ErrorToOwner(e, "Deserialise");
+                sv = new save();
+            }
             Ratelimit = sv.ratelimit ?? new SmmyRatelimit();
-            Channels = new ConcurrentDictionary<ulong, ChannelConfig>(sv.channels ?? new Dictionary<ulong, ChannelConfig>());
+            Channels = new ConcurrentDictionary<ulong, ChannelConfiguration>(sv.channels ?? new Dictionary<ulong, ChannelConfiguration>());
             Program.Client.MessageReceived += Client_MessageReceived;
         }
 
@@ -119,11 +137,11 @@ namespace DiscordBot.Services
             public int? ErrorCode { get; set; }
         }
 
-        async Task summarizeLink(IThreadChannel thread, Uri uri, MessageReference messageRef)
+        async Task summarizeLink(ISocketMessageChannel channel, Uri uri, MessageReference messageRef)
         {
             if (Ratelimit.IsDayLimited)
             {
-                await thread.SendMessageAsync($"Could not summarize this article - I have hit the maximum 100 requests for the day.",
+                await channel.SendMessageAsync($"Could not summarize this article - I have hit the maximum 100 requests for the day.",
                     messageReference: messageRef);
                 return;
             }
@@ -149,33 +167,66 @@ namespace DiscordBot.Services
                         string.Join(" ", (resp.Keywords ?? new string[] { })
                         .Select(x => x.ToLower())));
 
-                await thread.SendMessageAsync(messageReference: messageRef,
+                await channel.SendMessageAsync(messageReference: messageRef,
                     embed: embed.Build());
             }
         }
 
-        async Task handle(ISocketMessageChannel channel, SocketMessage msg, Uri uri, bool summarize)
+        async Task handle(ISocketMessageChannel channel, SocketMessage msg, Uri uri, ChannelConfiguration save)
         {
-            IThreadChannel thread;
-            MessageReference msgRef;
-            if(channel is ITextChannel text)
+            // now we see if it is blacklisted.
+            foreach (var blacklist in save.Blacklist)
             {
-                var title = await getTitle(uri);
-                title = Program.Clamp(title, 100);
-                thread = await text.CreateThread(msg.Id, x =>
+                if (blacklist.StartsWith("/"))
+                { // regex
+                    if (Regex.IsMatch(uri.ToString(), blacklist[1..]))
+                    {
+                        Info($"Url {uri} meets regex blacklist {blacklist}");
+                        return;
+                    }
+                }
+                else
                 {
-                    x.Name = title;
-                    x.AutoArchiveDuration = 1440; // one day
-                });
-                msgRef = null;
+                    if (uri.Host == blacklist)
+                    {
+                        Info($"Url {uri} meets domain blacklist {blacklist}");
+                        return;
+                    }
+                }
+            }
+            MessageReference msgRef;
+            ISocketMessageChannel summarychannel;
+            if(save.Flags.HasFlag(ChannelFlags.Thread))
+            {
+                IThreadChannel thread;
+                if (channel is ITextChannel text)
+                {
+                    var title = await getTitle(uri);
+                    title = Program.Clamp(title, 100);
+                    thread = await text.CreateThread(msg.Id, x =>
+                    {
+                        x.Name = title;
+                        x.AutoArchiveDuration = 1440; // one day
+                    });
+                    msgRef = null;
+                }
+                else
+                {
+                    thread = channel as IThreadChannel; // they're already in a thread, so we can only summarize.
+                                                        // so we'll reply the message instead.
+                    msgRef = new MessageReference(msg.Id);
+                }
+                summarychannel = thread as ISocketMessageChannel;
             } else
             {
-                thread = channel as IThreadChannel; // they're already in a thread, so we can only summarize.
-                // so we'll reply the message instead.
+                summarychannel = channel;
                 msgRef = new MessageReference(msg.Id);
             }
-            if (summarize)
-                await summarizeLink(thread, uri, msgRef);
+            
+            if (save.Flags.HasFlag(ChannelFlags.Summary))
+            {
+                await summarizeLink(summarychannel, uri, msgRef);
+            }
         }
 
         private async Task Client_MessageReceived(Discord.WebSocket.SocketMessage arg)
@@ -192,33 +243,37 @@ namespace DiscordBot.Services
             }
             if (text == null)
                 return;
-            if (!Channels.TryGetValue(text.Id, out var setting))
+            if (!Channels.TryGetValue(text.Id, out var save))
                 return;
             if (!Uri.TryCreate(arg.Content.Trim(), UriKind.Absolute, out var uri))
                 return;
 
-            var x = Task.Run(async () =>
+            var _ = Task.Run(async () =>
             {
                 try
                 {
-                    await handle(arg.Channel, arg, uri, setting == ChannelConfig.Summary);
+                    await save.Lock.WaitAsync(Program.GetToken());
+                    await handle(arg.Channel, arg, uri, save);
                 } catch(Exception e)
                 {
                     Error(e);
+                } finally
+                {
+                    save.Lock.Release();
                 }
             });
-            //x.Start();
 
             
         }
     }
 
     [Flags]
-    public enum ChannelConfig
+    public enum ChannelFlags
     {
         Disabled = 0,
         Thread = 0b01,
-        Summary = 0b10 | Thread
+        Summary = 0b10,
+        ThreadedSummary = Thread | Summary
     }
 
     public class SmmyRatelimit
