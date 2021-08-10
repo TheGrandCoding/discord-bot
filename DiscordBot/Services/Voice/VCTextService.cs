@@ -126,6 +126,11 @@ namespace DiscordBot.Services
 
                 OnSave();
             }
+            if(thread == null)
+            {
+                Warning($"Thread is null when handling {user.Username} joining {pairedChannel.Name}. Weird?");
+                return;
+            }
             await thread.AddMemberAsync(user.Id, null);
             if (!manage)
             {
