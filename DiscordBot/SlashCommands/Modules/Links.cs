@@ -33,7 +33,7 @@ namespace DiscordBot.SlashCommands.Modules
                 .AddOption("Delete", $"{(int)ChannelFlags.Delete}", "Deletes any messages without a valid link", @default: existing.HasFlag(ChannelFlags.Delete))
                 );
 
-            await Interaction.RespondAsync(component: components.Build());
+            await Interaction.RespondAsync(component: components.Build(), ephemeral: true);
             var msg = await Interaction.GetOriginalResponseAsync();
             CompService.Register(regId, msg, async e =>
             {
@@ -54,7 +54,7 @@ namespace DiscordBot.SlashCommands.Modules
                     Service.Channels[channel.Id] = sv;
                 }
                 sv.Flags = (ChannelFlags)value;
-            Service.OnSave();
+                Service.OnSave();
             }, doSave: false);
         }
 
