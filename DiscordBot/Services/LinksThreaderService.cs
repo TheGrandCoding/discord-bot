@@ -1,5 +1,6 @@
 ﻿using Discord;
 using Discord.WebSocket;
+using DiscordBot.Utils;
 using HtmlAgilityPack;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
@@ -172,41 +173,34 @@ namespace DiscordBot.Services
             }
         }
 
-        async Task handle(ISocketMessageChannel channel, SocketMessage msg, Uri uri, ChannelConfiguration save)
+        async Task handle(ISocketMessageChannel channel, SocketMessage msg, List<Uri> urls, ChannelConfiguration save)
         {
             // now we see if it is blacklisted.
-            foreach (var blacklist in save.Blacklist)
-            {
-                if (blacklist.StartsWith("/"))
-                { // regex
-                    if (Regex.IsMatch(uri.ToString(), blacklist[1..]))
-                    {
-                        Info($"Url {uri} meets regex blacklist {blacklist}");
-                        return;
-                    }
-                }
-                else
-                {
-                    if (uri.Host == blacklist)
-                    {
-                        Info($"Url {uri} meets domain blacklist {blacklist}");
-                        return;
-                    }
-                }
-            }
             MessageReference msgRef;
             ISocketMessageChannel summarychannel;
+            var firstUrl = urls.First();
             if(save.Flags.HasFlag(ChannelFlags.Thread))
             {
                 IThreadChannel thread;
                 if (channel is ITextChannel text)
                 {
-                    var title = await getTitle(uri);
-                    title = Program.Clamp(title, 100);
+                    var title = await getTitle(firstUrl);
+                    if(urls.Count > 1)
+                    {
+                        var etAl = "; et, al.";
+                        title = Program.Clamp(title, 100 - etAl.Length) + etAl;
+                    } else
+                    {
+                        title = Program.Clamp(title, 100);
+                    }
                     thread = await text.CreateThread(msg.Id, x =>
                     {
                         x.Name = title;
                         x.AutoArchiveDuration = 1440; // one day
+                    });
+                    await thread.ModifyAsync(x =>
+                    {
+                        x.SlowModeInterval = 0;
                     });
                     msgRef = null;
                 }
@@ -225,8 +219,41 @@ namespace DiscordBot.Services
             
             if (save.Flags.HasFlag(ChannelFlags.Summary))
             {
-                await summarizeLink(summarychannel, uri, msgRef);
+                foreach(var url in urls)
+                    await summarizeLink(summarychannel, url, msgRef);
             }
+        }
+
+
+        const string URL_REGEX = @"https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&\/=]*)";
+        Uri[] getUris(string content)
+        {
+            var matches = Regex.Matches(content, URL_REGEX);
+            return matches.Select(x => new Uri(x.Value)).ToArray();
+        }
+
+        bool isUrlBlacklisted(ChannelConfiguration save, Uri uri)
+        {
+            foreach (var blacklist in save.Blacklist)
+            {
+                if (blacklist.StartsWith("/"))
+                { // regex
+                    if (Regex.IsMatch(uri.ToString(), blacklist[1..]))
+                    {
+                        Info($"Url {uri} meets regex blacklist {blacklist}");
+                        return true;
+                    }
+                }
+                else
+                {
+                    if (uri.Host == blacklist)
+                    {
+                        Info($"Url {uri} meets domain blacklist {blacklist}");
+                        return true;
+                    }
+                }
+            }
+            return false;
         }
 
         private async Task Client_MessageReceived(Discord.WebSocket.SocketMessage arg)
@@ -245,15 +272,32 @@ namespace DiscordBot.Services
                 return;
             if (!Channels.TryGetValue(text.Id, out var save))
                 return;
-            if (!Uri.TryCreate(arg.Content.Trim(), UriKind.Absolute, out var uri))
-                return;
 
             var _ = Task.Run(async () =>
             {
                 try
                 {
                     await save.Lock.WaitAsync(Program.GetToken());
-                    await handle(arg.Channel, arg, uri, save);
+                    List<Uri> urls = new List<Uri>();
+                    foreach (var potential in getUris(arg.Content))
+                    {
+                        if (!isUrlBlacklisted(save, potential))
+                        {
+                            urls.Add(potential);
+                        }
+                    }
+
+                    if (urls.Count == 0)
+                    {
+                        if (save.Flags.HasFlag(ChannelFlags.Delete) && arg.Channel is ITextChannel) // don't delete messages in threads.
+                        {
+                            await arg.DeleteAndTrackAsync("Channel configuration: no valid links.");
+                            await arg.Author.SendMessageAsync($"Your message to {text.Mention} has been deleted as it did not meet channel requirements.\r\n" +
+                                $"Please check the rules and try again.");
+                        }
+                        return;
+                    }
+                    await handle(arg.Channel, arg, urls, save);
                 } catch(Exception e)
                 {
                     Error(e);
@@ -270,10 +314,10 @@ namespace DiscordBot.Services
     [Flags]
     public enum ChannelFlags
     {
-        Disabled = 0,
-        Thread = 0b01,
-        Summary = 0b10,
-        ThreadedSummary = Thread | Summary
+        Disabled    = 0b00_00,
+        Thread      = 0b00_01,
+        Summary     = 0b00_10,
+        Delete      = 0b01_00
     }
 
     public class SmmyRatelimit

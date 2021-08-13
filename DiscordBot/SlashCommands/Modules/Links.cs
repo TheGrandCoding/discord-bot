@@ -4,6 +4,7 @@ using Discord.WebSocket;
 using DiscordBot.Services;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -14,28 +15,47 @@ namespace DiscordBot.SlashCommands.Modules
     public class Links : BotSlashBase
     {
         public LinksThreaderService Service { get; set; }
-        [SlashCommand("set", "Adds or configures auto-thread for news links, and summary")]
-        public async Task SetChannel([Required]SocketGuildChannel textchannel, 
-            [Required]
-            [Choice("Thread only, will create a thread on link", (int)ChannelFlags.Thread)]
-            [Choice("Summarize only, will reply to message", (int)ChannelFlags.Summary)]
-            [Choice("Thread *and* Summarize", (int)ChannelFlags.ThreadedSummary)]
-            [Choice("None - this will remove config for this channel", (int)ChannelFlags.Disabled)]
-            int flags)
+        public MessageComponentService CompService { get; set; }
+        [SlashCommand("set", "Adds or configures auto-thread, summary and deletion for news links")]
+        public async Task SetChannel(SocketGuildChannel otherchannel = null)
         {
-            if(flags == 0)
+            var channel = otherchannel ?? (Interaction.Channel as SocketGuildChannel);
+            var regId = Interaction.User.Id.ToString() + "setChannel";
+            var components = new ComponentBuilder();
+            ChannelFlags existing = ChannelFlags.Disabled;
+            if (Service.Channels.TryGetValue(channel.Id, out var sv))
+                existing = sv.Flags;
+            components.WithSelectMenu(new SelectMenuBuilder()
+                .WithCustomId(regId)
+                .AddOption("None", "0", "If only this is set, remove the channel config", @default: existing == ChannelFlags.Disabled)
+                .AddOption("Summarize", $"{(int)ChannelFlags.Summary}", "Attempts to summarize the link; responds in thread or as reply", @default: existing.HasFlag(ChannelFlags.Summary))
+                .AddOption("Thread", $"{(int)ChannelFlags.Thread}", "Creates a thread for the link, name as link title", @default: existing.HasFlag(ChannelFlags.Thread))
+                .AddOption("Delete", $"{(int)ChannelFlags.Delete}", "Deletes any messages without a valid link", @default: existing.HasFlag(ChannelFlags.Delete))
+                );
+
+            await Interaction.RespondAsync(component: components.Build());
+            var msg = await Interaction.GetOriginalResponseAsync();
+            CompService.Register(regId, msg, async e =>
             {
-                await RemoveChannel(textchannel);
-                return;
-            }
-            if(!Service.Channels.TryGetValue(textchannel.Id, out var sv))
-            {
-                sv = new LinksThreaderService.ChannelConfiguration();
-                Service.Channels[textchannel.Id] = sv;
-            }
-            sv.Flags = (ChannelFlags)flags;
-            await Interaction.RespondAsync($"Done!", embeds: null, ephemeral: true);
+                CompService.Unregister(regId);
+                await Interaction.ModifyOriginalResponseAsync(x =>
+                {
+                    x.Content = $"Handled.";
+                });
+                var value = int.Parse(e.Interaction.Data.Values.First());
+                if(value == 0)
+                {
+                    await RemoveChannel(channel);
+                    return;
+                }
+                if(!Service.Channels.TryGetValue(channel.Id, out var sv))
+                {
+                    sv = new LinksThreaderService.ChannelConfiguration();
+                    Service.Channels[channel.Id] = sv;
+                }
+                sv.Flags = (ChannelFlags)value;
             Service.OnSave();
+            }, doSave: false);
         }
 
         [SlashCommand("remove")]
