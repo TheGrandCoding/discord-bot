@@ -17,7 +17,8 @@ namespace DiscordBot.MLAPI.Modules.Guild
         {
         }
 
-        [Method("GET"), Path(@"/server/(?<guildId>[0-9]{17,18})/rules")]
+        [Method("GET"), Path(@"/server/{guildId}/rules")]
+        [Regex("guildId", @"[0-9]{17,18}")]
         public void Rules(ulong guildId)
         {
             SocketGuild guild = Program.Client.GetGuild(guildId);
@@ -101,7 +102,8 @@ namespace DiscordBot.MLAPI.Modules.Guild
                 .Add("table", table));
         }
 
-        [Method("POST"), Path(@"/server/(?<guildId>[0-9]{17,18})/rules")]
+        [Method("POST"), Path(@"/server/{guildId}/rules")]
+        [Regex("guildId", @"[0-9]{17,18}")]
         public void SetRules(ulong guildId)
         {
             SocketGuild guild = Program.Client.GetGuild(guildId);

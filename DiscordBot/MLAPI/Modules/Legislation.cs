@@ -19,8 +19,8 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("GET")]
-        [Path("/laws/{name}")]
-        [Regex(".", @"\/laws\/(?<path>[a-z0-9-\/]+)")]
+        [Path("/laws/{path}")]
+        [Regex("path", @"[a-z0-9-\/]+")]
         public void SeeLaw(string path, bool raw = false)
         {
             if(!Service.Laws.TryGetValue(path, out var act))

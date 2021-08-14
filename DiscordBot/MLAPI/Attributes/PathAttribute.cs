@@ -23,6 +23,11 @@ namespace DiscordBot.MLAPI
                 path = "/" + path;
             if (path.EndsWith("/") && path != "/")
                 Program.LogWarning($"Path invalid: '{path}'", "API");
+            if(path.Contains("(?<"))
+            {
+                Program.LogWarning($"Path invalid '{path}'. Should use RegexAttribute instead.", "API");
+            }
+
             Text = path;
         }
     }
