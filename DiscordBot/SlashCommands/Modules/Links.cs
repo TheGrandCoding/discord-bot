@@ -16,36 +16,46 @@ namespace DiscordBot.SlashCommands.Modules
     {
         public LinksThreaderService Service { get; set; }
         public MessageComponentService CompService { get; set; }
+
         [SlashCommand("set", "Adds or configures auto-thread, summary and deletion for news links")]
         public async Task SetChannel(SocketGuildChannel otherchannel = null)
         {
             var channel = otherchannel ?? (Interaction.Channel as SocketGuildChannel);
             var regId = Interaction.User.Id.ToString() + "setChannel";
-            var components = new ComponentBuilder();
-            ChannelFlags existing = ChannelFlags.Disabled;
-            if (Service.Channels.TryGetValue(channel.Id, out var sv))
-                existing = sv.Flags;
-            components.WithSelectMenu(new SelectMenuBuilder()
-                .WithCustomId(regId)
-                .AddOption("None", "0", "If only this is set, remove the channel config", @default: existing == ChannelFlags.Disabled)
-                .AddOption("Summarize", $"{(int)ChannelFlags.Summary}", "Attempts to summarize the link; responds in thread or as reply", @default: existing.HasFlag(ChannelFlags.Summary))
-                .AddOption("Thread", $"{(int)ChannelFlags.Thread}", "Creates a thread for the link, name as link title", @default: existing.HasFlag(ChannelFlags.Thread))
-                .AddOption("Delete", $"{(int)ChannelFlags.Delete}", "Deletes any messages without a valid link", @default: existing.HasFlag(ChannelFlags.Delete))
-                );
 
-            await Interaction.RespondAsync(component: components.Build(), ephemeral: true);
-            var msg = await Interaction.GetOriginalResponseAsync();
-            CompService.Register(regId, msg, async e =>
+            ComponentBuilder getBuilder()
             {
-                CompService.Unregister(regId);
-                await Interaction.ModifyOriginalResponseAsync(x =>
-                {
-                    x.Content = $"Handled.";
-                });
-                var value = int.Parse(e.Interaction.Data.Values.First());
+                ChannelFlags existing = ChannelFlags.Disabled;
+                if (Service.Channels.TryGetValue(channel.Id, out var sv))
+                    existing = sv.Flags;
+                return new ComponentBuilder()
+                    .WithSelectMenu(new SelectMenuBuilder()
+                        .WithCustomId(regId)
+                        .AddOption("None", "0", "If only this is set, remove the channel config", @default: existing == ChannelFlags.Disabled)
+                        .AddOption("Summarize", $"{(int)ChannelFlags.Summary}", "Summarize the link; responds in thread or as reply", @default: existing.HasFlag(ChannelFlags.Summary))
+                        .AddOption("Thread", $"{(int)ChannelFlags.Thread}", "Creates a thread for the link, name as link title", @default: existing.HasFlag(ChannelFlags.Thread))
+                        .AddOption("Delete", $"{(int)ChannelFlags.Delete}", "Deletes any messages without a valid link", @default: existing.HasFlag(ChannelFlags.Delete))
+                        .WithMinValues(1).WithMaxValues(3)
+                    );
+            }
+
+            
+
+            await Interaction.RespondAsync($"Please configure options for {MentionUtils.MentionChannel(channel.Id)} accordingly.", component: getBuilder().Build(), ephemeral: true);
+            CompService.Register(regId, null, async e =>
+            {
+                await e.Interaction.DeferAsync();
+                
+                int value = 0;
+                foreach(var str in e.Interaction.Data.Values)
+                    value |= int.Parse(str);
                 if(value == 0)
                 {
-                    await RemoveChannel(channel);
+                    Service.Channels.TryRemove(channel.Id, out _);
+                    await e.Interaction.ModifyOriginalResponseAsync(x =>
+                    {
+                        x.Content = "Removed!";
+                    });
                     return;
                 }
                 if(!Service.Channels.TryGetValue(channel.Id, out var sv))
@@ -54,6 +64,13 @@ namespace DiscordBot.SlashCommands.Modules
                     Service.Channels[channel.Id] = sv;
                 }
                 sv.Flags = (ChannelFlags)value;
+
+                await e.Interaction.ModifyOriginalResponseAsync(x =>
+                {
+                    x.Content = $"Set!";
+                    x.Components = getBuilder().Build();
+                });
+
                 Service.OnSave();
             }, doSave: false);
         }

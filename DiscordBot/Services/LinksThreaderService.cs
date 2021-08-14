@@ -138,7 +138,7 @@ namespace DiscordBot.Services
             public int? ErrorCode { get; set; }
         }
 
-        async Task summarizeLink(ISocketMessageChannel channel, Uri uri, MessageReference messageRef)
+        async Task summarizeLink(IMessageChannel channel, Uri uri, MessageReference messageRef)
         {
             if (Ratelimit.IsDayLimited)
             {
@@ -177,7 +177,7 @@ namespace DiscordBot.Services
         {
             // now we see if it is blacklisted.
             MessageReference msgRef;
-            ISocketMessageChannel summarychannel;
+            IMessageChannel summarychannel;
             var firstUrl = urls.First();
             if(save.Flags.HasFlag(ChannelFlags.Thread))
             {
@@ -210,7 +210,7 @@ namespace DiscordBot.Services
                                                         // so we'll reply the message instead.
                     msgRef = new MessageReference(msg.Id);
                 }
-                summarychannel = thread as ISocketMessageChannel;
+                summarychannel = thread as IMessageChannel;
             } else
             {
                 summarychannel = channel;
@@ -258,6 +258,8 @@ namespace DiscordBot.Services
 
         private async Task Client_MessageReceived(Discord.WebSocket.SocketMessage arg)
         {
+            if (arg.Author.IsBot)
+                return;
             if(!(arg.Channel is ITextChannel text))
             {
                 if(arg.Channel is IThreadChannel thread)

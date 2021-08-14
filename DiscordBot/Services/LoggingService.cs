@@ -285,6 +285,8 @@ namespace DiscordBot.Services
             var message = await SendLog(txt.Guild, "messages", builder, arg1.Id);
             if (isDirty)
                 OnSave();
+            if (dbMsg == null)
+                return;
             var data = new messageData()
             {
                 deleted = dbMsg,

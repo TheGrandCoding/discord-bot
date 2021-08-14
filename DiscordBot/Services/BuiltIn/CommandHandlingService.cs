@@ -1,6 +1,8 @@
 ﻿using Discord;
 using Discord.Commands;
+using Discord.SlashCommands;
 using Discord.WebSocket;
+using DiscordBot.Classes;
 using DiscordBot.Commands;
 using DiscordBot.Commands.Attributes;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,26 +19,94 @@ namespace DiscordBot.Services
     public class CommandHandlingService
     {
         private readonly CommandService _commands;
+        private readonly SlashCommandService _slashCommands;
         private readonly DiscordSocketClient _discord;
         private readonly IServiceProvider _services;
 
         public CommandHandlingService(IServiceProvider services)
         {
             _commands = services.GetRequiredService<CommandService>();
+            _slashCommands = services.GetRequiredService<SlashCommandService>();
             _discord = services.GetRequiredService<DiscordSocketClient>();
             _services = services;
 
             // Hook CommandExecuted to handle post-command-execution logic.
             _commands.CommandExecuted += CommandExecutedAsync;
+            _slashCommands.CommandExecuted += SlashCommandExecutedAsync;
             // Hook MessageReceived so we can process each message to see
             // if it qualifies as a command.
             _discord.MessageReceived += MessageReceivedAsync;
+            _discord.Ready += _discord_Ready;
+        }
+
+        private async Task _discord_Ready()
+        {
+#if DEBUG
+            var guildIds = new List<ulong>() { 420240046428258304 };
+#else
+            var guildIds = Client.Guilds.Select(x => x.Id).ToList();
+#endif
+            try
+            {
+                await _slashCommands.RegisterCommandsAsync(Program.Client, guildIds, new CommandRegistrationOptions(OldCommandOptions.DELETE_UNUSED, ExistingCommandOptions.OVERWRITE));
+            }
+            catch (Discord.Net.HttpException http)
+            {
+                Program.LogError(http, "RegisterCommands");
+                Program.LogError($"Request: {http.Request.ToString()}", "RegisterCommands");
+                Program.LogError($"Response: {http.Error.ToString()}", "RegisterCommands");
+                Program.Close(1);
+            }
+            Program.Client.InteractionCreated += executeInteraction;
         }
 
         public async Task InitializeAsync()
         {
             // Register modules that are public and inherit ModuleBase<T>.
             await _commands.AddModulesAsync(Assembly.GetEntryAssembly(), _services);
+        }
+
+        async Task executeInteraction(SocketInteraction x)
+        {
+            if (Program.ignoringCommands)
+                return;
+            var components = Program.Services.GetRequiredService<MessageComponentService>();
+            try
+            {
+                IResult result;
+                if (x.Type == InteractionType.ApplicationCommand)
+                {
+                    result = await _slashCommands.ExecuteAsync(x as SocketSlashCommand, Program.Services).ConfigureAwait(false);
+                }
+                else if (x.Type == InteractionType.MessageComponent)
+                {
+                    Program.LogDebug($"Executing message componenet {x.Id}", "Interactions");
+                    result = await components.ExecuteAsync(x as SocketMessageComponent).ConfigureAwait(false);
+                    Program.LogInfo($"Executed interaction {x.Id}: {result.IsSuccess} {result.Error} {result.ErrorReason}", "Interactions");
+                }
+                else
+                {
+                    Program.LogInfo($"Unknown interaction type: {x.Type} {(int)x.Type}", "Interactions");
+                    result = MiscResult.FromError("Unknown interaction type");
+                }
+                if (!result.IsSuccess)
+                {
+                    if (result is ExecuteResult exec && exec.Exception != null)
+                    {
+                        Program.LogError(exec.Exception, "InteractionInvoke");
+                        try
+                        {
+                            await x.RespondAsync(":x: Internal exception occured whilst handling this interaction: " + exec.Exception.Message,
+                                ephemeral: true);
+                        }
+                        catch { }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Program.LogError($"{x.Id} {x.User?.Id ?? 0} {ex}", "InteractionCreated");
+            }
         }
 
         public async Task MessageReceivedAsync(SocketMessage rawMessage)
@@ -117,5 +187,35 @@ namespace DiscordBot.Services
             await context.Channel.SendMessageAsync($":warning: {result}",
                 allowedMentions: AllowedMentions.None);
         }
+
+        async Task sendEnsured(SocketSlashCommand context, string content = null, Embed[] embeds = null, bool ephemeral = true, AllowedMentions allowedMentions = null)
+        {
+            try
+            {
+                await context.RespondAsync(content, embeds, ephemeral: ephemeral, allowedMentions: allowedMentions ?? AllowedMentions.None);
+            }
+            catch
+            {
+                await context.FollowupAsync(content, embeds, ephemeral: ephemeral, allowedMentions: allowedMentions ?? AllowedMentions.None);
+            }
+        }
+
+        public async Task SlashCommandExecutedAsync(Optional<SlashCommandInfo> command, SocketSlashCommand context, IResult result)
+        {
+            if (!command.IsSpecified)
+            {
+                await sendEnsured(context, ":question: Unknown slash command invoked. This shouldn't technically be possible.");
+                return;
+            }
+
+            // the command was successful, we don't care about this result, unless we want to log that a command succeeded.
+            if (result.IsSuccess)
+                return;
+
+            // the command failed, let's notify the user that something happened.
+            await sendEnsured(context, $":warning: {result}",
+                allowedMentions: AllowedMentions.None);
+        }
     }
+
 }
