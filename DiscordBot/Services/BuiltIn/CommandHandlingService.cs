@@ -44,7 +44,7 @@ namespace DiscordBot.Services
 #if DEBUG
             var guildIds = new List<ulong>() { 420240046428258304 };
 #else
-            var guildIds = Client.Guilds.Select(x => x.Id).ToList();
+            var guildIds = Program.Client.Guilds.Select(x => x.Id).ToList();
 #endif
             try
             {
