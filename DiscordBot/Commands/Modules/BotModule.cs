@@ -49,6 +49,15 @@ namespace DiscordBot.Commands.Modules
             }
         }
 
+        [Command("pc_reason")]
+        [Description("Sets the fail or wait reason for website:/pc/shutdown")]
+        [RequireOwner]
+        public async Task SetPcShutdownReason([Remainder]string text)
+        {
+            DiscordBot.MLAPI.Modules.Bot.Internal.failOrWaitReason = text == "-" ? null : text;
+            await Success("Done!");
+        }
+
         [Command("approve")]
         [Description("Approves a user for wider access to bot things")]
         [RequirePermission(Perms.Bot.ApproveUser)]
