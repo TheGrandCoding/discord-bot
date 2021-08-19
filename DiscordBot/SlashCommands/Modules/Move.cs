@@ -301,7 +301,7 @@ namespace DiscordBot.SlashCommands.Modules
             }
 
             var date = Discord.SnowflakeUtils.FromSnowflake(messageId);
-            if (Math.Abs((DateTime.Now - date).TotalHours) > maximumHoursAgo)
+            if (Math.Abs((DateTime.Now - date).TotalHours) > (maximumHoursAgo * 2))
             {
                 await Interaction.RespondAsync(":x: Message was sent too long ago.",
                     ephemeral: true, embeds: null);
