@@ -68,14 +68,20 @@ namespace DiscordBot.SlashCommands.Modules
                 else
                     content += "\r\n" + fileUrl;
             }
+            var opt = new RequestOptions()
+            {
+                CancelToken = Program.GetToken(),
+                RetryMode = RetryMode.AlwaysRetry
+            };
             await webhook.SendMessageAsync(
                 content,
                 false,
                 embeds,
                 (message.Author as IGuildUser).Nickname ?? message.Author.Username,
-                message.Author.GetAnyAvatarUrl(), thread?.Id
+                message.Author.GetAnyAvatarUrl(), thread?.Id,
+                options: opt
                 );
-            await message.DeleteAndTrackAsync("moving message");
+            await message.DeleteAndTrackAsync("moving message", options: opt);
         }
 
         async Task<List<IUserMessage>> fetchMessages(ISocketMessageChannel from, int maxAmount, ulong fromId)
