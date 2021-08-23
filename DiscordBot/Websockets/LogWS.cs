@@ -13,8 +13,6 @@ namespace DiscordBot.Websockets
 {
     public class LogWS : BotWSBase
     {
-        public BotUser User { get; set; }
-        
         public void Handle(object sender, LogMessage msg)
         {
             Send(msg);
@@ -30,7 +28,8 @@ namespace DiscordBot.Websockets
         protected override void OnClose(CloseEventArgs e)
         {
             Program.Log -= Handle;
-            Program.LogInfo($"{User.Name} is no longer watching the logs via WS", IP);
+            if(User != null)
+                Program.LogInfo($"{User.Name} is no longer watching the logs via WS", IP);
         }
         protected override void OnOpen()
         {

@@ -31,14 +31,19 @@ namespace DiscordBot.Websockets
             }
         }
 
+        private BotUser user;
         public BotUser User { get
             {
+                if (user != null)
+                    return user;
+                Program.LogDebug($"WS connection has session token: {(SessionToken ?? "null")}", IP);
                 if (!Handler.findSession(SessionToken, out var usr, out _))
                 {
                     Program.LogDebug($"{IP} provided an unknown session token.", "WSLog");
                     return null;
                 }
-                return usr;
+                user = usr;
+                return user;
             } }
     }
 }

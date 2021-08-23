@@ -131,10 +131,13 @@ namespace DiscordBot.MLAPI
             user = null;
             foreach(var u in Program.Users)
             {
+                Program.LogDebug($"Searching for session; user {u.Name} has {u.Sessions.Count}", t);
                 foreach(var a in u.Sessions)
                 {
+                    Program.LogDebug($"vs {a.Token} - {a.Token == t}", t);
                     if(a.Token == t)
                     {
+                        Program.LogDebug($"Found token with user {u.Name}", t);
                         user = u;
                         session = a;
                         return true;

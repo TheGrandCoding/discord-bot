@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -13,6 +14,7 @@ using System.Threading.Tasks;
 namespace DiscordBot.Classes
 {
     [JsonObject(ItemNullValueHandling = NullValueHandling.Ignore, MemberSerialization = MemberSerialization.OptIn)]
+    [DebuggerDisplay("{DebuggerDisplay,nq}")]
     public class BotUser //: IUser
     {
         [JsonConstructor]
@@ -36,6 +38,8 @@ namespace DiscordBot.Classes
         {
             Id = id;
         }
+
+        private string DebuggerDisplay => $"{Id} {Name}";
 
         [JsonProperty("id")]
         public ulong Id { get; set; }
