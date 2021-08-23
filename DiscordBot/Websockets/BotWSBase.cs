@@ -21,6 +21,16 @@ namespace DiscordBot.Websockets
                 return strToken;
             } }
 
+        public string ApiToken { get
+            {
+                string strToken = null;
+                var cookie = Context.CookieCollection["api-key"];
+                strToken ??= cookie?.Value;
+                strToken ??= Context.QueryString.Get("api-key");
+                strToken ??= Context.Headers.Get($"X-{"api-key"}");
+                return strToken;
+            } }
+
         string _ip = null;
         public string IP
         {
@@ -36,11 +46,13 @@ namespace DiscordBot.Websockets
             {
                 if (user != null)
                     return user;
-                Program.LogDebug($"WS connection has session token: {(SessionToken ?? "null")}", IP);
                 if (!Handler.findSession(SessionToken, out var usr, out _))
                 {
-                    Program.LogDebug($"{IP} provided an unknown session token.", "WSLog");
-                    return null;
+                    if(!Handler.findToken(ApiToken, out usr, out _))
+                    {
+                        Program.LogDebug($"{IP} provided an unknown session or auth token, or none at all.", "WSLog");
+                        return null;
+                    }
                 }
                 user = usr;
                 return user;
