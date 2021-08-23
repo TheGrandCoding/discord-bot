@@ -16,11 +16,13 @@ namespace DiscordBot.Classes
         /// <summary>
         /// Name of authentication cookie/token
         /// </summary>
+        [Obsolete("Use AuthSession", true)]
         public const string SessionToken = "session";
 
         /// <summary>
         /// Name of token used for online sessions
         /// </summary>
+        [Obsolete("Use AuthSession", true)]
         public const string HttpFullAccess = "httpaccess";
 
         public const string TimeToken = "timetracker";
@@ -48,14 +50,14 @@ namespace DiscordBot.Classes
             Name = name;
             _value = value;
             Scopes = scopes ?? new List<string>();
-            if (Name == SessionToken)
+            /*if (Name == SessionToken)
             {
                 if(Scopes.Count == 0)
                 {
                     Name = HttpFullAccess;
                     Scopes.Add("html.*");
                 }
-            }
+            }*/
         }
 
         const int defaultLength = 12;

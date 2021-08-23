@@ -41,6 +41,12 @@ namespace DiscordBot.Classes
         public ulong Id { get; set; }
         [JsonProperty("tokens")]
         public List<AuthToken> Tokens { get; set; } = new List<AuthToken>();
+        [JsonProperty("asessions")]
+        public List<AuthSession> Sessions { get; set; } = new List<AuthSession>();
+
+        [JsonProperty("ips")]
+        public List<string> ApprovedIPs { get; set; } = new List<string>();
+
         [JsonProperty("perms")]
         public List<Perm> Permissions { get; set; } = new List<Perm>();
 
@@ -72,7 +78,7 @@ namespace DiscordBot.Classes
                     }
                     tkn.SetHashValue(value);
                 }
-                Tokens.FirstOrDefault(x => x.Name == AuthToken.HttpFullAccess)?.Regenerate();
+                Sessions = new List<AuthSession>();
             }
         }
 

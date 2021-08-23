@@ -11,18 +11,10 @@ using WebSocketSharp.Server;
 
 namespace DiscordBot.Websockets
 {
-    public class LogWS : WebSocketBehavior
+    public class LogWS : BotWSBase
     {
         public BotUser User { get; set; }
-        string _ip = null;
-        public string IP
-        {
-            get
-            {
-                _ip ??= Context.Headers["X-Forwarded-For"] ?? Context.UserEndPoint.Address.ToString();
-                return _ip;
-            }
-        }
+        
         public void Handle(object sender, LogMessage msg)
         {
             Send(msg);
@@ -42,24 +34,18 @@ namespace DiscordBot.Websockets
         }
         protected override void OnOpen()
         {
-            string strToken = null;
-            var cookie = Context.CookieCollection[AuthToken.SessionToken];
-            strToken ??= cookie?.Value;
-            strToken ??= Context.QueryString.Get(AuthToken.SessionToken);
-            strToken ??= Context.Headers.Get($"X-{AuthToken.SessionToken.ToUpper()}");
-            if(!Handler.findToken(strToken, out var usr, out _))
+            if(User == null)
             {
                 Program.LogDebug($"{IP} attempted unknown WS log.", "WSLog");
                 Context.WebSocket.Close(CloseStatusCode.Normal, "Unauthorized");
                 return;
             }
-            if(!PermChecker.UserHasPerm(usr, Perms.Bot.Developer.SeeLatestLog))
+            if(!PermChecker.UserHasPerm(User, Perms.Bot.Developer.SeeLatestLog))
             {
-                Program.LogWarning($"{IP}, {usr.Name} ({usr.Id}) attempted forbidden log connection", "WsLog");
+                Program.LogWarning($"{IP}, {User.Name} ({User.Id}) attempted forbidden log connection", "WsLog");
                 Context.WebSocket.Close(CloseStatusCode.Normal, "Forbidden");
                 return;
             }
-            User = usr;
             Program.LogInfo($"{User.Name} has begun watching the logs via WS", IP);
             lock (Program._lockObj)
             {

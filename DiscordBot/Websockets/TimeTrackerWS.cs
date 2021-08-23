@@ -16,7 +16,7 @@ using WebSocketSharp.Server;
 
 namespace DiscordBot.Websockets
 {
-    public class TimeTrackerWS : WebSocketBehavior
+    public class TimeTrackerWS : BotWSBase
     {
         public const int DefaultGetInterval = 15_000;
         public const int DefaultSetInterval = 30_000;
@@ -28,7 +28,6 @@ namespace DiscordBot.Websockets
                 );
         }
 
-        public BotUser User { get; set; }
         public Cached<bool> WatchingVideo { get; private set; }
         public ConcurrentDictionary<uint, TTPacket> IndempotencyCache { get; private set; } = new ConcurrentDictionary<uint, TTPacket>();
         public int APIVersion { get; private set; }
@@ -103,18 +102,12 @@ namespace DiscordBot.Websockets
 
         protected override void OnOpen()
         {
-            string strToken = null;
-            var cookie = Context.CookieCollection[AuthToken.SessionToken];
-            strToken ??= cookie?.Value;
-            strToken ??= Context.QueryString.Get(AuthToken.SessionToken);
-            strToken ??= Context.Headers.Get($"X-{AuthToken.SessionToken.ToUpper()}");
-            if (!Handler.findToken(strToken, out var usr, out _))
+            if (User == null)
             {
                 Program.LogDebug($"{IP} attempted unauthorized time tracking", "WSTT");
                 Context.WebSocket.Close(CloseStatusCode.Normal, "Unauthorized");
                 return;
             }
-            User = usr;
             if (!int.TryParse(Context.QueryString.Get("v"), out var x))
                 x = 1;
             APIVersion = x;

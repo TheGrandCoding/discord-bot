@@ -16,12 +16,11 @@ using WebSocketSharp.Server;
 
 namespace DiscordBot.Websockets
 {
-    public class BanAppealsWS : WebSocketBehavior
+    public class BanAppealsWS : BotWSBase
     {
         public BanAppealsService Service { get; set; }
         public MsgService MService { get; set; }
         public BanAppeal Appeal { get; set; }
-        public BotUser User { get; set; }
         protected override void OnOpen()
         {
             if(!ulong.TryParse(Context.QueryString.Get("id"), out var id))
@@ -29,12 +28,11 @@ namespace DiscordBot.Websockets
                 Context.WebSocket.Close(CloseStatusCode.Normal, "URL malformed.");
                 return;
             }
-            if(!Handler.findToken(Context.CookieCollection[AuthToken.SessionToken].Value, out var usr, out _))
+            if(User == null)
             {
                 Context.WebSocket.Close(CloseStatusCode.Normal, "Authentication failed.");
                 return;
             }
-            User = usr;
             var guild = Program.Client.GetGuild(id);
             Service = Program.Services.GetRequiredService<BanAppealsService>();
             MService = Program.Services.GetRequiredService<MsgService>();

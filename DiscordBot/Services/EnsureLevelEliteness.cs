@@ -77,17 +77,6 @@ namespace DiscordBot.Services
             return null;
         }
 
-        string getSession(BotUser user)
-        {
-            var existing = user.Tokens.FirstOrDefault(x => x.Name == AuthToken.HttpFullAccess);
-            if(existing == null)
-            {
-                existing = new AuthToken(AuthToken.HttpFullAccess, 32);
-                user.Tokens.Add(existing);
-            }
-            return existing.Value;
-        }
-
         async Task HandleNewLevel7(GuildSave save, SocketGuildUser user)
         {
             var bUser = Program.GetUser(user);
@@ -103,7 +92,8 @@ namespace DiscordBot.Services
                 save.Fails[responsible.Id] = save.Fails.GetValueOrDefault(responsible.Id, 0) + 1;
             bUser.IsApproved = true; // prevent them being locked from verifing
             var url = new UrlBuilder(Handler.LocalAPIUrl + "/verify");
-            url.Add(AuthToken.SessionToken, getSession(bUser));
+            var session = await Handler.GenerateNewSession(bUser, null, null, true);
+            url.Add(AuthSession.CookieName, session.Token);
         }
 
         public override string GenerateSave()

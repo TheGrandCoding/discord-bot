@@ -54,17 +54,13 @@ namespace DiscordBot.MLAPI.Modules
                     });
                     Program.Users.Add(bUser);
                 }
-                var token = bUser.Tokens.FirstOrDefault(x => x.Name == AuthToken.HttpFullAccess);
-                if(token == null)
-                {
-                    token = new AuthToken(AuthToken.HttpFullAccess, 24);
-                    bUser.Tokens.Add(token);
-                }
-                Context.HTTP.Response.AppendCookie(new Cookie(AuthToken.SessionToken, token.Value, "/")
+
+                var session = Context.GenerateNewSession(bUser, true);
+                Context.HTTP.Response.AppendCookie(new Cookie(AuthSession.CookieName, session.Token, "/")
                 {
                     Expires = DateTime.Now.AddDays(3)
                 });
-                RespondRaw(token.Value, HttpStatusCode.OK);
+                RespondRaw(session.Token, HttpStatusCode.OK);
             } else
             {
                 RespondRaw("Unknown code.", HttpStatusCode.Unauthorized);

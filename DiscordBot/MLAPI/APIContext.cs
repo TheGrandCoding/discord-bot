@@ -1,4 +1,5 @@
-﻿using Discord.Commands;
+﻿using Discord;
+using Discord.Commands;
 using DiscordBot.Classes;
 using DiscordBot.Permissions;
 using DiscordBot.Services;
@@ -149,6 +150,8 @@ namespace DiscordBot.MLAPI
             return query;
         }
 
+        public AuthSession Session { get; set; }
+
         public AuthToken Token { get; set; }
 
         public Guid Id { get; set; }
@@ -168,5 +171,16 @@ namespace DiscordBot.MLAPI
         }
 
         public BotUser User { get; set; }
+    
+        
+        /// <summary>
+        /// Generates a new session from this context
+        /// </summary>
+        /// <returns></returns>
+        public AuthSession GenerateNewSession(BotUser user, bool? forceApproved = null)
+        {
+            return Handler.GenerateNewSession(user, IP, this.Request.UserAgent ?? "none", forceApproved).Result;
+        }
+    
     }
 }

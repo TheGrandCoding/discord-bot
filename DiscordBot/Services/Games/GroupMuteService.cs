@@ -77,7 +77,7 @@ namespace DiscordBot.Services
                         jUsr["dead"] = Dead.Contains(usr.Id);
                         jarr.Add(jUsr);
                     }
-                    jobj["dead"] = Dead.Contains(ws.BotUser.Id);
+                    jobj["dead"] = Dead.Contains(ws.User.Id);
                     jobj["users"] = jarr;
                     try
                     {
@@ -85,7 +85,7 @@ namespace DiscordBot.Services
                     }
                     catch (Exception ex)
                     {
-                        Program.LogError(ex, $"GM:{ws.BotUser?.Name}");
+                        Program.LogError(ex, $"GM:{ws.User?.Name}");
                         rm.Add(ws);
                     }
                 }

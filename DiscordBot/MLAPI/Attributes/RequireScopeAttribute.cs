@@ -24,8 +24,10 @@ namespace DiscordBot.MLAPI
         {
             if (Scope == "*" || Scope == null)
                 return PreconditionResult.FromSuccess();
-            if (context.Token == null)
+            if (context.Session == null && context.Token == null)
                 throw new MustLoginException();
+            if (context.Token == null) // they're not using a token, so no scope to check
+                return PreconditionResult.FromSuccess();
             var _scope = Scope;
             if(string.IsNullOrWhiteSpace(_scope))
             {

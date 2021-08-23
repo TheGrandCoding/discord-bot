@@ -14,12 +14,11 @@ using static DiscordBot.Services.GroupMuteService;
 
 namespace DiscordBot.Websockets
 {
-    public class GroupGameWS : WebSocketBehavior
+    public class GroupGameWS : BotWSBase
     {
         public static GroupMuteService Service { get; set; }
-        public BotUser BotUser { get; set; }
         public SocketVoiceChannel VC { get; set; }
-        public SocketGuildUser User { get; set; }
+        public SocketGuildUser GuildUser { get; set; }
         public GroupGame Game { get; set; }
 
         protected override void OnClose(CloseEventArgs e)
@@ -37,7 +36,7 @@ namespace DiscordBot.Websockets
 
         protected override void OnMessage(MessageEventArgs e)
         {
-            if(Game == null || VC == null || VC.Users.Any(x => x.Id == User.Id) == false)
+            if(Game == null || VC == null || VC.Users.Any(x => x.Id == GuildUser.Id) == false)
             {
                 Context.WebSocket.Close(CloseStatusCode.Abnormal, "Inconsistent state.");
                 return;
@@ -47,8 +46,8 @@ namespace DiscordBot.Websockets
                 // don't actually update any VC as this may give a hint to other players.
                 Game.Do(() =>
                 {
-                    if (!Game.Dead.Contains(BotUser.Id))
-                        Game.Dead.Add(BotUser.Id);
+                    if (!Game.Dead.Contains(User.Id))
+                        Game.Dead.Add(User.Id);
                     Game.Broadcast(false);
                 });
             } else if (e.Data == "toggle")
@@ -88,12 +87,11 @@ namespace DiscordBot.Websockets
 
         protected override void OnOpen()
         {
-            if (!Handler.findToken(Context.CookieCollection[AuthToken.SessionToken].Value, out var bUser, out _))
+            if (User == null)
             {
                 Context.WebSocket.Close(CloseStatusCode.Normal, "Authentication failed.");
                 return;
             }
-            BotUser = bUser;
             Service ??= Program.Services.GetRequiredService<GroupMuteService>();
             foreach(var guild in Program.Client.Guilds)
             {
@@ -101,9 +99,9 @@ namespace DiscordBot.Websockets
                 {
                     foreach(var usr in voice.Users)
                     {
-                        if(usr.Id == BotUser.Id)
+                        if(usr.Id == User.Id)
                         {
-                            User = usr;
+                            GuildUser = usr;
                             VC = voice;
                             break;
                         }

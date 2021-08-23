@@ -2,6 +2,8 @@
 using Discord.Commands;
 using DiscordBot.Classes;
 using DiscordBot.MLAPI.Exceptions;
+using DiscordBot.Services;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -11,6 +13,7 @@ using System.Net.Http;
 using System.Reflection;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace DiscordBot.MLAPI
 {
@@ -122,15 +125,34 @@ namespace DiscordBot.MLAPI
                 Program.LogDebug($"Loaded {keypair.Value.Count} {keypair.Key} endpoints", "API");
         }
 
+        public static bool findSession(string t, out BotUser user, out AuthSession session)
+        {
+            session = null;
+            user = null;
+            foreach(var u in Program.Users)
+            {
+                foreach(var a in u.Sessions)
+                {
+                    if(a.Token == t)
+                    {
+                        user = u;
+                        session = a;
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
         public static bool findToken(string t, out BotUser user, out AuthToken token)
         {
             token = null;
             user = null;
-            foreach(var u in Program.Users)
+            foreach (var u in Program.Users)
             {
-                foreach(var a in u.Tokens)
+                foreach (var a in u.Tokens)
                 {
-                    if(a.Value == t)
+                    if (a.Value == t)
                     {
                         user = u;
                         token = a;
@@ -141,26 +163,93 @@ namespace DiscordBot.MLAPI
             return false;
         }
 
+        static string getAnyValue(HttpListenerContext request, string key, out Cookie cookie)
+        {
+            string strToken = null;
+            cookie = request.Request.Cookies[key];
+            strToken ??= cookie?.Value;
+            strToken ??= request.Request.QueryString.Get(key);
+            strToken ??= request.Request.Headers.Get($"X-{key}");
+            return strToken;
+        }
+
         static APIContext parseContext(HttpListenerContext request)
         {
             APIContext context = new APIContext(request);
-            string strToken = null;
-            var cookie = request.Request.Cookies[AuthToken.SessionToken];
-            strToken ??= cookie?.Value;
-            strToken ??= request.Request.QueryString.Get(AuthToken.SessionToken);
-            strToken ??= request.Request.Headers.Get($"X-{AuthToken.SessionToken.ToUpper()}");
+            string strToken = getAnyValue(request, AuthSession.CookieName, out var cookie);
 
-            if (findToken(strToken, out var user, out var t))
+            if (findSession(strToken, out var user, out var s))
             {
                 context.User = user;
-                context.Token = t;
+                context.Session = s;
                 if(cookie == null)
-                    request.Response.AppendCookie(new Cookie(AuthToken.SessionToken, strToken)
+                    request.Response.AppendCookie(new Cookie(AuthSession.CookieName, strToken)
                     {
                         Expires = DateTime.Now.AddHours(3)
                     });
+            } else
+            {
+                strToken = getAnyValue(request, "api-key", out cookie);
+                if(findToken(strToken, out user, out var t))
+                {
+                    context.User = user;
+                    context.Token = t;
+                }
             }
+
             return context;
+        }
+
+        public static async Task<AuthSession> GenerateNewSession(BotUser user, string ip, string userAgent, bool? forceApproved = null)
+        {
+            var s = new AuthSession(ip, userAgent, forceApproved ?? (user?.ApprovedIPs ?? new List<string>()).Contains(ip));
+            user.Sessions.Add(s);
+            Program.Save();
+            if (s.Approved)
+                return s;
+
+            EmbedBuilder getBuilder(bool redactIp)
+            {
+                var embed = new EmbedBuilder();
+                embed.Title = "New IP Detected";
+                embed.Description = "A login has been attempted by an unknown IP address to the MLAPI website through your account.\r\n" +
+                    "Please approve the login below.";
+                embed.AddField("IP", redactIp ? "||<redacted>||" : ip, true);
+                embed.AddField("User-Agent", userAgent, true);
+                return embed;
+            }
+            var embed = getBuilder(false);
+
+
+
+            var components = new ComponentBuilder();
+            components.WithButton("Approve", "true", ButtonStyle.Success);
+            components.WithButton("Deny", "false", ButtonStyle.Danger);
+
+            var msg = await user.FirstValidUser.SendMessageAsync(embed: embed.Build(), component: components.Build());
+
+            var service = Program.Services.GetRequiredService<MessageComponentService>();
+            service.Register(msg, async x =>
+            {
+                var result = bool.Parse(x.ComponentId);
+                if (result)
+                {
+                    s.Approved = true;
+                    user.ApprovedIPs.Add(ip);
+                }
+                else
+                {
+                    user.Sessions.Remove(s);
+                }
+                Program.Save();
+                await x.Interaction.UpdateAsync(m =>
+                {
+                    m.Embeds = new[] { getBuilder(result).Build() };
+                    m.Content = "This login has been " + (result ? "approved\r\nThe IP address has been whitelisted, and now redacted." : "rejected");
+                });
+            }, doSave: false);
+
+            return s;
         }
 
         static bool isValidConnection(IPEndPoint endpoint)
@@ -210,9 +299,18 @@ namespace DiscordBot.MLAPI
                     }
                     if (!isValidConnection(req.Request.LocalEndPoint))
                     {
-                        Program.LogWarning($"Invalid REST connection: {req.Request.LocalEndPoint}: {req.Request.QueryString}", "RESTHandler");
+                        Program.LogWarning($"Invalid REST connection: {req.Request.LocalEndPoint}: {req.Request.Url.PathAndQuery}", "RESTHandler");
                         req.Response.StatusCode = 400;
                         req.Response.Close();
+                        continue;
+                    }
+                    if(context.Session != null && context.Session.Approved == false)
+                    {
+                        Program.LogDebug($"Unapproved session access: {req.Request.LocalEndPoint}: {req.Request.Url.PathAndQuery}", "REST-" + context.IP);
+                        var bytes = System.Text.Encoding.UTF8.GetBytes("You are logging in from a new IP address.\r\n" +
+                            "You will need to approve this session through the DM the bot has just sent you.");
+                        req.Response.StatusCode = 200;
+                        req.Response.Close(bytes, false);
                         continue;
                     }
                     handleRequest(context);

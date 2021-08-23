@@ -162,8 +162,8 @@ namespace DiscordBot.MLAPI.Modules.UserModule
 
         AuthToken GetToken(string n)
         {
-            if (n == AuthToken.SessionToken || n == AuthToken.LoginPassword)
-                return null; // cant modify current token or login password (separate page for dat)
+            if (n == AuthToken.LoginPassword)
+                return null; // cant login password (separate page for dat)
             return Context.User.Tokens.FirstOrDefault(x => x.Name.ToLower() == n.ToLower());
         }
 
@@ -173,7 +173,7 @@ namespace DiscordBot.MLAPI.Modules.UserModule
             var tokenTable = "";
             foreach (var token in Context.User.Tokens)
             {
-                bool hide = token.Name == AuthToken.LoginPassword || token.Name == AuthToken.SessionToken;
+                bool hide = token.Name == AuthToken.LoginPassword;
                 string ROW = $"<tr>";
                 ROW += $"<td>{token.Name}</td>";
                 ROW += $"<td><p class='hide'>{(hide ? "[redacted]" : token.Value)}</p></td>";
@@ -208,11 +208,6 @@ namespace DiscordBot.MLAPI.Modules.UserModule
             }
 
             var token = GetToken(name);
-            if (name == AuthToken.SessionToken)
-            {
-                RespondRaw("That token is auto-generated and cannot be changed!", 400);
-                return;
-            }
             if(name == AuthToken.LoginPassword)
             {
                 RespondRaw($"{Handler.LocalAPIUrl}/login/setpassword", 400);

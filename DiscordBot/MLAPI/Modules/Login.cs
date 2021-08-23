@@ -70,7 +70,7 @@ namespace DiscordBot.MLAPI.Modules
             if(Context.User != null)
             { // we'll log them out to troll them
                 Context.HTTP.Response.Headers["Location"] = "/";
-                var l = Context.HTTP.Request.Cookies[AuthToken.SessionToken];
+                var l = Context.HTTP.Request.Cookies[AuthSession.CookieName];
                 l.Expires = DateTime.Now.AddDays(-1);
                 Context.HTTP.Response.SetCookie(l);
                 RespondRaw($"Logged you out; redirecting to base path", HttpStatusCode.Redirect);
@@ -84,7 +84,7 @@ namespace DiscordBot.MLAPI.Modules
         public void Logout(string back = "/")
         {
             Context.HTTP.Response.Headers["Location"] = back;
-            var l = Context.HTTP.Request.Cookies[AuthToken.SessionToken] ?? new Cookie(AuthToken.SessionToken, "null");
+            var l = Context.HTTP.Request.Cookies[AuthSession.CookieName] ?? new Cookie(AuthSession.CookieName, "null");
             l.Expires = DateTime.Now.AddDays(-1);
             Context.HTTP.Response.SetCookie(l);
             RespondRaw(LoadRedirectFile(back), HttpStatusCode.Redirect);
@@ -159,15 +159,10 @@ namespace DiscordBot.MLAPI.Modules
         public static void SetLoginSession(APIContext context, BotUser user)
         {
             // password valid, we need to log them in.
-            var session = user.Tokens.FirstOrDefault(x => x.Name == AuthToken.HttpFullAccess);
-            if (session == null)
-            {
-                session = new AuthToken(AuthToken.HttpFullAccess, 32);
-                user.Tokens.Add(session);
-            }
+            var session = context.GenerateNewSession(user);
             // to prevent logging out any other devices, we'll maintain the same token value.
             Program.Save(); // ensure we save the session so it persists for multiple days
-            context.HTTP.Response.Cookies.Add(new Cookie(AuthToken.SessionToken, session.Value, "/")
+            context.HTTP.Response.Cookies.Add(new Cookie(AuthSession.CookieName, session.Token, "/")
             {
                 Expires = DateTime.Now.AddDays(7)
             });
@@ -244,7 +239,6 @@ namespace DiscordBot.MLAPI.Modules
                 return;
             }
             Context.User.MLAPIPassword = pwd;
-            Context.User.Tokens.RemoveAll(x => x.Name == AuthToken.HttpFullAccess);
             SetLoginSession(Context, Context.User);
             Program.Save();
             Context.HTTP.Response.Headers["Location"] = "/";
