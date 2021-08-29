@@ -442,10 +442,10 @@ namespace DiscordBot.Commands.Modules
             });
             if(DiscussionThread == null)
             {
-                DiscussionThread = await (StatusMessage.Channel as SocketTextChannel).CreateThread(StatusMessage.Id,
-                    x => { x.Name = Program.Clamp(getQuestion(), 100); x.AutoArchiveDuration = 1440; });
+                DiscussionThread = await (StatusMessage.Channel as SocketTextChannel)
+                    .CreateThreadAsync(Program.Clamp(getQuestion(), 100), autoArchiveDuration: ThreadArchiveDuration.OneDay, message: StatusMessage);
                 foreach (var usr in Abstained)
-                    await DiscussionThread.AddMemberAsync(usr.Id, null);
+                    await DiscussionThread.AddUserAsync(usr);
             }
         }
 

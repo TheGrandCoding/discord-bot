@@ -193,11 +193,7 @@ namespace DiscordBot.Services
                     {
                         title = Program.Clamp(title, 100);
                     }
-                    thread = await text.CreateThread(msg.Id, x =>
-                    {
-                        x.Name = title;
-                        x.AutoArchiveDuration = 1440; // one day
-                    });
+                    thread = await text.CreateThreadAsync(title, autoArchiveDuration: ThreadArchiveDuration.OneDay, message: msg);
                     await thread.ModifyAsync(x =>
                     {
                         x.SlowModeInterval = 0;
@@ -264,7 +260,7 @@ namespace DiscordBot.Services
             {
                 if(arg.Channel is IThreadChannel thread)
                 {
-                    text = Program.Client.GetChannel(thread.ChannelId) as ITextChannel;
+                    text = Program.Client.GetChannel(thread.CategoryId.Value) as ITextChannel;
                 } else
                 {
                     text = null;

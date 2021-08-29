@@ -9,7 +9,6 @@ using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -105,7 +104,7 @@ namespace DiscordBot.Services
             Program.Client.UserVoiceStateUpdated += Client_UserVoiceStateUpdated;
             Program.Client.ThreadCreated += Client_ThreadCreated;
             Program.Client.ThreadUpdated += Client_ThreadUpdated;
-            Program.Client.ThreadDestroyed += Client_ThreadDestroyed;
+            Program.Client.ThreadDeleted += Client_ThreadDestroyed;
             Program.Client.Disconnected += async x =>
             {
                 disconnected.Value = true;
@@ -244,11 +243,9 @@ namespace DiscordBot.Services
         public async Task<IThreadChannel> GetThreadAsync(IGuild guild, string action, string name, IUserMessage message)
         {
             var chnl = await GetChannel(guild, action);
-            return await chnl.CreateThread(message.Id, x =>
-            {
-                x.Name = name;
-                x.AutoArchiveDuration = 60;
-            });
+            return await chnl.CreateThreadAsync(name, 
+                autoArchiveDuration: ThreadArchiveDuration.OneHour, 
+                message: message);
         }
 #endregion
 
@@ -464,8 +461,8 @@ namespace DiscordBot.Services
             var builder = new EmbedBuilder();
             builder.Title = "Thread Created";
             builder.AddField($"Name", arg.Name + "\r\n" + arg.Mention, true);
-            builder.AddField("Created by", $"{arg.CreatorId}\r\n{(arg.Creator?.Mention ?? "")}", true);
-            builder.AddField("Channel", $"{arg.ChannelId}\r\n{MentionUtils.MentionChannel(arg.ChannelId)}", true);
+            builder.AddField("Created by", $"{(arg.Owner?.Mention ?? "n/a")}", true);
+            builder.AddField("Channel", $"{(arg.ParentChannel?.Mention ?? "n/a")}", true);
             await SendLog(arg.Guild, "threads", builder, arg.Id);
         }
 
@@ -476,8 +473,8 @@ namespace DiscordBot.Services
             var builder = new EmbedBuilder();
             builder.Title = $"Thread Updated";
             builder.AddField($"Name", arg2.Name + "\r\n" + arg2.Mention, true);
-            builder.AddField("Created by", $"{arg2.CreatorId}\r\n{(arg2.Creator?.Mention ?? "")}", true);
-            builder.AddField("Channel", $"{arg2.ChannelId}\r\n{MentionUtils.MentionChannel(arg2.ChannelId)}", true);
+            builder.AddField("Created by", $"{(arg2.Owner?.Mention ?? "n/a")}", true);
+            builder.AddField("Channel", $"{(arg2.ParentChannel?.Mention ?? "n/a")}", true);
 
             foreach (var change in changes)
             {
@@ -486,15 +483,22 @@ namespace DiscordBot.Services
             await SendLog(arg1.Guild, "threads", builder, arg1.Id);
         }
 
-        private async Task Client_ThreadDestroyed(SocketThreadChannel arg)
+        private async Task Client_ThreadDestroyed(Cacheable<SocketThreadChannel, ulong> cached)
         {
             var builder = new EmbedBuilder();
             builder.Title = "Thread Deleted";
-            builder.AddField($"Name", arg.Name + "\r\n" + arg.Mention, true);
-            builder.AddField("Created by", $"{arg.CreatorId}\r\n{(arg.Creator?.Mention ?? "")}", true);
-            builder.AddField("Channel", $"{arg.ChannelId}\r\n{MentionUtils.MentionChannel(arg.ChannelId)}", true);
+            if(cached.HasValue)
+            {
+                var arg = await cached.GetOrDownloadAsync();
+                builder.AddField($"Name", arg.Name + "\r\n" + arg.Mention, true);
+                builder.AddField("Created by", $"{(arg.Owner?.Mention ?? "n/a")}", true);
+                builder.AddField("Channel", $"{(arg.ParentChannel?.Mention ?? "n/a")}", true);
+                await SendLog(arg.Guild, "threads", builder, arg.Id);
+            } else
+            {
+                Program.LogWarning($"Unknown thread deleted: {cached.Id}", "ThreadDestroyed");
+            }
 
-            await SendLog(arg.Guild, "threads", builder, arg.Id);
         }
 
         #endregion
