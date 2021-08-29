@@ -47,7 +47,7 @@ namespace DiscordBot.Services
         {
             if (arg1 == null || arg2 == null)
                 return;
-            if(arg1.Archived && arg2.Archived == false)
+            if(arg1.Archived == false && arg2.Archived == true)
             {
                 // thread has been archived, let's see whether it was one of ours
                 var find = Threads.FirstOrDefault(x => x.Value.Id == arg2.Id);
@@ -119,7 +119,6 @@ namespace DiscordBot.Services
             }
             if (pairedChannel == null)
                 return;
-
             if(Threads.TryGetValue(voice, out var thread))
             {
             } else if(hasEnabledPairing(user, state.IsSelfMuted))
@@ -154,6 +153,8 @@ namespace DiscordBot.Services
                 return;
             }
             await thread.AddUserAsync(user, null);
+            if (thread.AutoArchiveDuration == ThreadArchiveDuration.OneHour)
+                await thread.ModifyAsync(x => x.AutoArchiveDuration = ThreadArchiveDuration.OneDay);
             if (!manage)
             {
                 await thread.SendMessageAsync(embed: new EmbedBuilder()
@@ -193,8 +194,7 @@ namespace DiscordBot.Services
                 {
                     await thread.ModifyAsync(x =>
                     {
-                        x.Archived = true;
-                        x.Locked = false;
+                        x.AutoArchiveDuration = ThreadArchiveDuration.OneHour;
                     });
                 }
                 Threads.TryRemove(voice, out _);
