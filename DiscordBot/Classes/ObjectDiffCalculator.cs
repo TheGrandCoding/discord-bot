@@ -1,4 +1,6 @@
 ﻿using Discord;
+using Discord.Rest;
+using Discord.WebSocket;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -34,9 +36,14 @@ namespace DiscordBot.Classes
         public static DiffCalculator Create(Type type, object before, object after, AlreadyDoneSet done, int depth = 0)
         {
 
-            var genericType = typeof(ObjectDiffCalculator<>).MakeGenericType(new Type[] { type });
 
-            var constructor = GetAttributeConstructor(genericType);
+            Type diffType;
+            if (type == typeof(SocketThreadChannel) || type == typeof(RestThreadChannel) || type == typeof(IThreadChannel))
+                diffType = typeof(ThreadDiffCalculator);
+            else
+                diffType = typeof(ObjectDiffCalculator<>).MakeGenericType(new Type[] { type });
+
+            var constructor = GetAttributeConstructor(diffType);
 
 
             dynamic instance = constructor.Invoke(new object[] { before, after, done, depth + 1 });
@@ -55,7 +62,7 @@ namespace DiscordBot.Classes
         public int Depth { get;  }
 
         [MarkConstructor]
-        private ObjectDiffCalculator(T before, T after, AlreadyDoneSet done, int depth = 0)
+        protected ObjectDiffCalculator(T before, T after, AlreadyDoneSet done, int depth = 0)
         {
             Before = before;
             After = after;
@@ -84,10 +91,15 @@ namespace DiscordBot.Classes
             var ls = new List<Change>();
             foreach (var property in properties)
             {
-                if (IsPropertyACollection(property))
-                    ls.AddRange(getChangesList(property));
-                else
-                    ls.AddRange(getChangesSingular(property));
+                try
+                {
+                    if (IsPropertyACollection(property))
+                        ls.AddRange(getChangesList(property));
+                    else
+                        ls.AddRange(getChangesSingular(property));
+                } catch(TargetInvocationException ex) when (ex.InnerException is NotImplementedException)
+                {
+                }
             }
             return ls;
         }
@@ -256,5 +268,36 @@ namespace DiscordBot.Classes
             {
                 return $"{Type}: {Before} -> {After}";
             } }
+    }
+
+
+    public class ThreadDiffCalculator : ObjectDiffCalculator<IThreadChannel>
+    {
+        [MarkConstructor]
+        protected ThreadDiffCalculator(IThreadChannel before, IThreadChannel after, AlreadyDoneSet alreadyDoneSet, int depth = 0)
+            : base(before, after, alreadyDoneSet, depth)
+        {
+
+        }
+
+        public override List<Change> GetChanges()
+        {
+            var type = (Before ?? After).GetType();
+            var props = new PropertyInfo[]
+            {
+                type.GetProperty("Name"),
+                type.GetProperty(nameof(IThreadChannel.Joined)),
+                type.GetProperty(nameof(IThreadChannel.ArchiveTimestamp)),
+                type.GetProperty(nameof(IThreadChannel.AutoArchiveDuration)),
+                type.GetProperty(nameof(IThreadChannel.Locked)),
+                type.GetProperty(nameof(IThreadChannel.MemberCount)),
+                type.GetProperty(nameof(IThreadChannel.MessageCount)),
+                type.GetProperty(nameof(IThreadChannel.Archived))
+            };
+            return props
+                .Where(x => x != null)
+                .Select(x => getChangesSingular(x))
+                .SelectMany(x => x).ToList();
+        }
     }
 }
