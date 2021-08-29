@@ -30,7 +30,7 @@ namespace DiscordBot.Commands.Modules
             }
             if (builder.Fields.Count == 0)
                 builder.WithDescription($"This server has no emojis that are role-locked." + 
-                    ((Context.User as SocketGuildUser).GuildPermissions.ManageEmojis ? $"\r\nUse `{Program.Prefix}emoji lock` to lock one" : "")
+                    ((Context.User as SocketGuildUser).GuildPermissions.ManageEmojisAndStickers ? $"\r\nUse `{Program.Prefix}emoji lock` to lock one" : "")
                     );
             else
                 builder.WithDescription($"Below are {builder.Fields.Count} emoji that require one of certain roles to use");
@@ -39,7 +39,7 @@ namespace DiscordBot.Commands.Modules
 
         [Command("lock")]
         [Summary("Sets an emote to be useable only by a comma-separated list of roles; ")]
-        [RequireUserPermission(GuildPermission.ManageEmojis)]
+        [RequireUserPermission(GuildPermission.ManageEmojisAndStickers)]
         public async Task<RuntimeResult> Lock(GuildEmote emote, [Remainder]string roles = "")
         {
             var roleList = new List<IRole>();

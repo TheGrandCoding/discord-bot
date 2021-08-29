@@ -46,6 +46,10 @@ namespace DiscordBot.Utils
             public IImmutableList<IActivity> Activities { get; set; }
             public UserProperties? PublicFlags { get; set; }
 
+            public string BannerId => throw new NotImplementedException();
+
+            public Color? AccentColor => throw new NotImplementedException();
+
             public Task<IDMChannel> CreateDMChannelAsync(RequestOptions options = null)
             {
                 throw new NotImplementedException();
@@ -53,6 +57,12 @@ namespace DiscordBot.Utils
 
             public string GetAvatarUrl(ImageFormat format = ImageFormat.Auto, ushort size = 128)
                 => Discord.CDN.GetUserAvatarUrl(Id, AvatarId, size, format);
+
+            public string GetBannerUrl(ImageFormat format = ImageFormat.Auto, ushort size = 256)
+            {
+                throw new NotImplementedException();
+            }
+
             public string GetDefaultAvatarUrl()
                 => Discord.CDN.GetDefaultUserAvatarUrl(DiscriminatorValue);
             public Task<IDMChannel> GetOrCreateDMChannelAsync(RequestOptions options = null)
