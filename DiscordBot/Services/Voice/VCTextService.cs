@@ -40,6 +40,37 @@ namespace DiscordBot.Services
                 PairedChannels[Program.Client.GetChannel(keypair.Key) as SocketVoiceChannel] = keypair.Value;
             catchup().Wait();
             Program.Client.UserVoiceStateUpdated += Client_UserVoiceStateUpdated;
+            Program.Client.ThreadUpdated += Client_ThreadUpdated;
+        }
+
+        private async Task Client_ThreadUpdated(SocketThreadChannel arg1, SocketThreadChannel arg2)
+        {
+            if (arg1 == null || arg2 == null)
+                return;
+            if(arg1.Archived && arg2.Archived == false)
+            {
+                // thread has been archived, let's see whether it was one of ours
+                var find = Threads.FirstOrDefault(x => x.Value.Id == arg2.Id);
+                var vc = find.Key;
+                var thread = find.Value;
+                if (vc == null || thread == null)
+                    return;
+
+                int hasEnabledPair = 0;
+                foreach (var usr in vc.Users)
+                {
+                    var b = hasEnabledPairing(usr, usr.IsSelfMuted);
+                    if (b)
+                        hasEnabledPair++;
+                }
+                if(hasEnabledPair > 0)
+                {
+                    await thread.ModifyAsync(x =>
+                    {
+                        x.Archived = false;
+                    });
+                }
+            }
         }
 
         bool hasEnabledPairing(SocketGuildUser user, bool muted, BotUser bUser = null)
@@ -102,26 +133,17 @@ namespace DiscordBot.Services
                         .Build();
                 if (voice.Guild.Features.Contains(PRIVATE_THREADS))
                 {
-                    thread = await pairedChannel.CreateThread(x =>
-                    {
-                        x.AutoArchiveDuration = 60;
-                        x.Name = "Paired VC discussion";
-                        x.Type = ChannelType.PrivateThread;
-                    });
+                    thread = await pairedChannel.CreateThreadAsync("Paired VC discussion", type: ThreadType.PrivateThread, autoArchiveDuration: ThreadArchiveDuration.OneDay);
                     await thread.SendMessageAsync(embed: embed);
                 } else
                 {
                     var starterMessage = await pairedChannel.SendMessageAsync(embed: embed);
-                    thread = await pairedChannel.CreateThread(starterMessage.Id, x =>
-                    {
-                        x.Name = $"Paired with {voice.Name}";
-                        x.AutoArchiveDuration = 60;
-                    });
+                    thread = await pairedChannel.CreateThreadAsync($"Paired with {voice.Name}", autoArchiveDuration: ThreadArchiveDuration.OneDay, message: starterMessage);
                 }
                 Threads[voice] = thread;
                 foreach(var usr in voice.Users)
                 {
-                    await thread.AddMemberAsync(usr.Id, null);
+                    await thread.AddUserAsync(usr, null);
                 }
 
                 OnSave();
@@ -131,7 +153,7 @@ namespace DiscordBot.Services
                 Warning($"Thread is null when handling {user.Username} joining {pairedChannel.Name}. Weird?");
                 return;
             }
-            await thread.AddMemberAsync(user.Id, null);
+            await thread.AddUserAsync(user, null);
             if (!manage)
             {
                 await thread.SendMessageAsync(embed: new EmbedBuilder()
@@ -165,7 +187,7 @@ namespace DiscordBot.Services
                         hasEnabledPair++;
                 }
                 embed.WithFooter(Program.ToEncoded(string.Join(",", debug)));
-                await thread.RemoveMemberAsync(user.Id, null);
+                await thread.RemoveUserAsync(user, null);
                 await thread.SendMessageAsync(embed: embed.Build());
                 if(hasEnabledPair == 0)
                 {
