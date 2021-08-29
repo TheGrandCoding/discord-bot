@@ -51,11 +51,9 @@ namespace DiscordBot.Commands.Modules
         public async Task Thread()
         {
             var chnl = Context.Channel as SocketTextChannel;
-            var thread = await chnl.CreateThread(Context.Message.Id, x =>
-            {
-                x.Name = "Test Thread";
-                x.AutoArchiveDuration = 60;
-            });
+            var thread = await chnl.CreateThreadAsync("Test Thread",
+                autoArchiveDuration: ThreadArchiveDuration.OneHour, 
+                message: Context.Message);
             await thread.SendMessageAsync($"A new thread has been opened!");
         }
 

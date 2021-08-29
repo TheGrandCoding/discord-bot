@@ -190,7 +190,7 @@ namespace DiscordBot.SlashCommands.Modules
                     }
                     if (msg.Author.IsBot == false && !membersAdded.Contains(msg.Author.Id))
                     {
-                        await thread.AddMemberAsync(msg.Author.Id);
+                        await thread.AddUserAsync(msg.Author as IGuildUser);
                         membersAdded.Add(msg.Author.Id);
                     }
                 }
@@ -325,11 +325,9 @@ namespace DiscordBot.SlashCommands.Modules
             var thread = Program.Client.GetChannel(messageId) as IThreadChannel; // threads share same ID as their starter message
             if(thread == null)
             {
-                thread = await from.CreateThread(messageId, x =>
-                {
-                    x.Name = Program.Clamp(starterMessage.Content, 100);
-                    x.AutoArchiveDuration = 1440;
-                });
+                thread = await from.CreateThreadAsync(Program.Clamp(starterMessage.Content, 100),
+                    autoArchiveDuration: ThreadArchiveDuration.OneDay,
+                    message: starterMessage);
             }
             await moveAfter(messageId, from, from, thread);
         }

@@ -487,20 +487,5 @@ namespace DiscordBot
             isNullable = IsNullable(type, out var nl);
             return GetTypeName(nl ?? type, specifyEnum);
         }
-
-
-        static CacheDictionary<ulong, Discord.Rest.RestGlobalCommand> _cache;
-        public static async Task<Discord.Rest.RestGlobalCommand> GetGlobalCommand(ulong id, RequestOptions options = null)
-        {
-            _cache ??= new CacheDictionary<ulong, Discord.Rest.RestGlobalCommand>(expires: 60); // hour
-            if (_cache.TryGetValue(id, out var v))
-                return v;
-
-            var cmds = await Client.GetGlobalCommands(options);
-            foreach (var x in cmds)
-                _cache[x.Id] = x;
-            return cmds.FirstOrDefault(x => x.Id == id);
-        }
-    
     }
 }
