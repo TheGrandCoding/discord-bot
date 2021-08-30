@@ -22,19 +22,19 @@ namespace DiscordBot.Services
         public override void OnReady()
         {
             using var db = Program.Services.GetRequiredService<TimeTrackDb>();
-            if(PurgeThreads(db))
+            if(PurgeMonthOldThreads(db))
             {
                 db.SaveChanges();
             }
         }
 
-        public bool PurgeThreads(TimeTrackDb db)
+        public bool PurgeMonthOldThreads(TimeTrackDb db)
         {
             if (Program.DailyValidateFailed())
                 return false;
 
-            // Remove ALL threads older than three months
-            var cutoff = DateTime.Now.Date.AddMonths(-3);
+            // Remove ALL threads older than one month
+            var cutoff = DateTime.Now.Date.AddMonths(-1);
             var oldThreads = db.Threads.AsQueryable()
                 .Where(x => x.LastUpdated < cutoff)
                 .ToList();
@@ -43,32 +43,7 @@ namespace DiscordBot.Services
                 Warning($"Purging {oldThreads.Count} old threads");
             }
             db.Threads.RemoveRange(oldThreads);
-
-            // Remove large threads older than one month
-            var newCutoff = DateTime.Now.Date.AddMonths(-1);
-            var insiderThreads = db.Threads.AsQueryable()
-                .Where(x => x.LastUpdated < newCutoff &&  x.LastUpdated > cutoff)
-                .ToList();
-
-            var largeThreads = insiderThreads.Where(x => x.Comments > 2000).ToList();
-            if (largeThreads.Count > 0)
-            {
-                Warning($"Purging {largeThreads.Count} large threads");
-            }
-            db.Threads.RemoveRange(largeThreads);
-
-
-            // Remove zero-comment threads older than one month
-            var emptyThreads = insiderThreads.Where(x => x.Comments == 0).ToList();
-            if (emptyThreads.Count > 0)
-            {
-                Warning($"Purging {emptyThreads.Count} old threads");
-            }
-            db.Threads.RemoveRange(emptyThreads);
-
-            return oldThreads.Count > 0 
-                || largeThreads.Count > 0 
-                || emptyThreads.Count > 0;
+            return oldThreads.Count > 0;
         }
     }
 
