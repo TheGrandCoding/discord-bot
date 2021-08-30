@@ -45,10 +45,12 @@ namespace DiscordBot.Services
             db.Threads.RemoveRange(oldThreads);
 
             // Remove large threads older than one month
-            cutoff = DateTime.Now.Date.AddMonths(-1);
-            var largeThreads = db.Threads.AsQueryable()
-                .Where(x => x.LastUpdated < cutoff && x.Comments > 2000)
+            var newCutoff = DateTime.Now.Date.AddMonths(-1);
+            var insiderThreads = db.Threads.AsQueryable()
+                .Where(x => x.LastUpdated < newCutoff &&  x.LastUpdated > cutoff)
                 .ToList();
+
+            var largeThreads = insiderThreads.Where(x => x.Comments > 2000).ToList();
             if (largeThreads.Count > 0)
             {
                 Warning($"Purging {largeThreads.Count} large threads");
@@ -57,13 +59,10 @@ namespace DiscordBot.Services
 
 
             // Remove zero-comment threads older than one month
-            cutoff = DateTime.Now.Date.AddMonths(-1);
-            var emptyThreads = db.Threads.AsQueryable()
-                .Where(x => x.LastUpdated < cutoff && x.Comments == 0)
-                .ToList();
+            var emptyThreads = insiderThreads.Where(x => x.Comments == 0).ToList();
             if (emptyThreads.Count > 0)
             {
-                Warning($"Purging {emptyThreads.Count} large threads");
+                Warning($"Purging {emptyThreads.Count} old threads");
             }
             db.Threads.RemoveRange(emptyThreads);
 
