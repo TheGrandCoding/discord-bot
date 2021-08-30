@@ -21,28 +21,55 @@ namespace DiscordBot.Services
     {
         public override void OnReady()
         {
-            PurgeOldThreads();
+            using var db = Program.Services.GetRequiredService<TimeTrackDb>();
+            if(PurgeThreads(db))
+            {
+                db.SaveChanges();
+            }
         }
 
-        public void PurgeOldThreads()
+        public bool PurgeThreads(TimeTrackDb db)
         {
             if (Program.DailyValidateFailed())
-                return;
-            using var db = Program.Services.GetRequiredService<TimeTrackDb>();
+                return false;
 
+            // Remove ALL threads older than three months
             var cutoff = DateTime.Now.Date.AddMonths(-3);
-
             var oldThreads = db.Threads.AsQueryable()
                 .Where(x => x.LastUpdated < cutoff)
                 .ToList();
-
             if (oldThreads.Count > 0)
             {
-                Warning($"Purging {oldThreads.Count} threads");
+                Warning($"Purging {oldThreads.Count} old threads");
             }
-
             db.Threads.RemoveRange(oldThreads);
-            db.SaveChanges();
+
+            // Remove large threads older than one month
+            cutoff = DateTime.Now.Date.AddMonths(-1);
+            var largeThreads = db.Threads.AsQueryable()
+                .Where(x => x.LastUpdated < cutoff && x.Comments > 2000)
+                .ToList();
+            if (largeThreads.Count > 0)
+            {
+                Warning($"Purging {largeThreads.Count} large threads");
+            }
+            db.Threads.RemoveRange(largeThreads);
+
+
+            // Remove zero-comment threads older than one month
+            cutoff = DateTime.Now.Date.AddMonths(-1);
+            var emptyThreads = db.Threads.AsQueryable()
+                .Where(x => x.LastUpdated < cutoff && x.Comments == 0)
+                .ToList();
+            if (emptyThreads.Count > 0)
+            {
+                Warning($"Purging {emptyThreads.Count} large threads");
+            }
+            db.Threads.RemoveRange(emptyThreads);
+
+            return oldThreads.Count > 0 
+                || largeThreads.Count > 0 
+                || emptyThreads.Count > 0;
         }
     }
 
