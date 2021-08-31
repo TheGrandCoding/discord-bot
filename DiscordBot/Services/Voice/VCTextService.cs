@@ -128,21 +128,29 @@ namespace DiscordBot.Services
                 var embed = new EmbedBuilder()
                         .WithTitle("Paired Channel")
                         .WithDescription("This thread can be used for discussions in the paired voice channel.")
-                        .WithAuthor(user)
-                        .Build();
-                if (voice.Guild.Features.Contains(PRIVATE_THREADS))
+                        .WithAuthor(user);
+                var name = $"Paired with {voice.Name}";
+                thread = voice.Guild.ThreadChannels.FirstOrDefault(x => x.Name == name);
+                if(thread == null)
                 {
-                    thread = await pairedChannel.CreateThreadAsync("Paired VC discussion", type: ThreadType.PrivateThread, autoArchiveDuration: ThreadArchiveDuration.OneDay);
-                    await thread.SendMessageAsync(embed: embed);
+                    if (voice.Guild.Features.Contains(PRIVATE_THREADS))
+                    {
+                        thread = await pairedChannel.CreateThreadAsync(name, type: ThreadType.PrivateThread, autoArchiveDuration: ThreadArchiveDuration.OneDay);
+                        await thread.SendMessageAsync(embed: embed.Build());
+                    } else
+                    {
+                        var starterMessage = await pairedChannel.SendMessageAsync(embed: embed.Build());
+                        thread = await pairedChannel.CreateThreadAsync(name, autoArchiveDuration: ThreadArchiveDuration.OneDay, message: starterMessage);
+                    }
                 } else
                 {
-                    var starterMessage = await pairedChannel.SendMessageAsync(embed: embed);
-                    thread = await pairedChannel.CreateThreadAsync($"Paired with {voice.Name}", autoArchiveDuration: ThreadArchiveDuration.OneDay, message: starterMessage);
+                    embed.Description = "This thread has been re-paired with the voice channel.";
+                    await thread.SendMessageAsync(embed: embed.Build());
                 }
                 Threads[voice] = thread;
                 foreach(var usr in voice.Users)
                 {
-                    await thread.AddUserAsync(usr, null);
+                    await thread.AddUserAsync(usr);
                 }
 
                 OnSave();
