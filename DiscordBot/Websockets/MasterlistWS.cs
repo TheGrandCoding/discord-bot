@@ -110,28 +110,36 @@ namespace DiscordBot.Websockets
                     errors.Add("Missing server name");
                 } else if(server.Name.Length > 32)
                 {
-                    errors
+                    errors.Add("Server name too long");
                 }
 
-                Service.AddServer(server);
-
-                Server = server;
-
-                Send(packet.ReplyWith(JToken.FromObject(server.Id)));
-            } else if(packet.Id == MLPacketId.ResumeServer)
-            {
-                var id = packet.Content.ToObject<string>();
-                if(Service.Servers.TryGetValue(id, out var server))
+                if(string.IsNullOrWhiteSpace(server.GameName) || server.GameName.Length > 32)
                 {
-                    server.WS = this;
-                    Server = server;
-                    Send(new Packet<MLPacketId>(MLPacketId.UpsertServer, JToken.FromObject(id)));
+                    errors.Add("Game name absent or too long");
+                }
+
+                if(string.IsNullOrWhiteSpace(server.GameMode) || server.GameMode.Length > 32)
+                {
+                    errors.Add("Game mode absent or too long");
+                }
+
+                if(server.ConnectIp == null)
+                {
+                    errors.Add("No IP address provided");
+                }
+
+                var jobj = new JObject();
+                if(errors.Count > 0)
+                {
+                    jobj["errors"] = JArray.FromObject(errors);
                 } else
                 {
-                    Send(packet.ReplyWith(JToken.FromObject("Error: server not found")));
+                    jobj["id"] = server.Id;
+                    Service.AddServer(server);
+                    Server = server;
                 }
 
-
+                Send(packet.ReplyWith(jobj));
             } else if(packet.Id == MLPacketId.GetServers)
             {
                 var game = packet.Content["game"]?.ToObject<string>() ?? Game;
