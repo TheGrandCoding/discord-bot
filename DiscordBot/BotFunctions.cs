@@ -152,8 +152,8 @@ namespace DiscordBot
             settings.Formatting = format;
             settings.TypeNameHandling = handling;
             settings.Converters.Add(new DiscordConverter());
-            settings.Converters.Add(new Classes.ServerList.MLJsonConverter());
-            settings.Converters.Add(new Classes.ServerList.IPConverter());
+            //settings.Converters.Add(new Classes.ServerList.MLJsonConverter());
+            //settings.Converters.Add(new Classes.ServerList.IPConverter());
             if(conv != null)
             {
                 foreach (var x in conv)
