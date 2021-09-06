@@ -83,6 +83,7 @@ namespace DiscordBot.Websockets
         protected override void OnMessage(MessageEventArgs e)
         {
             var packet = new Packet<TPacketId>(JObject.Parse(e.Data));
+            Debug(packet.ToString(Newtonsoft.Json.Formatting.Indented), "<<");
             OnPacket(packet);
         }
 
