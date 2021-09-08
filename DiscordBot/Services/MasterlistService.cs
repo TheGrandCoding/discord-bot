@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Threading;
 
 namespace DiscordBot.Services.Masterlist
 {
@@ -31,8 +32,43 @@ namespace DiscordBot.Services.Masterlist
             return content;
         }
 
+        SemaphoreSlim sema = new SemaphoreSlim(1, 1);
+
         public void AddServer(Server server)
         {
+            sema.Wait();
+            try
+            {
+                var servers = Servers.Values.ToList();
+                string ipb = (server.ConnectIp ?? server.IpAddress).ToString();
+                var toRemove = new List<string>();
+                Func<Server, bool> predicate = x =>
+                {
+                    if (x.GameName != server.GameName)
+                        return false;
+                    if (x.GameMode != server.GameMode)
+                        return false;
+                    string ipx = (x.ConnectIp ?? x.IpAddress).ToString();
+
+                    return ipx == ipb && x.Port == server.Port;
+                };
+                foreach(var x in Servers.Values)
+                {
+                    if(predicate(x))
+                    {
+                        toRemove.Add(x.Id);
+                    }
+                }
+                foreach (var id in toRemove)
+                    Servers.TryRemove(id, out _);
+
+                Servers[server.Id] = server;
+            } finally
+            {
+                sema.Release();
+            }
+
+
             Servers[server.Id] = server;
 
             BroadcastUpdate(server.GameName, server.GameMode);
