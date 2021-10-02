@@ -95,7 +95,7 @@ namespace DiscordBot.Services
                     changes = true;
                     builder = updatedExp.ToEmbed();
                     builder.Color = Color.Green;
-                    await sendMessageFor(updatedExp, builder);
+                    await sendMessageFor(updatedExp, null);
                     continue;
                 }
 
