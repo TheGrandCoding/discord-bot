@@ -299,7 +299,7 @@ namespace DiscordBot.Commands.Modules
             var sv = Program.Services.GetRequiredService<EnsureLevelEliteness>();
             if(!sv.Guilds.TryGetValue(Context.Guild.Id, out var save))
             {
-                save = new GuildSave();
+                save = new EnsureLevelEliteness.GuildSave();
                 sv.Guilds[Context.Guild.Id] = save;
             }
             save.VerifyRole = role;

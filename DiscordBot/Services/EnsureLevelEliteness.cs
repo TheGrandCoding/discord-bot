@@ -98,14 +98,16 @@ namespace DiscordBot.Services
 
         public override string GenerateSave()
             => Program.Serialise(Guilds ?? new Dictionary<ulong, GuildSave>());
+
+
+        public class GuildSave
+        {
+            [JsonProperty("r")]
+            public IRole VerifyRole { get; set; }
+            [JsonProperty("f")]
+            public Dictionary<ulong, int> Fails { get; set; } = new Dictionary<ulong, int>();
+        }
     }
 
-    public class GuildSave
-    {
-        [JsonProperty("r")]
-        public IRole VerifyRole { get; set; }
-        [JsonProperty("f")]
-        public Dictionary<ulong, int> Fails { get; set; } = new Dictionary<ulong, int>();
-    }
 }
 
