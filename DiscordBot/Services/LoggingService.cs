@@ -466,19 +466,23 @@ namespace DiscordBot.Services
             await SendLog(arg.Guild, "threads", builder, arg.Id);
         }
 
-        private async Task Client_ThreadUpdated(SocketThreadChannel arg1, SocketThreadChannel arg2)
+        private async Task Client_ThreadUpdated(Cacheable<SocketThreadChannel, ulong> cached1, SocketThreadChannel arg2)
         {
-            var calc = DiffCalculator.Create(arg1, arg2);
-            var changes = calc.GetChanges();
             var builder = new EmbedBuilder();
             builder.Title = $"Thread Updated";
             builder.AddField($"Name", arg2.Name + "\r\n" + arg2.Mention, true);
             builder.AddField("Created by", $"{(arg2.Owner?.Mention ?? "n/a")}", true);
             builder.AddField("Channel", $"{(arg2.ParentChannel?.Mention ?? "n/a")}", true);
 
-            foreach (var change in changes)
+            var arg1 = await cached1.GetOrDownloadAsync();
+            if (arg1 != null)
             {
-                builder.AddField(change.Type, $"{change.Before} -> **{change.After}**", true);
+                var calc = DiffCalculator.Create(arg1, arg2);
+                var changes = calc.GetChanges();
+                foreach (var change in changes)
+                {
+                    builder.AddField(change.Type, $"{change.Before} -> **{change.After}**", true);
+                }
             }
             await SendLog(arg1.Guild, "threads", builder, arg1.Id);
         }

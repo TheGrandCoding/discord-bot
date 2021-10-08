@@ -61,7 +61,7 @@ namespace DiscordBot.SlashCommands.Modules
         {
             bool hasChildren = cmd.Options != null && cmd.Options.Any(x => x.Type == ApplicationCommandOptionType.SubCommand || x.Type == ApplicationCommandOptionType.SubCommandGroup);
             if (!hasChildren)
-                return $"`/{cmd.Name}` {cmd.Id} - {cmd.Description}" + (cmd.DefaultPermission ? "" : " [x]");
+                return $"`/{cmd.Name}` {cmd.Id} - {cmd.Description}" + (cmd.IsDefaultPermission ? "" : " [x]");
             var sb = new StringBuilder();
             sb.Append($"- {cmd.Id} {cmd.Description}\r\n");
             foreach(var option in cmd.Options)
@@ -89,13 +89,15 @@ namespace DiscordBot.SlashCommands.Modules
         {
 
             string emote(bool value) => value ? "✅" : "❌";
-            async Task<SocketApplicationCommand> getCommand(ulong id)
+            async Task<IApplicationCommand> getCommand(ulong id)
             {
-                return (SocketApplicationCommand)(await Interaction.Guild.GetApplicationCommandAsync(id))
-                    ?? await Program.Client.GetGlobalApplicationCommandAsync(id);
+                var cmd = await Interaction.Guild.GetApplicationCommandAsync(id);
+                if (cmd != null)
+                    return cmd;
+                return await Program.Client.GetGlobalApplicationCommandAsync(id);
             }
             
-            async Task<SocketApplicationCommand> getCommand(string input)
+            async Task<IApplicationCommand> getCommand(string input)
             {
                 if (ulong.TryParse(input, out var id))
                     return await getCommand(id);
@@ -124,14 +126,14 @@ namespace DiscordBot.SlashCommands.Modules
                     if (cmdPerms == null || cmdPerms.Permissions == null || cmdPerms.Permissions.Count == 0)
                     {
 
-                        await Interaction.FollowupAsync("Default: " + emote(cmd.DefaultPermission) + "\r\n" +
+                        await Interaction.FollowupAsync("Default: " + emote(cmd.IsDefaultPermission) + "\r\n" +
                             "Command has no specific permissions set", embeds: null);
                         return;
                     }
                     var embed  = new EmbedBuilder();
                     embed .Title = $"{cmd.Name} Permissions";
                     var sb = new StringBuilder();
-                    sb.Append("Default: " + emote(cmd.DefaultPermission) + "\r\n");
+                    sb.Append("Default: " + emote(cmd.IsDefaultPermission) + "\r\n");
                     foreach (var thing in cmdPerms.Permissions)
                     {
                         if (thing.TargetType == ApplicationCommandPermissionTarget.User)
@@ -156,7 +158,7 @@ namespace DiscordBot.SlashCommands.Modules
                 await Interaction.DeferAsync(true);
                 try
                 {
-                    SocketApplicationCommand command = await getCommand(strId);
+                    IApplicationCommand command = await getCommand(strId);
                     if (command == null)
                     {
                         await Interaction.FollowupAsync(":x: Command does not exist", embeds: null);
@@ -171,7 +173,7 @@ namespace DiscordBot.SlashCommands.Modules
                         if (existingValue != value.Value)
                         {
                             permBuilder.With(thingId, thingType, value.Value);
-                            await command.ModifyCommandPermissions(permBuilder.Build().ToArray(), Interaction.Guild.Id);
+                            await command.ModifyCommandPermissions(Interaction.Guild.Id, permBuilder.Build().ToArray());
                         }
                         await Interaction.FollowupAsync("Done!", embeds: null);
                     }
@@ -234,7 +236,7 @@ namespace DiscordBot.SlashCommands.Modules
                 var existingPerms = await cmd.GetCommandPermission(Interaction.Guild.Id);
                 var permBuilder = SlashCommandPermsBuilder.From(existingPerms);
                 permBuilder.Remove(id);
-                await cmd.ModifyCommandPermissions(permBuilder.Build().ToArray(), Interaction.Guild.Id);
+                await cmd.ModifyCommandPermissions(Interaction.Guild.Id, permBuilder.Build().ToArray());
                 await Interaction.FollowupAsync("Done!", embeds: null);
             }
 
@@ -253,10 +255,9 @@ namespace DiscordBot.SlashCommands.Modules
                 }
                 if(cmd.IsGlobalCommand)
                 {
-                    await cmd.ModifyCommandPermissions(
-                        new SlashCommandPermsBuilder()
+                    await cmd.ModifyCommandPermissions(Interaction.Guild.Id, new SlashCommandPermsBuilder()
                             .With(Interaction.Guild.Id, ApplicationCommandPermissionTarget.Role, value) // @everyone role
-                            .Build().ToArray(), Interaction.Guild.Id);
+                            .Build().ToArray());
                     await Interaction.FollowupAsync("Done!\r\nNote: due to a Discord bug, the command will appear greyed out but will still be executable.", embeds: null);
                 } else
                 {

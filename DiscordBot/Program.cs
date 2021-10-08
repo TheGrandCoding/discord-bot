@@ -38,7 +38,7 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public const string VERSION = "0.19.16"; 
+        public const string VERSION = "0.19.17"; 
         public const string CHANGELOG = VERSION + @"
 == Permissions changes
 Changed how permissions worked for bot.
@@ -388,7 +388,6 @@ Changed how permissions worked for bot.
                     LogLevel = LogSeverity.Info,
 #endif
                     MessageCacheSize = 1000,
-                    AlwaysAcknowledgeInteractions = false,
                     AlwaysDownloadUsers = true,
                     GatewayIntents = GatewayIntents.All
                 }))

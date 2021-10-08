@@ -15,7 +15,7 @@ namespace DiscordBot.SlashCommands.Modules
         public VCTextService TextService { get; set; }
 
         [SlashCommand("pair", "Threads will be made in the context channel.")]
-        public async Task PairWith([Required]SocketGuildChannel voice)
+        public async Task PairWith([Required]SocketVoiceChannel voice)
         {
             if(!(voice is SocketVoiceChannel vc)) {
                 await Interaction.RespondAsync(":x: You must select a voice channel, " +

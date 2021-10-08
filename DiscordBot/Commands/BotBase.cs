@@ -118,7 +118,7 @@ namespace DiscordBot.Commands
             {
                 if (e.User.Id != Context.User.Id)
                     return;
-                await e.Interaction.AcknowledgeAsync();
+                await e.Interaction.DeferAsync();
                 var btn = getButton(components, e.ComponentId);
                 selectionSource.SetResult(btn);
             }

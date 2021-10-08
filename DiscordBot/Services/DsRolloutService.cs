@@ -1,5 +1,7 @@
 ﻿using Discord;
+using Discord.SlashCommands;
 using Discord.WebSocket;
+using DiscordBot.Classes;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -7,7 +9,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
@@ -20,8 +21,11 @@ namespace DiscordBot.Services
     {
         public ConcurrentDictionary<string, Experiment> Experiments { get; set; } = new ConcurrentDictionary<string, Experiment>();
 
+        public Cached<bool> HasRecentlySynced = new Cached<bool>(false, 60);
+
         public ConcurrentDictionary<ulong, GuildSave> Guilds { get; set; } = new ConcurrentDictionary<ulong, GuildSave>();
 
+        public SlashCommandService SlashService { get; set; }
 
         public override string GenerateSave()
         {
@@ -49,7 +53,10 @@ namespace DiscordBot.Services
 
         public override void OnDailyTick()
         {
-            updateTask().Wait();
+            if(Guilds.Count > 0)
+            {
+                updateTask().Wait();
+            }
         }
 
         public async Task sendMessageFor(Experiment experiment, EmbedBuilder builder)
@@ -79,8 +86,6 @@ namespace DiscordBot.Services
 
         async Task updateTask()
         {
-            if (Guilds.Count == 0)
-                return;
             var currentExperiments = await GetCurrentExperiments();
             var existingExperiments = Experiments.Values.ToList();
 
@@ -98,7 +103,6 @@ namespace DiscordBot.Services
                     await sendMessageFor(updatedExp, null);
                     continue;
                 }
-
                 // compare them, see if equal
                 builder = new EmbedBuilder();
 
@@ -149,6 +153,7 @@ namespace DiscordBot.Services
                 }
             }
 
+            HasRecentlySynced.Value = true;
             if(changes)
             {
                 Experiments.Clear();
@@ -189,6 +194,28 @@ namespace DiscordBot.Services
         {
             public Dictionary<string, IUserMessage> Messages { get; set; }
             public ITextChannel Channel { get; set; }
+        }
+
+        public async Task<IEnumerable<AutocompleteResult>> GetAutocomplete(SocketAutocompleteInteraction interaction)
+        {
+            if(!HasRecentlySynced.GetValueOrDefault(false))
+            {
+                await updateTask();
+            }
+            var ls = new List<AutocompleteResult>();
+            string text = interaction.Data.Current.Value.ToString();
+
+            foreach(var experiment in Experiments.Values)
+            {
+                if(string.IsNullOrWhiteSpace(text) 
+                    || experiment.Id.Contains(text, StringComparison.OrdinalIgnoreCase) 
+                    || experiment.Title.Contains(text, StringComparison.OrdinalIgnoreCase))
+                {
+                    var result = new AutocompleteResult(experiment.Title, experiment.Id);
+                    ls.Add(result);
+                }
+            }
+            return ls;
         }
     }
 

@@ -120,7 +120,7 @@ namespace DiscordBot.SlashCommands.Modules
 
         [SlashCommand("last", "Moves the latest [amount] messages to the selected channel")]
         [RequireUserPermission(ChannelPermission.ManageMessages)]
-        public async Task MoveBatch([Required] int amount, [Required] SocketGuildChannel chnl)
+        public async Task MoveBatch([Required] int amount, [Required] SocketTextChannel chnl)
         {
             if (!(chnl is SocketTextChannel to))
             {
@@ -213,7 +213,7 @@ namespace DiscordBot.SlashCommands.Modules
         public async Task MoveAfter(
             [ParameterName("message")]
             [Required]string strMsgId,
-            [Required] SocketGuildChannel chnl)
+            [Required] SocketTextChannel chnl)
         {
             if (!(chnl is SocketTextChannel to))
             {
@@ -251,7 +251,7 @@ namespace DiscordBot.SlashCommands.Modules
 
         [SlashCommand("one", "Moves the single specified message to the selected channel")]
         [RequireUserPermission(ChannelPermission.ManageMessages)]
-        public async Task MoveOne([Required] string message, [Required]SocketGuildChannel chnl)
+        public async Task MoveOne([Required] string message, [Required]SocketTextChannel chnl)
         {
             if (!(chnl is SocketTextChannel to))
             {

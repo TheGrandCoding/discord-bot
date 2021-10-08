@@ -14,7 +14,6 @@ namespace DiscordBot.SlashCommands.Modules
     {
         public DsRolloutService Service { get; set; }
 
-
         [SlashCommand("register", "Registers channel to notify changes")]
         public async Task Register()
         {
@@ -35,7 +34,7 @@ namespace DiscordBot.SlashCommands.Modules
         }
 
         [SlashCommand("check", "Checks which treatment the server is in")]
-        public async Task HasExperiment([Required]string experiment, string serverid = null)
+        public async Task HasExperiment([Required][Autocomplete]string experiment, string serverid = null)
         {
             if (string.IsNullOrWhiteSpace(serverid))
                 serverid = Interaction.Guild.Id.ToString();

@@ -47,7 +47,7 @@ namespace DiscordBot.SlashCommands.Modules
                     ephemeral: true, embeds: null);
                 return;
             }
-            await Interaction.AcknowledgeAsync();
+            await Interaction.DeferAsync();
 
             IInviteMetadata invite;
             string name;
@@ -88,7 +88,7 @@ namespace DiscordBot.SlashCommands.Modules
             string strid, 
             [Required]
             [ParameterName("voice-channel")]
-            SocketGuildChannel chnl)
+            SocketVoiceChannel chnl)
         {
             if(!(chnl is SocketVoiceChannel vc))
             {

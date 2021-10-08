@@ -30,7 +30,7 @@ namespace DiscordBot.SlashCommands.Modules
             IEnumerable<IMessage> messages;
             IMessage last = null;
             int done = 0;
-            await Interaction.AcknowledgeAsync();
+            await Interaction.DeferAsync();
             IUserMessage response = null;
             var lastSent = DateTimeOffset.Now;
             var bulkDelete = new List<IMessage>();

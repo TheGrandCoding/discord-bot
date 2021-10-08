@@ -83,6 +83,20 @@ namespace DiscordBot.Services
                     Program.LogDebug($"Executing message componenet {x.Id}", "Interactions");
                     result = await components.ExecuteAsync(x as SocketMessageComponent).ConfigureAwait(false);
                     Program.LogInfo($"Executed interaction {x.Id}: {result.IsSuccess} {result.Error} {result.ErrorReason}", "Interactions");
+                } else if(x.Type == InteractionType.ApplicationCommandAutocomplete)
+                {
+                    var autocomplete = x as SocketAutocompleteInteraction;
+                    
+                    if(autocomplete.Data.CommandName == "experiments")
+                    {
+                        var results = await Program.Services.GetRequiredService<DsRolloutService>().GetAutocomplete(autocomplete);
+                        await autocomplete.RespondAsync(results);
+                        result = ExecuteResult.FromSuccess();
+                    } else
+                    {
+                        Program.LogInfo($"Unknown autocomplete command: {autocomplete.Data.CommandName}", "Interactions");
+                        result = MiscResult.FromError("Unknown command for autocompletion");
+                    }
                 }
                 else
                 {

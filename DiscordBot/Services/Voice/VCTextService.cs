@@ -43,8 +43,9 @@ namespace DiscordBot.Services
             Program.Client.ThreadUpdated += Client_ThreadUpdated;
         }
 
-        private async Task Client_ThreadUpdated(SocketThreadChannel arg1, SocketThreadChannel arg2)
+        private async Task Client_ThreadUpdated(Cacheable<SocketThreadChannel, ulong> cached1, SocketThreadChannel arg2)
         {
+            var arg1 = await cached1.GetOrDownloadAsync();
             if (arg1 == null || arg2 == null)
                 return;
             if(arg1.Archived == false && arg2.Archived == true)

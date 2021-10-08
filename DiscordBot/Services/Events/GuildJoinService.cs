@@ -107,7 +107,7 @@ namespace DiscordBot.Services.Events
             if (invoker == null)
                 return;
 
-            await e.Interaction.AcknowledgeAsync();
+            await e.Interaction.DeferAsync();
 
             string alu = $"{invoker.Username} ({invoker.Id})";
 
