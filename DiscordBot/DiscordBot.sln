@@ -10,16 +10,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DiscordBot", "DiscordBot.cs
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "qBitApi", "..\qBitApi\qBitApi.csproj", "{8D5D910F-4EF8-4E96-A614-E6C29B80670E}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Discord.Net.WebSocket", "..\..\Discord.Net-Buttons\src\Discord.Net.WebSocket\Discord.Net.WebSocket.csproj", "{4CFBBA41-350F-4676-A779-D92840FA9F53}"
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Discord.Net.Webhook", "..\..\Discord.Net-Buttons\src\Discord.Net.Webhook\Discord.Net.Webhook.csproj", "{7C94B8C6-2F22-4559-BAE9-29756685674E}"
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Discord.Net.Rest", "..\..\Discord.Net-Buttons\src\Discord.Net.Rest\Discord.Net.Rest.csproj", "{91FD73A9-FFB5-4B02-909C-54E7E0BA5E4A}"
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Discord.Net.Core", "..\..\Discord.Net-Buttons\src\Discord.Net.Core\Discord.Net.Core.csproj", "{FE53081A-1F34-4F12-B047-96EBBB4A96A8}"
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Discord.Net.Commands", "..\..\Discord.Net-Buttons\src\Discord.Net.Commands\Discord.Net.Commands.csproj", "{3ACC37D2-C107-450B-AD5A-092C42BCBB86}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -49,56 +39,6 @@ Global
 		{8D5D910F-4EF8-4E96-A614-E6C29B80670E}.Release|Any CPU.Build.0 = Release|Any CPU
 		{8D5D910F-4EF8-4E96-A614-E6C29B80670E}.WinDebug|Any CPU.ActiveCfg = Debug|Any CPU
 		{8D5D910F-4EF8-4E96-A614-E6C29B80670E}.WinDebug|Any CPU.Build.0 = Debug|Any CPU
-		{4CFBBA41-350F-4676-A779-D92840FA9F53}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{4CFBBA41-350F-4676-A779-D92840FA9F53}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{4CFBBA41-350F-4676-A779-D92840FA9F53}.LinDebug|Any CPU.ActiveCfg = Debug|Any CPU
-		{4CFBBA41-350F-4676-A779-D92840FA9F53}.LinDebug|Any CPU.Build.0 = Debug|Any CPU
-		{4CFBBA41-350F-4676-A779-D92840FA9F53}.LinRelease|Any CPU.ActiveCfg = Release|Any CPU
-		{4CFBBA41-350F-4676-A779-D92840FA9F53}.LinRelease|Any CPU.Build.0 = Release|Any CPU
-		{4CFBBA41-350F-4676-A779-D92840FA9F53}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{4CFBBA41-350F-4676-A779-D92840FA9F53}.Release|Any CPU.Build.0 = Release|Any CPU
-		{4CFBBA41-350F-4676-A779-D92840FA9F53}.WinDebug|Any CPU.ActiveCfg = Debug|Any CPU
-		{4CFBBA41-350F-4676-A779-D92840FA9F53}.WinDebug|Any CPU.Build.0 = Debug|Any CPU
-		{7C94B8C6-2F22-4559-BAE9-29756685674E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{7C94B8C6-2F22-4559-BAE9-29756685674E}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{7C94B8C6-2F22-4559-BAE9-29756685674E}.LinDebug|Any CPU.ActiveCfg = Debug|Any CPU
-		{7C94B8C6-2F22-4559-BAE9-29756685674E}.LinDebug|Any CPU.Build.0 = Debug|Any CPU
-		{7C94B8C6-2F22-4559-BAE9-29756685674E}.LinRelease|Any CPU.ActiveCfg = Release|Any CPU
-		{7C94B8C6-2F22-4559-BAE9-29756685674E}.LinRelease|Any CPU.Build.0 = Release|Any CPU
-		{7C94B8C6-2F22-4559-BAE9-29756685674E}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{7C94B8C6-2F22-4559-BAE9-29756685674E}.Release|Any CPU.Build.0 = Release|Any CPU
-		{7C94B8C6-2F22-4559-BAE9-29756685674E}.WinDebug|Any CPU.ActiveCfg = Debug|Any CPU
-		{7C94B8C6-2F22-4559-BAE9-29756685674E}.WinDebug|Any CPU.Build.0 = Debug|Any CPU
-		{91FD73A9-FFB5-4B02-909C-54E7E0BA5E4A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{91FD73A9-FFB5-4B02-909C-54E7E0BA5E4A}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{91FD73A9-FFB5-4B02-909C-54E7E0BA5E4A}.LinDebug|Any CPU.ActiveCfg = Debug|Any CPU
-		{91FD73A9-FFB5-4B02-909C-54E7E0BA5E4A}.LinDebug|Any CPU.Build.0 = Debug|Any CPU
-		{91FD73A9-FFB5-4B02-909C-54E7E0BA5E4A}.LinRelease|Any CPU.ActiveCfg = Release|Any CPU
-		{91FD73A9-FFB5-4B02-909C-54E7E0BA5E4A}.LinRelease|Any CPU.Build.0 = Release|Any CPU
-		{91FD73A9-FFB5-4B02-909C-54E7E0BA5E4A}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{91FD73A9-FFB5-4B02-909C-54E7E0BA5E4A}.Release|Any CPU.Build.0 = Release|Any CPU
-		{91FD73A9-FFB5-4B02-909C-54E7E0BA5E4A}.WinDebug|Any CPU.ActiveCfg = Debug|Any CPU
-		{91FD73A9-FFB5-4B02-909C-54E7E0BA5E4A}.WinDebug|Any CPU.Build.0 = Debug|Any CPU
-		{FE53081A-1F34-4F12-B047-96EBBB4A96A8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{FE53081A-1F34-4F12-B047-96EBBB4A96A8}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{FE53081A-1F34-4F12-B047-96EBBB4A96A8}.LinDebug|Any CPU.ActiveCfg = Debug|Any CPU
-		{FE53081A-1F34-4F12-B047-96EBBB4A96A8}.LinDebug|Any CPU.Build.0 = Debug|Any CPU
-		{FE53081A-1F34-4F12-B047-96EBBB4A96A8}.LinRelease|Any CPU.ActiveCfg = Release|Any CPU
-		{FE53081A-1F34-4F12-B047-96EBBB4A96A8}.LinRelease|Any CPU.Build.0 = Release|Any CPU
-		{FE53081A-1F34-4F12-B047-96EBBB4A96A8}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{FE53081A-1F34-4F12-B047-96EBBB4A96A8}.Release|Any CPU.Build.0 = Release|Any CPU
-		{FE53081A-1F34-4F12-B047-96EBBB4A96A8}.WinDebug|Any CPU.ActiveCfg = Debug|Any CPU
-		{FE53081A-1F34-4F12-B047-96EBBB4A96A8}.WinDebug|Any CPU.Build.0 = Debug|Any CPU
-		{3ACC37D2-C107-450B-AD5A-092C42BCBB86}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{3ACC37D2-C107-450B-AD5A-092C42BCBB86}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{3ACC37D2-C107-450B-AD5A-092C42BCBB86}.LinDebug|Any CPU.ActiveCfg = Debug|Any CPU
-		{3ACC37D2-C107-450B-AD5A-092C42BCBB86}.LinDebug|Any CPU.Build.0 = Debug|Any CPU
-		{3ACC37D2-C107-450B-AD5A-092C42BCBB86}.LinRelease|Any CPU.ActiveCfg = Release|Any CPU
-		{3ACC37D2-C107-450B-AD5A-092C42BCBB86}.LinRelease|Any CPU.Build.0 = Release|Any CPU
-		{3ACC37D2-C107-450B-AD5A-092C42BCBB86}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{3ACC37D2-C107-450B-AD5A-092C42BCBB86}.Release|Any CPU.Build.0 = Release|Any CPU
-		{3ACC37D2-C107-450B-AD5A-092C42BCBB86}.WinDebug|Any CPU.ActiveCfg = Debug|Any CPU
-		{3ACC37D2-C107-450B-AD5A-092C42BCBB86}.WinDebug|Any CPU.Build.0 = Debug|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
