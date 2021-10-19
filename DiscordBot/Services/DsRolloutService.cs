@@ -1,4 +1,5 @@
 ﻿using Discord;
+using Discord.Rest;
 using Discord.SlashCommands;
 using Discord.WebSocket;
 using DiscordBot.Classes;
@@ -24,6 +25,8 @@ namespace DiscordBot.Services
         public Cached<bool> HasRecentlySynced = new Cached<bool>(false, 60);
 
         public ConcurrentDictionary<ulong, GuildSave> Guilds { get; set; } = new ConcurrentDictionary<ulong, GuildSave>();
+
+        public ConcurrentDictionary<ulong, IThreadChannel> CachedThreads { get; set; } = new ConcurrentDictionary<ulong, IThreadChannel>();
 
         public SlashCommandService SlashService { get; set; }
 
@@ -59,11 +62,29 @@ namespace DiscordBot.Services
             }
         }
 
+        async Task<IThreadChannel> getThreadFor(GuildSave guild, Experiment experiment, IMessage message)
+        {
+            IThreadChannel thread = await guild.Channel.Guild.GetThreadChannelAsync(message.Id);
+            if (thread != null)
+                return thread;
+
+            if(guild.CachedThreads.Count == 0)
+            {
+                IThreadChannel[] archivedThreads = await guild.Channel.GetPublicArchivedThreadsAsync();
+                foreach (var th in archivedThreads)
+                    guild.CachedThreads[th.Id] = th;
+            }
+            if (guild.CachedThreads.TryGetValue(message.Id, out thread))
+                return thread;
+
+            thread = await guild.Channel.CreateThreadAsync(Program.Clamp(experiment.Title, 100), message: message);
+            return thread;
+        }
+
         public async Task sendMessageFor(Experiment experiment, EmbedBuilder builder)
         {
             foreach((var guildId, var guildSave) in Guilds)
             {
-                var guild = Program.Client.GetGuild(guildId);
                 IUserMessage message;
                 if(!guildSave.Messages.TryGetValue(experiment.Id, out message))
                 {
@@ -71,14 +92,7 @@ namespace DiscordBot.Services
                     guildSave.Messages[experiment.Id] = message;
                 }
 
-                IThreadChannel thread = guild.GetThreadChannel(message.Id);
-                // TODO: the thread might have been archived in the time
-                //       however it's ID should be the same as the message
-                //       so if we can get the archived threads, we can find it.
-                if (thread == null)
-                {
-                    thread = await guildSave.Channel.CreateThreadAsync(experiment.Title, message: message);
-                }
+                IThreadChannel thread = await getThreadFor(guildSave, experiment, message);
                 if(builder != null)
                     await thread.SendMessageAsync(embed: builder.Build());
             }
@@ -161,6 +175,8 @@ namespace DiscordBot.Services
                     Experiments[item.Id] = item;
                 OnSave();
             }
+            foreach (var guild in Guilds)
+                guild.Value.CachedThreads = new Dictionary<ulong, IThreadChannel>();
         }
 
         public static bool getInt(string name, out int i)
@@ -194,6 +210,9 @@ namespace DiscordBot.Services
         {
             public Dictionary<string, IUserMessage> Messages { get; set; }
             public ITextChannel Channel { get; set; }
+
+            [JsonIgnore]
+            public Dictionary<ulong, IThreadChannel> CachedThreads { get; set; } = new Dictionary<ulong, IThreadChannel>();
         }
 
         public async Task<IEnumerable<AutocompleteResult>> GetAutocomplete(SocketAutocompleteInteraction interaction)
