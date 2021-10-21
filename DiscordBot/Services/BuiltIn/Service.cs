@@ -58,6 +58,8 @@ namespace DiscordBot.Services
             }
             return ls.ToImmutableArray();
         }
+        public static IReadOnlyCollection<Service> GetServices()
+            => zza_services.ToImmutableArray();
 
         public static ServiceState GlobalState { get
             {

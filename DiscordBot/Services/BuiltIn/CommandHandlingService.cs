@@ -92,6 +92,11 @@ namespace DiscordBot.Services
                         var results = await Program.Services.GetRequiredService<DsRolloutService>().GetAutocomplete(autocomplete);
                         await autocomplete.RespondAsync(results);
                         result = ExecuteResult.FromSuccess();
+                    } else if(autocomplete.Data.CommandName == "bot")
+                    {
+                        var results = DiscordBot.SlashCommands.Modules.BotDevCmds.GetAutocompleteResults(autocomplete);
+                        await autocomplete.RespondAsync(results);
+                        result = ExecuteResult.FromSuccess();
                     } else
                     {
                         Program.LogInfo($"Unknown autocomplete command: {autocomplete.Data.CommandName}", "Interactions");
