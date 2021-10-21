@@ -484,7 +484,7 @@ namespace DiscordBot.Services
                     builder.AddField(change.Type, $"{change.Before} -> **{change.After}**", true);
                 }
             }
-            await SendLog(arg1.Guild, "threads", builder, arg1.Id);
+            await SendLog(arg2.Guild, "threads", builder, arg2.Id);
         }
 
         private async Task Client_ThreadDestroyed(Cacheable<SocketThreadChannel, ulong> cached)

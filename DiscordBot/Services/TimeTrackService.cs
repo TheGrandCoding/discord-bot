@@ -21,6 +21,9 @@ namespace DiscordBot.Services
     {
         public override void OnReady()
         {
+#if DEBUG
+            return;
+#endif
             using var db = Program.Services.GetRequiredService<TimeTrackDb>();
             if(PurgeMonthOldThreads(db))
             {
@@ -32,6 +35,7 @@ namespace DiscordBot.Services
         {
             if (Program.DailyValidateFailed())
                 return false;
+
 
             // Remove ALL threads older than one month
             var cutoff = DateTime.Now.Date.AddMonths(-1);
