@@ -81,7 +81,7 @@ namespace DiscordBot.Services
             return thread;
         }
 
-        public async Task sendMessageFor(Experiment experiment, EmbedBuilder builder)
+        public async Task sendMessageFor(Experiment experiment, EmbedBuilder builder, bool updateMain = true)
         {
             foreach((var guildId, var guildSave) in Guilds)
             {
@@ -90,6 +90,12 @@ namespace DiscordBot.Services
                 {
                     message = await guildSave.Channel.SendMessageAsync(embed: experiment.ToEmbed().Build());
                     guildSave.Messages[experiment.Id] = message;
+                    updateMain = false;
+                }
+
+                if (updateMain) 
+                { 
+                    await message.ModifyAsync(x => { x.Embed = experiment.ToEmbed().Build(); });
                 }
 
                 IThreadChannel thread = await getThreadFor(guildSave, experiment, message);
@@ -100,25 +106,37 @@ namespace DiscordBot.Services
 
         async Task updateTask()
         {
-            var currentExperiments = await GetCurrentExperiments();
+            var fromAPIExperiments = await GetCurrentExperiments();
+
+            var updatedExperiments = new List<Experiment>();
+
             var existingExperiments = Experiments.Values.ToList();
 
             bool changes = false;
-            foreach(var updatedExp in currentExperiments)
+            foreach(var updatedExp in fromAPIExperiments)
             {
                 var existing = existingExperiments.FirstOrDefault(x => x.Id == updatedExp.Id);
                 EmbedBuilder builder;
                 if(existing == null)
                 { // this is a brand new experiment
                     // send messages, etc
+
+                    updatedExperiments.Add(updatedExp);
                     changes = true;
-                    builder = updatedExp.ToEmbed();
-                    builder.Color = Color.Green;
+
                     await sendMessageFor(updatedExp, null);
                     continue;
                 }
+                existingExperiments.Remove(existing);
                 // compare them, see if equal
                 builder = new EmbedBuilder();
+
+                if(existing.Removed)
+                { // maybe re-added?
+                    existing.Removed = false;
+                    builder.Color = Color.Green;
+                    builder.AddField("Experiment Re-added", "This experiment was previously removed");
+                }
 
                 // look at the treatments to see if they're changed
                 var treatmentIds = new List<int>() { -1 };
@@ -126,7 +144,7 @@ namespace DiscordBot.Services
                 treatmentIds.AddRange(updatedExp.Treatments.Keys);
                 treatmentIds = treatmentIds.Distinct().ToList();
 
-                Func<int, string> percF = (int i) => $"{((i / 10000) * 100):00.0}%";
+                Func<int, string> percF = (int i) => $"{((i / 10000d) * 100):00.0}%";
 
                 foreach(var id in treatmentIds)
                 {
@@ -161,9 +179,23 @@ namespace DiscordBot.Services
                 if(builder.Fields.Count > 0)
                 {
                     builder.Title = $"Changes";
-
+                    existing.Update(updatedExp);
                     changes = true;
+
                     await sendMessageFor(updatedExp, builder);
+                }
+                updatedExperiments.Add(existing);
+            }
+
+            if(existingExperiments.Count > 0)
+            { // these have been removed
+                foreach (var exp in existingExperiments)
+                {
+                    exp.Removed = true;
+                    exp.LastChanged = DateTime.Now;
+                    updatedExperiments.Add(exp);
+                    await sendMessageFor(exp, new EmbedBuilder()
+                        .WithDescription("Experiment removed").WithColor(Color.Red));
                 }
             }
 
@@ -171,8 +203,9 @@ namespace DiscordBot.Services
             if(changes)
             {
                 Experiments.Clear();
-                foreach (var item in currentExperiments)
-                    Experiments[item.Id] = item;
+                foreach (var exp in updatedExperiments)
+                    Experiments[exp.Id] = exp;
+
                 OnSave();
             }
             foreach (var guild in Guilds)
@@ -257,6 +290,12 @@ namespace DiscordBot.Services
         [JsonProperty("hash")]
         public ulong Hash { get; set; }
 
+        [JsonProperty("latest_change")]
+        public DateTime LastChanged { get; set; }
+
+        [JsonProperty("removed")]
+        public bool Removed { get; set; }
+
         [JsonIgnore]
         private string DebuggerDisplay
         {
@@ -287,6 +326,7 @@ namespace DiscordBot.Services
             }
             experiment.Buckets = data["buckets"].ToObject<List<int>>();
             experiment.Hash = data["hash"].ToObject<ulong>();
+            experiment.LastChanged = DateTime.Now;
 
             var rollouts = obj["rollout"] as JArray;
             experiment.Rollout = Rollout.Create(rollouts);
@@ -294,10 +334,37 @@ namespace DiscordBot.Services
             return experiment;
         }
     
+        public void Update(Experiment experiment)
+        {
+            this.Id = experiment.Id;
+            this.Type = experiment.Type;
+            this.Title = experiment.Title;
+            this.Treatments = experiment.Treatments;
+            this.Buckets = experiment.Buckets;
+            this.Hash = experiment.Hash;
+            this.Rollout = experiment.Rollout;
+            this.LastChanged = DateTime.Now;
+        }
+
         public EmbedBuilder ToEmbed()
         {
             var builder = new EmbedBuilder();
             builder.WithTitle(Title);
+
+            if(Removed)
+            {
+                builder.Color = Color.Red;  
+            } else
+            {
+                var diff = DateTime.Now - LastChanged;
+                if(diff.TotalDays < 7)
+                {
+                    builder.Color = Color.Green;
+                } else
+                {
+                    builder.Color = Color.Orange;
+                }
+            }
 
             var treatmentCounts = new Dictionary<int, int>();
 
@@ -335,6 +402,7 @@ namespace DiscordBot.Services
             builder.WithDescription("```\n" + sb.ToString() + "```");
 
             builder.WithFooter(Id);
+            builder.WithTimestamp(new DateTimeOffset(LastChanged));
 
             return builder;
         }
