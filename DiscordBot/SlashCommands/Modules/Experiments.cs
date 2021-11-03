@@ -3,6 +3,7 @@ using Discord.SlashCommands;
 using DiscordBot.Services;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -31,6 +32,17 @@ namespace DiscordBot.SlashCommands.Modules
 
             Service.OnSave();
             await Interaction.FollowupAsync("Done", ephemeral: true);
+        }
+
+        [SlashCommand("refresh", "Updates all experiment embeds across all guilds")]
+        public async Task Refresh()
+        {
+            await Interaction.RespondAsync("Starting refresh...", ephemeral: true);
+            var sw = Stopwatch.StartNew();
+            foreach (var exp in Service.Experiments.Values)
+                await Service.sendMessageFor(exp, null);
+            sw.Stop();
+            await Interaction.FollowupAsync($"Refresh completed after {sw.Elapsed:hh:mm:ss.fff}");
         }
 
         [SlashCommand("check", "Checks which treatment the server is in")]
