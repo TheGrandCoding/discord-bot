@@ -97,7 +97,14 @@ namespace DiscordBot.Services
                         var results = DiscordBot.SlashCommands.Modules.BotDevCmds.GetAutocompleteResults(autocomplete);
                         await autocomplete.RespondAsync(results);
                         result = ExecuteResult.FromSuccess();
-                    } else
+                    } else if(autocomplete.Data.CommandName == "cinema")
+                    {
+
+                        var results = await DiscordBot.Services.CinemaService.GetAutocompleteResults(autocomplete);
+                        await autocomplete.RespondAsync(results);
+                        result = ExecuteResult.FromSuccess();
+                    }
+                    else
                     {
                         Program.LogInfo($"Unknown autocomplete command: {autocomplete.Data.CommandName}", "Interactions");
                         result = MiscResult.FromError("Unknown command for autocompletion");
