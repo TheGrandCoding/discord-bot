@@ -52,7 +52,7 @@ namespace DiscordBot.SlashCommands.Modules
                 .WithDescription("This message will be updated shortly.").Build());
 
 
-            var process = new FilmSelectProcess(cinema, film, msg);
+            var process = new FilmSelectProcess(cinema, film, Interaction.User as IGuildUser, msg);
 
             await Service.Register(process, Interaction.User);
             await Interaction.FollowupAsync("Starting time selection process!\n" + // says below, since we deferred above
