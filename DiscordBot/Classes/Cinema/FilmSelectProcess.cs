@@ -21,11 +21,12 @@ namespace DiscordBot.Classes.Cinema
             _film = film;
         }
 
-        public FilmSelectProcess(ICinema cinema, IFilm film, IUserMessage message)
+        public FilmSelectProcess(ICinema cinema, IFilm film, IGuildUser creator, IUserMessage message)
         {
             Cinema = cinema;
             Film = film;
             Message = message;
+            User = creator;
         }
 
         [JsonIgnore]
@@ -43,6 +44,9 @@ namespace DiscordBot.Classes.Cinema
         private string filmId => _film ?? Film.Id;
 
         public IUserMessage Message { get; set; }
+
+        public IGuildUser User { get; set; }
+
         [JsonIgnore]
         public string IdPrefix => $"cin:{Message.Id}";
 
@@ -146,7 +150,9 @@ namespace DiscordBot.Classes.Cinema
             var builder = new ComponentBuilder();
             builder.WithButton("Join", idPrefix + "-int", emote: Emotes.HEAVY_PLUS_SIGN);
 
-            builder.WithButton(Collapsed ? "Expand" : "Collapse", idPrefix + "-col", emote: Emotes.MAG);
+            builder.WithButton(Collapsed ? "Expand" : "Collapse", idPrefix + "-col", ButtonStyle.Secondary, emote: Emotes.MAG);
+
+            builder.WithButton("Delete", idPrefix + "-del", ButtonStyle.Danger, emote: Emotes.X);
 
             return builder;
         }
@@ -202,6 +208,17 @@ namespace DiscordBot.Classes.Cinema
                 {
                     Collapsed = !Collapsed;
                     await Update();
+                } else if(idShard[0] == "del")
+                {
+                    if(interaction.User.Id != User.Id)
+                    {
+                        await interaction.FollowupAsync("Only the initial operator can delete this", ephemeral: true);
+                    } else
+                    {
+                        await Message.DeleteAsync();
+                        Message = null;
+                        return true;
+                    }
                 }
             }
             return false;

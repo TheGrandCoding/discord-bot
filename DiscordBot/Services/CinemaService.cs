@@ -86,6 +86,12 @@ namespace DiscordBot.Services
 
             await component.DeferAsync();
             var changed = await sel.ExecuteInteraction(this, component, split.Skip(2).ToArray());
+            if(sel.Message == null)
+            {
+                Selections.Remove(msgId, out _);
+                OnSave();
+                return; // as .Update() below would cause issues
+            }
             if(changed)
             {
                 OnSave();
