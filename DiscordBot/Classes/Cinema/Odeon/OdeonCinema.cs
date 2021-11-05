@@ -91,7 +91,15 @@ startFunc:
             if (string.IsNullOrWhiteSpace(auth_jwt))
             {
                 auth_jwt = await getJwtAsync();
-                await Program.AppInfo.Owner.SendMessageAsync($"New auth token:\n```\n{auth_jwt}\n```");
+                if(string.IsNullOrWhiteSpace(auth_jwt))
+                {
+                    await Program.AppInfo.Owner.SendMessageAsync($"Odeon has null auth token, please fix");
+                    throw new HttpRequestException("Auth token could not be gotten");
+                }
+                else
+                {
+                    await Program.AppInfo.Owner.SendMessageAsync($"New auth token:\n```\n{auth_jwt}\n```");
+                }
             }
             request.Headers.Add("authorization", "Bearer " + auth_jwt);
             addDefaultHeaders(request, true);
