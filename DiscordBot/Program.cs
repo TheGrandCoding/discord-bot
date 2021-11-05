@@ -453,10 +453,15 @@ Changed how permissions worked for bot.
                 ApplicationName = "mlapiBot",
             });
             coll.AddSingleton<YouTubeService>(yClient);
-            var http = new Utils.BotHttpClient();
+
+            var httpHandler = new HttpClientHandler()
+            {
+                AutomaticDecompression = System.Net.DecompressionMethods.All
+            };
+            var http = new HttpClient(httpHandler);
+
             http.DefaultRequestHeaders.Add("User-Agent", $"dsMLAPI-v{VER_STR}");
             coll.AddSingleton(typeof(HttpClient), http);
-            coll.AddSingleton(typeof(BotHttpClient), http);
             foreach(var service in ReflectiveEnumerator.GetEnumerableOfType<Service>(null))
                 coll.AddSingleton(service.GetType());
             return coll.BuildServiceProvider();
