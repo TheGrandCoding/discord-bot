@@ -109,6 +109,7 @@ startFunc:
                 } else
                 {
                     retried = true;
+                    Program.LogWarning($"Waiting, then re-attempting due to exception {e.Message}", "OdeonAPI");
                     await Task.Delay(1000);
                     goto startFunc;
                 }
