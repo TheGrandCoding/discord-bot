@@ -60,10 +60,6 @@ namespace DiscordBot.Classes.Cinema.Odeon
             var resp = await http.SendAsync(req);
             var content = await resp.Content.ReadAsStringAsync();
 
-            var temp = Path.Combine(Path.GetTempPath(), "odeon.html");
-            File.WriteAllText(temp, content);
-            await Program.AppInfo.Owner.SendFileAsync(temp, "HTML received:");
-
             // authToken is embedded in script, which is at the end of the HTML doc
             string authToken = null;
             int scriptEndIndex = content.Length;
