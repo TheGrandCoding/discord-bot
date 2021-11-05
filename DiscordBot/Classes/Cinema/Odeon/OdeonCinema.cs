@@ -49,12 +49,16 @@ namespace DiscordBot.Classes.Cinema.Odeon
         public void SetToken(string jwt)
         {
             auth_jwt = jwt;
+            triedWithAuth = false;
         }
 
         private string auth_jwt;
+        static bool triedWithAuth = false;
 
         async Task<string> getJwtAsync()
         {
+            if (triedWithAuth)
+                return null; // don't keep spamming them
             var req = new HttpRequestMessage(HttpMethod.Get, "https://odeon.co.uk/cinemas/");
             addDefaultHeaders(req, false);
             var resp = await http.SendAsync(req);
@@ -112,6 +116,7 @@ startFunc:
                 Program.LogInfo((retried ? "Retry: " : "") + $"{request.Method}: {request.RequestUri.PathAndQuery} {resp.StatusCode} {sw.ElapsedMilliseconds}ms", "OdeonAPI");
                 if (resp.StatusCode == HttpStatusCode.Unauthorized)
                 {
+                    triedWithAuth = true;
                     if (retried)
                         throw new HttpRequestException("Unauthorised access: " + await resp.Content.ReadAsStringAsync());
                     retried = true;
