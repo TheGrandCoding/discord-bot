@@ -46,12 +46,16 @@ namespace DiscordBot.Classes.Cinema.Odeon
             return new FileInfo(Path.Combine(dir.FullName, fname));
         }
 
+        public void SetToken(string jwt)
+        {
+            auth_jwt = jwt;
+        }
+
         private string auth_jwt;
 
         async Task<string> getJwtAsync()
         {
-            var req = new HttpRequestMessage(HttpMethod.Get, doneTest ? "https://odeon.co.uk/cinemas/" : "https://ml-api.uk.ms/cinemas/");
-            doneTest = true;
+            var req = new HttpRequestMessage(HttpMethod.Get, "https://odeon.co.uk/cinemas/");
             addDefaultHeaders(req, false);
             var resp = await http.SendAsync(req);
             var content = await resp.Content.ReadAsStringAsync();

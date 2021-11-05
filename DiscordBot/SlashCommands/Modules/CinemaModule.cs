@@ -61,5 +61,13 @@ namespace DiscordBot.SlashCommands.Modules
 
 
         }
+    
+        [SlashCommand("odeon_jwt", "Set auth token for Odeon")]
+        public async Task SetToken([Required]string jwt)
+        {
+            var cin = Service.GetCinema("odeon") as Classes.Cinema.Odeon.OdeonCinema;
+            cin.SetToken(jwt);
+            await Interaction.RespondAsync("Set.", ephemeral: true);
+        }
     }
 }
