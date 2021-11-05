@@ -166,10 +166,17 @@ startFunc:
             {
                 var request = new HttpRequestMessage(HttpMethod.Get, $"https://vwc.odeon.co.uk/WSVistaWebClient/ocapi/v1/browsing/master-data/showtimes/business-date/{date:yyyy-MM-dd}?siteIds=040");
 
-                var response = await callWithAuth(request);
-                text = await response.Content.ReadAsStringAsync();
+                try
+                {
+                    var response = await callWithAuth(request);
+                    text = await response.Content.ReadAsStringAsync();
 
-                File.WriteAllText(path.FullName, text, Encoding.UTF8);
+                    File.WriteAllText(path.FullName, text, Encoding.UTF8);
+                } catch(HttpRequestException e) when (e.Message == "Auth token could not be gotten")
+                {
+                    Program.LogError(e, "OdeonAPI");
+                    return new dayInfo() { films = new Dictionary<string, ApiFilm>(), showtimes = new Dictionary<string, List<OdeonShowing>>() };
+                }
             }
 
             var parsed = JsonConvert.DeserializeObject<ApiMasterData>(text);
