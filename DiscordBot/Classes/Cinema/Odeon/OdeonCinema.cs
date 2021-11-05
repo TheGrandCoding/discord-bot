@@ -23,8 +23,6 @@ namespace DiscordBot.Classes.Cinema.Odeon
 
         public static string UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.69 Safari/537.36";
 
-        static bool doneTest = false;
-
         void addDefaultHeaders(HttpRequestMessage request, bool json)
         {
             request.Headers.Add("user-agent", UserAgent);
@@ -97,11 +95,14 @@ startFunc:
                 auth_jwt = await getJwtAsync();
                 if(string.IsNullOrWhiteSpace(auth_jwt))
                 {
-                    await Program.AppInfo.Owner.SendMessageAsync($"Odeon has null auth token, please fix");
+                    if(!triedWithAuth)
+                        await Program.AppInfo.Owner.SendMessageAsync($"Odeon has null auth token, please fix");
+                    triedWithAuth = true;
                     throw new HttpRequestException("Auth token could not be gotten");
                 }
                 else
                 {
+                    triedWithAuth = false;
                     await Program.AppInfo.Owner.SendMessageAsync($"New auth token:\n```\n{auth_jwt}\n```");
                 }
             }
