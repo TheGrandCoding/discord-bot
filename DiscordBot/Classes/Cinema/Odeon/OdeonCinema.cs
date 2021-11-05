@@ -1,4 +1,5 @@
-﻿using DiscordBot.Utils;
+﻿using Discord;
+using DiscordBot.Utils;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using System;
@@ -20,6 +21,8 @@ namespace DiscordBot.Classes.Cinema.Odeon
         public string Location => "Town";
         public bool CanAutocomplete => _filmCache != null && _filmCache.Expired == false;
 
+        public static string UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.69 Safari/537.36";
+
         private HttpClient http = Program.Services.GetRequiredService<HttpClient>();
         private SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
 
@@ -37,7 +40,9 @@ namespace DiscordBot.Classes.Cinema.Odeon
 
         async Task<string> getJwtAsync()
         {
-            var resp = await http.GetAsync("https://www.odeon.co.uk/cinemas/");
+            var req = new HttpRequestMessage(HttpMethod.Get, "https://www.odeon.co.uk/cinemas/");
+            req.Headers.Add("user-agent", UserAgent);
+            var resp = await http.SendAsync(req);
             var content = await resp.Content.ReadAsStringAsync();
 
             // authToken is embedded in script, which is at the end of the HTML doc
@@ -69,9 +74,12 @@ namespace DiscordBot.Classes.Cinema.Odeon
             bool retried = false;
 startFunc:
             if (string.IsNullOrWhiteSpace(auth_jwt))
+            {
                 auth_jwt = await getJwtAsync();
+                await Program.AppInfo.Owner.SendMessageAsync($"New auth token:\n```\n{auth_jwt}\n```");
+            }
             request.Headers.Add("authorization", "Bearer " + auth_jwt);
-            request.Headers.Add("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.69 Safari/537.36");
+            request.Headers.Add("user-agent", UserAgent);
             try
             {
                 Program.LogDebug((retried ? "Retry: " : "") + $"{request.Method}: {request.RequestUri}", "OdeonAPI");
