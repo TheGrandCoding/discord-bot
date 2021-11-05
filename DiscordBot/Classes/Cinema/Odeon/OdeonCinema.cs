@@ -23,6 +23,16 @@ namespace DiscordBot.Classes.Cinema.Odeon
 
         public static string UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.69 Safari/537.36";
 
+        static bool doneTest = false;
+
+        void addDefaultHeaders(HttpRequestMessage request, bool json)
+        {
+            request.Headers.Add("user-agent", UserAgent);
+            request.Headers.Add("accept", json ? "application/json" : "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9");
+            request.Headers.Add("accept-encoding", "gzip, deflate, br");
+            request.Headers.Add("cache-control", "max-age=0");
+        }
+
         private HttpClient http = Program.Services.GetRequiredService<HttpClient>();
         private SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
 
@@ -40,8 +50,9 @@ namespace DiscordBot.Classes.Cinema.Odeon
 
         async Task<string> getJwtAsync()
         {
-            var req = new HttpRequestMessage(HttpMethod.Get, "https://www.odeon.co.uk/cinemas/");
-            req.Headers.Add("user-agent", UserAgent);
+            var req = new HttpRequestMessage(HttpMethod.Get, doneTest ? "https://odeon.co.uk/cinemas/" : "https://ml-api.uk.ms/cinemas/");
+            doneTest = true;
+            addDefaultHeaders(req, false);
             var resp = await http.SendAsync(req);
             var content = await resp.Content.ReadAsStringAsync();
 
@@ -83,7 +94,7 @@ startFunc:
                 await Program.AppInfo.Owner.SendMessageAsync($"New auth token:\n```\n{auth_jwt}\n```");
             }
             request.Headers.Add("authorization", "Bearer " + auth_jwt);
-            request.Headers.Add("user-agent", UserAgent);
+            addDefaultHeaders(request, true);
             try
             {
                 Program.LogDebug((retried ? "Retry: " : "") + $"{request.Method}: {request.RequestUri}", "OdeonAPI");
