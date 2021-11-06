@@ -64,6 +64,19 @@ namespace DiscordBot.Services
                     Action = act
                 };
                 msg.Method.Invoke(eventArgs);
+            } else
+            {
+                if(arg3.Channel is IDMChannel dm)
+                {
+                    if(arg3.Emote.Name == Emotes.X.Name)
+                    {
+                        try
+                        {
+                            var m = await arg1.GetOrDownloadAsync();
+                            await m.DeleteAsync();
+                        } catch { }
+                    }
+                }
             }
             await Task.CompletedTask;
         }

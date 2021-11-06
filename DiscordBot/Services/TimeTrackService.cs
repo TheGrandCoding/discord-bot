@@ -105,7 +105,7 @@ namespace DiscordBot.Services
         {
             if (bypassCache || ExtensionVersion.GetValueOrDefault(null) == null)
             {
-                var client = Program.Services.GetRequiredService<HttpClient>();
+                var client = Program.Services.GetRequiredService<Classes.BotHttpClient>();
                 var r = client.GetAsync("https://api.github.com/repos/CheAle14/time-tracker/releases/latest").Result;
                 if (r.IsSuccessStatusCode)
                 {

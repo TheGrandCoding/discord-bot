@@ -14,12 +14,12 @@ namespace DiscordBot.Services
 {
     public class TeXFormatter : Service
     {
-        HttpClient Client { get; set; }
+        Classes.BotHttpClient Client { get; set; }
         const string API = "https://en.wikipedia.org/api/rest_v1";
 
         public override void OnReady()
         {
-            Client = Program.Services.GetRequiredService<HttpClient>();
+            Client = Program.Services.GetRequiredService<Classes.BotHttpClient>();
             Program.Client.MessageReceived += Client_MessageReceived;
         }
 

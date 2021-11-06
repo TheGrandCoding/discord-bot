@@ -936,7 +936,7 @@ namespace DiscordBot.MLAPI.Modules
         [Regex("filename", "[A-Za-z0-9]+")]
         public void ProxyImage(ulong channel_id, ulong message_id, string filename)
         {
-            var client = Program.Services.GetRequiredService<HttpClient>();
+            var client = Program.Services.GetRequiredService<Classes.BotHttpClient>();
             var stream = client.GetStreamAsync($"https://cdn.discordapp.com{Context.Path}").Result;
             stream.CopyTo(Context.HTTP.Response.OutputStream);
             Context.HTTP.Response.Close();

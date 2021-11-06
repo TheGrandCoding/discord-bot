@@ -17,7 +17,7 @@ namespace DiscordBot.Utils
         public string Scope { get; }
         public string AccessToken { get; private set; }
         public IUser UserInfo { get; private set; }
-        HttpClient client;
+        Classes.BotHttpClient client;
 
         class JsonUser : IUser
         {
@@ -75,7 +75,7 @@ namespace DiscordBot.Utils
         public DiscordOauth(string scope, string code = null)
         {
             Scope = scope;
-            client = Program.Services.GetRequiredService<HttpClient>();
+            client = Program.Services.GetRequiredService<Classes.BotHttpClient>();
             if (code != null)
                 SetToken(code).Wait();
         }

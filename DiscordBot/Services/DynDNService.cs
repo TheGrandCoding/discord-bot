@@ -20,7 +20,7 @@ namespace DiscordBot.Services
         }
         public async Task<HttpResponseMessage> Perform()
         {
-            var client = Program.Services.GetRequiredService<HttpClient>();
+            var client = Program.Services.GetRequiredService<Classes.BotHttpClient>();
             return await client.GetAsync(URL);
         }
         public override void OnDailyTick()

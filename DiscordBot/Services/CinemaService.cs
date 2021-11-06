@@ -64,7 +64,6 @@ namespace DiscordBot.Services
             {
                 if(x.Message != null)
                 {
-                    await x.Load(this);
                     Selections[x.Message.Id] = x;
                 }
             }
@@ -85,6 +84,10 @@ namespace DiscordBot.Services
                 return;
 
             await component.DeferAsync();
+
+            if (!sel.Loaded)
+                await sel.Load(this);
+
             var changed = await sel.ExecuteInteraction(this, component, split.Skip(2).ToArray());
             if(sel.Message == null)
             {
@@ -137,7 +140,7 @@ namespace DiscordBot.Services
                 _ = Task.Run(async () => await cinema.GetFilmsAsync());
                 return new List<AutocompleteResult>()
                 {
-                    new AutocompleteResult("Fetching films...", "null")
+                    new AutocompleteResult($"Fetching films: {cinema.DaysFetched}/14 days fetched", "null")
                 };
             }
             var films = await cinema.GetFilmsAsync();
@@ -158,7 +161,7 @@ namespace DiscordBot.Services
         {
             if(Selections.TryGetValue(process.Message.Id, out var x))
             {
-                try { await x.Message.DeleteAsync(); } catch { }
+                try { await x.DeleteAsync(); } catch { }
             }
             Selections[process.Message.Id] = process;
             await process.NewInterested(creator);

@@ -1,6 +1,7 @@
 ﻿using Discord;
 using DiscordBot.Classes;
 using JsonSubTypes;
+using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
@@ -25,7 +26,7 @@ namespace DiscordBot.Services.Sonarr
 #endif
 
         public Semaphore Lock = new Semaphore(1, 1);
-        public HttpClient HTTP { get; private set; }
+        public BotHttpClient HTTP { get; private set; }
         public CacheDictionary<int, string> TagsCache { get; } = new CacheDictionary<int, string>(60 * 24);
         public CacheDictionary<int, string[]> SeriesTagsCache { get; } = new CacheDictionary<int, string[]>(60 * 24); // day
 
@@ -50,7 +51,8 @@ namespace DiscordBot.Services.Sonarr
 
         public override void OnLoaded()
         {
-            HTTP = new HttpClient();
+            var parent = Program.Services.GetRequiredService<BotHttpClient>();
+            HTTP = parent.Child("SonarrAPI");
             var apiKey = Program.Configuration["tokens:sonarr"];
             if (string.IsNullOrWhiteSpace(apiKey))
                 throw new ArgumentNullException("Sonarr API Key missing at tokens:sonarr");

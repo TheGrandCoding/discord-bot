@@ -31,7 +31,8 @@ namespace DiscordBot.Classes.Cinema.Odeon
             request.Headers.Add("cache-control", "max-age=0");
         }
 
-        private HttpClient http = Program.Services.GetRequiredService<HttpClient>();
+        private BotHttpClient http = Program.Services.GetRequiredService<BotHttpClient>()
+            .Child("OdeonAPI", true, 3000);
         private SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
 
         FileInfo getCachePath(string fname)
@@ -110,11 +111,7 @@ startFunc:
             addDefaultHeaders(request, true);
             try
             {
-                Program.LogDebug((retried ? "Retry: " : "") + $"{request.Method}: {request.RequestUri}", "OdeonAPI");
-                var sw = Stopwatch.StartNew();
                 var resp = await http.SendAsync(request);
-                sw.Stop();
-                Program.LogInfo((retried ? "Retry: " : "") + $"{request.Method}: {request.RequestUri.PathAndQuery} {resp.StatusCode} {sw.ElapsedMilliseconds}ms", "OdeonAPI");
                 if (resp.StatusCode == HttpStatusCode.Unauthorized)
                 {
                     triedWithAuth = true;
@@ -201,6 +198,8 @@ startFunc:
             return new dayInfo() { films = films, showtimes = showtimes };
         }
 
+        public int DaysFetched => daysFetched.Count;
+        Dictionary<int, bool> daysFetched = new Dictionary<int, bool>();
         public async Task<IReadOnlyCollection<OdeonFilm>> GetFilmsAsync(DateTimeOffset startDate, DateTimeOffset endDate)
         {
             var films = new Dictionary<string, ApiFilm>();
@@ -209,6 +208,7 @@ startFunc:
             while(date < endDate)
             {
                 (var dayFilm, var dayShows) = await getFilmForDayAsync(date);
+                daysFetched[date.DayOfYear] = true;
                 foreach(var x in dayFilm.Values)
                 {
                     if (!films.ContainsKey(x.id))

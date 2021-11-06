@@ -42,7 +42,7 @@ namespace DiscordBot.Services
 
         public async Task<List<Experiment>> GetCurrentExperiments()
         {
-            var http = Program.Services.GetRequiredService<HttpClient>();
+            var http = Program.Services.GetRequiredService<Classes.BotHttpClient>();
             var response = await http.GetAsync("https://rollouts.advaith.workers.dev");
 
             if (!response.IsSuccessStatusCode)

@@ -63,7 +63,7 @@ namespace DiscordBot.Services
 
         public EpicGamesPromotions GetPromotions()
         {
-            var http = Program.Services.GetRequiredService<HttpClient>();
+            var http = Program.Services.GetRequiredService<Classes.BotHttpClient>();
             var response = http.GetAsync(Url).Result;
             var body = response.Content.ReadAsStringAsync().Result;
             if (!response.IsSuccessStatusCode)

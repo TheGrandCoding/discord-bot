@@ -98,7 +98,7 @@ namespace DiscordBot
 
         public static async Task<bool> IsPasswordLeaked(string password)
         {
-            var client = Program.Services.GetRequiredService<HttpClient>();
+            var client = Program.Services.GetRequiredService<BotHttpClient>();
             var hash = Hash.GetSHA1(password);
             var prefix = hash.Substring(0, 5);
             var suffix = hash.Substring(5);

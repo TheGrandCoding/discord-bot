@@ -2,6 +2,7 @@
 using DiscordBot.Classes;
 using DiscordBot.Services.Sonarr;
 using JsonSubTypes;
+using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
@@ -26,7 +27,7 @@ namespace DiscordBot.Services.Radarr
         const string apiUrl = "http://localhost:7878/api/v3";
 #endif
         public Semaphore Lock = new Semaphore(1, 1);
-        public HttpClient HTTP { get; private set; }
+        public BotHttpClient HTTP { get; private set; }
         public CacheDictionary<int, string> TagsCache { get; } = new CacheDictionary<int, string>(60 * 24);
         public CacheDictionary<int, string[]> MovieTagsCache { get; } = new CacheDictionary<int, string[]>(60 * 24); // day
 
@@ -45,7 +46,8 @@ namespace DiscordBot.Services.Radarr
         }
         public override void OnLoaded()
         {
-            HTTP = new HttpClient();
+            var parent = Program.Services.GetRequiredService<BotHttpClient>();
+            HTTP = parent.Child("RadarrAPI");
             var apiKey = Program.Configuration["tokens:radarr"];
             if (string.IsNullOrWhiteSpace(apiKey))
                 throw new ArgumentNullException("Radarr API Key missing at tokens:sonarr");

@@ -125,7 +125,7 @@ Changed how permissions worked for bot.
 #if WINDOWS
         static void fetchFile(string fName)
         {
-            var client = Services.GetRequiredService<HttpClient>();
+            var client = Services.GetRequiredService<BotHttpClient>();
             var remote = Configuration["urls:download"];
             var authPwd = Configuration["tokens:download"];
             var fullRemote = string.Format(remote, fName);
@@ -459,9 +459,8 @@ Changed how permissions worked for bot.
                 AutomaticDecompression = System.Net.DecompressionMethods.All
             };
             var http = new HttpClient(httpHandler);
-
-            http.DefaultRequestHeaders.Add("User-Agent", $"dsMLAPI-v{VER_STR}");
-            coll.AddSingleton(typeof(HttpClient), http);
+            var botHttp = new BotHttpClient(http);
+            coll.AddSingleton(typeof(BotHttpClient), botHttp);
             foreach(var service in ReflectiveEnumerator.GetEnumerableOfType<Service>(null))
                 coll.AddSingleton(service.GetType());
             return coll.BuildServiceProvider();

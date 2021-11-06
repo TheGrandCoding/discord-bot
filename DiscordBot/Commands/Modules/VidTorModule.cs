@@ -48,7 +48,7 @@ namespace DiscordBot.Commands.Modules
                 return Error("There should be exactly one tracker: you");
             if (!Uri.TryCreate(trackers[0], UriKind.Absolute, out var uri))
                 return Error("Tracker must be a http/https link to your public IP address.");
-            var client = Program.Services.GetRequiredService<HttpClient>();
+            var client = Program.Services.GetRequiredService<BotHttpClient>();
             var request = new HttpRequestMessage(HttpMethod.Options, trackers[0]);
             HttpResponseMessage response;
             try

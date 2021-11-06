@@ -80,7 +80,7 @@ namespace DiscordBot.Services
                 }
                 else if (x.Type == InteractionType.MessageComponent)
                 {
-                    Program.LogDebug($"Executing message componenet {x.Id}", "Interactions");
+                    Program.LogDebug($"Executing message component {x.Id}", "Interactions");
                     result = await components.ExecuteAsync(x as SocketMessageComponent).ConfigureAwait(false);
                     Program.LogInfo($"Executed interaction {x.Id}: {result.IsSuccess} {result.Error} {result.ErrorReason}", "Interactions");
                 } else if(x.Type == InteractionType.ApplicationCommandAutocomplete)

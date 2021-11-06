@@ -1,5 +1,6 @@
 ﻿using Discord;
 using Discord.WebSocket;
+using DiscordBot.Classes;
 using DiscordBot.Classes.CoronAPI;
 using DiscordBot.Services.BuiltIn;
 using DiscordBot.Utils;
@@ -284,7 +285,7 @@ namespace DiscordBot.Services
 
         void withinTryWork()
         {
-            var client = Program.Services.GetRequiredService<HttpClient>();
+            var client = Program.Services.GetRequiredService<BotHttpClient>();
             while(this.IsEnabled && Program.GetToken().IsCancellationRequested == false)
             {
                 handleTimeout();

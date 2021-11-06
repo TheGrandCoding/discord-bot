@@ -38,7 +38,7 @@ namespace DiscordBot.Commands.Modules
             if(existing != null)
                 return new BotResult($"`{code}` is already registered in this server: " +
                     $"{(existing.Message?.GetJumpUrl() ?? existing.Channel.Mention)}");
-            var client = Program.Services.GetRequiredService<HttpClient>();
+            var client = Program.Services.GetRequiredService<BotHttpClient>();
             var response = await client.GetAsync(CoronaService.URL + code);
             var text = await response.Content.ReadAsStringAsync();
             if(!response.IsSuccessStatusCode)

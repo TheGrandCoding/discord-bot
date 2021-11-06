@@ -11,6 +11,7 @@ namespace DiscordBot.Classes.Cinema
         string Location { get; }
 
         bool CanAutocomplete { get; }
+        int DaysFetched { get; }
 
         Task<IReadOnlyCollection<IFilm>> GetFilmsAsync(DateTimeOffset startDate, DateTimeOffset endDate);
         Task<IReadOnlyCollection<IFilm>> GetFilmsAsync();

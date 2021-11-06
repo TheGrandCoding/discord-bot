@@ -307,5 +307,20 @@ namespace DiscordBot.Commands.Modules
             await sv.Catchup();
             await ReplyAsync("Set.");
         }
+    
+        [Command("delete_dm"), Alias("ddm")]
+        [Summary("Deletes a bot's message in your DMs")]
+        public async Task DeleteDM(ulong id)
+        {
+            var dm = await Context.User.CreateDMChannelAsync();
+            var msg = await dm.GetMessageAsync(id);
+            if(msg == null)
+            {
+                await ReplyAsync(":x: Could not find message.");
+            } else
+            {
+                await msg.DeleteAsync();
+            }
+        }
     }
 }

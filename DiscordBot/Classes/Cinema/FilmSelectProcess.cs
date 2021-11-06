@@ -55,8 +55,11 @@ namespace DiscordBot.Classes.Cinema
         [JsonProperty("users")]
         public Dictionary<ulong, UserSelectedFilm> UserPreferences { get; set; } = new Dictionary<ulong, UserSelectedFilm>();
 
+        [JsonIgnore]
+        public bool Loaded { get; set; }
         public async Task Load(CinemaService srv)
         {
+            Loaded = true;
             Cinema = srv.GetCinema(cinemaId);
             Film = await Cinema.GetFilmAsync(filmId);
         }
@@ -152,7 +155,7 @@ namespace DiscordBot.Classes.Cinema
 
             builder.WithButton(Collapsed ? "Expand" : "Collapse", idPrefix + "-col", ButtonStyle.Secondary, emote: Emotes.MAG);
 
-            builder.WithButton("Delete", idPrefix + "-del", ButtonStyle.Danger, emote: Emotes.X);
+            builder.WithButton("Delete", idPrefix + "-del", ButtonStyle.Danger, emote: Emotes.BLACK_X);
 
             return builder;
         }
@@ -174,6 +177,18 @@ namespace DiscordBot.Classes.Cinema
             }
         }
 
+        public async Task DeleteAsync()
+        {
+            await Message.DeleteAsync();
+            Message = null;
+            foreach(var usr in UserPreferences.Values)
+            {
+                try
+                {
+                    await usr.DeleteAsync();
+                } catch { }
+            }
+        }
 
         public async Task<bool> ExecuteInteraction(CinemaService service, SocketMessageComponent interaction, string[] idShard)
         {
@@ -212,11 +227,10 @@ namespace DiscordBot.Classes.Cinema
                 {
                     if(interaction.User.Id != User.Id)
                     {
-                        await interaction.FollowupAsync("Only the initial operator can delete this", ephemeral: true);
+                        await interaction.FollowupAsync("Only the user who started this can delete it", ephemeral: true);
                     } else
                     {
-                        await Message.DeleteAsync();
-                        Message = null;
+                        await DeleteAsync();
                         return true;
                     }
                 }
@@ -349,6 +363,13 @@ namespace DiscordBot.Classes.Cinema
                 x.Components = ToComponents(film, DateSelected, idPrefix).Build();
             });
         }
+
+        public async Task DeleteAsync()
+        {
+            await DM.DeleteAsync();
+            ShowingPreferences = null;
+            DM = null;
+        }
     
         public async Task<bool> ExecuteInteraction(FilmSelectProcess process, string idPrefix, CinemaService service, SocketMessageComponent interaction, string[] idShard)
         {
@@ -384,9 +405,7 @@ namespace DiscordBot.Classes.Cinema
                 return true;
             } else if(action == "del")
             {
-                await DM.DeleteAsync();
-                ShowingPreferences = null;
-                DM = null;
+                await DeleteAsync();
                 return true;
             }
             return false;

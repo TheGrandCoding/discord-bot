@@ -8,6 +8,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Text;
 
 namespace DiscordBot.MLAPI.Modules.Bot
 {
@@ -251,6 +252,127 @@ namespace DiscordBot.MLAPI.Modules.Bot
                 }
             };
             RespondRaw(page, 200);
+        }
+
+        class HTTPData
+        {
+            public List<KeyValuePair<string, string>> Headers = new List<KeyValuePair<string, string>>();
+            public string Content { get; set; }
+
+            protected void continueParse(StreamReader reader)
+            {
+                string line = reader.ReadLine();
+                while(!string.IsNullOrWhiteSpace(line))
+                {
+                    var spl = line.Split(":");
+                    Headers.Add(new KeyValuePair<string, string>(spl[0], spl[1].Substring(1)));
+                    line = reader.ReadLine();
+                }
+                var c = new StringBuilder();
+                line = reader.ReadLine();
+                while(!string.IsNullOrWhiteSpace(line) && line.StartsWith("========") == false)
+                {
+                    c.Append(line + "\n");
+                    line = reader.ReadLine();
+                }
+            }
+        }
+        class RequestData : HTTPData
+        {
+            public string Method { get; set; }
+            public string PathAndQuery { get; set; }
+
+            public string URL { get
+                {
+                    var host = Headers.FirstOrDefault(x => x.Key == "Host");
+                    return (host.Value ?? "") + PathAndQuery;
+                } }
+
+            public static RequestData Parse(StreamReader reader)
+            {
+                var data = new RequestData();
+                var split = reader.ReadLine().Split(" ");
+                data.Method = split[0];
+                data.PathAndQuery = split[1];
+                data.continueParse(reader);
+                return data;
+            }
+        }
+        class ResponseData : HTTPData
+        {
+            public int Code { get; set; }
+
+            public static ResponseData Parse(StreamReader reader)
+            {
+                var data = new ResponseData();
+                var split = reader.ReadLine().Split(" ");
+                data.Code = int.Parse(split[1]);
+                data.continueParse(reader);
+                return data;
+            }
+        }
+        class HttpPair
+        {
+            public RequestData Request { get; set; }
+            public ResponseData Response { get; set; }
+
+            public static HttpPair Parse(StreamReader file)
+            {
+                var http = new HttpPair();
+                http.Request = RequestData.Parse(file);
+                var s = file.ReadLine();
+                http.Response = ResponseData.Parse(file);
+                return http;
+            }
+            public static HttpPair Parse(string path)
+            {
+                using var sr = new StreamReader(path);
+                return Parse(sr);
+            }
+        }
+
+
+        [RequireOwner]
+        [Method("GET"), Path("/bot/logs/http")]
+        public void HttpLogsBase()
+        {
+            var folder = BotHttpClient.LogFolder;
+            var files = Directory.EnumerateFiles(folder, "*.txt");
+            var table = new Table();
+            table.WithHeaderColumn("Order");
+            table.WithHeaderColumn("URL");
+            table.WithHeaderColumn("Status Code");
+            foreach(var file in files)
+            {
+                var pair = HttpPair.Parse(file);
+                string order = Path.GetFileNameWithoutExtension(file);
+                var anchor = new Anchor($"/bog/logs/http/{order}", order);
+                table.WithRow(anchor, pair.Request.URL, pair.Response.Code.ToString());
+            }
+            var page = new HTMLPage();
+            page.Children.Add(new PageHeader());
+            page.Children.Add(new PageBody() { Children = { table } });
+            RespondRaw(page);
+        }
+
+        [Method("GET")]
+        [Path(@"/bot/logs/http/{order}")]
+        [Regex("order", "[0-9]+")]
+        public void HttpLogs(string order)
+        {
+            var path = Path.Combine(BotHttpClient.LogFolder, order + ".txt");
+
+            var data = File.ReadAllText(path).Replace("<", "&lt;").Replace(">", "&gt;");
+
+            var page = new HTMLPage();
+            page.Children.Add(new PageHeader());
+            var pre = new Pre(null)
+            {
+                Children = { new Code(data) }
+            };
+            page.Children.Add(new PageBody() { Children = { pre } });
+            RespondRaw(page, 200);
+            
         }
     }
 }

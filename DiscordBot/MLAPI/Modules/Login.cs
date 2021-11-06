@@ -170,7 +170,7 @@ namespace DiscordBot.MLAPI.Modules
 
         void setSessionTokens(BotUser user) => SetLoginSession(Context, user);
 
-        async Task<HttpResponseMessage> postJson(JObject json, HttpClient client, string url)
+        async Task<HttpResponseMessage> postJson(JObject json, BotHttpClient client, string url)
         {
             var request = new HttpRequestMessage(HttpMethod.Post, url);
             string text = "";
@@ -181,7 +181,7 @@ namespace DiscordBot.MLAPI.Modules
             return await client.SendAsync(request);
         }
 
-        HttpResponseMessage addUserToGuild(ulong id, ulong guildId, HttpClient client, string token)
+        HttpResponseMessage addUserToGuild(ulong id, ulong guildId, BotHttpClient client, string token)
         {
             var request = new HttpRequestMessage(HttpMethod.Put, $"guilds/{guildId}/members/{id}");
             request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bot", Program.Configuration["tokens:discord"]);
