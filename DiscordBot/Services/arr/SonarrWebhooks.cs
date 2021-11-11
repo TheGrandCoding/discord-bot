@@ -49,13 +49,13 @@ namespace DiscordBot.Services.Sonarr
             }
         }
 
+        const string CONFIG_API_KEY = "tokens:sonarr";
         public override void OnLoaded()
         {
+            EnsureConfiguration(CONFIG_API_KEY);
             var parent = Program.Services.GetRequiredService<BotHttpClient>();
             HTTP = parent.Child("SonarrAPI");
-            var apiKey = Program.Configuration["tokens:sonarr"];
-            if (string.IsNullOrWhiteSpace(apiKey))
-                throw new ArgumentNullException("Sonarr API Key missing at tokens:sonarr");
+            var apiKey = Program.Configuration[CONFIG_API_KEY];
             HTTP.DefaultRequestHeaders.Add("X-Api-Key", apiKey);
             var th = new Thread(loop);
             th.Start(Program.GetToken());
@@ -238,9 +238,13 @@ namespace DiscordBot.Services.Sonarr
         private void SonarrWebhooksService_OnDownload(object sender, OnDownloadSonarrEvent e)
         {
             if (Episodes.TryGetValue(e.Series.Id, out var ep))
-                ep.Add(e);
+            {
+                ep.Add(this, e).Wait();
+            }
             else
-                Episodes[e.Series.Id] = new Episodes(e);
+            {
+                Episodes[e.Series.Id] = new Episodes(this, e);
+            }
         }
 
         void loop(object param)
@@ -257,30 +261,8 @@ namespace DiscordBot.Services.Sonarr
                     {
                         var value = keypair.Value;
                         var diff = DateTime.Now - value.Last;
-                        if (diff.TotalMinutes >= 15)
+                        if (diff.TotalMinutes >= 60)
                         {
-                            var embed = value.ToEmbed();
-                            var toRemove = new List<ITextChannel>();
-                            foreach (var txt in Channels)
-                            {
-                                var chnl = txt.Channel;
-                                if (chnl is NullTextChannel)
-                                {
-                                    toRemove.Add(chnl);
-                                    continue;
-                                }
-                                var send = ShouldSendInChannel(keypair.Value.Series.Id, txt).Result;
-                                if (send == false)
-                                    continue;
-                                try
-                                {
-                                    chnl.SendMessageAsync(embed: embed);
-                                } catch (Exception ex)
-                                {
-                                    toRemove.Add(chnl);
-                                    Error(ex);
-                                }
-                            }
                             rem.Add(keypair.Key);
                         }
                     }
@@ -308,6 +290,10 @@ namespace DiscordBot.Services.Sonarr
             Debug("Exited loop");
         }
 
+        public void SendError(Exception ex)
+        {
+            this.Error(ex);
+        }
 
         public Dictionary<int, Episodes> Episodes { get; set; } = new Dictionary<int, Episodes>();
         public event EventHandler<OnTestSonarrEvent> OnTest;
@@ -361,6 +347,9 @@ namespace DiscordBot.Services.Sonarr
         public SonarrStubSeries Series { get; set; }
         public List<SonarrEpisode> List { get; set; }
         public Dictionary<int, SonarrEpisodeFile> Files { get; set; }
+
+        private Dictionary<ulong, IUserMessage> SaveMessages { get; set; } = new Dictionary<ulong, IUserMessage>();
+
         public Episodes(SonarrStubSeries series, IEnumerable<SonarrEpisode> info)
         {
             Files = new Dictionary<int, SonarrEpisodeFile>();
@@ -368,20 +357,20 @@ namespace DiscordBot.Services.Sonarr
             List = info.ToList();
             Last = DateTime.Now;
         }
-        public Episodes(OnDownloadSonarrEvent evnt) : this(evnt.Series, new List<SonarrEpisode>())
+        public Episodes(SonarrWebhooksService service, OnDownloadSonarrEvent evnt) : this(evnt.Series, new List<SonarrEpisode>())
         {
-            Add(evnt);
+            Add(service, evnt).Wait();
         }
-        public void Add(OnDownloadSonarrEvent evnt)
+        public async Task Add(SonarrWebhooksService service, OnDownloadSonarrEvent evnt)
         {
             foreach (var x in evnt.Episodes)
                 Add(x, evnt.EpisodeFile);
+            await Submit(service);
         }
-        public void Add(SonarrEpisode ep, SonarrEpisodeFile file)
+        void Add(SonarrEpisode ep, SonarrEpisodeFile file)
         {
             List.Add(ep);
             Files.Add(ep.Id, file);
-            Last = DateTime.Now;
         }
         public Embed ToEmbed()
         {
@@ -398,6 +387,41 @@ namespace DiscordBot.Services.Sonarr
             }
             return builder.Build();
         }
+    
+    
+        public async Task Submit(SonarrWebhooksService service)
+        {
+            var embed = this.ToEmbed();
+            foreach (var txt in service.Channels)
+            {
+                var chnl = txt.Channel;
+                if (chnl is NullTextChannel)
+                {
+                    continue;
+                }
+                var send = await service.ShouldSendInChannel(this.Series.Id, txt);
+                if (send == false)
+                    continue;
+                try
+                {
+                    if (SaveMessages.TryGetValue(chnl.Id, out var msg))
+                    {
+                        await msg.ModifyAsync(x => x.Embed = embed);
+                    }
+                    else
+                    {
+                        var resp = await chnl.SendMessageAsync(embed: embed);
+                        SaveMessages[chnl.Id] = resp;
+                    }
+                    Last = DateTime.Now;
+                }
+                catch (Exception ex)
+                {
+                    service.SendError(ex);
+                }
+            }
+        }
+    
     }
 
 #region Events
