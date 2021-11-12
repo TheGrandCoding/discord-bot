@@ -322,5 +322,36 @@ namespace DiscordBot.Commands.Modules
                 await msg.DeleteAsync();
             }
         }
+
+        [Command("delete_after_dm"), Alias("dadm")]
+        [Summary("Deletes all messages including and following the one specified, in DM")]
+        public async Task DeleteDMUpTo(ulong id)
+        {
+            var dm = await Context.User.CreateDMChannelAsync();
+            int deleted = 0;
+            await Context.Message.AddReactionAsync(Emotes.MAG);
+
+            ulong lastMessageId = id;
+
+            var stopAt = Discord.SnowflakeUtils.ToSnowflake(DateTimeOffset.Now);
+            while(deleted < 250 && lastMessageId > stopAt)
+            {
+                var messages = await dm.GetMessagesAsync(lastMessageId, Direction.After).FlattenAsync();
+                foreach(var msg in messages)
+                {
+                    if (msg.Id > lastMessageId)
+                        lastMessageId = msg.Id;
+                    if (lastMessageId > stopAt)
+                        break;
+
+                    if (msg.Author.IsBot)
+                        await msg.DeleteAsync();
+
+                    deleted++;
+                }
+            }
+            await Context.Message.AddReactionAsync(Emotes.WHITE_CHECK_MARK);
+            await Context.Message.RemoveReactionAsync(Emotes.MAG, Context.User);
+        }
     }
 }
