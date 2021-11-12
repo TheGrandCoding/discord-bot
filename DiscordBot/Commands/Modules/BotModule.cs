@@ -334,14 +334,14 @@ namespace DiscordBot.Commands.Modules
             ulong lastMessageId = id;
 
             var stopAt = Discord.SnowflakeUtils.ToSnowflake(DateTimeOffset.Now);
-            while(deleted < 250 && lastMessageId > stopAt)
+            while(deleted < 250 && lastMessageId < stopAt) // while we're in the past
             {
                 var messages = await dm.GetMessagesAsync(lastMessageId, Direction.After).FlattenAsync();
                 foreach(var msg in messages)
                 {
                     if (msg.Id > lastMessageId)
                         lastMessageId = msg.Id;
-                    if (lastMessageId > stopAt)
+                    if (lastMessageId > stopAt) // we've went past .now
                         break;
 
                     if (msg.Author.IsBot)
