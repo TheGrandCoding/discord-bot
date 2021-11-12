@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
@@ -15,17 +16,23 @@ namespace DiscordBot.Classes
     {
         private HttpClient http;
         protected static SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
-        public BotHttpClient(HttpClient client, string source = null, bool debug = false, int ratelimitMs = -1)
+        public BotHttpClient(HttpClient client, string source = null, bool debug = false, 
+            int ratelimitMs = -1,
+            bool storeCookies = false)
         {
             http = client;
             _source = source;
             _debug = debug;
             _ratelimit = ratelimitMs;
+            _storeCookies = storeCookies;
         }
 
         private string _source;
         private bool _debug;
         private int _ratelimit;
+        private bool _storeCookies;
+
+        private CookieContainer _cookies = new CookieContainer();
 
         private DateTimeOffset _lastSent = DateTimeOffset.Now;
 
@@ -33,10 +40,16 @@ namespace DiscordBot.Classes
 
         public HttpHeaders DefaultRequestHeaders { get; set; } = new BotHttpHeaders();
 
-        public BotHttpClient Child(string source, bool debug = false, int ratelimit = -1)
+        public BotHttpClient Child(string source, bool debug = false, int ratelimit = -1, bool storeCookies = false)
         {
-            var x = new BotHttpClient(http, source, debug, ratelimit);
+            var x = new BotHttpClient(http, source, debug, ratelimit, storeCookies);
             return x;
+        }
+        public BotHttpClient WithCookie(Cookie cookie)
+        {
+            _storeCookies = true;
+            _cookies.Add(cookie);
+            return this;
         }
 
         string getSource()
@@ -110,8 +123,16 @@ namespace DiscordBot.Classes
 
         async Task<HttpResponseMessage> InternalSendAsync(HttpRequestMessage message, string source, CancellationToken? token)
         {
+
             foreach (var defalt in DefaultRequestHeaders)
                 message.Headers.TryAddWithoutValidation(defalt.Key, defalt.Value);
+
+            if(_storeCookies)
+            {
+                var header = _cookies.GetCookieHeader(message.RequestUri);
+                message.Headers.Add("Cookie", header);
+            }
+
             int count = Interlocked.Increment(ref order);
             string fName = $"{count:0000}.txt";
             if (!Directory.Exists(LogFolder))
@@ -147,6 +168,12 @@ namespace DiscordBot.Classes
                     contents += await full(response);
                     File.AppendAllText(path, contents);
                 }
+
+                if(_storeCookies && response.Headers.TryGetValues("Set-Cookie", out var s))
+                {
+                    _cookies.SetCookies(message.RequestUri, string.Join(", ", s));
+                }
+
                 return response;
             } finally
             {

@@ -23,16 +23,35 @@ namespace DiscordBot.Classes.Cinema.Odeon
 
         public static string UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.69 Safari/537.36";
 
+        public static string Domain = "odeon.co.uk";
+
         void addDefaultHeaders(HttpRequestMessage request, bool json)
         {
-            request.Headers.Add("user-agent", UserAgent);
-            request.Headers.Add("accept", json ? "application/json" : "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9");
-            request.Headers.Add("Accept-Encoding", "gzip, deflate, br");
-            request.Headers.Add("cache-control", "max-age=0");
+            var dict = new Dictionary<string, string>()
+            {
+                {"accept",  json ? "application/json" : "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9"},
+                {"accept-encoding", "gzip, deflate, br"},
+                {"accept-language", "en-GB,en-US;q=0.9,en;q=0.8"},
+                {"cache-control", "no-cache"},
+                {"pragma", "no-cache"},
+                {"sec-ch-ua", "\"Google Chrome\";v=\"95\", \"Chromium\";v=\"95\", \";Not A Brand\";v=\"99\""},
+                {"sec-ch-ua-mobile", "?0"},
+                {"sec-ch-ua-platform", "\"Windows\""},
+                {"sec-fetch-dest", "document"},
+                {"sec-fetch-mode", "navigate"},
+                {"sec-fetch-site", "none"},
+                {"sec-fetch-user", "?1"},
+                {"upgrade-insecure-requests", "1"},
+                {"user-agent", UserAgent }
+            };
+            foreach (var keypair in dict)
+                request.Headers.Add(keypair.Key, keypair.Value);
+
         }
 
         private BotHttpClient http = Program.Services.GetRequiredService<BotHttpClient>()
-            .Child("OdeonAPI", true, 3000);
+            .Child("OdeonAPI", true, 3000, true)
+            .WithCookie(new Cookie("__cf_bm", "RArBUmKXB4nH73gDSb2mMmkRMFBwpW6iCu0OS3WzFZM-1636754503-0-AX/H6vRbvjsyA5FaEPFl5nvmWl0EzGEFMRPklVekTjgXheM7OfoJJjLHgjkDX3xGkva2ApsQziIWB+qrj+2yuto=", "/", Domain));
         private SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
 
         FileInfo getCachePath(string fname)
@@ -58,7 +77,7 @@ namespace DiscordBot.Classes.Cinema.Odeon
         {
             if (triedWithAuth)
                 return null; // don't keep spamming them
-            var req = new HttpRequestMessage(HttpMethod.Get, "https://odeon.co.uk/cinemas/");
+            var req = new HttpRequestMessage(HttpMethod.Get, $"https://{Domain}/cinemas/");
             addDefaultHeaders(req, false);
             var resp = await http.SendAsync(req);
             var content = await resp.Content.ReadAsStringAsync();
@@ -167,7 +186,7 @@ startFunc:
             }
             else
             {
-                var request = new HttpRequestMessage(HttpMethod.Get, $"https://vwc.odeon.co.uk/WSVistaWebClient/ocapi/v1/browsing/master-data/showtimes/business-date/{date:yyyy-MM-dd}?siteIds=040");
+                var request = new HttpRequestMessage(HttpMethod.Get, $"https://vwc.{Domain}/WSVistaWebClient/ocapi/v1/browsing/master-data/showtimes/business-date/{date:yyyy-MM-dd}?siteIds=040");
 
                 try
                 {

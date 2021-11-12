@@ -346,7 +346,7 @@ namespace DiscordBot.MLAPI.Modules.Bot
             {
                 var pair = HttpPair.Parse(file);
                 string order = Path.GetFileNameWithoutExtension(file);
-                var anchor = new Anchor($"/bog/logs/http/{order}", order);
+                var anchor = new Anchor($"/bot/logs/http/{order}", order);
                 table.WithRow(anchor, pair.Request.URL, pair.Response.Code.ToString());
             }
             var page = new HTMLPage();
