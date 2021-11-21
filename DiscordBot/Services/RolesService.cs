@@ -128,7 +128,7 @@ namespace DiscordBot.Services
                 return new BotResult($"Role {roleId} does not exist.");
             var perm = $"roles.{role.Guild.Id}.{role.Id}";
             var user = await txt.Guild.GetUserAsync(e.User.Id);
-            var bUser = Program.GetUser(user);
+            var bUser = Program.CreateUser(user);
             if (PermChecker.UserHasPerm(bUser, perm) == false)
             {
                 return new BotResult($"You lack the permission to toggle that role.\r\n" /*+

@@ -53,7 +53,7 @@ namespace DiscordBot.Services
 
         private async System.Threading.Tasks.Task Client_UserJoined(Discord.WebSocket.SocketGuildUser arg)
         {
-            perform(Program.GetUser(arg), arg.Guild.Id, "UserJoined", null);
+            perform(Program.CreateUser(arg), arg.Guild.Id, "UserJoined", null);
         }
 
         private async System.Threading.Tasks.Task Client_GuildMemberUpdated(Cacheable<Discord.WebSocket.SocketGuildUser, ulong> cached, Discord.WebSocket.SocketGuildUser arg2)
@@ -67,7 +67,7 @@ namespace DiscordBot.Services
             var removedRoles = priorRoles.Where(x => currentRoles.Contains(x) == false);
             var addedRoles = currentRoles.Where(x => priorRoles.Contains(x) == false);
 
-            var bUser = Program.GetUser(arg2 ?? arg1);
+            var bUser = Program.CreateUser(arg2 ?? arg1);
 
             foreach(var role in removedRoles)
             {

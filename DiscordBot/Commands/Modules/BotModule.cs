@@ -137,7 +137,7 @@ namespace DiscordBot.Commands.Modules
         [Summary("Views your own override name")]
         public async Task BotName()
         {
-            var bUser = Program.GetUser(Context.User);
+            var bUser = Program.CreateUser(Context.User);
             await ReplyAsync($"{(bUser.OverrideName == null ? "<null>" : bUser.OverrideName)}");
         }
 
@@ -178,7 +178,7 @@ namespace DiscordBot.Commands.Modules
             var s = checkName(newName);
             if (!s.IsSuccess)
                 return s;
-            var bUser = Program.GetUser(Context.User);
+            var bUser = Program.CreateUser(Context.User);
             bUser.OverrideName = newName;
             await ReplyAsync(":ballot_box_with_check: Done");
             return new BotResult();

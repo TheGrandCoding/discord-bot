@@ -76,7 +76,7 @@ namespace DiscordBot.Services
 
         bool hasEnabledPairing(SocketGuildUser user, bool muted, BotUser bUser = null)
         {
-            bUser ??= Program.GetUser(user);
+            bUser ??= Program.CreateUser(user);
             if (bUser.Options.PairedVoiceChannels == CreateChannelForVoice.Never)
                 return false;
             if (bUser.Options.PairedVoiceChannels == CreateChannelForVoice.WhenMuted && muted == false)
@@ -250,7 +250,7 @@ namespace DiscordBot.Services
                 foreach(var usr in voice.Users)
                 {
                     if (usr.IsBot) continue;
-                    var bUser = Program.GetUser(usr);
+                    var bUser = Program.CreateUser(usr);
                     if (bUser.Options.PairedVoiceChannels == CreateChannelForVoice.Never)
                         continue;
                     if (bUser.Options.PairedVoiceChannels == CreateChannelForVoice.WhenMuted && !usr.IsSelfMuted)

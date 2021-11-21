@@ -61,8 +61,11 @@ namespace DiscordBot.Services
         public static IReadOnlyCollection<Service> GetServices()
             => zza_services.ToImmutableArray();
 
+        static bool global_failed;
         public static ServiceState GlobalState { get
             {
+                if (global_failed)
+                    return ServiceState.Failed;
                 if (doneFunctions.ContainsKey(ServiceState.Close))
                     return ServiceState.Close;
                 if (doneFunctions.ContainsKey(ServiceState.Loaded))
@@ -185,6 +188,7 @@ namespace DiscordBot.Services
             catch (Exception ex)
             {
                 Program.LogCritical($"Critical failure on service, must exit: {ex}", name);
+                global_failed = true;
                 Program.Close(2);
                 return;
             }

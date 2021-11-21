@@ -470,7 +470,7 @@ Changed how permissions worked for bot.
         public static void Close(int code)
         {
             exitCode = code;
-            if(Service.GlobalState != ServiceState.None)
+            if(Service.GlobalState != ServiceState.None && Service.GlobalState != ServiceState.Failed)
             {
                 Service.SendClose();
                 Program.Save(true);

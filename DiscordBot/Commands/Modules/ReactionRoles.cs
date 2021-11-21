@@ -133,7 +133,7 @@ namespace DiscordBot.Commands.Modules
         [Summary("Prevents a user from performing any reaction roles in this server")]
         public async Task BlockWhole(SocketGuildUser user)
         {
-            var bUser = Program.GetUser(user);
+            var bUser = Program.CreateUser(user);
             var perm = Perm.Parse($"-roles.{user.Guild.Id}.*");
             if(bUser.Permissions.RemoveAll(x => x.RawNode == perm.RawNode) > 0)
             {
@@ -149,7 +149,7 @@ namespace DiscordBot.Commands.Modules
         [Summary("Prevents a user from getting the specific role via reaction in this server")]
         public async Task BlockWhole(SocketGuildUser user, IRole role)
         {
-            var bUser = Program.GetUser(user);
+            var bUser = Program.CreateUser(user);
             var perm = Perm.Parse($"-roles.{user.Guild.Id}.{role.Id}");
             if (bUser.Permissions.RemoveAll(x => x.RawNode == perm.RawNode) > 0)
             {

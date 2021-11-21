@@ -23,7 +23,7 @@ namespace DiscordBot.Commands
         public BotCommandContext(DiscordSocketClient client, SocketUserMessage msg) : base(client, msg)
         {
             if (!(msg.Author.IsBot || msg.Author.IsWebhook))
-                BotUser = Program.GetUser(msg.Author);
+                BotUser = Program.CreateUser(msg.Author);
         }
     }
 }

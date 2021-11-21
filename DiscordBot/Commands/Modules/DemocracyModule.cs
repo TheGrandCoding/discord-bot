@@ -485,7 +485,7 @@ namespace DiscordBot.Commands.Modules
                 await Target?.AddRoleAsync(Role, new RequestOptions() { AuditLogReason = "I love democracy" });
             else
                 await Target?.RemoveRoleAsync(Role, new RequestOptions() { AuditLogReason = "Voted" });
-            var bUser = Program.GetUser(Target);
+            var bUser = Program.CreateUser(Target);
             bUser.IsVerified = Adding;
             bUser.IsApproved = (bUser.IsApproved ?? false) || Adding;
             Program.Save();

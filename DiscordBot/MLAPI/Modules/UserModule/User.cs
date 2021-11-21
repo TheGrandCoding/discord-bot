@@ -45,7 +45,7 @@ namespace DiscordBot.MLAPI.Modules.UserModule
             {
                 if (oper.GuildPermissions.ChangeNickname)
                     return true;
-                var botU = Program.GetUser(oper);
+                var botU = Program.CreateUser(oper);
                 if (PermChecker.UserHasPerm(botU, Perms.Bot.User.ChangeServerNickname))
                     return true;
             }

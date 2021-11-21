@@ -21,7 +21,7 @@ namespace DiscordBot.TypeReaders
                     var usr = Program.Client.GetUser(id);
                     if (usr == null)
                         return TypeReaderResult.FromError(CommandError.ParseFailed, $"Unknown user by id {id}");
-                    user = Program.GetUser(usr);
+                    user = Program.CreateUser(usr);
                 }
                 return TypeReaderResult.FromSuccess(user);
             }

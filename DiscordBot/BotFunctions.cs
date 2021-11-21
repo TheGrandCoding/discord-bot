@@ -27,12 +27,12 @@ namespace DiscordBot
             var dsUser = Program.Client.GetUser(id);
             if (dsUser == null)
                 return null;
-            return GetUser(dsUser);
+            return CreateUser(dsUser);
         }
-        public static BotUser GetUser(IUser user, bool saveOnModify = true)
+        public static BotUser CreateUser(IUser user, bool saveOnModify = true)
         {
             bool changed = false;
-            var existing = GetUserOrDefault(user.Id);
+            var existing = Users.FirstOrDefault(x => x.Id == user.Id);
             if(existing == null)
             {
                 existing = new BotUser(user);
@@ -206,9 +206,14 @@ namespace DiscordBot
             {
                 // it's a nullable type, so we'll try to parse if the text isn't null or empty.
                 if (string.IsNullOrWhiteSpace(input))
+                {
                     return TypeReaderResult.FromSuccess(null);
+                }
                 else
+                {
+                    Program.LogInfo($"Recursing to parse {input} to {desired.FullName}; now nullable {nullableType.FullName}", "Program.AttemptParse");
                     return AttemptParseInput(input, nullableType);
+                }
             }
 
             var reader = combined[desired];

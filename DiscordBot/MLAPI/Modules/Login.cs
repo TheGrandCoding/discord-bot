@@ -193,7 +193,7 @@ namespace DiscordBot.MLAPI.Modules
 
         BotUser handleUserInfo(IUser user)
         {
-            return Program.GetUser(user);
+            return Program.CreateUser(user);
         }
 
         [Method("GET"), Path("/oauth2/discord")]

@@ -35,7 +35,7 @@ namespace DiscordBot.Services
                 var guild = Program.Client.GetGuild(id);
                 foreach(var usr in guild.Users.Where(x => x.Roles.Any(y => y.Id == save.VerifyRole.Id)))
                 {
-                    var bUser = Program.GetUser(usr);
+                    var bUser = Program.CreateUser(usr);
                     if (bUser.IsVerified)
                         continue;
                     await HandleNewLevel7(save, usr);
@@ -79,7 +79,7 @@ namespace DiscordBot.Services
 
         async Task HandleNewLevel7(GuildSave save, SocketGuildUser user)
         {
-            var bUser = Program.GetUser(user);
+            var bUser = Program.CreateUser(user);
             if (bUser.IsVerified)
                 return;
             var responsible = await getAdmin(user, save.VerifyRole);
