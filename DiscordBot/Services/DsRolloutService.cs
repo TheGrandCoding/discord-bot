@@ -189,8 +189,11 @@ namespace DiscordBot.Services
 
             if(existingExperiments.Count > 0)
             { // these have been removed
+                changes = true;
                 foreach (var exp in existingExperiments)
                 {
+                    if (exp.Removed)
+                        continue; // we've already sent a message about this
                     exp.Removed = true;
                     exp.LastChanged = DateTime.Now;
                     updatedExperiments.Add(exp);
