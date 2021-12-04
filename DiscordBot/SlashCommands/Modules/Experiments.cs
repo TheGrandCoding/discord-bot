@@ -61,13 +61,15 @@ namespace DiscordBot.SlashCommands.Modules
                 return;
             }
             var guild = Program.Client.GetGuild(id);
+            string treatment;
             if(guild == null)
             {
-                await Interaction.RespondAsync("Unknown server", ephemeral: true);
-                return;
+                treatment = exp.GetTreatment(id, null, null);
+            } else
+            {
+                treatment = exp.GetTreatment(guild);
             }
 
-            var treatment = exp.GetTreatment(guild);
             if(treatment == null)
             {
                 await Interaction.RespondAsync("Server is ineligible for this experiment due to filters.");
