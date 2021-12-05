@@ -347,15 +347,15 @@ namespace DiscordBot.Services
             var dict = rl.GetFilteredGroupedPopulations();
 
             var sb = new StringBuilder();
-
             foreach((var filters, var grouping) in dict)
             {
-                sb.Append("```\n");
                 foreach (var f in filters)
                     sb.Append($"- {f}\n");
+                sb.Append("```\n");
 
+                bool doneControl = false;
                 int sum = 0;
-                foreach((var treatId, var pops) in grouping)
+                foreach ((var treatId, var pops) in grouping)
                 {
                     var count = pops.Sum(x => x.Count);
                     sum += count;
@@ -364,15 +364,25 @@ namespace DiscordBot.Services
                     if (pstr[0] == '0')
                         pstr = " " + pstr[1..];
                     sb.Append(pstr);
-                    sb.Append(Treatments.GetValueOrDefault(treatId, "Control"));
+                    if (treatId == -1)
+                        doneControl = true;
+                    if(Treatments.TryGetValue(treatId, out var c))
+                        sb.Append(c);
+                    else if(treatId == -1)
+                        sb.Append("Control");
+                    else
+                        sb.Append($"Treatment {treatId}");
                     sb.Append("\n");
                 }
-                var controlSum = Rollout.TotalCount - sum;
-                var controlPerc = controlSum / (double)Rollout.TotalCount;
-                string cpstr = $"{(controlPerc * 100):00.0}% ";
-                if (cpstr[0] == '0')
-                    cpstr = " " + cpstr[1..];
-                sb.Append($"{cpstr} Control/None");
+                if(!doneControl)
+                {
+                    var controlSum = Rollout.TotalCount - sum;
+                    var controlPerc = controlSum / (double)Rollout.TotalCount;
+                    string cpstr = $"{(controlPerc * 100):00.0}% ";
+                    if (cpstr[0] == '0')
+                        cpstr = " " + cpstr[1..];
+                    sb.Append($"{cpstr} Control/None");
+                }
                 sb.Append("```\n");
             }
 
@@ -429,16 +439,16 @@ namespace DiscordBot.Services
         [JsonProperty("u")]
         public int Unknown { get; set; }
 
-        [JsonProperty("populations")]
-        public List<Population> Populations { get; set; }
+        [JsonProperty("groups")]
+        public List<PopulationGroups> Populations { get; set; } = new List<PopulationGroups>();
 
         public Dictionary<Filter[], Dictionary<int, List<Population>>> GetFilteredGroupedPopulations()
         {
             var dict = new Dictionary<Filter[], List<Population>>();
-            foreach (var pop in Populations)
+            foreach (var group in Populations)
             {
-                var filterArray = pop.Filters.ToArray();
-                DiscordBot.Utils.EnumerableUtils.AddInner(dict, filterArray, pop);
+                var filterArray = group.Filters.ToArray();
+                dict[filterArray] = group.Populations;
             }
 
             var fullDict = new Dictionary<Filter[], Dictionary<int, List<Population>>>();
@@ -457,26 +467,12 @@ namespace DiscordBot.Services
         public List<BucketOverride> Overrides { get; set; }
 
         [JsonIgnore]
-        public int AlternativeCount { get
-            {
-                int c = 0;
-                foreach (var thing in Populations)
-                    if (thing.Bucket != -1)
-                        c += thing.Count;
-                return c;
-            } }
-
-        [JsonIgnore]
-        public int ControlCount => TotalCount - AlternativeCount;
-
-        [JsonIgnore]
         public const int TotalCount = 10_000; // constant it seems
             //=> (Populations ?? new List<Population>()).Sum(x => x.Count);
 
 
         public int? GetTreatmentId(string expId, ulong serverId, int? memberCount, string[] features)
         {
-
             var bytes = Encoding.ASCII.GetBytes($"{expId}:{serverId}");
             using var algo = Murmur.MurmurHash.Create32();
             var hash = algo.ComputeHash(bytes);
@@ -484,12 +480,21 @@ namespace DiscordBot.Services
 
             var intHash = BitConverter.ToUInt32(hash);
             var value = intHash % 10_000;
-            foreach(var pop in Populations)
+            var highestFilters = int.MinValue;
+            Population highest = null;
+            foreach(var group in Populations)
             {
-                if (pop.InPopulation(value, serverId, memberCount, features))
-                    return pop.Bucket;
+                var pop = group.GetPopulation(value, serverId, memberCount, features);
+                if(pop != null)
+                {
+                    if(group.Filters.Count > highestFilters)
+                    {
+                        highestFilters = group.Filters.Count;
+                        highest = pop;
+                    }
+                }
             }
-            return -1; // default
+            return highest?.Bucket ?? -1;
         }
 
         public static Rollout Create(JArray array)
@@ -500,8 +505,9 @@ namespace DiscordBot.Services
             rl.Unknown = array[2].ToObject<int>();
 
             var populations = array[3];
-            rl.Populations = populations.Select(x => Population.Create(x))
-                                        .ToList();
+            rl.Populations = populations
+                .Select(x => PopulationGroups.Create(x))
+                .ToList();
 
             var overrides = array[4];
 
@@ -584,41 +590,12 @@ namespace DiscordBot.Services
         [JsonProperty("r")]
         public List<PopulationRange> Ranges { get; set; } = new List<PopulationRange>();
 
-        [JsonProperty("f", ItemTypeNameHandling = TypeNameHandling.All)]
-        public List<Filter> Filters { get; set; } = new List<Filter>();
-
         [JsonIgnore]
         public int Count => Ranges.Sum(x => x.Count);
 
-        public bool InPopulation(uint value, ulong serverId, int? memberCount, string[] features)
+        public bool InPopulation(uint value)
         {
-            if(Filters != null)
-            {
-                foreach (var f in Filters)
-                {
-                    if (f is IDFilter id)
-                    {
-                        if (serverId < id.Start || serverId > id.End)
-                            return false; // doesn't meet filter
-                    }
-                    else if (f is MemberCountFilter mf)
-                    {
-                        if (!memberCount.HasValue)
-                            return false;
-                        if (memberCount.Value < mf.Start || memberCount.Value > mf.End)
-                            return false;
-                    }
-                    else if (f is FeatureFilter ff)
-                    {
-                        if (features == null)
-                            return false;
-                        foreach (var k in ff.Features)
-                            if (!features.Contains(k))
-                                return false;
-                    }
-                }
-            }
-            foreach(var rng in Ranges)
+            foreach (var rng in Ranges)
             {
                 if (value >= rng.Start && value < rng.End)
                     return true;
@@ -629,9 +606,8 @@ namespace DiscordBot.Services
         public static Population Create(JToken x)
         {
             var pop = new Population();
-            var values = x[0][0];
-            pop.Bucket = values[0].ToObject<int>();
-            foreach(var group in values[1])
+            pop.Bucket = x[0].ToObject<int>();
+            foreach(var group in x[1])
             {
                 var rng = new PopulationRange()
                 {
@@ -640,16 +616,63 @@ namespace DiscordBot.Services
                 };
                 pop.Ranges.Add(rng);
             }
-            var filters = x[1];
-            foreach(var f in filters)
-            {
-                var filter = Filter.Create(f);
-                pop.Filters.Add(filter);
-            }
             return pop;
         }
         public override string ToString() 
             => $"{Bucket} {string.Join(", ", Ranges.Select(x => x.ToString()))}";
+    }
+
+    public class PopulationGroups
+    {
+        [JsonConstructor]
+        private PopulationGroups() { }
+        [JsonProperty("p")]
+        public List<Population> Populations { get; set; } = new List<Population>();
+
+        [JsonProperty("f", ItemTypeNameHandling = TypeNameHandling.All)]
+        public List<Filter> Filters { get; set; } = new List<Filter>();
+
+        public Population GetPopulation(uint value, ulong serverId, int? memberCount, string[] features)
+        {
+            if (Filters != null)
+            {
+                foreach (var f in Filters)
+                {
+                    if (f is IDFilter id)
+                    {
+                        if (serverId < id.Start || serverId > id.End)
+                            return null; // doesn't meet filter
+                    }
+                    else if (f is MemberCountFilter mf)
+                    {
+                        if (!memberCount.HasValue)
+                            return null;
+                        if (memberCount.Value < mf.Start || memberCount.Value > mf.End)
+                            return null;
+                    }
+                    else if (f is FeatureFilter ff)
+                    {
+                        if (features == null)
+                            return null;
+                        foreach (var k in ff.Features)
+                            if (!features.Contains(k))
+                                return null;
+                    }
+                }
+            }
+            foreach (var x in Populations)
+                if (x.InPopulation(value))
+                    return x;
+            return null;
+        }
+    
+        public static PopulationGroups Create(JToken token)
+        {
+            var grp = new PopulationGroups();
+            grp.Populations = token[0].Select(x => Population.Create(x)).ToList();
+            grp.Filters = token[1].Select(x => Filter.Create(x)).ToList();
+            return grp;
+        }
     }
 
     public enum FilterType : ulong
