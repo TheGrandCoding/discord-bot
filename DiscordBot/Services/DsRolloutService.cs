@@ -42,7 +42,8 @@ namespace DiscordBot.Services
 
         public async Task<List<Experiment>> GetCurrentExperiments()
         {
-            var http = Program.Services.GetRequiredService<Classes.BotHttpClient>();
+            var http = Program.Services.GetRequiredService<Classes.BotHttpClient>()
+                .Child(nameof(DsRolloutService), debug: true);
             var response = await http.GetAsync("https://rollouts.advaith.workers.dev");
 
             if (!response.IsSuccessStatusCode)
@@ -104,7 +105,7 @@ namespace DiscordBot.Services
             }
         }
 
-        async Task updateTask()
+        public async Task updateTask()
         {
             var fromAPIExperiments = await GetCurrentExperiments();
 
@@ -127,7 +128,7 @@ namespace DiscordBot.Services
                     await sendMessageFor(updatedExp, null);
                     continue;
                 }
-                existingExperiments.Remove(existing);
+                existingExperiments.RemoveAll(x => x.Id == existing.Id);
                 // compare them, see if equal
                 builder = new EmbedBuilder();
 
@@ -138,43 +139,14 @@ namespace DiscordBot.Services
                     builder.AddField("Experiment Re-added", "This experiment was previously removed");
                 }
 
-                // look at the treatments to see if they're changed
-                var treatmentIds = new List<int>() { -1 };
-                treatmentIds.AddRange(existing.Treatments.Keys);
-                treatmentIds.AddRange(updatedExp.Treatments.Keys);
-                treatmentIds = treatmentIds.Distinct().ToList();
-
                 Func<int, string> percF = (int i) => $"{((i / 10000d) * 100):00.0}%";
 
-                foreach(var id in treatmentIds)
+                var ec = existing.GetChanges(updatedExp);
+                foreach(var change in ec)
                 {
-                    var existingPop = existing.Rollout.Populations.FirstOrDefault(x => x.Bucket == id);
-                    var newPop = updatedExp.Rollout.Populations.FirstOrDefault(x => x.Bucket == id);
-
-                    if(newPop == null && existingPop == null)
-                    { // ?
-                        continue;
-                    } else if (newPop == null)
-                    { // treatment removed
-                        builder.AddField($"Removed {id}",
-                            $"{existing.Treatments[id]}\n{existingPop.Count}", true);
-                    } else if(existingPop == null)
-                    { // treatment added
-                        builder.AddField($"Added {id}",
-                            $"{updatedExp.Treatments[id]}\n{newPop.Count}");
-                    } else
-                    { // treatment maybe modified?
-                        if(newPop.Count != existingPop.Count)
-                        {
-                            builder.AddField($"Modified % {id}",
-                                $"{updatedExp.Treatments[id]}\n" +
-                                $"{existingPop.Count} -> **{newPop.Count}** - {percF(newPop.Count)}");
-                        }
-                    }
-
+                    builder.AddField($"{change.Type}", (change.Before ?? "null") + "\n" + (change.After ?? "null"), true);
                 }
 
-                // TODO: maybe look at filters to see if they've changed
 
                 if(builder.Fields.Count > 0)
                 {
@@ -372,37 +344,39 @@ namespace DiscordBot.Services
             var treatmentCounts = new Dictionary<int, int>();
 
             var rl = this.Rollout;
-            if (rl.Filters.Count > 0)
-            {
-                builder.AddField("Filters", string.Join("\n", rl.Filters.Select(x => x.ToString())), true);
-            }
-            
-            foreach(var pop in rl.Populations)
-            {
-                treatmentCounts[pop.Bucket] = pop.Count;
-            }
-            treatmentCounts[-1] = rl.ControlCount;
+            var dict = rl.GetFilteredGroupedPopulations();
 
             var sb = new StringBuilder();
-            foreach((var id, var treatment) in Treatments)
+
+            foreach((var filters, var grouping) in dict)
             {
-                if (treatmentCounts.TryGetValue(id, out var count))
+                sb.Append("```\n");
+                foreach (var f in filters)
+                    sb.Append($"- {f}\n");
+
+                int sum = 0;
+                foreach((var treatId, var pops) in grouping)
                 {
+                    var count = pops.Sum(x => x.Count);
+                    sum += count;
                     var perc = count / (double)Rollout.TotalCount;
                     string pstr = $"{(perc * 100):00.0}% ";
-                    if(pstr[0] == '0')
+                    if (pstr[0] == '0')
                         pstr = " " + pstr[1..];
                     sb.Append(pstr);
-                } else
-                {
-                    sb.Append("  --  ");
+                    sb.Append(Treatments.GetValueOrDefault(treatId, "Control"));
+                    sb.Append("\n");
                 }
-                
-                sb.Append(treatment);
-                sb.Append("\n");
+                var controlSum = Rollout.TotalCount - sum;
+                var controlPerc = controlSum / (double)Rollout.TotalCount;
+                string cpstr = $"{(controlPerc * 100):00.0}% ";
+                if (cpstr[0] == '0')
+                    cpstr = " " + cpstr[1..];
+                sb.Append($"{cpstr} Control/None");
+                sb.Append("```\n");
             }
 
-            builder.WithDescription("```\n" + sb.ToString() + "```");
+            builder.WithDescription(sb.ToString());
 
             builder.WithFooter(Id);
             builder.WithTimestamp(new DateTimeOffset(LastChanged));
@@ -425,6 +399,24 @@ namespace DiscordBot.Services
                 return "Control";
             return Treatments.GetValueOrDefault(id.Value, $"Treatment {id}");
         }
+
+        public override bool Equals(object obj)
+        {
+            if (!(obj is Experiment e))
+                return false;
+            return GetChanges(e).Count == 0;
+        }
+
+        public List<Change> GetChanges(Experiment e) 
+        { 
+            if (!this.Id.Equals(e.Id))
+                return new Change("Id", this.Id, e.Id);
+            if (!this.Title.Equals(e.Title))
+                return new Change("Title", this.Title, e.Title);
+            if (!this.Hash.Equals(e.Hash))
+                return new Change("Hash", $"{this.Hash}", $"{e.Hash}");
+            return this.Rollout.GetChanges(e.Rollout);
+        }
     }
 
     public class Rollout
@@ -440,8 +432,26 @@ namespace DiscordBot.Services
         [JsonProperty("populations")]
         public List<Population> Populations { get; set; }
 
-        [JsonProperty("filters", ItemTypeNameHandling = TypeNameHandling.All)]
-        public List<Filter> Filters { get; set; }
+        public Dictionary<Filter[], Dictionary<int, List<Population>>> GetFilteredGroupedPopulations()
+        {
+            var dict = new Dictionary<Filter[], List<Population>>();
+            foreach (var pop in Populations)
+            {
+                var filterArray = pop.Filters.ToArray();
+                DiscordBot.Utils.EnumerableUtils.AddInner(dict, filterArray, pop);
+            }
+
+            var fullDict = new Dictionary<Filter[], Dictionary<int, List<Population>>>();
+            foreach((var filter, var pops) in dict)
+            {
+                var inner = new Dictionary<int, List<Population>>();
+                foreach (var x in pops)
+                    DiscordBot.Utils.EnumerableUtils.AddInner(inner, x.Bucket, x);
+                fullDict[filter] = inner;
+            }
+            return fullDict;
+        }
+
 
         [JsonIgnore] // don't really need to know this
         public List<BucketOverride> Overrides { get; set; }
@@ -466,23 +476,6 @@ namespace DiscordBot.Services
 
         public int? GetTreatmentId(string expId, ulong serverId, int? memberCount, string[] features)
         {
-            foreach(var f in Filters)
-            {
-                if(f is IDFilter id)
-                {
-                    if (serverId < id.Start || serverId > id.End)
-                        return null; // doesn't meet filter
-                } else if(f is MemberCountFilter mf && memberCount.HasValue)
-                {
-                    if (memberCount.Value < mf.Start || memberCount.Value > mf.End)
-                        return null;
-                } else if (f is FeatureFilter ff && features != null)
-                {
-                    foreach (var k in ff.Features)
-                        if (!features.Contains(k))
-                            return null;
-                }
-            }
 
             var bytes = Encoding.ASCII.GetBytes($"{expId}:{serverId}");
             using var algo = Murmur.MurmurHash.Create32();
@@ -493,7 +486,7 @@ namespace DiscordBot.Services
             var value = intHash % 10_000;
             foreach(var pop in Populations)
             {
-                if (pop.InPopulation(value))
+                if (pop.InPopulation(value, serverId, memberCount, features))
                     return pop.Bucket;
             }
             return -1; // default
@@ -506,16 +499,9 @@ namespace DiscordBot.Services
             // [1] is null
             rl.Unknown = array[2].ToObject<int>();
 
-            var bigArray = array[3][0];
-
-            var populations = bigArray[0];
+            var populations = array[3];
             rl.Populations = populations.Select(x => Population.Create(x))
                                         .ToList();
-
-            var filters = bigArray[1];
-
-            rl.Filters = filters.Select(x => Filter.Create(x))
-                .ToList();
 
             var overrides = array[4];
 
@@ -523,6 +509,56 @@ namespace DiscordBot.Services
                 .ToList();
 
             return rl;
+        }
+
+
+        public List<Change> GetChanges(Rollout r)
+        {
+            if (!this.Hash.Equals(r.Hash))
+                return new Change("Hash", $"{this.Hash}", $"{r.Hash}");
+            var thisFilterGrouped = this.GetFilteredGroupedPopulations();
+            var otherFilterGrouped = r.GetFilteredGroupedPopulations();
+            if (thisFilterGrouped.Count != otherFilterGrouped.Count)
+                return new Change("FilterGroupCount", $"{thisFilterGrouped.Count}", $"{otherFilterGrouped.Count}");
+            var keys = new List<Filter[]>();
+            keys.AddRange(thisFilterGrouped.Keys);
+            keys.AddRange(otherFilterGrouped.Keys);
+            keys = keys.Distinct().ToList();
+
+            foreach(var filterKey in keys)
+            {
+                if (!thisFilterGrouped.TryGetValue(filterKey, out var thisGroup))
+                    return new Change($"+FilterGroup", null, $"{filterKey}");
+                if (!otherFilterGrouped.TryGetValue(filterKey, out var otherGroup))
+                    return new Change($"-FilterGroup", $"{filterKey}", null);
+
+                var treatments = new List<int>();
+                treatments.AddRange(thisGroup.Keys);
+                treatments.AddRange(otherGroup.Keys);
+                treatments = treatments.Distinct().ToList();
+
+                foreach(var treatment in treatments)
+                {
+                    if (!thisGroup.TryGetValue(treatment, out var thisPop))
+                        return new Change($"+TreatPop", null, $"{treatment}");
+                    if (!otherGroup.TryGetValue(treatment, out var otherPop))
+                        return new Change($"-TreatPop", $"{treatment}", null);
+
+                    var thisSum = thisPop.Sum(x => x.Count);
+                    var otherSum = otherPop.Sum(x => x.Count);
+
+                    if (thisSum != otherSum)
+                        return new Change($"Treat{treatment}Sum", $"{thisSum}", $"{otherSum}");
+                }
+            }
+            return new List<Change>();
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (!(obj is Rollout r))
+                return false;
+            return this.GetChanges(r).Count == 0;
         }
     }
 
@@ -548,11 +584,40 @@ namespace DiscordBot.Services
         [JsonProperty("r")]
         public List<PopulationRange> Ranges { get; set; } = new List<PopulationRange>();
 
+        [JsonProperty("f", ItemTypeNameHandling = TypeNameHandling.All)]
+        public List<Filter> Filters { get; set; } = new List<Filter>();
+
         [JsonIgnore]
         public int Count => Ranges.Sum(x => x.Count);
 
-        public bool InPopulation(uint value)
+        public bool InPopulation(uint value, ulong serverId, int? memberCount, string[] features)
         {
+            if(Filters != null)
+            {
+                foreach (var f in Filters)
+                {
+                    if (f is IDFilter id)
+                    {
+                        if (serverId < id.Start || serverId > id.End)
+                            return false; // doesn't meet filter
+                    }
+                    else if (f is MemberCountFilter mf)
+                    {
+                        if (!memberCount.HasValue)
+                            return false;
+                        if (memberCount.Value < mf.Start || memberCount.Value > mf.End)
+                            return false;
+                    }
+                    else if (f is FeatureFilter ff)
+                    {
+                        if (features == null)
+                            return false;
+                        foreach (var k in ff.Features)
+                            if (!features.Contains(k))
+                                return false;
+                    }
+                }
+            }
             foreach(var rng in Ranges)
             {
                 if (value >= rng.Start && value < rng.End)
@@ -564,8 +629,9 @@ namespace DiscordBot.Services
         public static Population Create(JToken x)
         {
             var pop = new Population();
-            pop.Bucket = x[0].ToObject<int>();
-            foreach(var group in x[1])
+            var values = x[0][0];
+            pop.Bucket = values[0].ToObject<int>();
+            foreach(var group in values[1])
             {
                 var rng = new PopulationRange()
                 {
@@ -573,6 +639,12 @@ namespace DiscordBot.Services
                     End = group["e"].ToObject<int>()
                 };
                 pop.Ranges.Add(rng);
+            }
+            var filters = x[1];
+            foreach(var f in filters)
+            {
+                var filter = Filter.Create(f);
+                pop.Filters.Add(filter);
             }
             return pop;
         }
@@ -606,6 +678,11 @@ namespace DiscordBot.Services
 
         public override string ToString()
             => $"{Type}";
+
+        public override int GetHashCode()
+        {
+            return (int)Type;
+        }
     }
 
     public class FeatureFilter : Filter
@@ -624,6 +701,17 @@ namespace DiscordBot.Services
         public override string ToString()
             => "Server has feature" + (Features.Length > 0 ? "s" : "") + " "
                 + string.Join(" ", Features);
+
+        public override int GetHashCode()
+        {
+            return $"{Type}:{Features.GetHashCode()}".GetHashCode();
+        }
+        public override bool Equals(object obj)
+        {
+            if (!(obj is FeatureFilter f))
+                return false;
+            return Features.All(x => f.Features.Contains(x));
+        }
     }
 
     public class IDFilter : Filter
@@ -642,7 +730,6 @@ namespace DiscordBot.Services
             return idf;
         }
 
-
         public override string ToString()
         {
             if(Start == ulong.MinValue)
@@ -660,6 +747,17 @@ namespace DiscordBot.Services
                     $"to {End} ({TimestampTag.FromDateTime(SnowflakeUtils.FromSnowflake(Start).UtcDateTime)})";
             }
         }
+
+        public override int GetHashCode()
+        {
+            return $"{Type}:{Start}-{End}".GetHashCode();
+        }
+        public override bool Equals(object obj)
+        {
+            if (!(obj is IDFilter idf))
+                return false;
+            return this.Start == idf.Start && this.End == idf.End;
+        }
     }
 
     public class MemberCountFilter : Filter
@@ -669,7 +767,6 @@ namespace DiscordBot.Services
         public int Start { get; set; }
         [JsonProperty("e")]
         public int End { get; set; }
-
 
         public new static Filter Create(JToken x)
         {
@@ -692,6 +789,18 @@ namespace DiscordBot.Services
                 return $"Server has member count in range [{Start}, {End}]";
             }
         }
+
+        public override bool Equals(object obj)
+        {
+            if (!(obj is MemberCountFilter mcf))
+                return false;
+            return this.Start == mcf.Start && this.End == mcf.End;
+        }
+        public override int GetHashCode()
+        {
+            return $"{Type}-{Start}-{End}".GetHashCode();
+        }
+
     }
 
     public class BucketOverride

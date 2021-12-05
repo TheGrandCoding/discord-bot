@@ -42,7 +42,14 @@ namespace DiscordBot.SlashCommands.Modules
             foreach (var exp in Service.Experiments.Values)
                 await Service.sendMessageFor(exp, null);
             sw.Stop();
-            await Interaction.FollowupAsync($"Refresh completed after {sw.Elapsed}");
+            await Interaction.ModifyOriginalResponseAsync(x =>
+            {
+                x.Content = $"First step done in {sw.Elapsed}";
+            });
+            sw.Start();
+            await Service.updateTask();
+            sw.Stop();
+            await Interaction.ModifyOriginalResponseAsync(x => { x.Content = $"Refresh completed after {sw.Elapsed}"; });
         }
 
         [SlashCommand("check", "Checks which treatment the server is in")]
