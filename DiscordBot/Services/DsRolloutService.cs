@@ -321,6 +321,15 @@ namespace DiscordBot.Services
             this.LastChanged = DateTime.Now;
         }
 
+        string getDescription(int id)
+        {
+            var s = $"Treatment {id}";
+            foreach (var x in Treatments.Values)
+                if (x.StartsWith(s))
+                    return x;
+            return "None";
+        }
+
         public EmbedBuilder ToEmbed()
         {
             var builder = new EmbedBuilder();
@@ -364,24 +373,17 @@ namespace DiscordBot.Services
                     if (pstr[0] == '0')
                         pstr = " " + pstr[1..];
                     sb.Append(pstr);
-                    if (treatId == -1)
-                        doneControl = true;
-                    if(Treatments.TryGetValue(treatId, out var c))
-                        sb.Append(c);
-                    else if(treatId == -1)
-                        sb.Append("Control");
-                    else
-                        sb.Append($"Treatment {treatId}");
+                    sb.Append(getDescription(treatId));
                     sb.Append("\n");
                 }
-                if(!doneControl)
+                if(sum < Rollout.TotalCount)
                 {
                     var controlSum = Rollout.TotalCount - sum;
                     var controlPerc = controlSum / (double)Rollout.TotalCount;
                     string cpstr = $"{(controlPerc * 100):00.0}% ";
                     if (cpstr[0] == '0')
                         cpstr = " " + cpstr[1..];
-                    sb.Append($"{cpstr} Control/None");
+                    sb.Append($"{cpstr} " + Treatments.GetValueOrDefault(0, "Control"));
                 }
                 sb.Append("```\n");
             }
