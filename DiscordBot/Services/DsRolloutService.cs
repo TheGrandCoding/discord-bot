@@ -142,9 +142,8 @@ namespace DiscordBot.Services
                 Func<int, string> percF = (int i) => $"{((i / 10000d) * 100):00.0}%";
 
                 var ec = existing.GetChanges(updatedExp);
-                foreach(var change in ec)
-                {
-                    builder.AddField($"{change.Type}", (change.Before ?? "null") + "\n" + (change.After ?? "null"), true);
+                if(ec.Count > 0) {
+                    builder = existing.ToEmbed();
                 }
 
 
@@ -362,7 +361,6 @@ namespace DiscordBot.Services
                     sb.Append($"- {f}\n");
                 sb.Append("```\n");
 
-                bool doneControl = false;
                 int sum = 0;
                 foreach ((var treatId, var pops) in grouping)
                 {
