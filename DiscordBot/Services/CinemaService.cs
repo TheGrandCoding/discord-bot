@@ -20,7 +20,7 @@ namespace DiscordBot.Services
 
         public static DirectoryInfo GetCacheDirectory()
         {
-            var dir = new DirectoryInfo(Path.Combine(Program.BASE_PATH, "data", "cache"));
+            var dir = new DirectoryInfo(Path.Combine(Program.BASE_PATH, "data", "cache", "cinema"));
             if (!dir.Exists)
                 dir.Create();
             return dir;

@@ -172,7 +172,7 @@ namespace DiscordBot.Commands.Modules.Rules
             await Service.AddTopicBlock(Context.User as SocketGuildUser,
                 Context.Guild.GetUser(target.Id),
                 Context.BotUser.Reason, duration, regex);
-            Success("Topic block added.");
+            await Success("Topic block added.");
         }
 
         [Command("iblock"), Alias("imageblock")]
@@ -182,6 +182,14 @@ namespace DiscordBot.Commands.Modules.Rules
         {
             await Service.AddImageBlock(Context.User as SocketGuildUser, null,
                 Context.BotUser.Reason, duration, hash);
+        }
+
+        [Command("mallinks")]
+        [Summary("Prevents malicious links from being posted within the guild")]
+        [RequireUserPermission(ChannelPermission.ManageMessages)]
+        public async Task MalLinkBlock()
+        {
+            await Service.AddLinkBlockPenalty(Context.User as SocketGuildUser);
         }
     }
 }

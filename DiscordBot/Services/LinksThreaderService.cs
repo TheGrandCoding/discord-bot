@@ -1,5 +1,6 @@
 ﻿using Discord;
 using Discord.WebSocket;
+using DiscordBot.Services.Rules;
 using DiscordBot.Utils;
 using HtmlAgilityPack;
 using Microsoft.Extensions.DependencyInjection;
@@ -23,6 +24,8 @@ namespace DiscordBot.Services
     {
         public SmmyRatelimit Ratelimit { get; set; } = new SmmyRatelimit();
         public ConcurrentDictionary<ulong, ChannelConfiguration> Channels { get; set; } = new ConcurrentDictionary<ulong, ChannelConfiguration>();
+
+        public MaliciousLinkService MaliciousLinks { get; set; }
 
         public const string API_URL = @"https://api.smmry.com";
 
@@ -295,6 +298,12 @@ namespace DiscordBot.Services
                         }
                         return;
                     }
+
+                    if(urls.Any(url => MaliciousLinks.IsUrlProhibited(url)))
+                    {
+                        return;
+                    }
+
                     await handle(arg.Channel, arg, urls, save);
                 } catch(Exception e)
                 {

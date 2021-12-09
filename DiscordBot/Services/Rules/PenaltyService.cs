@@ -483,6 +483,11 @@ namespace DiscordBot.Services.Rules
         {
             return (ChannelMutePenalty) await AddPenalty(new ChannelMutePenalty(channel, (op ?? target).Guild, op, target, reason, duration));
         }
+        public async Task<LinkBlockPenalty> AddLinkBlockPenalty(SocketGuildUser op)
+        {
+            return (LinkBlockPenalty)await AddPenalty(new LinkBlockPenalty(op.Guild, op, null, null, null));
+        }
+        
         #endregion
 
         public JToken GetSARDataFor(ulong userId)
@@ -857,5 +862,51 @@ namespace DiscordBot.Services.Rules
             await this.Escalate(message.Author as SocketGuildUser, $"Similarity: {sim:00.0}%");
         }
 
+    }
+
+    public class LinkBlockPenalty : ContentBlockPenalty
+    {
+        public LinkBlockPenalty(SocketGuild guild, IGuildUser op, IGuildUser target, string reason, TimeSpan? duration) : base(guild, op, target, reason, duration)
+        {
+        }
+
+        public async override Task Set()
+        {
+            var txt = await Service.GetAdminChannel(Guild);
+            await txt.SendMessageAsync(embed: GetBuilder()
+                .WithTitle("Link Monitoring")
+                .AddField($"Hashes", $"Links to domains which are [blacklisted by Discord]({MaliciousLinkService.DiscordBlacklist}) will not be permitted")
+                .Build());
+        }
+
+        public async override Task Unset()
+        {
+            var txt = await Service.GetAdminChannel(Guild);
+            await txt.SendMessageAsync(embed: GetBuilder()
+                .WithTitle("Removed Link Monitoring")
+                .AddField($"Hashes", $"Links are no longer being monitored")
+                .Build());
+        }
+
+        static Regex rgx = new Regex(@"(ht|f)tp(s?)\:\/\/[0-9a-zA-Z]([-.\w]*[0-9a-zA-Z])*(:(0-9)*)*(\/?)([a-zA-Z0-9\-\.\?\,\'\/\\\+&%\$#_=]*)?", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        public async override Task OnMessageReceived(IUserMessage message, ITextChannel channel)
+        {
+            if (message.Author.IsBot)
+                return;
+
+            var matches = rgx.Matches(message.Content);
+            var srv = Program.Services.GetRequiredService<MaliciousLinkService>();
+            foreach(Match match in matches)
+            {
+                if(Uri.TryCreate(match.Value, UriKind.Absolute, out var uri))
+                {
+                    if(srv.IsUrlProhibited(uri))
+                    {
+                        await message.DeleteAndTrackAsync("Blacklisted domain");
+                        await Escalate(message.Author as SocketGuildUser, $"Posted link to blacklisted domain");
+                    }
+                }
+            }
+        }
     }
 }
