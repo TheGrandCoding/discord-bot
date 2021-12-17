@@ -839,7 +839,7 @@ namespace DiscordBot.Services
     public class HubTypeFilter : Filter
     {
         public override FilterType Type => FilterType.HubType;
-        [JsonProperty("t")]
+        [JsonProperty("ht")]
         public int[] HubType { get; set; }
 
         public new static Filter Create(JToken x)
