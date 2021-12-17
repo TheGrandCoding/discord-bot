@@ -697,6 +697,8 @@ namespace DiscordBot.Services
                 return IDFilter.Create(x);
             else if (type == FilterType.MemberCount)
                 return MemberCountFilter.Create(x);
+            else if (type == FilterType.HubType)
+                return HubTypeFilter.Create(x);
             throw new ArgumentException($"Unknown filter type: {type}");
         }
 
