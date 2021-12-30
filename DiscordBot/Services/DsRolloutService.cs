@@ -679,7 +679,8 @@ namespace DiscordBot.Services
     {
         Feature         = 1604612045,
         ID              = 2404720969,
-        MemberCount     = 2918402255
+        MemberCount     = 2918402255,
+        HubType         = 4148745523,
     }
 
     public abstract class Filter
@@ -696,6 +697,8 @@ namespace DiscordBot.Services
                 return IDFilter.Create(x);
             else if (type == FilterType.MemberCount)
                 return MemberCountFilter.Create(x);
+            else if (type == FilterType.HubType)
+                return HubTypeFilter.Create(x);
             throw new ArgumentException($"Unknown filter type: {type}");
         }
 
@@ -722,8 +725,15 @@ namespace DiscordBot.Services
         }
 
         public override string ToString()
-            => "Server has feature" + (Features.Length > 0 ? "s" : "") + " "
-                + string.Join(" ", Features);
+        {
+            if(Features.Length > 1)
+            {
+                return "Server has any feature of " + string.Join(", ", Features);
+            } else
+            {
+                return "Server has feature " + Features[0];
+            }
+        }
 
         public override int GetHashCode()
         {
@@ -826,6 +836,36 @@ namespace DiscordBot.Services
 
     }
 
+    public class HubTypeFilter : Filter
+    {
+        public override FilterType Type => FilterType.HubType;
+        [JsonProperty("ht")]
+        public int[] HubType { get; set; }
+
+        public new static Filter Create(JToken x)
+        {
+            var htf = new HubTypeFilter();
+            htf.HubType = x[1][0][1].ToObject<int[]>();
+            return htf;
+        }
+
+        public override string ToString()
+        {
+            return "Server has hub type " + string.Join(", ", HubType);
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (!(obj is HubTypeFilter htf))
+                return false;
+            return this.HubType.Equals(htf.HubType);
+        }
+        public override int GetHashCode()
+        {
+            return $"{Type}-{HubType.GetHashCode()}".GetHashCode();
+        }
+
+    }
     public class BucketOverride
     {
         [JsonProperty("b")]
