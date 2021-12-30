@@ -1,5 +1,6 @@
 ﻿using Discord;
 using Discord.Commands;
+using DiscordBot.Utils;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CSharp;
@@ -8,6 +9,7 @@ using System;
 using System.CodeDom.Compiler;
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -38,7 +40,10 @@ namespace DiscordBot.Commands.Modules
             if (!input.EndsWith(";"))
                 input += ";";
 
-            string code = EvalCommand.sourceCode.Replace("{0}", input);
+            var startIndex = EvalCommand.sourceCode.IndexOf("{0}");
+            var front = sourceCode.Substring(0, startIndex);
+            var lines = front.Count(x => x == '\n');
+            string code = front + input + EvalCommand.sourceCode.Substring(startIndex + 3);
 
             
             var ns = Assembly.Load("netstandard, Version=2.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51");
@@ -78,9 +83,11 @@ namespace DiscordBot.Commands.Modules
                     embed.Color = Color.Red;
                     foreach (Diagnostic diagnostic in failures)
                     {
-                        embed.AddField(diagnostic.Id + " " + diagnostic.Location.GetLineSpan().StartLinePosition.Line, Program.Clamp(diagnostic.GetMessage(), 256));
+                        var ls = diagnostic.Location.GetLineSpan().StartLinePosition;
+                        embed.AddField($"{diagnostic.Id} L{(ls.Line - lines)}#{ls.Character}", Program.Clamp(diagnostic.GetMessage(), 256));
                     }
-                    await ReplyAsync(embed: embed.Build());
+                    var display = getErrorDislpay(code, lines, failures);
+                    await sendAsFile(display, embed.Build());
                     return;
                 }
                 ms.Seek(0, SeekOrigin.Begin);
@@ -95,10 +102,70 @@ namespace DiscordBot.Commands.Modules
                     new object[] { Context }) as Task<object>;
                 var rtn = tsk.Result;
                 string s = toString(rtn);
-                var path = Path.Combine(Path.GetTempPath(), "output.json");
-                File.WriteAllText(path, s);
-                await Context.Channel.SendFileAsync(path);
+                await sendAsFile(s);
             }
+        }
+
+        async Task sendAsFile(string text, Embed embed = null)
+        {
+            var path = Path.Combine(Path.GetTempPath(), "output.json");
+            File.WriteAllText(path, text);
+            await Context.Channel.SendFileAsync(path, embed: embed);
+        }
+
+        string getErrorDislpay(string code, int lines, IEnumerable<Diagnostic> errors)
+        {
+            var codeLines = code.Split('\n');
+            var errorLocations = new Dictionary<(int, int), List<Diagnostic>>();
+            var builder = new StringBuilder();
+
+            (int ln, int ch) getLinePos(Diagnostic d)
+            {
+                var _x = d.Location.GetLineSpan();
+                return (_x.StartLinePosition.Line, _x.StartLinePosition.Character);
+            }
+
+            for(int lineNumber = 0; lineNumber < codeLines.Length; lineNumber++)
+            {
+                var lineBuilder = new StringBuilder();
+                var line = codeLines[lineNumber];
+                var lineErrors = errors.Where(x => x.Location.GetLineSpan().StartLinePosition.Line == lineNumber)
+                                       .OrderBy(x => x.Location.GetLineSpan().StartLinePosition.Character)
+                                       .ToList();
+                if (lineErrors.Count == 0)
+                    continue;
+
+                while(lineErrors.Count > 0)
+                {
+                    var init = new StringBuilder();
+                    for(int lineC = 0; lineC < lineErrors.Count; lineC++)
+                    {
+                        var error = lineErrors[lineC];
+                        (int ln, int ch) = getLinePos(error);
+                        if(init.Length < ch)
+                        {
+                            var diff = ch - init.Length;
+                            init.Append(new String(' ', diff));
+                        }
+                        if(lineC == lineErrors.Count - 1)
+                        {
+                            init.Append($"┕ {Program.Clamp(error.GetMessage(), 128)}");
+                            lineBuilder.Append(init + "\n");
+                            lineErrors.RemoveAt(lineC);
+                            init = new StringBuilder();
+                        }
+                        else
+                        {
+                            init.Append("|");
+                        }
+                    }
+                }
+
+                builder.Append(line);
+                builder.Append(lineBuilder);
+            }
+
+            return builder.ToString();
         }
 
         string toString(object o)
@@ -135,7 +202,7 @@ namespace DiscordBot.Commands.Modules
                 return exx;
             }
             dupeChecker.Add(getDupeId(o));
-            if(type.IsArray || typeof(IEnumerable).IsAssignableFrom(type))
+            if(type.IsArray || typeof(IEnumerable).IsAssignableFrom(type) || typeof(ImmutableArray<>).IsAssignableFrom(type))
             {
                 var jarr = new JArray();
                 Console.WriteLine(new String(' ', depth * 2) + " Examaning array " + type.Name);
