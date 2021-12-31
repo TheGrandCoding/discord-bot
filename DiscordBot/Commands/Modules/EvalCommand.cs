@@ -159,7 +159,7 @@ namespace DiscordBot.Commands.Modules
                 while(errorsPrinted < lineErrors.Count)
                 {
                     var chcBuilder = new StringBuilder();
-                    chcBuilder.Append("// ");
+                    chcBuilder.Append("## ");
                     int chrIndex = -1;
                     foreach(var chrPosition in chrErrors.Keys)
                     {
@@ -197,7 +197,7 @@ namespace DiscordBot.Commands.Modules
 
                             lineBuilder.Append(chcBuilder + "\n");
                             chcBuilder = new StringBuilder();
-                            chcBuilder.Append("// ");
+                            chcBuilder.Append("## ");
 
                             break; // skip to end of for-loop, as lastPosition() might not
                                    // actually be the last element in the array,
