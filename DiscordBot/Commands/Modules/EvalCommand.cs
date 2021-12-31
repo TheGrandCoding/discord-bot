@@ -24,6 +24,8 @@ namespace DiscordBot.Commands.Modules
         [Command("eval")]
         public async Task Eval([Remainder]string input)
         {
+            if (Context.User.Id != Program.AppInfo.Owner.Id)
+                return;
             input = input.Trim();
             if(input.StartsWith("```"))
             {
@@ -36,13 +38,18 @@ namespace DiscordBot.Commands.Modules
             input = input.Trim();
 
             if (input.Contains("return") == false)
-                input = "return " + input;
+            {
+                var lastLine = input.LastIndexOfAny(new char[] { '\n', '\r' });
+                input = input.Insert(lastLine + 1, "return ");
+            }
             if (!input.EndsWith(";"))
                 input += ";";
 
             var startIndex = EvalCommand.sourceCode.IndexOf("{0}");
             var front = sourceCode.Substring(0, startIndex);
+            var indent = front.Substring(front.LastIndexOfAny(new char[] { '\n', '\r' }));
             var lines = front.Count(x => x == '\n');
+            var userLines = input.Count(x => x == '\n');
             string code = front + input + EvalCommand.sourceCode.Substring(startIndex + 3);
 
             
@@ -86,8 +93,8 @@ namespace DiscordBot.Commands.Modules
                         var ls = diagnostic.Location.GetLineSpan().StartLinePosition;
                         embed.AddField($"{diagnostic.Id} L{(ls.Line - lines)}#{ls.Character}", Program.Clamp(diagnostic.GetMessage(), 256));
                     }
-                    var display = getErrorDislpay(code, lines, failures);
-                    await sendAsFile(display, embed.Build());
+                    var display = getErrorDislpay(code, indent.Length, lines, userLines, failures);
+                    await sendAsFile(display, embed.Build(), "cs");
                     return;
                 }
                 ms.Seek(0, SeekOrigin.Begin);
@@ -106,14 +113,14 @@ namespace DiscordBot.Commands.Modules
             }
         }
 
-        async Task sendAsFile(string text, Embed embed = null)
+        async Task sendAsFile(string text, Embed embed = null, string fileExtension = "json")
         {
-            var path = Path.Combine(Path.GetTempPath(), "output.json");
+            var path = Path.Combine(Path.GetTempPath(), $"output.{fileExtension}");
             File.WriteAllText(path, text);
             await Context.Channel.SendFileAsync(path, embed: embed);
         }
 
-        string getErrorDislpay(string code, int lines, IEnumerable<Diagnostic> errors)
+        string getErrorDislpay(string code, int indentAmount, int lines, int userLines, IEnumerable<Diagnostic> errors)
         {
             var codeLines = code.Split('\n');
             var errorLocations = new Dictionary<(int, int), List<Diagnostic>>();
@@ -125,7 +132,7 @@ namespace DiscordBot.Commands.Modules
                 return (_x.StartLinePosition.Line, _x.StartLinePosition.Character);
             }
 
-            for(int lineNumber = 0; lineNumber < codeLines.Length; lineNumber++)
+            for (int lineNumber = 0; lineNumber < codeLines.Length; lineNumber++)
             {
                 var lineBuilder = new StringBuilder();
                 var line = codeLines[lineNumber];
@@ -133,35 +140,80 @@ namespace DiscordBot.Commands.Modules
                                        .OrderBy(x => x.Location.GetLineSpan().StartLinePosition.Character)
                                        .ToList();
                 if (lineErrors.Count == 0)
-                    continue;
-
-                while(lineErrors.Count > 0)
                 {
-                    var init = new StringBuilder();
-                    for(int lineC = 0; lineC < lineErrors.Count; lineC++)
+                    if (lineNumber > lines && lineNumber < (lines + userLines))
                     {
-                        var error = lineErrors[lineC];
-                        (int ln, int ch) = getLinePos(error);
-                        if(init.Length < ch)
+                        builder.Append($"   " + line);
+                    }
+                    continue;
+                }
+
+
+                var chrErrors = lineErrors.GroupBy(x =>
+                {
+                    (_, var xch) = getLinePos(x);
+                    return xch;
+                }).ToDictionary(x => x.Key, x => x.ToList());
+
+                int errorsPrinted = 0;
+                while(errorsPrinted < lineErrors.Count)
+                {
+                    var chcBuilder = new StringBuilder();
+                    chcBuilder.Append("// ");
+                    int chrIndex = -1;
+                    foreach(var chrPosition in chrErrors.Keys)
+                    {
+                        chrIndex++;
+                        Func<bool> lastPosition = () =>
                         {
-                            var diff = ch - init.Length;
-                            init.Append(new String(' ', diff));
+                            if (chrIndex == chrErrors.Count - 1)
+                                return true;
+                            var next = chrErrors[chrErrors.Keys.ElementAt(chrIndex + 1)];
+                            return next?.Count == 0;
+                        };
+
+                        int initLength = chcBuilder.Length - "// ".Length;
+                        if(initLength < chrPosition)
+                        {
+                            var diff = chrPosition - initLength;
+                            chcBuilder.Append(new String(' ', diff));
                         }
-                        if(lineC == lineErrors.Count - 1)
+
+                        var errorsHere = chrErrors[chrPosition];
+                        bool moreThanOne = errorsHere.Count >= 2;
+
+                        if (lastPosition())
                         {
-                            init.Append($"┕ {Program.Clamp(error.GetMessage(), 128)}");
-                            lineBuilder.Append(init + "\n");
-                            lineErrors.RemoveAt(lineC);
-                            init = new StringBuilder();
-                        }
-                        else
+                            var selectedError = errorsHere.Last();
+                            errorsHere.Remove(selectedError);
+                            errorsPrinted++;
+
+                            if (moreThanOne)
+                                chcBuilder.Append("┝");
+                            else
+                                chcBuilder.Append("┕");
+
+                            chcBuilder.Append($" {Program.Clamp(selectedError.GetMessage(), 128)}");
+
+                            lineBuilder.Append(chcBuilder + "\n");
+                            chcBuilder = new StringBuilder();
+                            chcBuilder.Append("// ");
+
+                            break; // skip to end of for-loop, as lastPosition() might not
+                                   // actually be the last element in the array,
+                                   // simply the last element *with values in the list*
+                        } else
                         {
-                            init.Append("|");
+                            chcBuilder.Append("|");
                         }
                     }
                 }
 
+
+                builder.Append("   ");
                 builder.Append(line);
+                if (!line.EndsWith("\n"))
+                    builder.Append("\n");
                 builder.Append(lineBuilder);
             }
 
@@ -253,7 +305,7 @@ namespace DiscordBot.EvaluateCommand
     {
         public static async Task<object> Execute(ICommandContext Context) 
         {
-            {0}
+{0}
             return Task.CompletedTask;
         }
     }
