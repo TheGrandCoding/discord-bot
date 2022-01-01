@@ -143,7 +143,10 @@ namespace DiscordBot.Commands.Modules
                 {
                     if (lineNumber > lines && lineNumber < (lines + userLines))
                     {
-                        builder.Append($"   " + line);
+                        builder.Append("   ");
+                        builder.Append(line);
+                        if (!line.EndsWith("\n"))
+                            builder.Append("\n");
                     }
                     continue;
                 }
