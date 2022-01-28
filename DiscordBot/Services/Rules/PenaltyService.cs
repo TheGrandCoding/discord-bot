@@ -903,7 +903,7 @@ namespace DiscordBot.Services.Rules
                     if(srv.IsUrlProhibited(uri))
                     {
                         await message.DeleteAndTrackAsync("Blacklisted domain");
-                        await Escalate(message.Author as SocketGuildUser, $"Posted link to blacklisted domain");
+                        await Escalate(message.Author as SocketGuildUser, $"Posted link to blacklisted domain: {uri.Host}");
                     }
                 }
             }
