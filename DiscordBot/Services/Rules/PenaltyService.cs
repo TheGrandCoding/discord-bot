@@ -703,11 +703,18 @@ namespace DiscordBot.Services.Rules
         public override async Task Set()
         {
             await Target.SendMessageAsync($"You have been banned from {Guild.Name}\r\nThis ban will be removed after {Program.FormatTimeSpan(Duration.Value)}");
-            await Guild.AddBanAsync(Target, 0, $"By {Operator.Id}: {Reason}");
             var txt = await Service.GetAdminChannel(Guild);
-            await txt.SendMessageAsync(embed: GetBuilder()
-                .WithTitle("User Temp-banned")
-                .Build());
+            try
+            {
+                await Guild.AddBanAsync(Target, 0, $"By {Operator.Id}: {Reason}");
+                await txt.SendMessageAsync(embed: GetBuilder()
+                    .WithTitle("User Temp-banned")
+                    .Build());
+            } catch(Exception e)
+            {
+                await txt.SendMessageAsync(e.Message, embed: GetBuilder().WithTitle("Failed to Tempban").Build());
+                throw;
+            }
         }
 
         public override async Task Unset()
@@ -741,17 +748,17 @@ namespace DiscordBot.Services.Rules
         public virtual async Task Escalate(SocketGuildUser user, string reason = "")
         {
             reason = $"Auto-escalation for violation of {Id}\r\n" + reason;
-            var current = Service.Escalations.GetValueOrDefault(user.Id, -1) + 1; // so first is 0
+            var current = Service.Escalations.GetValueOrDefault(user.Id, 0) + 1; // so first is 1
             Service.Escalations[user.Id] = current;
-            if(current <= 3)
+            if(current <= 4)
             { // Mute with increasing time
-                var duration = TimeSpan.FromMinutes(Math.Pow(5, current)); // such that first is 5^0 = 1m
+                var duration = TimeSpan.FromMinutes(Math.Pow(5, current)); // such that first is 5^1 = 5m
                 await Service.AddMute(Guild.CurrentUser, user, reason, duration);
             } else
             {
                 var adjusted = current - 4;
                 // so that current = 4 -> adjusted = 0
-                var duration = TimeSpan.FromMinutes(Math.Pow(5, adjusted)); // such that first is 5^0 = 1m
+                var duration = TimeSpan.FromMinutes(Math.Pow(5, adjusted)); // such that first is 5^1 = 5m
                 await Service.AddTempBan(Guild.CurrentUser, user, reason, duration);
             }
         }
