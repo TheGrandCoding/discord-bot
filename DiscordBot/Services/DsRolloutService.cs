@@ -638,7 +638,7 @@ namespace DiscordBot.Services
             {
                 foreach (var f in Filters)
                 {
-                    if (f is IDFilter id)
+                    if (f is IDRangeFilter id)
                     {
                         if (serverId < id.Start || serverId > id.End)
                             return null; // doesn't meet filter
@@ -678,9 +678,10 @@ namespace DiscordBot.Services
     public enum FilterType : ulong
     {
         Feature         = 1604612045,
-        ID              = 2404720969,
+        IDRange         = 2404720969,
         MemberCount     = 2918402255,
         HubType         = 4148745523,
+        ID              = 3013771838
     }
 
     public abstract class Filter
@@ -693,12 +694,14 @@ namespace DiscordBot.Services
             var type = x[0].ToObject<FilterType>();
             if (type == FilterType.Feature)
                 return FeatureFilter.Create(x);
-            else if (type == FilterType.ID)
-                return IDFilter.Create(x);
+            else if (type == FilterType.IDRange)
+                return IDRangeFilter.Create(x);
             else if (type == FilterType.MemberCount)
                 return MemberCountFilter.Create(x);
             else if (type == FilterType.HubType)
                 return HubTypeFilter.Create(x);
+            else if (type == FilterType.ID)
+                return IDListFilter.Create(x);
             throw new ArgumentException($"Unknown filter type: {type}");
         }
 
@@ -747,9 +750,9 @@ namespace DiscordBot.Services
         }
     }
 
-    public class IDFilter : Filter
+    public class IDRangeFilter : Filter
     {
-        public override FilterType Type => FilterType.ID;
+        public override FilterType Type => FilterType.IDRange;
         [JsonProperty("s")]
         public ulong Start { get; set; }
         [JsonProperty("e")]
@@ -757,7 +760,7 @@ namespace DiscordBot.Services
 
         public new static Filter Create(JToken x)
         {
-            var idf = new IDFilter();
+            var idf = new IDRangeFilter();
             idf.Start = x[1][0][1].ToObject<ulong?>() ?? ulong.MinValue;
             idf.End = x[1][1][1].ToObject<ulong?>() ?? ulong.MaxValue;
             return idf;
@@ -787,10 +790,42 @@ namespace DiscordBot.Services
         }
         public override bool Equals(object obj)
         {
-            if (!(obj is IDFilter idf))
+            if (!(obj is IDRangeFilter idf))
                 return false;
             return this.Start == idf.Start && this.End == idf.End;
         }
+    }
+
+    public class IDListFilter : Filter
+    {
+        public override FilterType Type => FilterType.ID;
+
+        [JsonProperty("ls")]
+        public List<ulong> IDs { get; set; } = new List<ulong>();
+
+        public new static Filter Create(JToken x)
+        {
+            var idlf = new IDListFilter();
+            idlf.IDs = x[1][0].ToObject<List<ulong>>();
+            return idlf;
+        }
+
+        public override string ToString()
+        {
+            return $"Server has ID of [{string.Join(", ", IDs)}]";
+        }
+
+        public override int GetHashCode()
+        {
+            return $"{Type}:{string.Join("", IDs)}".GetHashCode();
+        }
+        public override bool Equals(object obj)
+        {
+            if (!(obj is IDListFilter other))
+                return false;
+            return IDs.All(x => other.IDs.Any(y => y.Equals(x)));
+        }
+
     }
 
     public class MemberCountFilter : Filter
