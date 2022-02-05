@@ -5,6 +5,7 @@ using DiscordBot.Services;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -92,7 +93,8 @@ namespace DiscordBot.SlashCommands.Modules
                 return;
             }
             await Interaction.RespondAsync($"Fetching save file `{sv.SaveFile}`...", ephemeral: true);
-            await Interaction.FollowupWithFileAsync(sv.SaveFile, $"Save file for service {sv.Name}", ephemeral: true);
+            string path = Path.Combine(SavedService.SaveFolder, sv.SaveFile);
+            await Interaction.FollowupWithFileAsync(path, $"Save file for service {sv.Name}", ephemeral: true);
         }
     }
 }
