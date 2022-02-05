@@ -15,6 +15,15 @@ namespace DiscordBot.SlashCommands.Modules
     [DefaultDisabled]
     public class BotDevCmds : BotSlashBase
     {
+        async Task<bool> Forbidden()
+        {
+            if(Interaction.User.Id != Program.AppInfo.Owner.Id)
+            {
+                await Interaction.RespondAsync(":x: You are forbidden from using this command.", ephemeral: true);
+                return true;
+            }
+            return false;
+        }
         public static IEnumerable<AutocompleteResult> GetAutocompleteResults(SocketAutocompleteInteraction interaction)
         {
             var list = new List<AutocompleteResult>();
@@ -31,6 +40,7 @@ namespace DiscordBot.SlashCommands.Modules
         [SlashCommand("dtick", "Daily tick all, or the specified, service(s)")]
         public async Task DailyTick([Autocomplete]string service = null)
         {
+            if (await Forbidden()) return;
             if(string.IsNullOrWhiteSpace(service))
             {
                 await Interaction.RespondAsync("Sending daily tick...");
@@ -59,6 +69,30 @@ namespace DiscordBot.SlashCommands.Modules
                     });
                 }
             }
+        }
+    
+        [SlashCommand("getsave", "Gets a service save file")]
+        public async Task DownloadServiceFile([Required][Autocomplete]string service)
+        {
+            if (await Forbidden()) return;
+            if(string.IsNullOrWhiteSpace(service))
+            {
+                await Interaction.RespondAsync(":x: You must specify a service name", ephemeral: true);
+                return;
+            }
+            var srv = Service.GetServices().FirstOrDefault(x => x.Name == service);
+            if(srv == null)
+            {
+                await Interaction.RespondAsync(":x: That service does not exist", ephemeral: true);
+                return;
+            }
+            if(!(srv is SavedService sv))
+            {
+                await Interaction.RespondAsync(":x: That service does not have a save file", ephemeral: true);
+                return;
+            }
+            await Interaction.RespondAsync($"Fetching save file `{sv.SaveFile}`...", ephemeral: true);
+            await Interaction.FollowupWithFileAsync(sv.SaveFile, $"Save file for service {sv.Name}", ephemeral: true);
         }
     }
 }

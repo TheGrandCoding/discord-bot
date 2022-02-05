@@ -294,7 +294,7 @@ namespace DiscordBot.Services
         {
             if(string.IsNullOrWhiteSpace(Program.Configuration[configKey]))
             {
-                throw new Exception($"Missing configuration value '{configKey}'");
+                throw new Exception($"Missing configuration value '{configKey}' for {Name}");
             }
         }
 
