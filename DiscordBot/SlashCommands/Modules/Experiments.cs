@@ -37,10 +37,13 @@ namespace DiscordBot.SlashCommands.Modules
         [SlashCommand("refresh", "Updates all experiment embeds across all guilds")]
         public async Task Refresh()
         {
+            if(Service == null || Service.State == ServiceState.Ready)
             await Interaction.RespondAsync("Starting refresh...", ephemeral: true);
             var sw = Stopwatch.StartNew();
             foreach (var exp in Service.Experiments.Values)
+            {
                 await Service.sendMessageFor(exp, null);
+            }
             sw.Stop();
             await Interaction.ModifyOriginalResponseAsync(x =>
             {

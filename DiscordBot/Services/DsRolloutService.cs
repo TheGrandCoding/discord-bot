@@ -14,6 +14,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace DiscordBot.Services
@@ -84,24 +85,32 @@ namespace DiscordBot.Services
 
         public async Task sendMessageFor(Experiment experiment, EmbedBuilder builder, bool updateMain = true)
         {
+            var token = Program.GetToken();
+            var retry = new RequestOptions()
+            {
+                CancelToken = token,
+                RetryMode = RetryMode.AlwaysRetry,
+                Timeout = 10_000
+            };
             foreach((var guildId, var guildSave) in Guilds)
             {
                 IUserMessage message;
                 if(!guildSave.Messages.TryGetValue(experiment.Id, out message))
                 {
-                    message = await guildSave.Channel.SendMessageAsync(embed: experiment.ToEmbed().Build());
+                    message = await guildSave.Channel.SendMessageAsync(embed: experiment.ToEmbed().Build(), options: retry);
                     guildSave.Messages[experiment.Id] = message;
                     updateMain = false;
                 }
 
                 if (updateMain) 
                 { 
-                    await message.ModifyAsync(x => { x.Embed = experiment.ToEmbed().Build(); });
+                    await message.ModifyAsync(x => { x.Embed = experiment.ToEmbed().Build(); }, options: retry);
                 }
 
                 IThreadChannel thread = await getThreadFor(guildSave, experiment, message);
                 if(builder != null)
-                    await thread.SendMessageAsync(embed: builder.Build());
+                    await thread.SendMessageAsync(embed: builder.Build(), options: retry);
+                await Task.Delay(5000);
             }
         }
 
@@ -117,7 +126,7 @@ namespace DiscordBot.Services
             foreach(var updatedExp in fromAPIExperiments)
             {
                 var existing = existingExperiments.FirstOrDefault(x => x.Id == updatedExp.Id);
-                EmbedBuilder builder;
+                EmbedBuilder builder = null;
                 if(existing == null)
                 { // this is a brand new experiment
                     // send messages, etc
@@ -125,31 +134,32 @@ namespace DiscordBot.Services
                     updatedExperiments.Add(updatedExp);
                     changes = true;
 
-                    await sendMessageFor(updatedExp, null);
+                    await sendMessageFor(updatedExp, builder);
                     continue;
                 }
                 existingExperiments.RemoveAll(x => x.Id == existing.Id);
                 // compare them, see if equal
-                builder = new EmbedBuilder();
 
                 if(existing.Removed)
                 { // maybe re-added?
                     existing.Removed = false;
+                    builder = new EmbedBuilder();
                     builder.Color = Color.Green;
-                    builder.AddField("Experiment Re-added", "This experiment was previously removed");
+                    builder.Title = "Experiment Re-added";
+                    builder.Description = "This experiment was previously removed";
                 }
 
                 Func<int, string> percF = (int i) => $"{((i / 10000d) * 100):00.0}%";
 
                 var ec = existing.GetChanges(updatedExp);
                 if(ec.Count > 0) {
-                    builder = existing.ToEmbed();
+                    builder = updatedExp.ToEmbed();
+                    builder.Title = "Updated";
                 }
 
 
-                if(builder.Fields.Count > 0)
+                if(builder != null)
                 {
-                    builder.Title = $"Changes";
                     existing.Update(updatedExp);
                     changes = true;
 
@@ -806,7 +816,7 @@ namespace DiscordBot.Services
         public new static Filter Create(JToken x)
         {
             var idlf = new IDListFilter();
-            idlf.IDs = x[1][0].ToObject<List<ulong>>();
+            idlf.IDs = x[1][0][1].ToObject<List<ulong>>();
             return idlf;
         }
 

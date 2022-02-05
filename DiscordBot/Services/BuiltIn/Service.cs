@@ -159,9 +159,9 @@ namespace DiscordBot.Services
                                 }
                             });
                             stop.Restart();
-                            int timeout = state == ServiceState.Close ? srv.CloseTimeout : srv.DefaultTimeout;
+                            bool completed;
                             task.Start();
-                            bool completed = task.Wait(timeout);
+                            completed = task.Wait(state == ServiceState.Close ? srv.CloseTimeout : srv.DefaultTimeout);
                             stop.Stop();
                             //source.Cancel(false);
                             if (completed)
@@ -169,7 +169,14 @@ namespace DiscordBot.Services
                                 Program.LogVerbose($"Finished {name} in {stop.ElapsedMilliseconds}ms", srv.Name);
                             } else
                             {
-                                Program.LogWarning($"Failed to complete {name} in {stop.ElapsedMilliseconds}ms; continuing...", srv.Name);
+                                Program.LogWarning($"Failed to complete {name} in {stop.ElapsedMilliseconds}ms", srv.Name);
+                                if(state != ServiceState.Close)
+                                { // wait for it to finish anyway
+                                    stop.Start();
+                                    task.Wait(Program.GetToken());
+                                    stop.Stop();
+                                    Program.LogWarning($"Completed {name} in {stop.ElapsedMilliseconds}ms", srv.Name);
+                                }
                             }
                             if (state > srv.State)
                                 srv.State = state;
