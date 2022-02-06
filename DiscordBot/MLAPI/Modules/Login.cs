@@ -214,6 +214,20 @@ namespace DiscordBot.MLAPI.Modules
             }
         }
 
+        [Method("GET"), Path("/oauth2/trakt")]
+        [RequireAuthentication]
+        public void OauthTrakt(string code = null)
+        {
+            var srv = Program.Services.GetRequiredService<TraktService>();
+            if(string.IsNullOrWhiteSpace(code))
+            {
+                RespondRaw(LoadRedirectFile(srv.OAuthRedirectUri.ToString()), HttpStatusCode.Redirect);
+                return;
+            }
+            srv.AddUser(Context.User.Id, code).Wait();
+            RespondRaw("Success");
+        }
+
         [Method("GET"), Path("/login/setpassword")]
         [RequireAuthentication]
         public void SeePswdPage()
