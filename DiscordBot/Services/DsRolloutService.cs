@@ -155,6 +155,10 @@ namespace DiscordBot.Services
                 if(ec.Count > 0) {
                     builder = updatedExp.ToEmbed();
                     builder.Title = "Updated";
+                    foreach(var cng in ec.Take(EmbedBuilder.MaxFieldCount - builder.Fields.Count))
+                    {
+                        builder.AddField(cng.Type, $"{cng.Before}\r\n{cng.After}", true);
+                    }
                 }
 
 
@@ -532,42 +536,26 @@ namespace DiscordBot.Services
         {
             if (!this.Hash.Equals(r.Hash))
                 return new Change("Hash", $"{this.Hash}", $"{r.Hash}");
-            var thisFilterGrouped = this.GetFilteredGroupedPopulations();
-            var otherFilterGrouped = r.GetFilteredGroupedPopulations();
-            if (thisFilterGrouped.Count != otherFilterGrouped.Count)
-                return new Change("FilterGroupCount", $"{thisFilterGrouped.Count}", $"{otherFilterGrouped.Count}");
-            var keys = new List<Filter[]>();
-            keys.AddRange(thisFilterGrouped.Keys);
-            keys.AddRange(otherFilterGrouped.Keys);
-            keys = keys.Distinct().ToList();
 
-            foreach(var filterKey in keys)
+            var thisPops = Populations;
+            var otherPops = r.Populations;
+            if(thisPops.Count < otherPops.Count)
             {
-                if (!thisFilterGrouped.TryGetValue(filterKey, out var thisGroup))
-                    return new Change($"+FilterGroup", null, $"{filterKey}");
-                if (!otherFilterGrouped.TryGetValue(filterKey, out var otherGroup))
-                    return new Change($"-FilterGroup", $"{filterKey}", null);
-
-                var treatments = new List<int>();
-                treatments.AddRange(thisGroup.Keys);
-                treatments.AddRange(otherGroup.Keys);
-                treatments = treatments.Distinct().ToList();
-
-                foreach(var treatment in treatments)
+                return new Change("New population group", $"{thisPops.Count}", $"{otherPops.Count}");
+            } else if (thisPops.Count < otherPops.Count)
+            {
+                return new Change("Removed population group", $"{thisPops.Count}", $"{otherPops.Count}");
+            } else
+            {
+                var c = new List<Change>();
+                for(int i = 0; i < thisPops.Count; i++)
                 {
-                    if (!thisGroup.TryGetValue(treatment, out var thisPop))
-                        return new Change($"+TreatPop", null, $"{treatment}");
-                    if (!otherGroup.TryGetValue(treatment, out var otherPop))
-                        return new Change($"-TreatPop", $"{treatment}", null);
-
-                    var thisSum = thisPop.Sum(x => x.Count);
-                    var otherSum = otherPop.Sum(x => x.Count);
-
-                    if (thisSum != otherSum)
-                        return new Change($"Treat{treatment}Sum", $"{thisSum}", $"{otherSum}");
+                    c.AddRange(thisPops[i].GetChanges(otherPops[i])
+                        .Select(x => new Change($"Groups[{i}].{x.Type}", x.Before, x.After))
+                    );
                 }
+                return c;
             }
-            return new List<Change>();
         }
 
         public override bool Equals(object obj)
@@ -683,6 +671,35 @@ namespace DiscordBot.Services
             grp.Filters = token[1].Select(x => Filter.Create(x)).ToList();
             return grp;
         }
+
+        public List<Change> GetChanges(PopulationGroups other)
+        {
+            if(this.Populations.Count < other.Populations.Count)
+            {
+                return new Change("New population", $"{this.Populations.Count}", $"{other.Populations.Count}");
+            } else if(this.Populations.Count < other.Populations.Count)
+            {
+                return new Change("Removed population", $"{this.Populations.Count}", $"{other.Populations.Count}");
+            }
+            if(this.Filters.Count < other.Populations.Count)
+            {
+                return new Change("New filters", $"{this.Filters.Count}", $"{other.Filters.Count}");
+            }
+            else if (this.Filters.Count < other.Filters.Count)
+            {
+                return new Change("Removed filters", $"{this.Filters.Count}", $"{other.Filters.Count}");
+            } else
+            {
+                var c = new List<Change>();
+                for (int i = 0; i < this.Filters.Count; i++)
+                {
+                    c.AddRange(this.Filters[i].GetChanges(this.Filters[i])
+                        .Select(x => new Change($"Filters[{i}].{x.Type}", x.Before, x.After))
+                    );
+                }
+                return c;
+            }
+        }
     }
 
     public enum FilterType : ulong
@@ -722,6 +739,8 @@ namespace DiscordBot.Services
         {
             return (int)Type;
         }
+
+        public abstract List<Change> GetChanges(Filter filter);
     }
 
     public class FeatureFilter : Filter
@@ -757,6 +776,19 @@ namespace DiscordBot.Services
             if (!(obj is FeatureFilter f))
                 return false;
             return Features.All(x => f.Features.Contains(x));
+        }
+
+        public override List<Change> GetChanges(Filter filter)
+        {
+            if(!(filter is FeatureFilter other))
+                return new Change("Type", $".", filter.GetType().Name);
+            if (Features.Length != other.Features.Length)
+                return new Change($"Features length", $"{Features.Length}", $"{other.Features.Length}");
+            if (Features.Any(x => other.Features.Contains(x) == false))
+                return new Change($"Feature removed", ".", ".");
+            if(other.Features.Any(y => Features.Contains(y) == false))
+                return new Change($"Feature added", ".", ".");
+            return new List<Change>();
         }
     }
 
@@ -804,6 +836,17 @@ namespace DiscordBot.Services
                 return false;
             return this.Start == idf.Start && this.End == idf.End;
         }
+
+        public override List<Change> GetChanges(Filter filter)
+        {
+            if (!(filter is IDRangeFilter other))
+                return new Change("Type", $".", filter.GetType().Name);
+            if (Start != other.Start)
+                return new Change("Start", Start, other.Start);
+            if (End != other.End)
+                return new Change("End", End, other.End);
+            return new List<Change>();
+        }
     }
 
     public class IDListFilter : Filter
@@ -834,6 +877,19 @@ namespace DiscordBot.Services
             if (!(obj is IDListFilter other))
                 return false;
             return IDs.All(x => other.IDs.Any(y => y.Equals(x)));
+        }
+
+        public override List<Change> GetChanges(Filter filter)
+        {
+            if (!(filter is IDListFilter other))
+                return new Change("Type", $".", filter.GetType().Name);
+            if (IDs.Count != other.IDs.Count)
+                return new Change($"IDs length", $"{IDs.Count}", $"{other.IDs.Count}");
+            if (IDs.Any(x => other.IDs.Contains(x) == false))
+                return new Change($"IDs removed", ".", ".");
+            if (other.IDs.Any(y => IDs.Contains(y) == false))
+                return new Change($"IDs added", ".", ".");
+            return new List<Change>();
         }
 
     }
@@ -879,6 +935,16 @@ namespace DiscordBot.Services
             return $"{Type}-{Start}-{End}".GetHashCode();
         }
 
+        public override List<Change> GetChanges(Filter filter)
+        {
+            if (!(filter is MemberCountFilter other))
+                return new Change("Type", $".", filter.GetType().Name);
+            if (Start != other.Start)
+                return new Change("Start", Start, other.Start);
+            if (End != other.End)
+                return new Change("End", End, other.End);
+            return new List<Change>();
+        }
     }
 
     public class HubTypeFilter : Filter
@@ -910,6 +976,18 @@ namespace DiscordBot.Services
             return $"{Type}-{HubType.GetHashCode()}".GetHashCode();
         }
 
+        public override List<Change> GetChanges(Filter filter)
+        {
+            if (!(filter is HubTypeFilter other))
+                return new Change("Type", $".", filter.GetType().Name);
+            if (HubType.Length != other.HubType.Length)
+                return new Change($"HubType length", $"{HubType.Length}", $"{other.HubType.Length}");
+            if (HubType.Any(x => other.HubType.Contains(x) == false))
+                return new Change($"HubType removed", ".", ".");
+            if (other.HubType.Any(y => HubType.Contains(y) == false))
+                return new Change($"HubType added", ".", ".");
+            return new List<Change>();
+        }
     }
     public class BucketOverride
     {

@@ -257,6 +257,8 @@ namespace DiscordBot.Classes
             Before = before;
             After = after;
         }
+        public Change(string type, int before, int after) : this(type, before.ToString(), after.ToString()) { }
+        public Change(string type, ulong before, ulong after) : this(type, before.ToString(), after.ToString()) { }
         public static Change Status(UserStatus before, UserStatus after)
             => new Change("Status", before.ToString(), after.ToString());
         public static Change Activity(string before, string after)
