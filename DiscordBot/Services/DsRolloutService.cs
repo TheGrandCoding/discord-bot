@@ -681,7 +681,7 @@ namespace DiscordBot.Services
             {
                 return new Change("Removed population", $"{this.Populations.Count}", $"{other.Populations.Count}");
             }
-            if(this.Filters.Count < other.Populations.Count)
+            if(this.Filters.Count < other.Filters.Count)
             {
                 return new Change("New filters", $"{this.Filters.Count}", $"{other.Filters.Count}");
             }
