@@ -43,16 +43,13 @@ namespace DiscordBot.Services
         {
             try
             {
-                bool clearGuild = false;
-#if DEBUG
                 var guild = Program.Client.GetGuild(420240046428258304);
-                var botMod = InteractionService.GetModuleInfo<DiscordBot.SlashCommands.Modules.BotDevCmds>();
-
+#if DEBUG
                 await InteractionService.AddModulesToGuildAsync(guild, true, InteractionService.Modules.ToArray());
 #else
                 await InteractionService.RegisterCommandsGloballyAsync();
-                clearGuild = true;
-                await InteractionService.AddModulesToGuildAsync(guild, clearGuild, botMod);
+                var botMod = InteractionService.GetModuleInfo<DiscordBot.SlashCommands.Modules.BotDevCmds>();
+                await InteractionService.AddModulesToGuildAsync(guild, true, botMod);
 #endif
 
 
