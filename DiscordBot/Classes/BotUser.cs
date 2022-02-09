@@ -133,7 +133,6 @@ namespace DiscordBot.Classes
         public string Username => ((IUser)FirstValidUser)?.Username ?? null;
         public DateTimeOffset CreatedAt => ((IUser)FirstValidUser).CreatedAt;
         public string Mention => MentionUtils.MentionUser(Id);
-        public UserStatus Status => ((IUser)FirstValidUser).Status;
         public string GetAnyAvatarUrl(ImageFormat format = ImageFormat.Auto, ushort size = 128)
         {
             return ((IUser)FirstValidUser)?.GetAvatarUrl(format, size) ?? GetDefaultAvatarUrl();
@@ -142,7 +141,6 @@ namespace DiscordBot.Classes
         {
             return CDN.GetDefaultUserAvatarUrl(DiscriminatorValue);
         }
-        public IImmutableSet<ClientType> ActiveClients => ((IUser)FirstValidUser).ActiveClients;
         #endregion
 
         [JsonProperty("oname", NullValueHandling = NullValueHandling.Ignore)]

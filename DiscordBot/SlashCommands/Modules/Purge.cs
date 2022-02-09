@@ -1,5 +1,5 @@
 ﻿using Discord;
-using Discord.SlashCommands;
+using Discord.Interactions;
 using Discord.WebSocket;
 using DiscordBot.Utils;
 using System;
@@ -10,27 +10,27 @@ using System.Threading.Tasks;
 
 namespace DiscordBot.SlashCommands.Modules
 {
-    [CommandGroup("purge", "Remove many messages at once")]
-    [DefaultDisabled]
+    [Group("purge", "Remove many messages at once")]
+    [DefaultPermission(false)]
     public class Purge : BotSlashBase
     {
 
         async Task<IUserMessage> sendOrModify(IUserMessage message, string content)
         {
             if (message == null)
-                return await Interaction.FollowupAsync(content, embeds: null) as IUserMessage;
+                return await FollowupAsync(content, embeds: null) as IUserMessage;
             await message.ModifyAsync(x => x.Content = content);
             return message;
         }
 
         [SlashCommand("last", "Purges the last [count] messages, optionally only from the given user")]
-        public async Task PurgeMessages([Required]int count,
+        public async Task PurgeMessages(int count,
             SocketGuildUser user = null)
         {
             IEnumerable<IMessage> messages;
             IMessage last = null;
             int done = 0;
-            await Interaction.DeferAsync();
+            await DeferAsync();
             IUserMessage response = null;
             var lastSent = DateTimeOffset.Now;
             var bulkDelete = new List<IMessage>();
@@ -38,9 +38,9 @@ namespace DiscordBot.SlashCommands.Modules
             do
             {
                 if (last == null)
-                    messages = await Interaction.Channel.GetMessagesAsync().FlattenAsync();
+                    messages = await Context.Channel.GetMessagesAsync().FlattenAsync();
                 else
-                    messages = await Interaction.Channel.GetMessagesAsync(last, Direction.Before).FlattenAsync();
+                    messages = await Context.Channel.GetMessagesAsync(last, Direction.Before).FlattenAsync();
                 if (messages.Count() == 0)
                     break;
                 last = messages.Last();
@@ -70,9 +70,9 @@ namespace DiscordBot.SlashCommands.Modules
             response = await sendOrModify(response, $"Removing {bulkDelete.Count + manualDelete.Count} messages");
             if (bulkDelete.Count > 0)
             {
-                if(Interaction.Channel is ITextChannel txt)
+                if(Context.Channel is ITextChannel txt)
                 {
-                    await bulkDelete.BulkDeleteAndTrackAsync(txt, $"bPurged by {Interaction.User.Mention}");
+                    await bulkDelete.BulkDeleteAndTrackAsync(txt, $"bPurged by {Context.User.Mention}");
                 } else
                 { // can't bulk delete in other types of text channels, it seems
                     manualDelete.AddRange(bulkDelete);
@@ -80,7 +80,7 @@ namespace DiscordBot.SlashCommands.Modules
             }
             foreach(var msg in manualDelete)
             {
-                await msg.DeleteAndTrackAsync($"Purged by {Interaction.User.Mention}");
+                await msg.DeleteAndTrackAsync($"Purged by {Context.User.Mention}");
             }
         }
     }

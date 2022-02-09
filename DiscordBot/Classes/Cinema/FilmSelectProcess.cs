@@ -332,14 +332,14 @@ namespace DiscordBot.Classes.Cinema
                                     continue;
                                 }
                             }
-                            timesMenu.AddOption($"{showing.Start:hh:mm tt}", showing.Id, desc, @default: hasSelected);
+                            timesMenu.AddOption($"{showing.Start:hh:mm tt}", showing.Id, desc, isDefault: hasSelected);
                         }
                     }
                 }
 
                 IEmote emote = any ? Emotes.FAST_FORWARD : null;
                 var def = dateSelected.HasValue ? dateSelected.Value.Date.Equals(date) : false;
-                dayMenu.AddOption($"{date:dddd, dd MMMM}", $"{date:yyyy-MM-dd}", emote: emote, @default: def);
+                dayMenu.AddOption($"{date:dddd, dd MMMM}", $"{date:yyyy-MM-dd}", emote: emote, isDefault: def);
             }
 
             builder.WithSelectMenu(dayMenu);

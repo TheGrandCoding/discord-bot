@@ -29,7 +29,7 @@ namespace DiscordBot.Commands.Modules
             ComponentBuilder builder = new ComponentBuilder();
             builder.WithButton("Test button 1", "btn1", ButtonStyle.Danger);
             builder.WithButton("Test button 2", "btn2", ButtonStyle.Danger);
-            var msg = await ReplyAsync("Click button below", component: builder.Build());
+            var msg = await ReplyAsync("Click button below", components: builder.Build());
             var srv = Program.Services.GetRequiredService<MessageComponentService>();
             srv.Register(msg, handleButton);
         }

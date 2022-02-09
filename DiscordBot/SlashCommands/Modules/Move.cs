@@ -1,5 +1,5 @@
 ﻿using Discord;
-using Discord.SlashCommands;
+using Discord.Interactions;
 using Discord.WebSocket;
 using DiscordBot.Services;
 using DiscordBot.Services.BuiltIn;
@@ -14,8 +14,8 @@ using System.Threading.Tasks;
 
 namespace DiscordBot.SlashCommands.Modules
 {
-    [CommandGroup("move", "Move messages")]
-    [DefaultDisabled]
+    [Group("move", "Move messages")]
+    [DefaultPermission(false)]
     public class Move : BotSlashBase
     {
         public Move()
@@ -27,7 +27,7 @@ namespace DiscordBot.SlashCommands.Modules
         const int maximumMoveCount = 512;
         const int maximumHoursAgo = 72;
 
-        private async Task MoveMsg(IUserMessage message, ITextChannel to, IThreadChannel thread)
+        private async Task MoveMsg(IUserMessage message, ITextChannel to/*, IThreadChannel thread*/)
         {
             var webhook = await Webhooks.GetWebhookClientAsync(to);
             var embeds = new List<Embed>();
@@ -78,7 +78,7 @@ namespace DiscordBot.SlashCommands.Modules
                 false,
                 embeds,
                 (message.Author as IGuildUser).Nickname ?? message.Author.Username,
-                message.Author.GetAnyAvatarUrl(), thread?.Id,
+                message.Author.GetAnyAvatarUrl(),
                 options: opt
                 );
             await message.DeleteAndTrackAsync("moving message", options: opt);
@@ -120,31 +120,31 @@ namespace DiscordBot.SlashCommands.Modules
 
         [SlashCommand("last", "Moves the latest [amount] messages to the selected channel")]
         [RequireUserPermission(ChannelPermission.ManageMessages)]
-        public async Task MoveBatch([Required] int amount, [Required] SocketTextChannel chnl)
+        public async Task MoveBatch(int amount, SocketTextChannel chnl)
         {
             if (!(chnl is SocketTextChannel to))
             {
-                await Interaction.RespondAsync(":x: You must select a text channel.",
+                await RespondAsync(":x: You must select a text channel.",
                     ephemeral: true, embeds: null);
                 return;
             }
-            var from = Interaction.Channel as SocketTextChannel;
-            var fromPerms = (Interaction.User as SocketGuildUser).GetPermissions(from);
+            var from = Context.Channel as SocketTextChannel;
+            var fromPerms = (Context.User as SocketGuildUser).GetPermissions(from);
             if (!fromPerms.ManageMessages)
             {
-                await Interaction.RespondAsync($":x: You do not have permission to move messages to {to.Mention}", 
+                await RespondAsync($":x: You do not have permission to move messages to {to.Mention}", 
                     ephemeral: true);
                 return;
             }
-            await Interaction.DeferAsync();
+            await DeferAsync();
             var date = DateTimeOffset.Now.AddHours(-maximumHoursAgo);
             var messages = await fetchMessages(from, Math.Min(amount, maximumMoveCount), Discord.SnowflakeUtils.ToSnowflake(date));
-            var response = await Interaction.FollowupAsync($"Moving {messages.Count} messages.", embeds: null) as IUserMessage;
+            var response = await FollowupAsync($"Moving {messages.Count} messages.", embeds: null) as IUserMessage;
             DateTime last = DateTime.Now;
             int done = 0;
             foreach (var msg in messages.OrderBy(x => x.Id))
             { // oldest first
-                await MoveMsg(msg, to, null);
+                await MoveMsg(msg, to);
                 done++;
                 if ((DateTime.Now - last).TotalSeconds > 5)
                 {
@@ -158,7 +158,7 @@ namespace DiscordBot.SlashCommands.Modules
             await response.ModifyAsync(x => x.Content = $"Moved {messages.Count} messages.");
         }
 
-        async Task moveAfter(ulong messageId, ISocketMessageChannel from, ITextChannel to, IThreadChannel thread)
+        async Task moveAfter(ulong messageId, ISocketMessageChannel from, ITextChannel to/*, IThreadChannel thread*/)
         {
 
             // oldest   --> youngest
@@ -166,22 +166,22 @@ namespace DiscordBot.SlashCommands.Modules
             var messages = await fetchMessages(from, maximumMoveCount * 2, messageId);
             if (messages.Count > maximumMoveCount)
             {
-                await Interaction.ModifyOriginalResponseAsync(x => {
+                await ModifyOriginalResponseAsync(x => {
                     x.Content = ":x: Too many messages to move.";
                     });
                 return;
             }
-            //var response = await Interaction.FollowupAsync($"Moving {messages.Count} messages.", embeds: null) as IUserMessage;
+            //var response = await FollowupAsync($"Moving {messages.Count} messages.", embeds: null) as IUserMessage;
             DateTime last = DateTime.Now;
             int done = 0;
             var membersAdded = new List<ulong>();
-            await Interaction.ModifyOriginalResponseAsync(x =>
+            await ModifyOriginalResponseAsync(x =>
             {
-                x.Content = $"Moving {messages.Count} messages to {MentionUtils.MentionChannel(thread?.Id ?? to.Id)}";
+                x.Content = $"Moving {messages.Count} messages to {MentionUtils.MentionChannel(to.Id)}";
             });
             foreach (var msg in messages.OrderBy(x => x.Id))
             { // oldest first
-                if(thread != null)
+                /*if(thread != null)
                 {
                     if (msg.Id == messageId)
                     {
@@ -193,99 +193,98 @@ namespace DiscordBot.SlashCommands.Modules
                         await thread.AddUserAsync(msg.Author as IGuildUser);
                         membersAdded.Add(msg.Author.Id);
                     }
-                }
-                await MoveMsg(msg, to, thread);
+                }*/
+                await MoveMsg(msg, to);
                 done++;
                 if ((DateTime.Now - last).TotalSeconds > 5)
                 {
                     last = DateTime.Now;
-                    await Interaction.ModifyOriginalResponseAsync(x =>
+                    await ModifyOriginalResponseAsync(x =>
                     {
                         x.Content = $"Moved {done}/{messages.Count} ({(done / (double)messages.Count) * 100:00}%)";
                     });
                 }
             }
-            await Interaction.ModifyOriginalResponseAsync(x => x.Content = $"Moved {messages.Count} messages.");
+            await ModifyOriginalResponseAsync(x => x.Content = $"Moved {messages.Count} messages.");
         }
 
         [SlashCommand("after", "Moves the provided message, and all that follow it, to the channel")]
         [RequireUserPermission(ChannelPermission.ManageMessages)]
         public async Task MoveAfter(
-            [ParameterName("message")]
-            [Required]string strMsgId,
-            [Required] SocketTextChannel chnl)
+            string messageId,
+            SocketTextChannel chnl)
         {
             if (!(chnl is SocketTextChannel to))
             {
-                await Interaction.RespondAsync(":x: You must select a text channel.", 
+                await RespondAsync(":x: You must select a text channel.", 
                     ephemeral: true, embeds: null);
                 return;
             }
-            var from = Interaction.Channel as SocketTextChannel;
-            var fromPerms = (Interaction.User as SocketGuildUser).GetPermissions(from);
-            if (!ulong.TryParse(strMsgId, out var messageId))
+            var from = Context.Channel as SocketTextChannel;
+            var fromPerms = (Context.User as SocketGuildUser).GetPermissions(from);
+            if (!ulong.TryParse(messageId, out var msgId))
             {
-                await Interaction.RespondAsync(":x: You must enter a message id - a long number.", 
+                await RespondAsync(":x: You must enter a message id - a long number.", 
                     ephemeral: true, embeds: null);
                 return;
             }
             if (!fromPerms.ManageMessages)
             {
-                await Interaction.RespondAsync($":x: You do not have permission to move mesages to {to.Mention}", 
+                await RespondAsync($":x: You do not have permission to move mesages to {to.Mention}", 
                     ephemeral: true, embeds: null);
                 return;
             }
 
-            var date = Discord.SnowflakeUtils.FromSnowflake(messageId);
+            var date = Discord.SnowflakeUtils.FromSnowflake(msgId);
             if (Math.Abs((DateTime.Now - date).TotalHours) > maximumHoursAgo)
             {
-                await Interaction.RespondAsync(":x: Message was sent too long ago.",
+                await RespondAsync(":x: Message was sent too long ago.",
                     ephemeral: true, embeds: null);
                 return;
             }
 
-            await Interaction.DeferAsync();
-            await moveAfter(messageId, from, to, null);
+            await DeferAsync();
+            await moveAfter(msgId, from, to);
 
         }
 
         [SlashCommand("one", "Moves the single specified message to the selected channel")]
         [RequireUserPermission(ChannelPermission.ManageMessages)]
-        public async Task MoveOne([Required] string message, [Required]SocketTextChannel chnl)
+        public async Task MoveOne(string message, SocketTextChannel chnl)
         {
             if (!(chnl is SocketTextChannel to))
             {
-                await Interaction.RespondAsync(":x: You must select a text channel.", 
+                await RespondAsync(":x: You must select a text channel.", 
                     ephemeral: true, embeds: null);
                 return;
             }
-            var from = Interaction.Channel as ITextChannel;
-            var fromPerms = (Interaction.User as SocketGuildUser).GetPermissions(from);
+            var from = Context.Channel as ITextChannel;
+            var fromPerms = (Context.User as SocketGuildUser).GetPermissions(from);
             if (!ulong.TryParse(message, out var messageId))
             {
-                await Interaction.RespondAsync(":x: You must enter a message id - a long number.", 
+                await RespondAsync(":x: You must enter a message id - a long number.", 
                     ephemeral: true, embeds: null);
                 return;
             }
             if (!fromPerms.ManageMessages)
             {
-                await Interaction.RespondAsync($":x: You do not have permission to move mesages to {to.Mention}", 
+                await RespondAsync($":x: You do not have permission to move mesages to {to.Mention}", 
                     ephemeral: true, embeds: null);
                 return;
             }
-            await Interaction.DeferAsync();
+            await DeferAsync();
             var msg = await from.GetMessageAsync(messageId);
             if(msg == null || !(msg is IUserMessage umsg))
             {
-                await Interaction.FollowupAsync(":x: That message does not exist", embeds: null);
+                await FollowupAsync(":x: That message does not exist", embeds: null);
                 return;
             }
-            await MoveMsg(umsg, to, null);
-            await Interaction.FollowupAsync("Moved one message", embeds: null);
+            await MoveMsg(umsg, to);
+            await FollowupAsync("Moved one message", embeds: null);
         }
     
     
-        [SlashCommand("thread", "Moves all proceeding messages into a thread at the given message")]
+        /*[SlashCommand("thread", "Moves all proceeding messages into a thread at the given message")]
         [RequireUserPermission(ChannelPermission.ManageMessages)]
         public async Task MoveToThread(
             [ParameterName("message")]
@@ -295,13 +294,13 @@ namespace DiscordBot.SlashCommands.Modules
             var fromPerms = (Interaction.User as SocketGuildUser).GetPermissions(from);
             if (!ulong.TryParse(strMsgId, out var messageId))
             {
-                await Interaction.RespondAsync(":x: You must enter a message id - a long number.",
+                await RespondAsync(":x: You must enter a message id - a long number.",
                     ephemeral: true, embeds: null);
                 return;
             }
             if (!fromPerms.ManageMessages)
             {
-                await Interaction.RespondAsync($":x: You do not have permission to move mesages from this channel",
+                await RespondAsync($":x: You do not have permission to move mesages from this channel",
                     ephemeral: true, embeds: null);
                 return;
             }
@@ -309,16 +308,16 @@ namespace DiscordBot.SlashCommands.Modules
             var date = Discord.SnowflakeUtils.FromSnowflake(messageId);
             if (Math.Abs((DateTime.Now - date).TotalHours) > (maximumHoursAgo * 2))
             {
-                await Interaction.RespondAsync(":x: Message was sent too long ago.",
+                await RespondAsync(":x: Message was sent too long ago.",
                     ephemeral: true, embeds: null);
                 return;
             }
 
-            await Interaction.DeferAsync();
+            await DeferAsync();
             var starterMessage = await from.GetMessageAsync(messageId);
             if (starterMessage == null)
             {
-                await Interaction.RespondAsync(":x: Message does not exist",
+                await RespondAsync(":x: Message does not exist",
                     ephemeral: true, embeds: null);
                 return;
             }
@@ -331,6 +330,6 @@ namespace DiscordBot.SlashCommands.Modules
             }
             await moveAfter(messageId, from, from, thread);
         }
-    
+    */
     }
 }

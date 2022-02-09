@@ -1,8 +1,7 @@
 ﻿using CodeHollow.FeedReader.Feeds;
 using Discord;
-using Discord.Commands;
 using Discord.Rest;
-using Discord.SlashCommands;
+using Discord.Interactions;
 using Discord.WebSocket;
 using DiscordBot.Classes;
 using DiscordBot.Services;
@@ -17,8 +16,7 @@ using static DiscordBot.Services.JackettService;
 
 namespace DiscordBot.SlashCommands.Modules
 {
-    [CommandGroup("torrents")]
-    [Global]
+    [Group("torrents", "Commands for torrents")]
     public class Torrents : BotSlashBase
     {
         public MessageComponentService Components { get; set; }
@@ -27,24 +25,16 @@ namespace DiscordBot.SlashCommands.Modules
 
         static ConcurrentDictionary<string, TorrentSearchInfo> state = new ConcurrentDictionary<string, TorrentSearchInfo>();
         [SlashCommand("search", "Initialises a search for a torrent with the specified name")]
-        [Global]
-        public async Task Search([Required]string text, 
-            [ParameterName("order")]
-            [Choice(nameof(TorrentOrderBy.Ratio), (int)TorrentOrderBy.Ratio)]
-            [Choice(nameof(TorrentOrderBy.Seeds), (int)TorrentOrderBy.Seeds)]
-            [Choice(nameof(TorrentOrderBy.Leechers), (int)TorrentOrderBy.Leechers)]
-            [Choice(nameof(TorrentOrderBy.Time), (int)TorrentOrderBy.Time)]
-            int orderByInt,
-            [Choice("Descending", 0)]
-            [Choice("Ascending", 1)]
-            int direction,
-            [ParameterName("private")]bool isPrivate = false)
+        public async Task Search(string text, 
+            TorrentOrderBy orderBy,
+            TorrentOrderDirection direction,
+            bool isPrivate = false)
         {
-            await Interaction.DeferAsync(isPrivate);
+            await DeferAsync(isPrivate);
             var builder = new ComponentBuilder();
             var values = Enum.GetValues(typeof(TorrentCategory));
             var slc = new SelectMenuBuilder()
-                .WithCustomId($"{Interaction.User.Id}.{AuthToken.Generate(12)}")
+                .WithCustomId($"{Context.User.Id}.{AuthToken.Generate(12)}")
                 .WithMinValues(1)
                 .WithMaxValues(values.Length)
                 .WithPlaceholder("Select torrent category");
@@ -56,14 +46,14 @@ namespace DiscordBot.SlashCommands.Modules
             }
             slc.WithOptions(ls);
             builder.WithSelectMenu(slc);
-            var msg = await Interaction.FollowupAsync("Please select one or more categories to search in", component: builder.Build(), embeds: null,
+            var msg = await FollowupAsync("Please select one or more categories to search in", components: builder.Build(), embeds: null,
                 ephemeral: isPrivate);
             var info = new TorrentSearchInfo()
             {
                 Query = text,
                 Ephemeral = isPrivate,
-                Message = msg,
-                OrderBy = (TorrentOrderBy)orderByInt
+                Message = msg as RestFollowupMessage,
+                OrderBy = orderBy
             };
             state[slc.CustomId] = info;
             Components.Register(slc.CustomId, msg, categorySelected, doSave: false);
@@ -168,7 +158,7 @@ namespace DiscordBot.SlashCommands.Modules
                                 
             var builder = await getBuilder(info, torrents);
             var max = int.Parse(builder.Footer.Text.Split('/')[1]);
-            var idPrefix = Interaction.User.Id.ToString() + "." + AuthToken.Generate(12);
+            var idPrefix = Context.User.Id.ToString() + "." + AuthToken.Generate(12);
             var components = getComponents(info, idPrefix, max);
 
             Func<CallbackEventArgs, Task> movePage = async (CallbackEventArgs e) =>

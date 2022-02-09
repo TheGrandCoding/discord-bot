@@ -112,7 +112,7 @@ namespace DiscordBot.Commands
 
             var components = builder.Build();
 
-            var message = await ReplyAsync(message: text, embed: embed, component: components, allowedMentions: allowedMentions).ConfigureAwait(false);
+            var message = await ReplyAsync(message: text, embed: embed, components: components, allowedMentions: allowedMentions).ConfigureAwait(false);
 
             async Task CheckButtonAsync(CallbackEventArgs e)
             {

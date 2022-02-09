@@ -187,16 +187,6 @@ namespace DiscordBot.Classes
             throw new NotImplementedException();
         }
 
-        public Task<IThreadChannel> CreateThread(ulong messageId, Action<CreateThreadProperties> func, RequestOptions options = null)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task<IThreadChannel> CreateThread(Action<CreateThreadWithoutMessageProperties> func, RequestOptions options = null)
-        {
-            throw new NotImplementedException();
-        }
-
         public Task<IInviteMetadata> CreateInviteToApplicationAsync(ulong applicationId, int? maxAge = 86400, int? maxUses = null, bool isTemporary = false, bool isUnique = false, RequestOptions options = null)
         {
             throw new NotImplementedException();
@@ -228,6 +218,31 @@ namespace DiscordBot.Classes
         }
 
         public Task<IThreadChannel[]> GetPublicArchivedThreadsAsync(DateTimeOffset? before = null, int? limit = null, RequestOptions options = null)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<IThreadChannel> CreateThreadAsync(string name, ThreadType type = ThreadType.PublicThread, ThreadArchiveDuration autoArchiveDuration = ThreadArchiveDuration.OneDay, IMessage message = null, bool? invitable = null, int? slowmode = null, RequestOptions options = null)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<IUserMessage> SendFileAsync(FileAttachment attachment, string text = null, bool isTTS = false, Embed embed = null, RequestOptions options = null, AllowedMentions allowedMentions = null, MessageReference messageReference = null, MessageComponent components = null, ISticker[] stickers = null, Embed[] embeds = null)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<IUserMessage> SendFilesAsync(IEnumerable<FileAttachment> attachments, string text = null, bool isTTS = false, Embed embed = null, RequestOptions options = null, AllowedMentions allowedMentions = null, MessageReference messageReference = null, MessageComponent components = null, ISticker[] stickers = null, Embed[] embeds = null)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<IInviteMetadata> CreateInviteToApplicationAsync(DefaultApplications application, int? maxAge = 86400, int? maxUses = null, bool isTemporary = false, bool isUnique = false, RequestOptions options = null)
+        {
+            throw new NotImplementedException();
+        }
+
+        Task<IReadOnlyCollection<IThreadChannel>> ITextChannel.GetPublicArchivedThreadsAsync(DateTimeOffset? before, int? limit, RequestOptions options)
         {
             throw new NotImplementedException();
         }

@@ -80,7 +80,7 @@ namespace DiscordBot.Services.Events
             var embed = getAdminBuilder(arg).Build();
             var buttons = getButtonBuilder(arg, save).Build();
 
-            var msg = await save.Channel.SendMessageAsync(embed: embed, component: buttons);
+            var msg = await save.Channel.SendMessageAsync(embed: embed, components: buttons);
 
             Service.Register(msg, handleAdminButton, $"{arg.Guild.Id}-{arg.Id}");
         }

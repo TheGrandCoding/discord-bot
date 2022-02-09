@@ -2,7 +2,6 @@
 using Interactivity;
 using Discord.Commands;
 using Discord.Rest;
-using Discord.SlashCommands;
 using Discord.WebSocket;
 using DiscordBot.Classes;
 using DiscordBot.Classes.Attributes;
@@ -32,6 +31,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using DiscordBot.Classes.Calender;
+using System.ComponentModel;
 
 [assembly: AssemblyVersion(DiscordBot.Program.VERSION)]
 namespace DiscordBot
@@ -227,7 +227,12 @@ Changed how permissions worked for bot.
                 client.Ready += ClientReady;
                 Commands = Services.GetRequiredService<CommandService>();
                 Commands.Log += LogAsync;
-                var slsh = Services.GetRequiredService<SlashCommandService>();
+
+                var slsh = new Discord.Interactions.InteractionService(client, new Discord.Interactions.InteractionServiceConfig()
+                {
+                    
+                });
+
                 slsh.Log += LogAsync;
                 var genericType = typeof(BotTypeReader<>);
                 foreach (Type type in
@@ -245,7 +250,7 @@ Changed how permissions worked for bot.
                 await client.StartAsync();
 
                 // Here we initialize the logic required to register our commands.
-                await Services.GetRequiredService<CommandHandlingService>().InitializeAsync();
+                await Services.GetRequiredService<CommandHandlingService>().InitializeAsync(slsh);
                 await slsh.AddModulesAsync(Assembly.GetEntryAssembly(), Services);
 
                 try
@@ -394,7 +399,7 @@ Changed how permissions worked for bot.
                 .AddSingleton(new CommandService(new CommandServiceConfig
                 {
                     LogLevel = LogSeverity.Debug,
-                    DefaultRunMode = RunMode.Async,
+                    DefaultRunMode = Discord.Commands.RunMode.Async,
                     CaseSensitiveCommands = false
                 }))
                 .AddSingleton<CommandHandlingService>()
@@ -404,7 +409,6 @@ Changed how permissions worked for bot.
                     RunOnGateway = false,
                     DefaultTimeout = TimeSpan.FromSeconds(30)
                 });
-            coll.AddSingleton(new SlashCommandService());
             coll.AddDbContext<LogContext>(ServiceLifetime.Transient);
 #if INCLUDE_CHESS
             coll.AddDbContext<ChessDbContext>(options =>
@@ -480,12 +484,16 @@ Changed how permissions worked for bot.
 
 #region Save Info
         public static ConcurrentBag<BotUser> Users { get; set; }
+        public static uint CommandVersions { get; set; } = 0;
         public const string saveName = "new_bot_save.json";
 
         class BotSave
         {
             public List<BotUser> users;
             public Dictionary<string, int> states;
+            [JsonProperty(DefaultValueHandling = DefaultValueHandling.IgnoreAndPopulate)]
+            [DefaultValue(0)]
+            public uint? commandVersion;
         }
 
         public static void Load()
@@ -503,6 +511,7 @@ Changed how permissions worked for bot.
             var save = JsonConvert.DeserializeObject<BotSave>(content);
             Users = new ConcurrentBag<BotUser>(save.users ?? new List<BotUser>());
             states = save.states ?? new Dictionary<string, int>();
+            CommandVersions = save.commandVersion ?? 0;
         }
 
         public static void Save(bool saveServices = false)
@@ -511,6 +520,7 @@ Changed how permissions worked for bot.
             {
                 users = Users.ToList(),
                 states = states,
+                commandVersion = CommandVersions
             };
             var str = JsonConvert.SerializeObject(bSave);
             File.WriteAllText(Path.Combine(BASE_PATH, "Saves", saveName), str);

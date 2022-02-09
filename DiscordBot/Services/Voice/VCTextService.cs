@@ -48,7 +48,7 @@ namespace DiscordBot.Services
             var arg1 = await cached1.GetOrDownloadAsync();
             if (arg1 == null || arg2 == null)
                 return;
-            if(arg1.Archived == false && arg2.Archived == true)
+            if(arg1.IsArchived == false && arg2.IsArchived == true)
             {
                 // thread has been archived, let's see whether it was one of ours
                 var find = Threads.FirstOrDefault(x => x.Value.Id == arg2.Id);
@@ -134,7 +134,7 @@ namespace DiscordBot.Services
                 thread = voice.Guild.ThreadChannels.FirstOrDefault(x => x.Name == name);
                 if(thread == null)
                 {
-                    if (voice.Guild.Features.Contains(PRIVATE_THREADS))
+                    if (voice.Guild.Features.HasPrivateThreads)
                     {
                         thread = await pairedChannel.CreateThreadAsync(name, type: ThreadType.PrivateThread, autoArchiveDuration: ThreadArchiveDuration.OneDay);
                         await thread.SendMessageAsync(embed: embed.Build());
@@ -260,7 +260,7 @@ namespace DiscordBot.Services
                 if(!persist)
                 {
                     toRemove.Add(voice);
-                    if(thread.Archived == false)
+                    if(thread.IsArchived == false)
                     {
                         await thread.ModifyAsync(x =>
                         {

@@ -78,7 +78,7 @@ namespace DiscordBot.Services
                 var select = new SelectMenuBuilder();
                 select.WithCustomId(CustomId);
                 for (int i = 0; i < Cycle.Length; i++)
-                    select.AddOption(Cycle[i], i.ToString(), @default: i == Index);
+                    select.AddOption(Cycle[i], i.ToString(), isDefault: i == Index);
                 builder.WithSelectMenu(select);
                 return builder;
             }

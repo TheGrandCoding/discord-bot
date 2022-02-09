@@ -1,5 +1,5 @@
 ﻿using Discord;
-using Discord.SlashCommands;
+using Discord.Interactions;
 using Discord.WebSocket;
 using DiscordBot.Services;
 using System;
@@ -10,8 +10,8 @@ using System.Threading.Tasks;
 
 namespace DiscordBot.SlashCommands.Modules
 {
-    [CommandGroup("links", "Automatic thread creation for links")]
-    [DefaultDisabled]
+    [Group("links", "Automatic thread creation for links")]
+    [DefaultPermission(false)]
     public class Links : BotSlashBase
     {
         public LinksThreaderService Service { get; set; }
@@ -20,8 +20,8 @@ namespace DiscordBot.SlashCommands.Modules
         [SlashCommand("set", "Adds or configures auto-thread, summary and deletion for news links")]
         public async Task SetChannel(SocketGuildChannel otherchannel = null)
         {
-            var channel = otherchannel ?? (Interaction.Channel as SocketGuildChannel);
-            var regId = Interaction.User.Id.ToString() + "setChannel";
+            var channel = otherchannel ?? (Context.Channel as SocketGuildChannel);
+            var regId = Context.User.Id.ToString() + "setChannel";
 
             ComponentBuilder getBuilder()
             {
@@ -31,17 +31,17 @@ namespace DiscordBot.SlashCommands.Modules
                 return new ComponentBuilder()
                     .WithSelectMenu(new SelectMenuBuilder()
                         .WithCustomId(regId)
-                        .AddOption("None", "0", "If only this is set, remove the channel config", @default: existing == ChannelFlags.Disabled)
-                        .AddOption("Summarize", $"{(int)ChannelFlags.Summary}", "Summarize the link; responds in thread or as reply", @default: existing.HasFlag(ChannelFlags.Summary))
-                        .AddOption("Thread", $"{(int)ChannelFlags.Thread}", "Creates a thread for the link, name as link title", @default: existing.HasFlag(ChannelFlags.Thread))
-                        .AddOption("Delete", $"{(int)ChannelFlags.Delete}", "Deletes any messages without a valid link", @default: existing.HasFlag(ChannelFlags.Delete))
+                        .AddOption("None", "0", "If only this is set, remove the channel config", isDefault: existing == ChannelFlags.Disabled)
+                        .AddOption("Summarize", $"{(int)ChannelFlags.Summary}", "Summarize the link; responds in thread or as reply", isDefault: existing.HasFlag(ChannelFlags.Summary))
+                        .AddOption("Thread", $"{(int)ChannelFlags.Thread}", "Creates a thread for the link, name as link title", isDefault: existing.HasFlag(ChannelFlags.Thread))
+                        .AddOption("Delete", $"{(int)ChannelFlags.Delete}", "Deletes any messages without a valid link", isDefault: existing.HasFlag(ChannelFlags.Delete))
                         .WithMinValues(1).WithMaxValues(3)
                     );
             }
 
             
 
-            await Interaction.RespondAsync($"Please configure options for {MentionUtils.MentionChannel(channel.Id)} accordingly.", component: getBuilder().Build(), ephemeral: true);
+            await RespondAsync($"Please configure options for {MentionUtils.MentionChannel(channel.Id)} accordingly.", components: getBuilder().Build(), ephemeral: true);
             CompService.Register(regId, null, async e =>
             {
                 await e.Interaction.DeferAsync();
@@ -75,54 +75,54 @@ namespace DiscordBot.SlashCommands.Modules
             }, doSave: false);
         }
 
-        [SlashCommand("remove")]
-        public async Task RemoveChannel([Required]SocketGuildChannel textchannel)
+        [SlashCommand("remove", "Removes channel from linking")]
+        public async Task RemoveChannel(SocketGuildChannel textchannel)
         {
             Service.Channels.TryRemove(textchannel.Id, out _);
-            await Interaction.RespondAsync($"Removed!", embeds: null, ephemeral: true);
+            await RespondAsync($"Removed!", embeds: null, ephemeral: true);
             Service.OnSave();
         }
 
-        [CommandGroup("blacklist", "Commands to control blacklisting on links")]
+        [Group("blacklist", "Commands to control blacklisting on links")]
         public class LinksBlacklist : BotSlashBase
         {
             public LinksThreaderService Service { get; set; }
 
             [SlashCommand("add", "Adds a blacklist. If regex is true, applies to whole uri; else, strictly blacklist on domain")]
-            public async Task Add([Required]SocketGuildChannel textchannel, [Required]string text, [Required]bool isregex)
+            public async Task Add(SocketGuildChannel textchannel, string text, bool isRegex)
             {
                 if(!Service.Channels.TryGetValue(textchannel.Id, out var sv))
                 {
-                    await Interaction.RespondAsync($":x: Unknown channel!", ephemeral: true);
+                    await RespondAsync($":x: Unknown channel!", ephemeral: true);
                     return;
                 }
-                sv.Blacklist.Add((isregex ? "/" : "") + text);
-                await Interaction.RespondAsync("Done!", ephemeral: true);
+                sv.Blacklist.Add((isRegex ? "/" : "") + text);
+                await RespondAsync("Done!", ephemeral: true);
             }
 
-            [SlashCommand("Remove", "Removes a blacklist")]
-            public async Task Remove([Required] SocketGuildChannel textchannel, [Required] string text)
+            [SlashCommand("remove", "Removes a blacklist")]
+            public async Task Remove(SocketGuildChannel textchannel, string text)
             {
                 if (!Service.Channels.TryGetValue(textchannel.Id, out var sv))
                 {
-                    await Interaction.RespondAsync($":x: Unknown channel!", ephemeral: true);
+                    await RespondAsync($":x: Unknown channel!", ephemeral: true);
                     return;
                 }
                 if(sv.Blacklist.RemoveAll(x => x == text || x == $"/{text}") > 0)
                 {
-                    await Interaction.RespondAsync("Done!", ephemeral: true);
+                    await RespondAsync("Done!", ephemeral: true);
                 } else
                 {
-                    await Interaction.RespondAsync(":x: No blacklists matched that.", ephemeral: true);
+                    await RespondAsync(":x: No blacklists matched that.", ephemeral: true);
                 }
             }
 
             [SlashCommand("view", "Views the blacklist for this channel")]
-            public async Task Add([Required] SocketGuildChannel textchannel)
+            public async Task Add(SocketGuildChannel textchannel)
             {
                 if (!Service.Channels.TryGetValue(textchannel.Id, out var sv))
                 {
-                    await Interaction.RespondAsync($":x: Unknown channel!", ephemeral: true);
+                    await RespondAsync($":x: Unknown channel!", ephemeral: true);
                     return;
                 }
                 var embed = new EmbedBuilder();
@@ -139,7 +139,7 @@ namespace DiscordBot.SlashCommands.Modules
                         embed.Description += $"`{blck}`" + "\r\n";
                     }
                 }
-                await Interaction.RespondAsync(embeds: new[] { embed.Build() },
+                await RespondAsync(embeds: new[] { embed.Build() },
                     ephemeral: true);
             }
 

@@ -1,6 +1,6 @@
 ﻿using Discord;
 using Discord.Commands;
-using Discord.SlashCommands;
+using Discord.Interactions;
 using Discord.WebSocket;
 using DiscordBot.Classes;
 using DiscordBot.Commands;
@@ -18,50 +18,77 @@ namespace DiscordBot.Services
 {
     public class CommandHandlingService
     {
+        public const uint CommandVersion = 2;
         private readonly CommandService _commands;
-        private readonly SlashCommandService _slashCommands;
         private readonly DiscordSocketClient _discord;
         private readonly IServiceProvider _services;
+
+        public InteractionService InteractionService { get; private set; }
 
         public CommandHandlingService(IServiceProvider services)
         {
             _commands = services.GetRequiredService<CommandService>();
-            _slashCommands = services.GetRequiredService<SlashCommandService>();
             _discord = services.GetRequiredService<DiscordSocketClient>();
             _services = services;
 
             // Hook CommandExecuted to handle post-command-execution logic.
             _commands.CommandExecuted += CommandExecutedAsync;
-            _slashCommands.CommandExecuted += SlashCommandExecutedAsync;
             // Hook MessageReceived so we can process each message to see
             // if it qualifies as a command.
             _discord.MessageReceived += MessageReceivedAsync;
             _discord.Ready += _discord_Ready;
         }
 
-        private async Task _discord_Ready()
+        async Task registerCommands()
         {
-#if DEBUG
-            var guildIds = new List<ulong>() { 420240046428258304 };
-#else
-            var guildIds = Program.Client.Guilds.Select(x => x.Id).ToList();
-#endif
             try
             {
-                await _slashCommands.RegisterCommandsAsync(Program.Client, guildIds, new CommandRegistrationOptions(OldCommandOptions.DELETE_UNUSED, ExistingCommandOptions.OVERWRITE));
+                bool clearGuild = false;
+#if DEBUG
+                var guild = Program.Client.GetGuild(420240046428258304);
+                var botMod = InteractionService.GetModuleInfo<DiscordBot.SlashCommands.Modules.BotDevCmds>();
+
+                await InteractionService.AddModulesToGuildAsync(guild, true, InteractionService.Modules.ToArray());
+#else
+                await InteractionService.RegisterCommandsGloballyAsync();
+                clearGuild = true;
+                await InteractionService.AddModulesToGuildAsync(guild, clearGuild, botMod);
+#endif
+
+
+                Program.CommandVersions = CommandVersion;
             }
             catch (Discord.Net.HttpException http)
             {
                 Program.LogError(http, "RegisterCommands");
                 Program.LogError($"Request: {http.Request.ToString()}", "RegisterCommands");
-                Program.LogError($"Response: {http.Error.ToString()}", "RegisterCommands");
+                foreach (var err in http.Errors)
+                {
+                    foreach (var jsErr in err.Errors)
+                    {
+                        Program.LogError($"{err.Path} {jsErr.Code}: {jsErr.Message}", "RegisterCommands");
+                    }
+                }
                 Program.Close(1);
             }
+            catch (Exception ex)
+            {
+                Program.LogError(ex, "RegisterCommands");
+                Program.Close(1);
+            }
+        }
+
+        private async Task _discord_Ready()
+        {
+            if(CommandVersion != Program.CommandVersions)
+                await registerCommands();
             Program.Client.InteractionCreated += executeInteraction;
         }
 
-        public async Task InitializeAsync()
+        public async Task InitializeAsync(InteractionService slash)
         {
+            InteractionService = slash;
+            InteractionService.SlashCommandExecuted += SlashCommandExecutedAsync;
             // Register modules that are public and inherit ModuleBase<T>.
             await _commands.AddModulesAsync(Assembly.GetEntryAssembly(), _services);
         }
@@ -73,42 +100,52 @@ namespace DiscordBot.Services
             var components = Program.Services.GetRequiredService<MessageComponentService>();
             try
             {
-                IResult result;
                 if (x.Type == InteractionType.ApplicationCommand)
                 {
-                    result = await _slashCommands.ExecuteAsync(x as SocketSlashCommand, Program.Services).ConfigureAwait(false);
+                    var ctx = new SocketInteractionContext(_discord, x);
+                    var specialResult = await InteractionService.ExecuteCommandAsync(ctx, Program.Services).ConfigureAwait(false);
+                    if(!specialResult.IsSuccess)
+                    {
+                        if(specialResult is Discord.Interactions.ExecuteResult sExe && sExe.Exception != null)
+                        {
+                            Program.LogError(sExe.Exception, "SlashCommand");
+                            try
+                            {
+                                await x.RespondAsync(":x: Internal exception occured whilst handling this interaction: " + sExe.Exception.Message,
+                                    ephemeral: true);
+                            }
+                            catch { }
+                        }
+                    }
+                    return;
                 }
-                else if (x.Type == InteractionType.MessageComponent)
+                if(x.Type == InteractionType.ApplicationCommandAutocomplete)
+                {
+                    var ctx = new SocketInteractionContext<SocketAutocompleteInteraction>(_discord, x as SocketAutocompleteInteraction);
+                    var specialResult = await InteractionService.ExecuteCommandAsync(ctx, _services).ConfigureAwait(false);
+                    if (!specialResult.IsSuccess)
+                    {
+                        if (specialResult is Discord.Interactions.ExecuteResult sExe && sExe.Exception != null)
+                        {
+                            Program.LogError(sExe.Exception, "SlashCommand");
+                            try
+                            {
+                                await x.RespondAsync(":x: Internal exception occured whilst handling this interaction: " + sExe.Exception.Message,
+                                    ephemeral: true);
+                            }
+                            catch { }
+                        }
+                    }
+                    return;
+
+                } 
+
+                Discord.Commands.IResult result;
+                if (x.Type == InteractionType.MessageComponent)
                 {
                     Program.LogDebug($"Executing message component {x.Id}", "Interactions");
                     result = await components.ExecuteAsync(x as SocketMessageComponent).ConfigureAwait(false);
                     Program.LogInfo($"Executed interaction {x.Id}: {result.IsSuccess} {result.Error} {result.ErrorReason}", "Interactions");
-                } else if(x.Type == InteractionType.ApplicationCommandAutocomplete)
-                {
-                    var autocomplete = x as SocketAutocompleteInteraction;
-                    
-                    if(autocomplete.Data.CommandName == "experiments")
-                    {
-                        var results = await Program.Services.GetRequiredService<DsRolloutService>().GetAutocomplete(autocomplete);
-                        await autocomplete.RespondAsync(results);
-                        result = ExecuteResult.FromSuccess();
-                    } else if(autocomplete.Data.CommandName == "bot")
-                    {
-                        var results = DiscordBot.SlashCommands.Modules.BotDevCmds.GetAutocompleteResults(autocomplete);
-                        await autocomplete.RespondAsync(results);
-                        result = ExecuteResult.FromSuccess();
-                    } else if(autocomplete.Data.CommandName == "cinema")
-                    {
-
-                        var results = await DiscordBot.Services.CinemaService.GetAutocompleteResults(autocomplete);
-                        await autocomplete.RespondAsync(results);
-                        result = ExecuteResult.FromSuccess();
-                    }
-                    else
-                    {
-                        Program.LogInfo($"Unknown autocomplete command: {autocomplete.Data.CommandName}", "Interactions");
-                        result = MiscResult.FromError("Unknown command for autocompletion");
-                    }
                 }
                 else
                 {
@@ -117,7 +154,7 @@ namespace DiscordBot.Services
                 }
                 if (!result.IsSuccess)
                 {
-                    if (result is ExecuteResult exec && exec.Exception != null)
+                    if (result is Discord.Commands.ExecuteResult exec && exec.Exception != null)
                     {
                         Program.LogError(exec.Exception, "InteractionInvoke");
                         try
@@ -191,7 +228,7 @@ namespace DiscordBot.Services
             return log;
         }
 
-        public async Task CommandExecutedAsync(Optional<CommandInfo> command, ICommandContext context, IResult result)
+        public async Task CommandExecutedAsync(Optional<CommandInfo> command, ICommandContext context, Discord.Commands.IResult result)
         {
             if (!command.IsSpecified)
             {
@@ -214,21 +251,21 @@ namespace DiscordBot.Services
                 allowedMentions: AllowedMentions.None);
         }
 
-        async Task sendEnsured(SocketSlashCommand context, string content = null, Embed[] embeds = null, bool ephemeral = true, AllowedMentions allowedMentions = null)
+        async Task sendEnsured(IInteractionContext context, string content = null, Embed[] embeds = null, bool ephemeral = true, AllowedMentions allowedMentions = null)
         {
             try
             {
-                await context.RespondAsync(content, embeds, ephemeral: ephemeral, allowedMentions: allowedMentions ?? AllowedMentions.None);
+                await context.Interaction.RespondAsync(content, embeds, ephemeral: ephemeral, allowedMentions: allowedMentions ?? AllowedMentions.None);
             }
             catch
             {
-                await context.FollowupAsync(content, embeds, ephemeral: ephemeral, allowedMentions: allowedMentions ?? AllowedMentions.None);
+                await context.Interaction.FollowupAsync(content, embeds, ephemeral: ephemeral, allowedMentions: allowedMentions ?? AllowedMentions.None);
             }
         }
 
-        public async Task SlashCommandExecutedAsync(Optional<SlashCommandInfo> command, SocketSlashCommand context, IResult result)
+        public async Task SlashCommandExecutedAsync(SlashCommandInfo command, IInteractionContext context, Discord.Interactions.IResult result)
         {
-            if (!command.IsSpecified)
+            if (command == null)
             {
                 await sendEnsured(context, ":question: Unknown slash command invoked. This shouldn't technically be possible.");
                 return;

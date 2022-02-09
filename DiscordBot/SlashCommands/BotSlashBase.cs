@@ -1,6 +1,5 @@
 ﻿using Discord;
-using Discord.Commands.SlashCommands.Types;
-using Discord.SlashCommands;
+using Discord.Interactions;
 using Discord.WebSocket;
 using DiscordBot.Classes;
 using System;
@@ -9,7 +8,7 @@ using System.Text;
 
 namespace DiscordBot.SlashCommands
 {
-    public abstract class BotSlashBase : SlashCommandModule<SocketInteraction>, ISlashCommandModule
+    public abstract class BotSlashBase : Discord.Interactions.InteractionModuleBase<SocketInteractionContext>
     {
         private BotUser _user;
         public BotUser User
@@ -17,7 +16,7 @@ namespace DiscordBot.SlashCommands
             get
             {
                 if(_user == null)
-                    _user = Program.CreateUser(Interaction.User);
+                    _user = Program.CreateUser(Context.Interaction.User);
                 return _user;
             }
         }

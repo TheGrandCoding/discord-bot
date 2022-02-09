@@ -1,5 +1,5 @@
 ﻿using Discord;
-using Discord.SlashCommands;
+using Discord.Interactions;
 using Discord.WebSocket;
 using DiscordBot.Services;
 using System;
@@ -9,22 +9,22 @@ using System.Threading.Tasks;
 
 namespace DiscordBot.SlashCommands.Modules
 {
-    [CommandGroup("vc", "Commands for voice channels")]
+    [Group("vc", "Commands for voice channels")]
     public class VoiceCommands : BotSlashBase
     {
         public VCTextService TextService { get; set; }
 
         [SlashCommand("pair", "Threads will be made in the context channel.")]
-        public async Task PairWith([Required]SocketVoiceChannel voice)
+        public async Task PairWith(SocketVoiceChannel voice)
         {
             if(!(voice is SocketVoiceChannel vc)) {
-                await Interaction.RespondAsync(":x: You must select a voice channel, " +
+                await RespondAsync(":x: You must select a voice channel, " +
                     "which will be paired with the channel you execute this command in",
                     ephemeral: true);
                 return;
             }
-            TextService.PairedChannels[vc] = Interaction.Channel as ITextChannel;
-            await Interaction.RespondAsync($"Done!",
+            TextService.PairedChannels[vc] = Context.Channel as ITextChannel;
+            await RespondAsync($"Done!",
                 ephemeral: true);
         }
     }

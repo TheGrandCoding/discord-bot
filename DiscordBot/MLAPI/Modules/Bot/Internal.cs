@@ -98,12 +98,12 @@ namespace DiscordBot.MLAPI.Modules.Bot
         {
             var select = new SelectMenuBuilder();
             select.CustomId = "selectShutdown";
-            select.AddOption("Running", $"{(int)ShutdownState.Running}", "There is no request", @default: shutdownState == ShutdownState.Running);
-            select.AddOption("Requested", $"{(int)ShutdownState.Requested}", "A request has been sent, not acked", @default: shutdownState == ShutdownState.Requested);
-            select.AddOption("In Progress", $"{(int)ShutdownState.InProgress}", "The request is in progress", @default: shutdownState == ShutdownState.InProgress);
-            select.AddOption("Waiting", $"{(int)ShutdownState.Waiting}", "In process, but long time", @default: shutdownState == ShutdownState.Waiting);
-            select.AddOption("Failed or Refused", $"{(int)ShutdownState.Failed}", "Request failed or was refused", @default: shutdownState == ShutdownState.Failed);
-            select.AddOption("Completed", $"{(int)ShutdownState.Completed}", "The computer is shutdown", @default: shutdownState == ShutdownState.Completed);
+            select.AddOption("Running", $"{(int)ShutdownState.Running}", "There is no request", isDefault: shutdownState == ShutdownState.Running);
+            select.AddOption("Requested", $"{(int)ShutdownState.Requested}", "A request has been sent, not acked", isDefault: shutdownState == ShutdownState.Requested);
+            select.AddOption("In Progress", $"{(int)ShutdownState.InProgress}", "The request is in progress", isDefault: shutdownState == ShutdownState.InProgress);
+            select.AddOption("Waiting", $"{(int)ShutdownState.Waiting}", "In process, but long time", isDefault: shutdownState == ShutdownState.Waiting);
+            select.AddOption("Failed or Refused", $"{(int)ShutdownState.Failed}", "Request failed or was refused", isDefault: shutdownState == ShutdownState.Failed);
+            select.AddOption("Completed", $"{(int)ShutdownState.Completed}", "The computer is shutdown", isDefault: shutdownState == ShutdownState.Completed);
 
             return new ComponentBuilder()
                 .WithSelectMenu(select);
@@ -125,7 +125,7 @@ namespace DiscordBot.MLAPI.Modules.Bot
                     .AddField("User-Agent", Context.Request.UserAgent ?? "n/a", true)
                     .WithFooter($"Use {Program.Prefix}bot pc_reason [text] to set a reason for wait or refusal")
                     .Build(),
-                    component: getShutdownComponents().Build()).Result;
+                    components: getShutdownComponents().Build()).Result;
 
                 ComponentService.Register(x, async e =>
                 {

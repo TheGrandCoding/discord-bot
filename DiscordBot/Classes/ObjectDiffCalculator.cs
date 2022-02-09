@@ -288,13 +288,13 @@ namespace DiscordBot.Classes
             var props = new PropertyInfo[]
             {
                 type.GetProperty("Name"),
-                type.GetProperty(nameof(IThreadChannel.Joined)),
+                type.GetProperty(nameof(IThreadChannel.HasJoined)),
                 type.GetProperty(nameof(IThreadChannel.ArchiveTimestamp)),
                 type.GetProperty(nameof(IThreadChannel.AutoArchiveDuration)),
-                type.GetProperty(nameof(IThreadChannel.Locked)),
+                type.GetProperty(nameof(IThreadChannel.IsLocked)),
                 type.GetProperty(nameof(IThreadChannel.MemberCount)),
                 type.GetProperty(nameof(IThreadChannel.MessageCount)),
-                type.GetProperty(nameof(IThreadChannel.Archived))
+                type.GetProperty(nameof(IThreadChannel.IsArchived))
             };
             return props
                 .Where(x => x != null)

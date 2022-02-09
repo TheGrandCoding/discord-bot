@@ -130,32 +130,6 @@ namespace DiscordBot.Services
                 return c;
             return null;
         }
-
-        public static async Task<List<AutocompleteResult>> GetAutocompleteResults(SocketAutocompleteInteraction interaction)
-        {
-            var srv = Program.Services.GetRequiredService<CinemaService>();
-            var cinema = srv.GetCinema("odeon");
-            if(!cinema.CanAutocomplete)
-            {
-                _ = Task.Run(async () => await cinema.GetFilmsAsync());
-                return new List<AutocompleteResult>()
-                {
-                    new AutocompleteResult($"Fetching films: {cinema.DaysFetched}/14 days fetched", "null")
-                };
-            }
-            var films = await cinema.GetFilmsAsync();
-            var text = interaction.Data.Current.Value as string;
-
-            var results = new List<AutocompleteResult>();
-
-            foreach(var film in films.OrderBy(x => x.Title))
-            {
-                string s = $"{film.Title} ({film.Year})";
-                if (s.Contains(text, StringComparison.OrdinalIgnoreCase))
-                    results.Add(new AutocompleteResult(s, film.Id));
-            }
-            return results.Take(20).ToList();
-        }
     
         public async Task Register(FilmSelectProcess process, IUser creator)
         {

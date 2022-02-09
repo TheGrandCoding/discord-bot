@@ -1,6 +1,6 @@
 ﻿using Discord;
 using Discord.Rest;
-using Discord.SlashCommands;
+using Discord.Interactions;
 using Discord.WebSocket;
 using DiscordBot.Classes;
 using Microsoft.Extensions.DependencyInjection;
@@ -29,7 +29,9 @@ namespace DiscordBot.Services
 
         public ConcurrentDictionary<ulong, IThreadChannel> CachedThreads { get; set; } = new ConcurrentDictionary<ulong, IThreadChannel>();
 
-        public SlashCommandService SlashService { get; set; }
+        public CommandHandlingService CommandHandlingService { get; set; }
+
+        InteractionService SlashService => CommandHandlingService.InteractionService;
 
         public override string GenerateSave()
         {
@@ -72,7 +74,7 @@ namespace DiscordBot.Services
 
             if(guild.CachedThreads.Count == 0)
             {
-                IThreadChannel[] archivedThreads = await guild.Channel.GetPublicArchivedThreadsAsync();
+                var archivedThreads = await guild.Channel.GetPublicArchivedThreadsAsync();
                 foreach (var th in archivedThreads)
                     guild.CachedThreads[th.Id] = th;
             }
@@ -236,19 +238,19 @@ namespace DiscordBot.Services
             public Dictionary<ulong, IThreadChannel> CachedThreads { get; set; } = new Dictionary<ulong, IThreadChannel>();
         }
 
-        public async Task<IEnumerable<AutocompleteResult>> GetAutocomplete(SocketAutocompleteInteraction interaction)
+        public async Task<IEnumerable<AutocompleteResult>> GetAutocomplete(IAutocompleteInteraction interaction)
         {
-            if(!HasRecentlySynced.GetValueOrDefault(false))
+            if (!HasRecentlySynced.GetValueOrDefault(false))
             {
                 await updateTask();
             }
             var ls = new List<AutocompleteResult>();
             string text = interaction.Data.Current.Value.ToString();
 
-            foreach(var experiment in Experiments.Values)
+            foreach (var experiment in Experiments.Values)
             {
-                if(string.IsNullOrWhiteSpace(text) 
-                    || experiment.Id.Contains(text, StringComparison.OrdinalIgnoreCase) 
+                if (string.IsNullOrWhiteSpace(text)
+                    || experiment.Id.Contains(text, StringComparison.OrdinalIgnoreCase)
                     || experiment.Title.Contains(text, StringComparison.OrdinalIgnoreCase))
                 {
                     var result = new AutocompleteResult(experiment.Title, experiment.Id);
@@ -409,12 +411,12 @@ namespace DiscordBot.Services
         }
 
         public string GetTreatment(SocketGuild guild)
-            => GetTreatment(guild.Id, guild.MemberCount, guild.Features.ToArray());
+            => GetTreatment(guild.Id, guild.MemberCount, guild.Features);
 
         public string GetTreatment(ulong serverId)
             => GetTreatment(serverId, null, null);
     
-        public string GetTreatment(ulong serverId, int? memberCount, string[] features)
+        public string GetTreatment(ulong serverId, int? memberCount, GuildFeatures features)
         {
             var id = Rollout.GetTreatmentId(Id, serverId, memberCount, features);
             if (!id.HasValue)
@@ -485,7 +487,7 @@ namespace DiscordBot.Services
             //=> (Populations ?? new List<Population>()).Sum(x => x.Count);
 
 
-        public int? GetTreatmentId(string expId, ulong serverId, int? memberCount, string[] features)
+        public int? GetTreatmentId(string expId, ulong serverId, int? memberCount, GuildFeatures features)
         {
             var bytes = Encoding.ASCII.GetBytes($"{expId}:{serverId}");
             using var algo = Murmur.MurmurHash.Create32();
@@ -630,7 +632,7 @@ namespace DiscordBot.Services
         [JsonProperty("f", ItemTypeNameHandling = TypeNameHandling.All)]
         public List<Filter> Filters { get; set; } = new List<Filter>();
 
-        public Population GetPopulation(uint value, ulong serverId, int? memberCount, string[] features)
+        public Population GetPopulation(uint value, ulong serverId, int? memberCount, GuildFeatures features)
         {
             if (Filters != null)
             {
@@ -653,7 +655,7 @@ namespace DiscordBot.Services
                         if (features == null)
                             return null;
                         foreach (var k in ff.Features)
-                            if (!features.Contains(k))
+                            if (!features.HasFeature(k))
                                 return null;
                     }
                 }

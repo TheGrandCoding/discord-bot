@@ -237,7 +237,7 @@ namespace DiscordBot.Services.Rules
 
                 // addmute already saves the service
                 var msg = await user.Guild.PublicUpdatesChannel.SendMessageAsync(embed: embed.Build(),
-                    component: cBuilder.Build());
+                    components: cBuilder.Build());
                 MessageComponentService.Register(msg, handleMuteChange, penalty.Id.ToString());
             }
         }

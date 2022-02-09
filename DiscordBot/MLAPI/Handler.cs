@@ -228,7 +228,7 @@ namespace DiscordBot.MLAPI
             components.WithButton("Approve", "true", ButtonStyle.Success);
             components.WithButton("Deny", "false", ButtonStyle.Danger);
 
-            var msg = await user.FirstValidUser.SendMessageAsync(embed: embed.Build(), component: components.Build());
+            var msg = await user.FirstValidUser.SendMessageAsync(embed: embed.Build(), components: components.Build());
 
             var service = Program.Services.GetRequiredService<MessageComponentService>();
             service.Register(msg, async x =>

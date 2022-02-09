@@ -50,6 +50,10 @@ namespace DiscordBot.Utils
 
             public Color? AccentColor => throw new NotImplementedException();
 
+            IReadOnlyCollection<ClientType> IPresence.ActiveClients => throw new NotImplementedException();
+
+            IReadOnlyCollection<IActivity> IPresence.Activities => throw new NotImplementedException();
+
             public Task<IDMChannel> CreateDMChannelAsync(RequestOptions options = null)
             {
                 throw new NotImplementedException();

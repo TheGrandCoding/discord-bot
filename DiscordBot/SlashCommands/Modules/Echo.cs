@@ -1,5 +1,5 @@
 ﻿using Discord;
-using Discord.SlashCommands;
+using Discord.Interactions;
 using Discord.WebSocket;
 using DiscordBot.Services;
 using Microsoft.Extensions.DependencyInjection;
@@ -10,21 +10,21 @@ using System.Threading.Tasks;
 
 namespace DiscordBot.SlashCommands.Modules
 {
-    [CommandGroup("echo")]
+    [Group("echo", "Repeats stuff")]
     public class Echo : BotSlashBase
     {
         [SlashCommand("text", "Repeats what you send")]
-        public async Task EchoCmd([Required]string text)
+        public async Task EchoCmd(string text)
         {
-            await Interaction.RespondAsync(text, ephemeral: true, embeds: null);
+            await RespondAsync(text, ephemeral: true, embeds: null);
         }
 
         [SlashCommand("embed", "Repeats what you send, but fancy")]
-        public async Task EmbedEcho([Required]string text, bool ephemeral = true)
+        public async Task EmbedEcho(string text, bool ephemeral = true)
         {
-            await Interaction.RespondAsync("Response:", embeds: new[] { new EmbedBuilder()
+            await RespondAsync("Response:", embeds: new[] { new EmbedBuilder()
                 .WithTitle("Echo")
-                .WithAuthor(Interaction.User)
+                .WithAuthor(Context.User)
                 .WithDescription(text).Build() },
                 ephemeral: ephemeral
                 );
@@ -38,8 +38,8 @@ namespace DiscordBot.SlashCommands.Modules
                 ComponentBuilder builder = new ComponentBuilder();
                 builder.WithButton("Test button 1", "btn1", ButtonStyle.Danger);
                 builder.WithButton("Test button 2", "btn2", ButtonStyle.Danger);
-                await Interaction.RespondAsync("Click below", component: builder.Build(), embeds: null);
-                var msg = await Interaction.GetOriginalResponseAsync();
+                await RespondAsync("Click below", components: builder.Build(), embeds: null);
+                var msg = await GetOriginalResponseAsync();
                 var srv = Program.Services.GetRequiredService<MessageComponentService>();
                 srv.Register(msg, handleButton);
             }

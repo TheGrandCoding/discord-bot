@@ -52,8 +52,11 @@ namespace DiscordBot.Services
             Time,
             Seeds,
             Leechers,
-
-
+        }
+        public enum TorrentOrderDirection
+        {
+            Descending,
+            Ascending
         }
     }
 }
