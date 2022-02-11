@@ -52,7 +52,7 @@ namespace DiscordBot.MLAPI
 #endif
             return _domain == null || context.Host == Domain
                 ? PreconditionResult.FromSuccess()
-                : PreconditionResult.FromError("Authentication failed");
+                : PreconditionResult.FromError("Authentication failed: Host mistmatch");
         }
     }
 }

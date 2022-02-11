@@ -1,4 +1,5 @@
 ﻿using DiscordBot.Commands.Modules.MLAPI;
+using DiscordBot.Services;
 using DiscordBot.Services.Radarr;
 using DiscordBot.Services.Sonarr;
 using Microsoft.Extensions.DependencyInjection;
@@ -57,6 +58,25 @@ namespace DiscordBot.MLAPI.Modules
             }
             catch { }
             srv.Handle(radarrEvent);
+            RespondRaw("OK");
+        }
+    
+        [Method("POST"), Path("webhooks/gh-catch")]
+        [RequireAuthentication(false)]
+        [RequireApproval(false)]
+#if !DEBUG
+        [RequireGithubSignatureValid("webhooks:gh-catch")]
+#endif
+        public void GithubCatch()
+        {
+            var srv = Program.Services.GetRequiredService<GithubTestService>();
+            var data = new DiscordBot.Services.JsonWebhook()
+            {
+                EventName = Context.Headers["X-GitHub-Event"],
+                JsonBody = Context.Body
+            };
+            srv.InboundWebhook(data);
+
             RespondRaw("OK");
         }
     }
