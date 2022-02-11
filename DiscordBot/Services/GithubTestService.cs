@@ -153,13 +153,13 @@ namespace DiscordBot.Services
                 build.Output = new NewCheckRunOutput("CMake Failed", "Failed to initialize CMake on the build machine.");
                 build.Conclusion = CheckConclusion.Failure;
                 tests.Output = new NewCheckRunOutput("Skipped", "As the program could not be built, tests will not be ran.");
-                tests.Conclusion = CheckConclusion.Cancelled;
+                tests.Conclusion = CheckConclusion.Skipped;
             } else if(exitCode == 69)
             { // build failed
                 build.Output = new NewCheckRunOutput("Build Failed", "The program could not be built.");
                 build.Conclusion = CheckConclusion.Failure;
                 tests.Output = new NewCheckRunOutput("Skipped", "As the program could not be built, tests will not be ran.");
-                tests.Conclusion = CheckConclusion.Cancelled;
+                tests.Conclusion = CheckConclusion.Skipped;
 
                 var buildAnnotations = new List<NewCheckRunAnnotation>();
                 foreach(var line in x.Split('\n'))
