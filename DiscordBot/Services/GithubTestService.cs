@@ -87,7 +87,8 @@ namespace DiscordBot.Services
             using Process proc = new Process();
             proc.StartInfo = new ProcessStartInfo(shellCmd)
             {
-                RedirectStandardOutput = true,
+                RedirectStandardOutput = readStErrInstead == false,
+                RedirectStandardError = readStErrInstead,
                 UseShellExecute = false,
                 CreateNoWindow = false,
 #if WINDOWS
