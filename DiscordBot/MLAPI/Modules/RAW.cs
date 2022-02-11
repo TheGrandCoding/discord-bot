@@ -40,6 +40,12 @@ namespace DiscordBot.RESTAPI.Functions.HTML
             }
         }
 
+        [Method("GET"), Path("/gh-catch")]
+        public void GHCatch()
+        {
+            ReplyFile("gh-catch.html", 200);
+        }
+
         static string getLastModified(string filename)
         {
             return new FileInfo(filename).LastWriteTimeUtc.ToString("yyyyMMdd-HH:mm:ss");
