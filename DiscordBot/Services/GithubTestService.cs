@@ -17,6 +17,8 @@ namespace DiscordBot.Services
     {
         private GitHubJwt.GitHubJwtFactory jwtFactory;
 
+        private SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
+
         const string appIdConfig = "tokens:gh-catch:app_id";
         const string clientIdConfig = "tokens:gh-catch:client_id";
         const string clientSecretConfig = "tokens:gh-catch:client_secret";
@@ -45,10 +47,10 @@ namespace DiscordBot.Services
             };
         }
 
-
         public void InboundWebhook(JsonWebhook jsonData)
         {
             var t = new Thread(thread);
+            t.Name = "GH-" + jsonData.HookId;
             t.Start(jsonData);
         }
 
@@ -56,14 +58,23 @@ namespace DiscordBot.Services
         {
             if (!(o is JsonWebhook s))
                 return;
+            var cancelToken = Program.GetToken();
             try
             {
-                handleWebhook(s).Wait(Program.GetToken());
+                Info($"Getting semaphore..", Thread.CurrentThread.Name);
+                _lock.Wait(cancelToken);
+                Info("Achieved semaphore..", Thread.CurrentThread.Name);
+                handleWebhook(s).Wait(cancelToken);
+            } catch(OperationCanceledException)
+            {
+
             } catch(Exception e)
             {
                 Error(e, "HandleWebhook");
             } finally
             {
+                Info("Releasing semaphore..", Thread.CurrentThread.Name);
+                _lock.Release();
                 Info("Exiting HandleWebhook");
             }
         }
@@ -101,7 +112,7 @@ namespace DiscordBot.Services
             while(!proc.HasExited)
             {
                 Info($"Waiting for process to exit..");
-                proc.WaitForExit(500);
+                proc.WaitForExit(5000);
             }
             exitCode = proc.ExitCode;
             if (readStErrInstead)
@@ -206,7 +217,7 @@ namespace DiscordBot.Services
                             var expPath = exp.filename.Replace(leadingPath, "");
 
                             var ann = new NewCheckRunAnnotation(expPath, exp.line, exp.line, CheckAnnotationLevel.Failure,
-                                $"{exp.type} test was not met; original:\n    {exp.Original.Trim()}\n\nExpanded:\n    {exp.Expanded.Trim()}`")
+                                $"{exp.type} test was not met; original:\n    {exp.Original.Trim()}\n\nExpanded:\n    {exp.Expanded.Trim()}")
                             {
                                 Title = section.name,
                             };
@@ -290,6 +301,8 @@ namespace DiscordBot.Services
     {
         public string JsonBody { get; set; }
         public string EventName { get; set; }
+
+        public string HookId { get; set; }
     }
 
 

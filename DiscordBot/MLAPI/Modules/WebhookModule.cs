@@ -73,6 +73,7 @@ namespace DiscordBot.MLAPI.Modules
             var data = new DiscordBot.Services.JsonWebhook()
             {
                 EventName = Context.Headers["X-GitHub-Event"],
+                HookId = Context.Headers["X-GitHub-Hook-ID"],
                 JsonBody = Context.Body
             };
             srv.InboundWebhook(data);
