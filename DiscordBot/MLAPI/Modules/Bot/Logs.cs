@@ -177,7 +177,7 @@ namespace DiscordBot.MLAPI.Modules.Bot
     
         [Method("GET")]
         [Path(@"/bot/logs/api/{file}")]
-        [Regex("file", "20(19|20|21)-[0-9]{1,2}-[0-9]{1,2}")]
+        [Regex("file", "20[0-9]{2}-[0-9]{1,2}-[0-9]{1,2}")]
         public void ApiLog(string file)
         {
             if (file.Contains('/') || file.Contains('.'))

@@ -293,6 +293,9 @@ namespace DiscordBot.Services
                         Directory.Delete(path, true);
                     } catch { }
                 }
+            } else
+            {
+                Info($"Received {webhook.EventName}");
             }
         }
     }

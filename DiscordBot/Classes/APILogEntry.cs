@@ -83,11 +83,14 @@ namespace DiscordBot.Classes
                 line = reader.ReadLine();
             } while (string.IsNullOrWhiteSpace(line) || line.StartsWith(seperator));
             var LINES = new Dictionary<string, List<string>>();
-            string _body = "";
+            var _body = new StringBuilder();
             bool addingBody = false;
             List<string> ls;
             do
             {
+                string _id = null;
+                if (LINES.TryGetValue("Id", out var __k))
+                    _id = __k.Last();
                 if (line.StartsWith("h:"))
                 {
                     var header = line.Substring("h:".Length);
@@ -100,19 +103,21 @@ namespace DiscordBot.Classes
                     continue;
                 }
                 var split = line.Split(':');
-                if(line == body)
+                if (line == body)
                     addingBody = !addingBody;
-                if(line == ">>>>>>")
+                if (line == ">>>>>>")
                     addingBody = true;
                 if (line == "<<<<<<")
                     addingBody = false;
-                if(addingBody)
+                if (addingBody)
                 {
-                    _body += line + "\r\n";
+                    if(line != body) // don't actually consider separator as body
+                        _body.Append(line + "\r\n");
                     line = reader.ReadLine();
+
                     continue;
                 }
-                if(split.Length > 1)
+                if (split.Length > 1)
                 {
                     var key = split[0];
                     var value = string.Join(":", split.Skip(1)).Substring(1);
@@ -122,9 +127,9 @@ namespace DiscordBot.Classes
                         LINES[key] = new List<string>() { value };
                 }
                 line = reader.ReadLine();
-            } while (!(reader.EndOfStream || string.IsNullOrWhiteSpace(line) || line == seperator));
-            if (_body != "")
-                Body = _body;
+            } while (!(reader.EndOfStream || line == seperator || ((string.IsNullOrWhiteSpace(line)) && !addingBody)));
+            if (_body.Length > 0)
+                Body = _body.ToString();
             Id = Guid.Parse(LINES["Id"].Last());
             Method = new HttpMethod(LINES["Method"].Last());
             if (LINES.TryGetValue("Date", out ls))
