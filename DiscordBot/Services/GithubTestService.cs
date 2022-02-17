@@ -129,7 +129,10 @@ namespace DiscordBot.Services
         async Task<List<NewCheckRunAnnotation>> innerConfigCheck(DirectoryInfo folder)
         {
             var annotations = new List<NewCheckRunAnnotation>();
-            var cppFiles = folder.GetFiles("*.cpp").Select(x => x.Name).ToList();
+            var cppFiles = folder.GetFiles("*.cpp")
+                .Select(x => x.Name)
+                .Where(x => x != "Game.cpp")
+                .ToList();
             var cmakeFile = new FileInfo(Path.Combine(folder.FullName, "CMakeLists.txt"));
 
 
