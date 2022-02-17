@@ -148,7 +148,7 @@ namespace DiscordBot.Services
                     {
                         lastLineOfLibraries = lineNo;
                         var fileName = split[cppIndex];
-                        if (fileName == "Game.cpp")
+                        if (fileName.Contains("Game.cpp"))
                             continue;
                         var libName = fileName.Replace(".cpp", "");
                         if(!split.Contains(libName))
