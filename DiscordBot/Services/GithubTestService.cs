@@ -148,6 +148,8 @@ namespace DiscordBot.Services
                     {
                         lastLineOfLibraries = lineNo;
                         var fileName = split[cppIndex];
+                        if (fileName == "Game.cpp")
+                            continue;
                         var libName = fileName.Replace(".cpp", "");
                         if(!split.Contains(libName))
                         {
@@ -187,7 +189,7 @@ namespace DiscordBot.Services
                 annotations.Add(new NewCheckRunAnnotation(githubPath(cmakeFile.FullName),
                     lastLineOfLibraries, lastLineOfLibraries,
                     CheckAnnotationLevel.Failure,
-                    $"The following .cpp files are not linked here, meaning they will not be built:\n\n" +
+                    $"The following .cpp files are not linked here, meaning they will not be built:\n\n    " +
                     string.Join("\n    ", cppFiles) + "\n\n" +
                     "These can be linked using the following syntax:\r\n" +
                     $"    add_library( [NAME] [NAME].cpp )"));
@@ -200,14 +202,19 @@ namespace DiscordBot.Services
             var run = new CheckRunUpdate();
             DirectoryInfo x = new DirectoryInfo(folderPath);
             var annotations = await innerConfigCheck(x);
-            if(annotations.Count > 0)
+            int failures = annotations.Count(ann => ann.AnnotationLevel == CheckAnnotationLevel.Failure);
+            int warnings = annotations.Count(ann => ann.AnnotationLevel == CheckAnnotationLevel.Warning);
+            if(failures > 0 || warnings > 0)
             {
-                run.Output = new NewCheckRunOutput("Config misconfigured", "The CMakeLists.txt file may have an invalid configuration");
+                run.Output = new NewCheckRunOutput("Config misconfigured", $"The CMakeLists.txt file appears to have {failures} invalid or omitted configurations, with {warnings} potential warnings.");
+                run.Conclusion = CheckConclusion.Failure;
             }
             else
             {
-                run.Output = new NewCheckRunOutput("CMakeLists.txt", "The CMakeLists.txt does not appear to omit linking current files.");
+                run.Output = new NewCheckRunOutput("CMakeLists.txt", "The CMakeLists.txt does not appear to have any critical linking issues");
+                run.Conclusion = CheckConclusion.Success;
             }
+            run.CompletedAt = DateTimeOffset.Now;
             run.Output.Annotations = annotations.ToImmutableArray();
 
             await client.Check.Run.Update(info.Repository.Id, configRun.Id, run);
