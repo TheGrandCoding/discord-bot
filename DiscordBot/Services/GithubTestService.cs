@@ -156,7 +156,9 @@ namespace DiscordBot.Services
                             annotations.Add(new NewCheckRunAnnotation(githubPath(cmakeFile.FullName),
                                 lineNo, lineNo,
                                 CheckAnnotationLevel.Warning,
-                                $"Library name should be name of file without extension:\n\n" +
+                                $"Library name should be name of file without extension:\nOriginal:\n\n" +
+                                "    " + line + 
+                                "\n\nPossible fix:\n\n" +
                                 $"    add_library( {libName} {libName}.cpp )"));
                         }
                         libraries.Add(libName);
