@@ -136,12 +136,16 @@ namespace DiscordBot.Services
             var cmakeFile = new FileInfo(Path.Combine(folder.FullName, "CMakeLists.txt"));
 
 
-            int lastLineOfLibraries = 0;
+            int lastLineOfLibraries = 1;
             var libraries = new List<string>();
 
+            int lineOfLink = 1;
+            var missingLibraries = new List<string>();
+
             int lineNo = -1;
-            foreach(var line in await File.ReadAllLinesAsync(cmakeFile.FullName))
+            foreach(var _line in await File.ReadAllLinesAsync(cmakeFile.FullName))
             {
+                var line = _line.Replace("(", " ").Replace(")", " ");
                 lineNo++;
                 if(line.StartsWith("add_library"))
                 {
@@ -170,23 +174,39 @@ namespace DiscordBot.Services
                             annotations.Add(new NewCheckRunAnnotation(githubPath(cmakeFile.FullName), 
                                 lineNo, lineNo, 
                                 CheckAnnotationLevel.Warning, 
-                                $"add_library references file which does not exist"));
+                                $"add_library references file which does not exist - is there a typo, or is this intentional?"));
                         }
                     }
                 } else if(line.StartsWith("target_link_libraries"))
                 {
+                    lineOfLink = lineNo;
                     var split = line.Split(' ');
+                    foreach(var iter in split)
+                    {
+                        var libLinked = iter.Trim();
+                        if (libLinked.Contains("target_link_libraries") || libLinked.StartsWith("sfml"))
+                            continue;
+
+                    }
                     foreach(var lib in libraries)
                     {
                         if(!split.Contains(lib))
                         {
-                            annotations.Add(new NewCheckRunAnnotation(githubPath(cmakeFile.FullName),
-                                lineNo, lineNo,
-                                CheckAnnotationLevel.Failure,
-                                $"Library for {lib} is not linked here"));
+                            missingLibraries.Add(lib);
                         }
                     }
                 }
+            }
+
+            if(missingLibraries.Count > 0)
+            {
+                annotations.Add(new NewCheckRunAnnotation(githubPath(cmakeFile.FullName),
+                    lineOfLink, lineOfLink,
+                    CheckAnnotationLevel.Failure,
+                    $"The following libraries mentioned above have not been linked into the executable:\n\n    " +
+                    string.Join("\n    ", missingLibraries) + 
+                    "\n\nA potential fix could be to use the following line:\n\n" +
+                    $"target_link_libraries( Game sfml-window sfml-system " + string.Join(" ", libraries) + " )"));
             }
         
             if(cppFiles.Count > 0)
@@ -197,26 +217,29 @@ namespace DiscordBot.Services
                     $"The following .cpp files are not linked here, meaning they will not be built:\n\n    " +
                     string.Join("\n    ", cppFiles) + "\n\n" +
                     "These can be linked using the following syntax:\r\n" +
-                    $"    add_library( [NAME] [NAME].cpp )"));
+                    $"    add_library( [NAME] [NAME].cpp )\n\n" +
+                    $"Hence, a potential fix could be to place the following lines into the file:\n\n" +
+                    $"    " + string.Join("\n    ", cppFiles.Select(x => $"add_library( {Path.GetFileNameWithoutExtension(x)} {x} )"))));
             }
             return annotations;
         } 
 
         async Task doCheckConfig(GitHubClient client, CheckSuiteEventPayload info, CheckRun configRun, string folderPath, string leadingPath)
         {
+            var cmakeLink = $"[CMakeLists.txt file]({info.Repository.HtmlUrl}/blob/{info.CheckSuite.HeadBranch}/CMakeTests.List)";
             var run = new CheckRunUpdate();
             DirectoryInfo x = new DirectoryInfo(folderPath);
             var annotations = await innerConfigCheck(x);
             int failures = annotations.Count(ann => ann.AnnotationLevel == CheckAnnotationLevel.Failure);
             int warnings = annotations.Count(ann => ann.AnnotationLevel == CheckAnnotationLevel.Warning);
-            if(failures > 0 || warnings > 0)
+            if(failures > 0)
             {
-                run.Output = new NewCheckRunOutput("Config misconfigured", $"The CMakeLists.txt file appears to have {failures} invalid or omitted configurations, with {warnings} potential warnings.");
+                run.Output = new NewCheckRunOutput("Config misconfigured", $"The {cmakeLink} appears to have {failures} invalid or omitted configurations, with {warnings} potential warnings.");
                 run.Conclusion = CheckConclusion.Failure;
             }
             else
             {
-                run.Output = new NewCheckRunOutput("CMakeLists.txt", "The CMakeLists.txt does not appear to have any critical linking issues");
+                run.Output = new NewCheckRunOutput("No link failures", $"The {cmakeLink} does not appear to have any critical linking issues; there are {warnings} possible warnings");
                 run.Conclusion = CheckConclusion.Success;
             }
             run.CompletedAt = DateTimeOffset.Now;
