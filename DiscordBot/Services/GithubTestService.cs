@@ -120,7 +120,100 @@ namespace DiscordBot.Services
             return proc.StandardOutput.ReadToEnd();
         }
 
-        async Task doChecks(GitHubClient client, CheckSuiteEventPayload info, CheckRun buildRun, CheckRun testRun, ZipArchive archive)
+        string _currentPath = null;
+        string githubPath(string path)
+        {
+            return path.Replace(_currentPath, "");
+        }
+
+        async Task<List<NewCheckRunAnnotation>> innerConfigCheck(DirectoryInfo folder)
+        {
+            var annotations = new List<NewCheckRunAnnotation>();
+            var cppFiles = folder.GetFiles("*.cpp").Select(x => x.Name).ToList();
+            var cmakeFile = new FileInfo(Path.Combine(folder.FullName, "CMakeLists.txt"));
+
+
+            int lastLineOfLibraries = 0;
+            var libraries = new List<string>();
+
+            int lineNo = -1;
+            foreach(var line in await File.ReadAllLinesAsync(cmakeFile.FullName))
+            {
+                lineNo++;
+                if(line.StartsWith("add_library"))
+                {
+                    var split = line.Split(' ').ToList();
+                    int cppIndex = split.FindIndex(x => x.EndsWith(".cpp"));
+                    if(cppIndex >= 0)
+                    {
+                        lastLineOfLibraries = lineNo;
+                        var fileName = split[cppIndex];
+                        var libName = fileName.Replace(".cpp", "");
+                        if(!split.Contains(libName))
+                        {
+                            annotations.Add(new NewCheckRunAnnotation(githubPath(cmakeFile.FullName),
+                                lineNo, lineNo,
+                                CheckAnnotationLevel.Warning,
+                                $"Library name should be name of file without extension:\n\n" +
+                                $"    add_library( {libName} {libName}.cpp )"));
+                        }
+                        libraries.Add(libName);
+                        if(!cppFiles.Remove(fileName))
+                        {
+                            annotations.Add(new NewCheckRunAnnotation(githubPath(cmakeFile.FullName), 
+                                lineNo, lineNo, 
+                                CheckAnnotationLevel.Warning, 
+                                $"add_library references file which does not exist"));
+                        }
+                    }
+                } else if(line.StartsWith("target_link_libraries"))
+                {
+                    var split = line.Split(' ');
+                    foreach(var lib in libraries)
+                    {
+                        if(!split.Contains(lib))
+                        {
+                            annotations.Add(new NewCheckRunAnnotation(githubPath(cmakeFile.FullName),
+                                lineNo, lineNo,
+                                CheckAnnotationLevel.Failure,
+                                $"Library for {lib} is not linked here"));
+                        }
+                    }
+                }
+            }
+        
+            if(cppFiles.Count > 0)
+            {
+                annotations.Add(new NewCheckRunAnnotation(githubPath(cmakeFile.FullName),
+                    lastLineOfLibraries, lastLineOfLibraries,
+                    CheckAnnotationLevel.Failure,
+                    $"The following .cpp files are not linked here, meaning they will not be built:\n\n" +
+                    string.Join("\n    ", cppFiles) + "\n\n" +
+                    "These can be linked using the following syntax:\r\n" +
+                    $"    add_library( [NAME] [NAME].cpp )"));
+            }
+            return annotations;
+        } 
+
+        async Task doCheckConfig(GitHubClient client, CheckSuiteEventPayload info, CheckRun configRun, string folderPath, string leadingPath)
+        {
+            var run = new CheckRunUpdate();
+            DirectoryInfo x = new DirectoryInfo(folderPath);
+            var annotations = await innerConfigCheck(x);
+            if(annotations.Count > 0)
+            {
+                run.Output = new NewCheckRunOutput("Config misconfigured", "The CMakeLists.txt file may have an invalid configuration");
+            }
+            else
+            {
+                run.Output = new NewCheckRunOutput("CMakeLists.txt", "The CMakeLists.txt does not appear to omit linking current files.");
+            }
+            run.Output.Annotations = annotations.ToImmutableArray();
+
+            await client.Check.Run.Update(info.Repository.Id, configRun.Id, run);
+        }
+
+        async Task doChecks(GitHubClient client, CheckSuiteEventPayload info, CheckRun buildRun, CheckRun testRun, CheckRun configRun, ZipArchive archive)
         {
             var build = new CheckRunUpdate();
             var tests = new CheckRunUpdate();
@@ -134,6 +227,10 @@ namespace DiscordBot.Services
             var folderPath = names[0];
 
             var leadingPath = folderPath + Path.DirectorySeparatorChar;
+            _currentPath = leadingPath;
+
+            await doCheckConfig(client, info, configRun, folderPath, leadingPath);
+
             var x = runProcess($"{Path.Join(Program.BASE_PATH, "doGit.sh")} \"{folderPath}\"", true, out int exitCode);
             Info($"{exitCode} -- {x}");
 
@@ -214,7 +311,7 @@ namespace DiscordBot.Services
                         if(section.Expression != null && section.Expression.success == false)
                         { // test failed
                             var exp = section.Expression;
-                            var expPath = exp.filename.Replace(leadingPath, "");
+                            var expPath = githubPath(exp.filename);
 
                             var ann = new NewCheckRunAnnotation(expPath, exp.line, exp.line, CheckAnnotationLevel.Failure,
                                 $"{exp.type} test was not met; original:\n    {exp.Original.Trim()}\n\nExpanded:\n    {exp.Expanded.Trim()}")
@@ -263,11 +360,16 @@ namespace DiscordBot.Services
                 };
                 var tests = new NewCheckRun("catch2-tests", info.CheckSuite.HeadSha)
                 {
+                    Status = CheckStatus.Queued
+                };
+                var config = new NewCheckRun("cmake-config", info.CheckSuite.HeadSha)
+                {
                     Status = CheckStatus.InProgress
                 };
 
                 var buildRun = await client.Check.Run.Create(info.Repository.Id, build);
                 var testRun = await client.Check.Run.Create(info.Repository.Id, tests);
+                var configRun = await client.Check.Run.Create(info.Repository.Id, config);
 
                 var content = await client.Repository.Content.GetArchive(info.Repository.Id,  ArchiveFormat.Zipball, info.CheckSuite.HeadSha);
                 Info($"Got content: {content.Length} bytes");
@@ -279,7 +381,7 @@ namespace DiscordBot.Services
                     using (var stream = new MemoryStream(content))
                     {
                         var zip = new ZipArchive(stream);
-                        await doChecks(client, info, buildRun, testRun, zip);
+                        await doChecks(client, info, buildRun, testRun, configRun, zip);
                     }
                 } catch(Exception e)
                 {
