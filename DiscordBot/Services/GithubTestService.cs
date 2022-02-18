@@ -126,7 +126,7 @@ namespace DiscordBot.Services
             return path.Replace(_currentPath, "");
         }
 
-        async Task<List<NewCheckRunAnnotation>> innerConfigCheck(DirectoryInfo folder)
+        async Task<List<NewCheckRunAnnotation>> innerMakeListCheck(DirectoryInfo folder)
         {
             var annotations = new List<NewCheckRunAnnotation>();
             var cppFiles = folder.GetFiles("*.cpp")
@@ -214,7 +214,7 @@ namespace DiscordBot.Services
                 annotations.Add(new NewCheckRunAnnotation(githubPath(cmakeFile.FullName),
                     lastLineOfLibraries, lastLineOfLibraries,
                     CheckAnnotationLevel.Failure,
-                    $"The following .cpp files are not linked here, meaning they will not be built:\n\n    " +
+                    $"The following .cpp files are not linked here, meaning they will not be built by CMake:\n\n    " +
                     string.Join("\n    ", cppFiles) + "\n\n" +
                     "These can be linked using the following syntax:\r\n" +
                     $"    add_library( [NAME] [NAME].cpp )\n\n" +
@@ -224,28 +224,140 @@ namespace DiscordBot.Services
             return annotations;
         } 
 
-        async Task doCheckConfig(GitHubClient client, CheckSuiteEventPayload info, CheckRun configRun, string folderPath, string leadingPath)
+        async Task<List<NewCheckRunAnnotation>> innerVScheck(DirectoryInfo folder)
         {
-            var cmakeLink = $"[CMakeLists.txt file]({info.Repository.HtmlUrl}/blob/{info.CheckSuite.HeadBranch}/CMakeTests.List)";
+            var annotations = new List<NewCheckRunAnnotation>();
+            var allFiles = folder.GetFiles()
+                .Select(x => x.Name);
+            var hppFiles = allFiles.Where(x => x.EndsWith(".h") || x.EndsWith(".hpp"))
+                .ToList();
+            var cppFiles = allFiles.Where(x => x.EndsWith(".cpp"))
+                .ToList();
+            var vcxFile = new FileInfo(Path.Combine(folder.FullName, "4007CEM.vcxproj"));
+
+
+            int lastCppLine = 1;
+            var cppPresent = new List<string>();
+
+
+            int lastHppLine = 1;
+            var hppPresent = new List<string>();
+
+            int lineNo = -1;
+            foreach (var _line in await File.ReadAllLinesAsync(vcxFile.FullName))
+            {
+                var line = _line.Trim();
+                lineNo++;
+                if (line.StartsWith("<ClCompile Include="))
+                {
+                    var split = line.Split('"').ToList();
+                    int cppIndex = split.FindIndex(x => x.EndsWith(".cpp"));
+                    if (cppIndex >= 0)
+                    {
+                        lastCppLine = lineNo;
+                        var fileName = split[cppIndex];
+                        cppPresent.Add(fileName);
+                        if (!cppFiles.Remove(fileName))
+                        {
+                            annotations.Add(new NewCheckRunAnnotation(githubPath(vcxFile.FullName),
+                                lineNo, lineNo,
+                                CheckAnnotationLevel.Warning,
+                                $"ClCompile references file which does not exist - is there a typo, or is this intentional?"));
+                        }
+                    }
+                } else if (line.StartsWith("<ClInclude Include="))
+                {
+                    var split = line.Split('"').ToList();
+                    int hppIndex = split.FindIndex(x => x.EndsWith(".hpp") || x.EndsWith(".h"));
+                    if (hppIndex >= 0)
+                    {
+                        lastHppLine = lineNo;
+                        var fileName = split[hppIndex];
+                        hppPresent.Add(fileName);
+                        if (!hppFiles.Remove(fileName))
+                        {
+                            annotations.Add(new NewCheckRunAnnotation(githubPath(vcxFile.FullName),
+                                lineNo, lineNo,
+                                CheckAnnotationLevel.Warning,
+                                $"ClInclude references file which does not exist - is there a typo, or is this intentional?"));
+                        }
+                    }
+                }
+            }
+
+            if (cppFiles.Count > 0)
+            {
+                annotations.Add(new NewCheckRunAnnotation(githubPath(vcxFile.FullName),
+                    lastCppLine, lastCppLine,
+                    CheckAnnotationLevel.Failure,
+                    $"The following .cpp files are not linked here, meaning they will not be built by Visual Studio:\n\n    " +
+                    string.Join("\n    ", cppFiles) + "\n\n" +
+                    "These can be linked using the following syntax:\r\n" +
+                    $"        <ClCompile Include=\"[NAME]\" />\n\n" +
+                    $"Hence, a potential fix could be to place the following lines into the file:\n\n" +
+                    $"    " + string.Join("\n    ", cppFiles.Select(x => $"    <ClCompile Include=\"{x}\" />"))));
+            }
+
+            if (hppFiles.Count > 0)
+            {
+                annotations.Add(new NewCheckRunAnnotation(githubPath(vcxFile.FullName),
+                    lastHppLine, lastHppLine,
+                    CheckAnnotationLevel.Failure,
+                    $"The following .hpp files are not linked here, meaning they will not be seen by Visual Studio:\n\n    " +
+                    string.Join("\n    ", hppFiles) + "\n\n" +
+                    "These can be linked using the following syntax:\r\n" +
+                    $"        <ClInclude Include=\"[NAME]\" />\n\n" +
+                    $"Hence, a potential fix could be to place the following lines into the file:\n\n" +
+                    $"    " + string.Join("\n    ", hppFiles.Select(x => $"    <ClInclude Include=\"{x}\" />"))));
+            }
+            return annotations;
+        }
+
+        async Task doCheckCMakeConfig(GitHubClient client, CheckSuiteEventPayload info, CheckRun configRun, string folderPath, string leadingPath)
+        {
+            var cmakeLink = $"[CMakeLists.txt file]({info.Repository.HtmlUrl}/blob/{info.CheckSuite.HeadBranch}/CMakeLists.txt)";
             var run = new CheckRunUpdate();
             DirectoryInfo x = new DirectoryInfo(folderPath);
-            var annotations = await innerConfigCheck(x);
+            var annotations = await innerMakeListCheck(x);
             int failures = annotations.Count(ann => ann.AnnotationLevel == CheckAnnotationLevel.Failure);
             int warnings = annotations.Count(ann => ann.AnnotationLevel == CheckAnnotationLevel.Warning);
             if(failures > 0)
             {
-                run.Output = new NewCheckRunOutput("Config misconfigured", $"The {cmakeLink} appears to have {failures} invalid or omitted configurations, with {warnings} potential warnings.");
+                run.Output = new NewCheckRunOutput("Misconfigured", $"The {cmakeLink} appears to have {failures} invalid or omitted configurations, with {warnings} potential warnings.");
                 run.Conclusion = CheckConclusion.Failure;
             }
             else
             {
-                run.Output = new NewCheckRunOutput("No link failures", $"The {cmakeLink} does not appear to have any critical linking issues; there are {warnings} possible warnings");
+                run.Output = new NewCheckRunOutput("No link issues", $"The {cmakeLink} does not appear to have any critical linking issues; there are {warnings} possible warnings");
                 run.Conclusion = CheckConclusion.Success;
             }
             run.CompletedAt = DateTimeOffset.Now;
             run.Output.Annotations = annotations.ToImmutableArray();
-
             await client.Check.Run.Update(info.Repository.Id, configRun.Id, run);
+        }
+
+        async Task doCheckVSConfig(GitHubClient client, CheckSuiteEventPayload info, string folderPath, string leadingPath)
+        {
+            var projLink = $"[4007CEM.vcxproj file]({info.Repository.HtmlUrl}/blob/{info.CheckSuite.HeadBranch}/4007CEM.vcxproj)";
+            var crc = await client.Check.Run.Create(info.Repository.Id, new NewCheckRun($"visualstudio-config", info.CheckSuite.HeadSha) { Status = CheckStatus.InProgress });
+            var run = new CheckRunUpdate();
+            DirectoryInfo x = new DirectoryInfo(folderPath);
+            var annotations = await innerVScheck(x);
+            int failures = annotations.Count(ann => ann.AnnotationLevel == CheckAnnotationLevel.Failure);
+            int warnings = annotations.Count(ann => ann.AnnotationLevel == CheckAnnotationLevel.Warning);
+            if (failures > 0)
+            {
+                run.Output = new NewCheckRunOutput("Misconfigured", $"The {projLink} appears to have {failures} invalid or omitted configurations, with {warnings} potential warnings.");
+                run.Conclusion = CheckConclusion.Failure;
+            }
+            else
+            {
+                run.Output = new NewCheckRunOutput("No link issues", $"The {projLink} does not appear to have any critical linking issues; there are {warnings} possible warnings");
+                run.Conclusion = CheckConclusion.Success;
+            }
+            run.CompletedAt = DateTimeOffset.Now;
+            run.Output.Annotations = annotations.ToImmutableArray();
+            await client.Check.Run.Update(info.Repository.Id, crc.Id, run);
         }
 
         async Task doChecks(GitHubClient client, CheckSuiteEventPayload info, CheckRun buildRun, CheckRun testRun, CheckRun configRun, ZipArchive archive)
@@ -264,7 +376,15 @@ namespace DiscordBot.Services
             var leadingPath = folderPath + Path.DirectorySeparatorChar;
             _currentPath = leadingPath;
 
-            await doCheckConfig(client, info, configRun, folderPath, leadingPath);
+            await doCheckCMakeConfig(client, info, configRun, folderPath, leadingPath);
+            await doCheckVSConfig(client, info, folderPath, leadingPath);
+
+            foreach (var cr in new[] { build, tests })
+            {
+                cr.Status = CheckStatus.InProgress;
+            }
+            await client.Check.Run.Update(info.Repository.Id, buildRun.Id, build);
+            await client.Check.Run.Update(info.Repository.Id, testRun.Id, tests);
 
             var x = runProcess($"{Path.Join(Program.BASE_PATH, "doGit.sh")} \"{folderPath}\"", true, out int exitCode);
             Info($"{exitCode} -- {x}");
@@ -391,7 +511,7 @@ namespace DiscordBot.Services
 
                 var build = new NewCheckRun("cmake-build", info.CheckSuite.HeadSha)
                 {
-                    Status = CheckStatus.InProgress
+                    Status = CheckStatus.Queued
                 };
                 var tests = new NewCheckRun("catch2-tests", info.CheckSuite.HeadSha)
                 {
@@ -399,7 +519,7 @@ namespace DiscordBot.Services
                 };
                 var config = new NewCheckRun("cmake-config", info.CheckSuite.HeadSha)
                 {
-                    Status = CheckStatus.InProgress
+                    Status = CheckStatus.Queued
                 };
 
                 var buildRun = await client.Check.Run.Create(info.Repository.Id, build);
