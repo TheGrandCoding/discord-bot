@@ -396,6 +396,55 @@ namespace DiscordBot.Services
                 cr.CompletedAt = DateTime.Now;
             }
 
+            var buildAnnotations = new List<NewCheckRunAnnotation>();
+            foreach (var line in x.Split('\n'))
+            {
+                if (line.StartsWith(leadingPath) && line.Contains(": error: "))
+                { // format:
+                  // /path/to/file.h:LINE:COLUMN: error: MESSAGE
+                    var restLine = line.Replace(leadingPath, "");
+                    var firstColon = restLine.IndexOf(':');
+
+                    var errPath = restLine.Substring(0, firstColon);
+                    var secondColon = restLine.IndexOf(':', firstColon + 1);
+                    var lineNum = int.Parse(restLine.Substring(firstColon + 1, secondColon - firstColon - 1));
+
+                    var thirdColon = restLine.IndexOf(':', secondColon + 1);
+                    var colNum = int.Parse(restLine.Substring(secondColon + 1, thirdColon - secondColon - 1));
+
+                    var fourthColon = restLine.IndexOf(':', thirdColon + 1);
+                    var errMessage = restLine.Substring(fourthColon + 1);
+
+                    var ann = new NewCheckRunAnnotation(errPath, lineNum, lineNum, CheckAnnotationLevel.Failure, errMessage)
+                    {
+                        StartColumn = colNum,
+                        EndColumn = colNum,
+                    };
+                    buildAnnotations.Add(ann);
+                }
+                else if (line.StartsWith(leadingPath) && line.Contains(": warning: "))
+                {
+                    var restLine = line.Replace(leadingPath, "");
+                    var firstColon = restLine.IndexOf(':');
+
+                    var errPath = restLine.Substring(0, firstColon);
+                    var secondColon = restLine.IndexOf(':', firstColon + 1);
+                    var lineNum = int.Parse(restLine.Substring(firstColon + 1, secondColon - firstColon - 1));
+
+                    var thirdColon = restLine.IndexOf(':', secondColon + 1);
+                    var colNum = int.Parse(restLine.Substring(secondColon + 1, thirdColon - secondColon - 1));
+
+                    var fourthColon = restLine.IndexOf(':', thirdColon + 1);
+                    var errMessage = restLine.Substring(fourthColon + 1);
+
+                    var ann = new NewCheckRunAnnotation(errPath, lineNum, lineNum, CheckAnnotationLevel.Warning, errMessage)
+                    {
+                        StartColumn = colNum,
+                        EndColumn = colNum,
+                    };
+                    buildAnnotations.Add(ann);
+                }
+            }
             if (exitCode == 0)
             {
                 foreach(var cr in new[] { build, tests})
@@ -412,35 +461,6 @@ namespace DiscordBot.Services
                 build.Conclusion = CheckConclusion.Failure;
                 tests.Output = new NewCheckRunOutput("Skipped", "As the program could not be built, tests will not be ran.");
                 tests.Conclusion = CheckConclusion.Skipped;
-
-                var buildAnnotations = new List<NewCheckRunAnnotation>();
-                foreach(var line in x.Split('\n'))
-                {
-                    if(line.StartsWith(leadingPath) && line.Contains(": error: "))
-                    { // format:
-                        // /path/to/file.h:LINE:COLUMN: error: MESSAGE
-                        var restLine = line.Replace(leadingPath, "");
-                        var firstColon = restLine.IndexOf(':');
-
-                        var errPath = restLine.Substring(0, firstColon);
-                        var secondColon = restLine.IndexOf(':', firstColon + 1);
-                        var lineNum = int.Parse(restLine.Substring(firstColon + 1, secondColon - firstColon - 1));
-
-                        var thirdColon = restLine.IndexOf(':', secondColon + 1);
-                        var colNum = int.Parse(restLine.Substring(secondColon + 1, thirdColon - secondColon - 1));
-
-                        var fourthColon = restLine.IndexOf(':', thirdColon + 1);
-                        var errMessage = restLine.Substring(fourthColon + 1);
-
-                        var ann = new NewCheckRunAnnotation(errPath, lineNum, lineNum, CheckAnnotationLevel.Failure, errMessage)
-                        {
-                            StartColumn = colNum,
-                            EndColumn = colNum,
-                        };
-                        buildAnnotations.Add(ann);
-                    }
-                }
-                build.Output.Annotations = buildAnnotations.ToImmutableArray();
             } else if(exitCode == 70)
             { // tests failed
                 build.Conclusion = CheckConclusion.Success;
@@ -484,6 +504,7 @@ namespace DiscordBot.Services
                 };
                 tests.Conclusion = CheckConclusion.Failure;
             }
+            build.Output.Annotations = buildAnnotations.ToList();
 
             await client.Check.Run.Update(info.Repository.Id, buildRun.Id, build);
             await client.Check.Run.Update(info.Repository.Id, testRun.Id, tests);
