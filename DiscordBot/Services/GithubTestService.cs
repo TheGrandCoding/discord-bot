@@ -445,6 +445,7 @@ namespace DiscordBot.Services
                     buildAnnotations.Add(ann);
                 }
             }
+            build.Output = new NewCheckRunOutput("Build passed", "CMake project was built successfully."); // default passed
             if (exitCode == 0)
             {
                 foreach(var cr in new[] { build, tests})
@@ -504,7 +505,8 @@ namespace DiscordBot.Services
                 };
                 tests.Conclusion = CheckConclusion.Failure;
             }
-            build.Output.Annotations = buildAnnotations.ToList();
+            if(build.Output != null)
+                build.Output.Annotations = buildAnnotations.ToList();
 
             await client.Check.Run.Update(info.Repository.Id, buildRun.Id, build);
             await client.Check.Run.Update(info.Repository.Id, testRun.Id, tests);
