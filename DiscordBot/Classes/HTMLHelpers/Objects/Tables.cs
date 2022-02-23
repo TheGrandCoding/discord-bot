@@ -105,7 +105,7 @@ namespace DiscordBot.Classes.HTMLHelpers.Objects
         }
         public TableRow WithCell(string text, string id = null, string cls = null)
         {
-            Children.Add(new TableData(text, id, cls));
+            Children.Add(new TableData(text.Replace("<", "&lt;").Replace(">", "&gt;"), id, cls));
             return this;
         }
     }

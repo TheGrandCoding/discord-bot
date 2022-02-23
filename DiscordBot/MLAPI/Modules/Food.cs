@@ -28,6 +28,7 @@ namespace DiscordBot.MLAPI.Modules
                 hr.WithHeader("Inv. Id");
                 hr.WithHeader("Product ID");
             }
+            hr.WithHeader("Item");
             hr.WithHeader("Added");
             hr.WithHeader("Expires");
             hr.WithHeader("");
@@ -50,7 +51,7 @@ namespace DiscordBot.MLAPI.Modules
                 if (diff.TotalHours < 48)
                     row.Class = "expires-imminently";
 
-                row.Children.Add(new TableRow()
+                row.Children.Add(new TableData(null)
                 {
                     Children = {
                         new Input("button", "Delete", cls: "danger")
@@ -62,9 +63,10 @@ namespace DiscordBot.MLAPI.Modules
 
                 table.Children.Add(row);
             }
+            var s = table.ToString(true);
             ReplyFile("base.html", 200, new Replacements()
                 .Add("inventoryid", "default")
-                .Add("table", table.ToString()));
+                .Add("table", s));
         }
 
         [Method("GET"), Path("/food/scan")]
@@ -93,6 +95,16 @@ namespace DiscordBot.MLAPI.Modules
         [Method("POST"), Path("/api/food/products")]
         public void NewProduct(string productId, string productName)
         {
+            if(string.IsNullOrWhiteSpace(productId) || productId.Length > 13)
+            {
+                RespondRaw("Product ID or length invalid", 400);
+                return;
+            }
+            if(string.IsNullOrWhiteSpace(productName) || productName.Length > 1024)
+            {
+                RespondRaw("Product name or length invalid", 400);
+                return;
+            }
             var p = Service.AddProduct(productId, productName, "");
             RespondRaw(LoadRedirectFile($"/food/new?code={productId}"), System.Net.HttpStatusCode.Found);
         }

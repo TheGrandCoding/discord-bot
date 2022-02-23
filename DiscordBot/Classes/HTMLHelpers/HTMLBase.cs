@@ -37,9 +37,8 @@ namespace DiscordBot.Classes.HTMLHelpers
             if (tab > -1)
                 sb.Append(new string(' ', tab * 4));
             sb.Append($"<{Tag}");
-            set("class", Class);
-            if (m_classes.Count == 0)
-                tagValues.Remove("class");
+            if (!string.IsNullOrWhiteSpace(Class))
+                set("class", Class);
             foreach (var keypair in tagValues)
             {
                 var key = keypair.Key;
