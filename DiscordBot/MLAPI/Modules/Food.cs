@@ -44,7 +44,27 @@ namespace DiscordBot.MLAPI.Modules
             return data;
         }
 
+        TableData getExpirationInfo(InventoryItem item)
+        {
+            var diff = item.ExpiresAt - DateTime.UtcNow;
+            if(diff.TotalDays < -1)
+                return new TableData($"expired {(int)diff.TotalDays} days ago");
+            if (item.ExpiresAt.Date.Equals(DateTime.UtcNow.Date))
+                return new TableData("today");
+            if (item.ExpiresAt.Date.Equals(DateTime.UtcNow.Date.AddDays(1)))
+                return new TableData("tomorrow");
+            if (diff.TotalDays < 7)
+                return new TableData($"next {item.ExpiresAt.DayOfWeek}");
+            if (diff.TotalDays < 60)
+                return new TableData($"{item.ExpiresAt:dd MMM}");
+            if (item.ExpiresAt.Year == 2050)
+                return new TableData("n/a");
+            return new TableData($"{item.ExpiresAt:MMM yy}");
+        }
+
         [Method("GET"), Path("/food")]
+        [RequireApproval(false)]
+        [RequireAuthentication(false, false)]
         public void Base(bool full = false)
         {
             var table = new Table();
@@ -57,7 +77,8 @@ namespace DiscordBot.MLAPI.Modules
             hr.WithHeader("Item");
             hr.WithHeader("Added");
             hr.WithHeader("Expires");
-            hr.WithHeader("");
+            if(Context.User != null)
+                hr.WithHeader("");
             table.Children.Add(hr);
             var inv = Service.GetInventory("default");
             foreach(var item in inv.OrderBy(x => x.ExpiresAt))
@@ -73,22 +94,25 @@ namespace DiscordBot.MLAPI.Modules
                 else
                     row.Children.Add(getProductInfo(item.Product));
                 row.WithCell($"{item.AddedAt:yyyy-MM-dd}");
-                row.WithCell($"{item.ExpiresAt:yyyy-MM-dd}");
+                row.Children.Add(getExpirationInfo(item));
                 var diff = item.ExpiresAt - DateTime.UtcNow;
                 if (diff.TotalDays < 7)
                     row.Class = "expires-soon";
                 if (diff.TotalHours < 48)
                     row.Class = "expires-imminently";
 
-                row.Children.Add(new TableData(null)
+                if(Context.User != null)
                 {
-                    Children = {
-                        new Input("button", "Delete", cls: "danger")
-                        {
-                            OnClick = $"removeInvItem({item.Id});"
+                    row.Children.Add(new TableData(null)
+                    {
+                        Children = {
+                            new Input("button", "Delete", cls: "danger")
+                            {
+                                OnClick = $"removeInvItem({item.Id});"
+                            }
                         }
-                    }
-                });
+                    });
+                }
 
                 table.Children.Add(row);
             }
