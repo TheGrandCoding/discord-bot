@@ -84,12 +84,14 @@ namespace DiscordBot.Services
                 await registerCommands();
 
             Func<SocketMessageComponent, Task> handleMsgComponent = async (interaction) => {
+                if (Program.ignoringCommands) return;
                 var ctx = new SocketInteractionContext<SocketMessageComponent>(Program.Client, interaction);
                 await InteractionService.ExecuteCommandAsync(ctx, Program.Services);
             };
 
             Program.Client.AutocompleteExecuted += async (interaction) =>
             {
+                if (Program.ignoringCommands) return;
                 var ctx = new SocketInteractionContext<SocketAutocompleteInteraction>(Program.Client, interaction);
                 await InteractionService.ExecuteCommandAsync(ctx, Program.Services);
             };
@@ -97,11 +99,13 @@ namespace DiscordBot.Services
             Program.Client.SelectMenuExecuted += handleMsgComponent;
             Program.Client.SlashCommandExecuted += async (interaction) =>
             {
+                if (Program.ignoringCommands) return;
                 var ctx = new SocketInteractionContext<SocketSlashCommand>(Program.Client, interaction);
                 await InteractionService.ExecuteCommandAsync(ctx, Program.Services);
             };
             Program.Client.ModalSubmitted += async (modal) =>
             {
+                if (Program.ignoringCommands) return;
                 var ctx = new SocketInteractionContext<SocketModal>(Program.Client, modal);
                 await InteractionService.ExecuteCommandAsync(ctx, Program.Services);
             };

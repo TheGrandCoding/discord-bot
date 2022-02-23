@@ -33,10 +33,7 @@ namespace DiscordBot.MLAPI.Modules
         {
             var data = new TableData(null);
 
-            string retailerName = null;
-
-            if (product.Id.StartsWith("5000128") || product.Id.StartsWith("5000129"))
-                retailerName = "CoOp";
+            string retailerName = Service.GetManufacturor(product.Id);
 
             if(retailerName != null)
             {

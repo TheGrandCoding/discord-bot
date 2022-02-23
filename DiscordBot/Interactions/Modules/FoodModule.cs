@@ -17,6 +17,7 @@ namespace DiscordBot.Interactions.Modules
         [SlashCommand("product", "Edit a products")]
         public async Task EditProduct(string prodId)
         {
+            prodId = prodId.Replace(" ", "");
             var prod = Service.GetProduct(prodId);
             if(prod == null)
             {
@@ -61,6 +62,24 @@ namespace DiscordBot.Interactions.Modules
             await db.SaveChangesAsync();
             await FollowupAsync("Done!");
         }
+    
+        [SlashCommand("manufacturor", "View and edit manufactorer prefixes")]
+        public async Task Manufacturor(string name)
+        {
+            if (!Service.Manufacturers.TryGetValue(name, out var ls))
+                ls = new List<string>();
+
+            var mb = new ModalBuilder()
+            {
+                Title = "Edit Manufacturer",
+                CustomId = "food:manu:edit:" + name
+            };
+            mb.AddTextInput("Manufacturer Name", "manu_name", required: true, value: name);
+            mb.AddTextInput("Prefix", "prefix", placeholder: "prefix1,prefix2,prefix3");
+
+            await RespondWithModalAsync(mb.Build());
+        }
+    
     }
 
     public class FoodProductModal : IModal
@@ -82,5 +101,15 @@ namespace DiscordBot.Interactions.Modules
 
         [ModalTextInput("expires", placeholder: "yyyy-MM-dd", maxLength: 10)]
         public string ExpiresAt { get; set; }
+    }
+
+    public class FoodManuModal : IModal
+    {
+        public string Title => "";
+
+        [ModalTextInput("manu_name")]
+        public string ManuName { get; set; }
+        [ModalTextInput("prefix")]
+        public string Prefixes { get; set; }
     }
 }

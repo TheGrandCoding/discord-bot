@@ -1,8 +1,10 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
@@ -10,8 +12,9 @@ using System.Text;
 
 namespace DiscordBot.Services
 {
-    public class FoodService : Service
+    public class FoodService : SavedService
     {
+        public ConcurrentDictionary<string, List<string>> Manufacturers { get; set; } = new ConcurrentDictionary<string, List<string>>();
         public FoodDbContext DB()
         {
             return Program.Services.GetRequiredService<FoodDbContext>();
@@ -42,6 +45,45 @@ namespace DiscordBot.Services
             using var db = DB();
             return db.GetInventory(id);
         }
+        public string GetManufacturor(string id)
+        {
+            foreach((var key, var ls) in Manufacturers)
+            {
+                foreach(var x in ls)
+                    if (id.StartsWith(x))
+                        return key;
+            }
+            return null;
+        }
+        public void AddManufactorer(string name, string idPrefix)
+        {
+            if (Manufacturers.TryGetValue(name, out var ls))
+                ls.Add(idPrefix);
+            else
+                Manufacturers[name] = new List<string>() { idPrefix };
+            OnSave();
+        }
+
+        public override string GenerateSave()
+        {
+            var dict = new Dictionary<string, List<string>>(Manufacturers);
+            var sv = new foodSave()
+            {
+                manufacturerPrefixes = dict
+            };
+            return Program.Serialise(sv);
+        }
+        public override void OnReady()
+        {
+            var sv = Program.Deserialise<foodSave>(ReadSave());
+            Manufacturers = new ConcurrentDictionary<string, List<string>>(sv.manufacturerPrefixes ?? new Dictionary<string, List<string>>());
+        }
+    }
+
+    public class foodSave
+    {
+        [JsonProperty("manuf")]
+        public Dictionary<string, List<string>> manufacturerPrefixes { get; set; } = new Dictionary<string, List<string>>();
     }
 
     public class FoodDbContext : DbContext

@@ -80,5 +80,17 @@ namespace DiscordBot.Interactions.Components
             db.SaveChanges();
             await FollowupAsync($"Updated.", ephemeral: true);
         }
+
+        [ModalInteraction("food:manu:edit:*")]
+        public async Task Manufacturers(string oldName, Modules.FoodManuModal modal)
+        {
+            if(oldName != modal.ManuName)
+            {
+                Service.Manufacturers.Remove(oldName, out _);
+            }
+            Service.Manufacturers[modal.ManuName] = modal.Prefixes.Split(',').ToList();
+            Service.OnSave();
+            await RespondAsync("Updated.", ephemeral: true);
+        }
     }
 }
