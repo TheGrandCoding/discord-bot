@@ -40,6 +40,11 @@
     "discord": "<string>",
     "download": "<string>",
     "email": "<string>",
+    "gh-catch": {
+      "app_id": "<int>",
+      "client_id": "<string>",
+      "client_secret": "<string>"
+    },
     "github": {
       "internal": "<string>",
       "tracker": {
@@ -66,6 +71,10 @@
     "smmry": "<string>",
     "sonarr": "<string>",
     "tgc-github": "<string>",
+    "trakt": {
+      "client_id": "<string>",
+      "client_secret": "<string>"
+    },
     "youtubeApi": "<string>"
   },
   "urls": {

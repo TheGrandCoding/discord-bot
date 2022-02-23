@@ -451,6 +451,19 @@ Changed how permissions worked for bot.
                     });
 #endif
             }, ServiceLifetime.Transient);
+            coll.AddDbContext<FoodDbContext>(options =>
+            {
+#if WINDOWS
+                options.UseSqlServer(getDbString("food"));
+                options.EnableSensitiveDataLogging();
+#else
+                options.UseMySql(getDbString("food"), 
+                    new MariaDbServerVersion(new Version(10, 3, 25)), mysqlOptions =>
+                    {
+                        mysqlOptions.CharSet(CharSet.Utf8Mb4);
+                    });
+#endif
+            }, ServiceLifetime.Transient);
             var yClient = new Google.Apis.YouTube.v3.YouTubeService(new Google.Apis.Services.BaseClientService.Initializer()
             {
                 ApiKey = Program.Configuration["tokens:youtubeApi"],

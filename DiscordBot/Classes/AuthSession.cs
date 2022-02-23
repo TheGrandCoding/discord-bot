@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Text;
 
 namespace DiscordBot.Classes
@@ -9,6 +10,7 @@ namespace DiscordBot.Classes
     /// <summary>
     /// Class used to hold information about a login session on the bot's website.
     /// </summary>
+    [DebuggerDisplay("{" + nameof(GetDebuggerDisplay) + "(),nq}")]
     public class AuthSession
     {
         public const string CookieName = "session";
@@ -52,5 +54,9 @@ namespace DiscordBot.Classes
         /// </summary>
         public string Token { get; set; }
 
+        private string GetDebuggerDisplay()
+        {
+            return $"{Token} {IpAddress} {UserAgent}";
+        }
     }
 }
