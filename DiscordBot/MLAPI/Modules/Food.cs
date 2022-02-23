@@ -18,6 +18,35 @@ namespace DiscordBot.MLAPI.Modules
 
         public FoodService Service { get; set; }
 
+        string formatProductId(string id)
+        {
+            if(id.Length == 13)
+            {
+                return id[0]
+                    + " " + id.Substring(1, 6)
+                    + " " + id.Substring(7, 6);
+            }
+            return id;
+        }
+
+        TableData getProductInfo(Product product)
+        {
+            var data = new TableData(null);
+
+            string retailerName = null;
+
+            if (product.Id.StartsWith("5000128") || product.Id.StartsWith("5000129"))
+                retailerName = "CoOp";
+
+            if(retailerName != null)
+            {
+                data.Children.Add(new Span(cls: "badge") { RawText = retailerName });
+            }
+            data.Children.Add(new Span(cls: "product-name") { RawText = product.Name });
+
+            return data;
+        }
+
         [Method("GET"), Path("/food")]
         public void Base(bool full = false)
         {
@@ -40,9 +69,12 @@ namespace DiscordBot.MLAPI.Modules
                 if(full)
                 {
                     row.WithCell(item.Id.ToString());
-                    row.WithCell(item.ProductId);
+                    row.WithCell(formatProductId(item.ProductId));
                 }
-                row.WithCell(item.Product?.Name ?? "unknown");
+                if (item.Product == null)
+                    row.WithCell("n/a");
+                else
+                    row.Children.Add(getProductInfo(item.Product));
                 row.WithCell($"{item.AddedAt:yyyy-MM-dd}");
                 row.WithCell($"{item.ExpiresAt:yyyy-MM-dd}");
                 var diff = item.ExpiresAt - DateTime.UtcNow;
@@ -84,17 +116,19 @@ namespace DiscordBot.MLAPI.Modules
             if(item == null)
             {
                 ReplyFile("new_product.html", 200, new Replacements()
-                    .Add("code", code));
+                    .Add("code", formatProductId(code)));
             } else
             {
                 ReplyFile("new_inventory.html", 200, new Replacements()
-                    .Add("product", item));
+                    .Add("prodId", formatProductId(code))
+                    .Add("prodName", getProductInfo(item)));
             }
         }
 
         [Method("POST"), Path("/api/food/products")]
         public void NewProduct(string productId, string productName)
         {
+            productId = productId.Replace(" ", "");
             if(string.IsNullOrWhiteSpace(productId) || productId.Length > 13)
             {
                 RespondRaw("Product ID or length invalid", 400);
@@ -111,6 +145,7 @@ namespace DiscordBot.MLAPI.Modules
         [Method("POST"),   Path("/api/food/inventory")]
         public void NewInventory(string productId, string expires)
         {
+            productId = productId.Replace(" ", "");
             var split = expires.Split('-');
             var date = new DateTime(int.Parse(split[0]),
                                     int.Parse(split[1]),
