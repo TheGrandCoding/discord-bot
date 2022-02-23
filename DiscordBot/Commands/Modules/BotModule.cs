@@ -104,8 +104,6 @@ namespace DiscordBot.Commands.Modules
                 await ReplyAsync($"Last daily tick: {Service.lastDailyTick.Value.ToString("yyyy/MM/dd hh:mm:ss.fff")}");
             } else
             {
-                var rs = Program.Services.GetRequiredService<MessageComponentService>();
-
                 var result = await ConfirmAsync("No daily tick recorded. Do you want to perform one now?");
                 if(result.GetValueOrDefault(false))
                 {

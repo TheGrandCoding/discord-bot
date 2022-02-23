@@ -14,7 +14,7 @@ namespace DiscordBot.Interactions.Modules
     {
         public FoodService Service { get; set; }
         [SlashCommand("product", "Edit a products")]
-        public async Task ViewProducts(string prodId)
+        public async Task EditProduct(string prodId)
         {
             var prod = Service.GetProduct(prodId);
             if(prod == null)
@@ -29,6 +29,19 @@ namespace DiscordBot.Interactions.Modules
             mb.AddTextInput("Name", "name", value: prod.Name);
 
             await RespondWithModalAsync(mb.Build());
+        }
+    
+        [SlashCommand("purge", "Removes all products")]
+        [RequireOwner]
+        public async Task PurgeProducts()
+        {
+            await DeferAsync(true);
+            using var db = Service.DB();
+            db.Products.RemoveRange(db.Products);
+            db.Inventory.RemoveRange(db.Inventory);
+            db.PreviousInventory.RemoveRange(db.PreviousInventory);
+            await db.SaveChangesAsync();
+            await FollowupAsync("Done!");
         }
     }
 

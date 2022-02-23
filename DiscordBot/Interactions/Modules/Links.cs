@@ -16,8 +16,6 @@ namespace DiscordBot.Interactions.Modules
     public class Links : BotSlashBase
     {
         public LinksThreaderService Service { get; set; }
-        public MessageComponentService CompService { get; set; }
-
 
         public static ComponentBuilder getBuilder(ulong channelId)
         {

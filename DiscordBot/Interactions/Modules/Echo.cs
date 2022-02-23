@@ -36,26 +36,14 @@ namespace DiscordBot.Interactions.Modules
             try
             {
                 ComponentBuilder builder = new ComponentBuilder();
-                builder.WithButton("Test button 1", "btn1", ButtonStyle.Danger);
-                builder.WithButton("Test button 2", "btn2", ButtonStyle.Danger);
+                builder.WithButton("Test button 1", "echo:btn1", ButtonStyle.Danger);
+                builder.WithButton("Test button 2", "echo:btn2", ButtonStyle.Danger);
                 await RespondAsync("Click below", components: builder.Build(), embeds: null);
-                var msg = await GetOriginalResponseAsync();
-                var srv = Program.Services.GetRequiredService<MessageComponentService>();
-                srv.Register(msg, handleButton);
             }
             catch (Exception ex)
             {
                 Program.LogError(ex, "EchoButtons");
             }
-        }
-
-        public static async Task handleButton(CallbackEventArgs args)
-        {
-            var token = args.Interaction;
-            await token.UpdateAsync(x =>
-            {
-                x.Content = $"Clicked {args.ComponentId}";
-            });
         }
     }
 }

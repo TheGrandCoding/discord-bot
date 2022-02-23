@@ -19,7 +19,6 @@ namespace DiscordBot.Commands.Modules
                 sv = new SelectMoveService.Save();
                 Service.UserCycles[Context.User.Id] = sv;
                 sv.Message = await Context.Channel.SendMessageAsync("[...]");
-                Service.Register(sv);
             }
 
             string[] options;

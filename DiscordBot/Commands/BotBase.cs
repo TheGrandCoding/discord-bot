@@ -26,7 +26,6 @@ namespace DiscordBot.Commands
 
 
         public InteractivityService InteractivityService { get; set; }
-        public MessageComponentService ComponentService { get; set; }
         static CmdDisableService cmdDisableService { get; set; }
 
 
@@ -82,8 +81,8 @@ namespace DiscordBot.Commands
             {
                 builder.WithButton(ButtonBuilder.CreatePrimaryButton(options.ElementAt(i), i.ToString()));
             }
-            var btn = await SelectButtonAsync(builder, text, embed, deleteWhenDone, timeout).ConfigureAwait(false);
-            return options.ElementAt(int.Parse(btn.CustomId));
+            var customId = await SelectButtonAsync(builder, text, embed, deleteWhenDone, timeout).ConfigureAwait(false);
+            return options.ElementAt(int.Parse(customId));
         }
 
         public async Task<bool?> ConfirmAsync(string question = null, Embed embed = null, bool deleteWhenDone = false, TimeSpan? timeout = null, AllowedMentions allowedMentions = null)
@@ -95,17 +94,25 @@ namespace DiscordBot.Commands
                 );
             if (result == null)
                 return null;
-            return bool.Parse(result.CustomId);
+            return result == "true";
         }
-            
 
-        public async Task<ButtonComponent> SelectButtonAsync(ComponentBuilder builder, string text = null, Embed embed = null, bool deleteWhenDone = false, TimeSpan? timeout = null,
+        public static Dictionary<ulong, selectHold> selectButton = new Dictionary<ulong, selectHold>();
+
+        public struct selectHold
+        {
+            public TaskCompletionSource<string> source;
+            public ulong id;
+        }
+
+        async Task<string> SelectButtonAsync(ComponentBuilder builder, string text = null, Embed embed = null, bool deleteWhenDone = false, TimeSpan? timeout = null,
             AllowedMentions allowedMentions = null)
         {
             if (string.IsNullOrWhiteSpace(text) && embed == null)
                 throw new ArgumentNullException($"One of {nameof(text)} or {nameof(embed)} must be non-null");
 
-            var selectionSource = new TaskCompletionSource<ButtonComponent>();
+
+            var selectionSource = new TaskCompletionSource<string>();
 
             var selectionTask = selectionSource.Task;
             var timeoutTask = Task.Delay(timeout ?? InteractivityService.DefaultTimeout);
@@ -113,59 +120,59 @@ namespace DiscordBot.Commands
             var components = builder.Build();
 
             var message = await ReplyAsync(message: text, embed: embed, components: components, allowedMentions: allowedMentions).ConfigureAwait(false);
-
-            async Task CheckButtonAsync(CallbackEventArgs e)
+            selectButton.Add(message.Id, new selectHold()
             {
-                if (e.User.Id != Context.User.Id)
-                    return;
-                await e.Interaction.DeferAsync();
-                var btn = getButton(components, e.ComponentId);
-                selectionSource.SetResult(btn);
-            }
+                source = selectionSource,
+                id = Context.User.Id
+            });
+            var task_result = await Task.WhenAny(timeoutTask, selectionTask).ConfigureAwait(false);
 
-            try
+            var result = task_result == selectionTask
+                ? await selectionTask.ConfigureAwait(false)
+                : null;
+
+            if(deleteWhenDone)
             {
-                ComponentService.Register(message, CheckButtonAsync, doSave: false);
-                var task_result = await Task.WhenAny(timeoutTask, selectionTask).ConfigureAwait(false);
-
-                var result = task_result == selectionTask
-                    ? await selectionTask.ConfigureAwait(false)
-                    : null;
-
-                if(deleteWhenDone)
+                await message.DeleteAsync().ConfigureAwait(false);
+            } else
+            { // disable the buttons instead
+                var disabledBuilder = new ComponentBuilder();
+                int i = 0;
+                foreach(var row in builder.ActionRows)
                 {
-                    await message.DeleteAsync().ConfigureAwait(false);
-                } else
-                { // disable the buttons instead
-                    var disabledBuilder = new ComponentBuilder();
-                    int i = 0;
-                    foreach(var row in builder.ActionRows)
+                    foreach(var cmp in row.Components)
                     {
-                        foreach(var cmp in row.Components)
+                        if(cmp is ButtonComponent btn)
                         {
-                            if(cmp is ButtonComponent btn)
-                            {
-                                disabledBuilder.WithButton(btn.Label,
-                                    btn.CustomId, btn.Style, btn.Emote, btn.Url, true, i);
-                            }
+                            disabledBuilder.WithButton(btn.Label,
+                                btn.CustomId, btn.Style, btn.Emote, btn.Url, true, i);
                         }
-                        i++;
                     }
-                    await message.ModifyAsync(x =>
-                    {
-                        x.Components = disabledBuilder.Build();
-                    });
+                    i++;
                 }
-
-                return result;
-            } finally 
-            {
-                ComponentService.Unregister(message);
+                await message.ModifyAsync(x =>
+                {
+                    x.Components = disabledBuilder.Build();
+                });
             }
 
+            return result;
         }
 
 
 
+    }
+
+    public class BotBaseHandler : DiscordBot.Interactions.BotComponentBase
+    {
+        [Discord.Interactions.ComponentInteraction("botbase:*")]
+        public async Task Select()
+        {
+            if (!BotBase.selectButton.TryGetValue(Context.Interaction.Message.Id, out var hold))
+                return;
+            if (Context.User.Id != hold.id)
+                return;
+            hold.source.SetResult(Context.Interaction.Data.CustomId);
+        }
     }
 }

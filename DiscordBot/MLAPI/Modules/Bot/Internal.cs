@@ -18,10 +18,7 @@ namespace DiscordBot.MLAPI.Modules.Bot
     {
         public Internal(APIContext c) : base(c, "/bot") 
         {
-            ComponentService = Program.Services.GetRequiredService<MessageComponentService>();
         }
-
-        public MessageComponentService ComponentService { get; set; }
 
         [Method("GET"), Path("/bot/close")]
         [RequireOwner]
@@ -91,13 +88,13 @@ namespace DiscordBot.MLAPI.Modules.Bot
         }
 
 
-        static ShutdownState shutdownState = ShutdownState.Running;
+        public static ShutdownState shutdownState = ShutdownState.Running;
         public static string failOrWaitReason = null;
 
-        ComponentBuilder getShutdownComponents()
+        public static ComponentBuilder getShutdownComponents()
         {
             var select = new SelectMenuBuilder();
-            select.CustomId = "selectShutdown";
+            select.CustomId = "internal:shutdown";
             select.AddOption("Running", $"{(int)ShutdownState.Running}", "There is no request", isDefault: shutdownState == ShutdownState.Running);
             select.AddOption("Requested", $"{(int)ShutdownState.Requested}", "A request has been sent, not acked", isDefault: shutdownState == ShutdownState.Requested);
             select.AddOption("In Progress", $"{(int)ShutdownState.InProgress}", "The request is in progress", isDefault: shutdownState == ShutdownState.InProgress);
@@ -126,16 +123,6 @@ namespace DiscordBot.MLAPI.Modules.Bot
                     .WithFooter($"Use {Program.Prefix}bot pc_reason [text] to set a reason for wait or refusal")
                     .Build(),
                     components: getShutdownComponents().Build()).Result;
-
-                ComponentService.Register(x, async e =>
-                {
-                    shutdownState = (ShutdownState)int.Parse(e.Interaction.Data.Values.First());
-                    await e.Interaction.UpdateAsync(r =>
-                    {
-                        r.Components = getShutdownComponents().Build();
-                        r.Content = $"Now in state ${shutdownState}";
-                    });
-                }, doSave: false);
 
                 ReplyFile("shutdown.html", 200, new Replacements()
                     .Add("text", "A request to gracefully shutdown the computer has been sent.<br/>" +
@@ -183,7 +170,7 @@ namespace DiscordBot.MLAPI.Modules.Bot
             }
         }
 
-        enum ShutdownState
+        public enum ShutdownState
         {
             Running,
             Requested,

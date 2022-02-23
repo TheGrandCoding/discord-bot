@@ -14,11 +14,13 @@ namespace DiscordBot.Interactions
 {
     public class SelectMoveModule : InteractionModuleBase<SocketInteractionContext<SocketMessageComponent>>
     {
-        [ComponentInteraction("slcmv:*")]
-        public async Task Handle(string usrId)
+        [ComponentInteraction("selectmoveservice:*")]
+        public async Task Handle(string msgId)
         {
             var srv = Program.Services.GetRequiredService<SelectMoveService>();
-            if (!srv.UserCycles.TryGetValue(ulong.Parse(usrId), out var sv))
+            var id = ulong.Parse(msgId);
+            var sv = srv.UserCycles.Values.FirstOrDefault(x => x.Message.Id == id);
+            if (sv == null)
                 return;
             var index = int.Parse(Context.Interaction.Data.Values.First());
             sv.Index = index;

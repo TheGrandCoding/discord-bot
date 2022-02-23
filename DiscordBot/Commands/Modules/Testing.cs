@@ -23,17 +23,6 @@ namespace DiscordBot.Commands.Modules
     [Summary("Testing Commands")]
     public class Testing : BotBase
     {
-        [Command("buttons")]
-        public async Task Buttons()
-        {
-            ComponentBuilder builder = new ComponentBuilder();
-            builder.WithButton("Test button 1", "btn1", ButtonStyle.Danger);
-            builder.WithButton("Test button 2", "btn2", ButtonStyle.Danger);
-            var msg = await ReplyAsync("Click button below", components: builder.Build());
-            var srv = Program.Services.GetRequiredService<MessageComponentService>();
-            srv.Register(msg, handleButton);
-        }
-
         [Command("confirm")]
         public async Task Confirm()
         {
@@ -42,14 +31,6 @@ namespace DiscordBot.Commands.Modules
                 await ReplyAsync("You didn't reply");
             else
                 await ReplyAsync($"You are {(result.Value ? "sure" : "not sure")}");
-        }
-        public static async Task handleButton(CallbackEventArgs args)
-        {
-            var token = args.Interaction;
-            await token.UpdateAsync(x =>
-            {
-                x.Content = $"Clicked {args.ComponentId}";
-            });
         }
 
         [Command("thread")]

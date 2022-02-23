@@ -1,8 +1,11 @@
 ﻿using Discord;
 using Discord.Commands;
+using Discord.Interactions;
+using Discord.WebSocket;
 using DiscordBot.Classes;
 using DiscordBot.Classes.Attributes;
 using DiscordBot.Commands;
+using DiscordBot.Interactions;
 using DiscordBot.Permissions;
 using DiscordBot.Utils;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,12 +18,10 @@ using System.Threading.Tasks;
 namespace DiscordBot.Services
 {
     //[RequireService(typeof(ReactionService))]
-    [RequireService(typeof(MessageComponentService))]
     public class RolesService : SavedService
     {
         static RolesService instance { get; set; }
         public Dictionary<ulong, RolesSetup> Messages { get; set; }
-        public MessageComponentService Service { get; set; }
 
         public static ITextChannel Inspection { get; set; }
 
@@ -81,7 +82,6 @@ namespace DiscordBot.Services
         public override void OnReady()
         {
             instance = this;
-            Service = Program.Services.GetRequiredService<MessageComponentService>();
             Permissions = Program.Services.GetRequiredService<PermissionsService>();
             Messages = Program.Deserialise<Dictionary<ulong, RolesSetup>>(ReadSave());
             RegisterPermissions();
@@ -109,18 +109,16 @@ namespace DiscordBot.Services
                 Message = message,
                 Roles = store,
             };
-            Service.Register(message, handleReact, guild.Id.ToString());
-            Service.OnSave();
         }
 
-        static async System.Threading.Tasks.Task<BotResult> runReactions(CallbackEventArgs e)
+        static async System.Threading.Tasks.Task<BotResult> runReactions(string state, string rid, SocketMessageComponent e)
         {
-            if (!(ulong.TryParse(e.State, out var guildId)))
-                return new BotResult($"Failed to parse '{e.State}' as ulong.");
+            if (!(ulong.TryParse(state, out var guildId)))
+                return new BotResult($"Failed to parse '{state}' as ulong.");
             if (!(instance.Messages.TryGetValue(guildId, out var setup)))
                 return new BotResult($"Guild {guildId} has no reaction roles set up.");
-            if (!(ulong.TryParse(e.ComponentId, out var roleId)))
-                return new BotResult($"Failed to parse custom id as ulong: {e.ComponentId}");
+            if (!(ulong.TryParse(rid, out var roleId)))
+                return new BotResult($"Failed to parse custom id as ulong: {rid}");
             if (!(e.Message.Channel is ITextChannel txt))
                 return new BotResult($"Current channel, {e.Message.Channel} is not a text channel");
             var role = txt.Guild.GetRole(roleId);
@@ -137,22 +135,22 @@ namespace DiscordBot.Services
             if(user.RoleIds.Any(x => x == roleId))
             {
                 await user.RemoveRoleAsync(role);
-                await e.Interaction.FollowupAsync($"You no longer have the {role.Name} role",
+                await e.FollowupAsync($"You no longer have the {role.Name} role",
                     ephemeral: true, embeds: null);
             }
             else
             {
                 await user.AddRoleAsync(role);
-                await e.Interaction.FollowupAsync($"You now have the {role.Name} role",
+                await e.FollowupAsync($"You now have the {role.Name} role",
                     ephemeral: true, embeds: null);
             }
             return new BotResult();
         }
 
-        public static async Task handleReact(CallbackEventArgs e)
+        public static async Task handleReact(string gId, string rId, SocketInteractionContext<SocketMessageComponent> e)
         {
             await e.Interaction.DeferAsync(true);
-            var result = runReactions(e).Result;
+            var result = runReactions(gId, rId, e.Interaction).Result;
             if(!result.IsSuccess)
             {
                 await e.Interaction.FollowupAsync($"Failed to change your role: {result.Reason}", ephemeral: true, embeds: null);
@@ -162,7 +160,7 @@ namespace DiscordBot.Services
                 var builder = new EmbedBuilder();
                 builder.Title = "Reaction Role";
                 builder.AddField("User", $"{e.User.Username}#{e.User.Discriminator}\r\n{e.User.Id}", true);
-                builder.AddField("Button", e.ComponentId, true);
+                builder.AddField("Button", e.Interaction.Data.CustomId, true);
                 builder.Description = $"**{result.Reason}**";
                 await Inspection .SendMessageAsync(embed: builder.Build());
             }
@@ -182,6 +180,15 @@ namespace DiscordBot.Services
             }
             public bool TryGetValue(IEmote key, out ulong roleId) => TryGetValue(key.ToString(), out roleId);
             public bool Remove(IEmote key) => Remove(key.ToString());
+        }
+
+        public class RolesComponents : BotComponentBase
+        {
+            [ComponentInteraction("roles:*:*")]
+            public async Task handleReact(string gId, string rId)
+            {
+                await RolesService.handleReact(gId, rId, Context);
+            }
         }
     }
 }

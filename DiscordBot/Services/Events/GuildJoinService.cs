@@ -16,8 +16,6 @@ namespace DiscordBot.Services.Events
     {
         public ConcurrentDictionary<ulong, GuildSave> GuildData { get; set; } = new ConcurrentDictionary<ulong, GuildSave>();
 
-        public MessageComponentService Service { get; set; }
-
         public override string GenerateSave()
             => Program.Serialise(GuildData);
 
@@ -35,7 +33,7 @@ namespace DiscordBot.Services.Events
             public ITextChannel Channel { get; set; }
         }
 
-        EmbedBuilder getAdminBuilder(SocketGuildUser user)
+        public EmbedBuilder getAdminBuilder(SocketGuildUser user)
         {
             var builder = new EmbedBuilder();
             builder.Title = "User Joined";
@@ -46,7 +44,7 @@ namespace DiscordBot.Services.Events
             return builder;
         }
 
-        ComponentBuilder getButtonBuilder(SocketGuildUser user, GuildSave save, bool disabled = false)
+        public ComponentBuilder getButtonBuilder(SocketGuildUser user, GuildSave save, bool disabled = false)
         {
             var builder = new ComponentBuilder();
             var buttons = 0;
@@ -56,7 +54,7 @@ namespace DiscordBot.Services.Events
                 var role = user.Guild.GetRole(roleId);
                 if (role == null)
                     continue;
-                builder.WithButton($"Add '{role.Name}'", $"{roleId}", ButtonStyle.Secondary, disabled: disabled, row: (buttons++) % 5);
+                builder.WithButton($"Add '{role.Name}'", $"gjoin:{user.Id}:{roleId}", ButtonStyle.Secondary, disabled: disabled, row: (buttons++) % 5);
             }
 
             var row = (buttons % 5) + 1;
@@ -64,10 +62,10 @@ namespace DiscordBot.Services.Events
                 row = 5;
 
             builder.WithButton(ButtonBuilder
-                .CreateDangerButton("Kick User", "kick")
+                .CreateDangerButton("Kick User", $"gjoin:{user.Id}:kick")
                 .WithDisabled(disabled), row);
             builder.WithButton(ButtonBuilder
-                .CreateDangerButton("Ban User", "ban")
+                .CreateDangerButton("Ban User", $"gjoin:{user.Id}:ban")
                 .WithDisabled(disabled), row);
 
             return builder;
@@ -80,99 +78,9 @@ namespace DiscordBot.Services.Events
             var embed = getAdminBuilder(arg).Build();
             var buttons = getButtonBuilder(arg, save).Build();
 
-            var msg = await save.Channel.SendMessageAsync(embed: embed, components: buttons);
-
-            Service.Register(msg, handleAdminButton, $"{arg.Guild.Id}-{arg.Id}");
+            await save.Channel.SendMessageAsync(embed: embed, components: buttons);
         }
 
-        public static async Task handleAdminButton(CallbackEventArgs e)
-        {
-            var This = Program.Services.GetRequiredService<GuildJoinService>();
-            var split = e.State.Split('-');
-            if (!ulong.TryParse(split[0], out var guildId))
-                return;
-            if (!ulong.TryParse(split[1], out var userId))
-                return;
-            if(userId == e.User.Id)
-            {
-                await e.Interaction.RespondAsync(":x: You cannot interact with these buttons!", ephemeral: true, embeds: null);
-                return;
-            }
-            if (!This.GuildData.TryGetValue(guildId, out var save))
-                return;
-            var guild = Program.Client.GetGuild(guildId);
-            var user = guild.GetUser(userId);
-
-            var invoker = (e.User as SocketGuildUser);
-            if (invoker == null)
-                return;
-
-            await e.Interaction.DeferAsync();
-
-            string alu = $"{invoker.Username} ({invoker.Id})";
-
-            if(e.ComponentId == "kick")
-            {
-                if(invoker.GuildPermissions.KickMembers || invoker.GuildPermissions.Administrator)
-                {
-                    await user.KickAsync($"Kicked by {invoker.Username} ({invoker.Id}) via joinlog-buttons");
-                    await e.Message.ModifyAsync(x =>
-                    {
-                        x.Content = $"*User was kicked by {invoker.Mention}";
-                        x.AllowedMentions = AllowedMentions.None;
-                        x.Components = This.getButtonBuilder(user, save, true).Build();
-                    });
-                } else
-                {
-                    await e.Interaction.FollowupAsync(":x: You do not have permission to kick this user", ephemeral: true, embeds: null);
-                }
-            } else if (e.ComponentId == "ban")
-            {
-                if (invoker.GuildPermissions.BanMembers || invoker.GuildPermissions.Administrator)
-                {
-                    await user.BanAsync(1, $"Banned by {alu} via joinlog-buttons");
-                    await e.Message.ModifyAsync(x =>
-                    {
-                        x.Content = $"*User was banned by {invoker.Mention}";
-                        x.AllowedMentions = AllowedMentions.None;
-                        x.Components = This.getButtonBuilder(user, save, true).Build();
-                    });
-                }
-                else
-                {
-                    await e.Interaction.FollowupAsync(":x: You do not have permission to ban this user", ephemeral: true, embeds: null);
-                }
-            } else
-            {
-                var roleId = ulong.Parse(e.ComponentId);
-                var role = guild.GetRole(roleId);
-                if (role == null)
-                    return;
-
-                if(!user.GuildPermissions.Administrator)
-                {
-                    var missing = role.Permissions.ToList().Where(x => !user.GuildPermissions.Has(x)).ToList();
-                    if (missing.Count > 0)
-                    {
-                        await e.Interaction.FollowupAsync(":x: You are missing the following permissions:\r\n- " + string.Join("\r\n- ", missing),
-                            ephemeral: true, embeds: null);
-                        return;
-                    }
-                }
-
-                if (!user.Roles.Any(x => x.Id == roleId))
-                {
-                    await user.AddRoleAsync(roleId, new RequestOptions() { AuditLogReason = $"Given by joinlog-buttons, by {alu}" });
-                }
-                else
-                {
-                    await user.RemoveRoleAsync(roleId, new RequestOptions() { AuditLogReason = $"Taken by joinlog-buttons, by {alu}" });
-                }
-                await e.Interaction.FollowupAsync($"Role {Discord.MentionUtils.MentionRole(roleId)} has been toggled", 
-                    ephemeral: true, allowedMentions: AllowedMentions.None, embeds: null);
-            }
-
-        }
     }
 
     [Name("GuildJoin Commands")]

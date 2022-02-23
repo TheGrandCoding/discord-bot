@@ -21,7 +21,7 @@ namespace DiscordBot.Interactions.Components
             var prod = db.GetProduct(currentId);
             if (prod == null)
             {
-                await Context.Interaction.FollowupAsync($"No product exists by that ID");
+                await Context.Interaction.FollowupAsync($"No product exists by that ID", ephemeral: true);
                 return;
             }
 
@@ -60,7 +60,8 @@ namespace DiscordBot.Interactions.Components
                 db.Products.Update(prod);
                 await db.SaveChangesAsync();
             }
-            await Context.Interaction.FollowupAsync($"Product information has been updated.");
+            await Context.Interaction.FollowupAsync($"Product information has been updated.", ephemeral: true);
         }
+    
     }
 }

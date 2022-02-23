@@ -5,6 +5,7 @@ using DiscordBot.MLAPI.Exceptions;
 using DiscordBot.Services;
 using Microsoft.Extensions.DependencyInjection;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -200,6 +201,24 @@ namespace DiscordBot.MLAPI
             return context;
         }
 
+
+        public struct holdInfo
+        {
+            public AuthSession s;
+            public string ip;
+        }
+        public static ConcurrentDictionary<ulong, holdInfo> holding = new ConcurrentDictionary<ulong, holdInfo>();
+
+        public static EmbedBuilder getBuilder(AuthSession s, bool redactIp)
+        {
+            var embed = new EmbedBuilder();
+            embed.Title = "New IP Detected";
+            embed.Description = "A login has been attempted by an unknown IP address to the MLAPI website through your account.\r\n" +
+                "Please approve the login below.";
+            embed.AddField("IP", redactIp ? "||<redacted>||" : s.IpAddress, true);
+            embed.AddField("User-Agent", s.UserAgent, true);
+            return embed;
+        }
         public static async Task<AuthSession> GenerateNewSession(BotUser user, string ip, string userAgent, bool? forceApproved = null)
         {
             var s = new AuthSession(ip, userAgent, forceApproved ?? (user?.ApprovedIPs ?? new List<string>()).Contains(ip));
@@ -210,46 +229,15 @@ namespace DiscordBot.MLAPI
             if (s.Approved)
                 return s;
 
-            EmbedBuilder getBuilder(bool redactIp)
-            {
-                var embed = new EmbedBuilder();
-                embed.Title = "New IP Detected";
-                embed.Description = "A login has been attempted by an unknown IP address to the MLAPI website through your account.\r\n" +
-                    "Please approve the login below.";
-                embed.AddField("IP", redactIp ? "||<redacted>||" : ip, true);
-                embed.AddField("User-Agent", userAgent, true);
-                return embed;
-            }
-            var embed = getBuilder(false);
+            var embed = getBuilder(s, false);
 
 
 
             var components = new ComponentBuilder();
-            components.WithButton("Approve", "true", ButtonStyle.Success);
-            components.WithButton("Deny", "false", ButtonStyle.Danger);
-
-            var msg = await user.FirstValidUser.SendMessageAsync(embed: embed.Build(), components: components.Build());
-
-            var service = Program.Services.GetRequiredService<MessageComponentService>();
-            service.Register(msg, async x =>
-            {
-                var result = bool.Parse(x.ComponentId);
-                if (result)
-                {
-                    s.Approved = true;
-                    user.ApprovedIPs.Add(ip);
-                }
-                else
-                {
-                    user.Sessions.Remove(s);
-                }
-                Program.Save();
-                await x.Interaction.UpdateAsync(m =>
-                {
-                    m.Embeds = new[] { getBuilder(result).Build() };
-                    m.Content = "This login has been " + (result ? "approved\r\nThe IP address has been whitelisted, and now redacted." : "rejected");
-                });
-            }, doSave: false);
+            components.WithButton("Approve", $"internal:app:{user.Id}:true", ButtonStyle.Success);
+            components.WithButton("Deny", $"internal:app:{user.Id}:false", ButtonStyle.Danger);
+            holding[user.Id] = new holdInfo() { s = s, ip = ip };
+            await user.FirstValidUser.SendMessageAsync(embed: embed.Build(), components: components.Build());
 
             return s;
         }

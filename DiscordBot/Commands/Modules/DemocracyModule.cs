@@ -187,10 +187,8 @@ namespace DiscordBot.Commands.Modules
         }
     }
 
-    [RequireService(typeof(MessageComponentService))]
     public class DemocracyService : SavedService
     {
-        MessageComponentService Service { get; set; }
         Dictionary<ulong, VoteItem> VoteItems { get; set; } = new Dictionary<ulong, VoteItem>();
 
         public override string GenerateSave()
@@ -201,7 +199,6 @@ namespace DiscordBot.Commands.Modules
         public override void OnLoaded()
         {
             var loaded = Program.Deserialise<Dictionary<ulong, VoteItem>>(ReadSave());
-            Service = Program.Services.GetRequiredService<MessageComponentService>();
             foreach(var item in loaded)
             {
                 if(item.Value.StatusMessage != null)
@@ -219,76 +216,12 @@ namespace DiscordBot.Commands.Modules
         public void Register(VoteItem item)
         {
             VoteItems[item.StatusMessage.Id] = item;
-            Service.Register(item.StatusMessage, handleButtonClick, item.StatusMessage.Id.ToString(), doSave: false); // since we'll register every startup anyway
             OnSave();
         }
 
         public void Unregister(VoteItem item)
         {
             VoteItems.Remove(item.StatusMessage.Id);
-            Service.Unregister(item.StatusMessage);
-            OnSave();
-        }
-
-        async Task handleButtonClick(CallbackEventArgs e)
-        {
-            await e.Interaction.DeferAsync();
-            var msgId = ulong.Parse(e.State);
-            if(!VoteItems.TryGetValue(msgId, out var item))
-            {
-                await e.Interaction.FollowupAsync("No proposal exists on the message. Weird.",
-                    ephemeral: true, embeds: null);
-                return;
-            }
-            var user = e.User as IGuildUser;
-
-            /*if (item.HasVoted(user))
-            {
-                await e.Interaction.FollowupAsync("You have already voted in this proposal",
-                    ephemeral: true, embeds: null);
-                return;
-            }*/
-            if (!item.CanVote(user))
-            {
-                await e.Interaction.FollowupAsync($"You are unable to vote in this proposal",
-                    ephemeral: true, embeds: null);
-                return;
-            }
-
-            var previous = item.RemoveVotes(user); // and removes abstained
-            var value = bool.Parse(e.ComponentId);
-            if (value)
-                item.Ayes.Add(user);
-            else 
-                item.Noes.Add(user);
-
-            var votestr = value ? "aye" : "no";
-            if (previous.HasValue)
-            {
-                if (previous.Value == value)
-                    await e.Interaction.FollowupAsync($"You have already voted *{votestr}*; your vote remains recorded",
-                        ephemeral: true);
-                else
-                    await item.DiscussionThread.SendMessageAsync($"{user.Mention} has changed their vote from {(previous.Value ? "aye" : "no")} to **{votestr}**");
-
-            }
-            else
-            {
-                await item.DiscussionThread.SendMessageAsync($"{user.Mention} has voted **{votestr}**");
-            }
-
-            await item.Update();
-            var remove = await ShouldRemove(item);
-            if (remove)
-            {
-                Unregister(item);
-                await item.DiscussionThread.SendMessageAsync($"The question \"{item.getQuestion()}?\" has been answered; {item.StatusMessage.Content}");
-                await item.DiscussionThread.ModifyAsync(x =>
-                {
-                    x.Archived = true;
-                    x.Locked = true;
-                }, new RequestOptions() { AuditLogReason = $"Vote has ended" });
-            }
             OnSave();
         }
 
@@ -437,8 +370,8 @@ namespace DiscordBot.Commands.Modules
                 x.Content = content;
                 x.Embeds = new[] { ToEmbed().Build() };
                 x.Components = new ComponentBuilder()
-                    .WithButton("Aye", "true", ButtonStyle.Success, Emotes.THUMBS_UP, disabled: HasEnded)
-                    .WithButton("No", "false", ButtonStyle.Primary, Emotes.THUMBS_DOWN, disabled: HasEnded).Build();
+                    .WithButton("Aye", "democracy:true", ButtonStyle.Success, Emotes.THUMBS_UP, disabled: HasEnded)
+                    .WithButton("No", "democracy:true", ButtonStyle.Primary, Emotes.THUMBS_DOWN, disabled: HasEnded).Build();
             });
             if(DiscussionThread == null)
             {

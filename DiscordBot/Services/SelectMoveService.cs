@@ -17,27 +17,11 @@ namespace DiscordBot.Services
         public override string GenerateSave()
             => Program.Serialise(UserCycles);
 
-        public MessageComponentService ComponentService { get; set; }
-        public void Register(Save sv)
-        {
-            ComponentService.Register(sv.CustomId, sv.Message, async e =>
-            {
-            }, doSave: false);
-        }
-
         public override void OnReady()
         {
             var sv = ReadSave();
             var dict = Program.Deserialise<Dictionary<ulong, Save>>(sv);
             UserCycles = new ConcurrentDictionary<ulong, Save>(dict);
-        }
-
-        public override void OnLoaded()
-        {
-            foreach(var save in UserCycles.Values)
-            {
-                Register(save);
-            }
         }
 
         public override void OnDailyTick()
