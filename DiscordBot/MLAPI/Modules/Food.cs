@@ -19,19 +19,28 @@ namespace DiscordBot.MLAPI.Modules
         public FoodService Service { get; set; }
 
         [Method("GET"), Path("/food")]
-        public void Base()
+        public void Base(bool full = false)
         {
             var table = new Table();
-            table.Children.Add(new TableRow()
-                .WithHeader("Product Id")
-                .WithHeader("Product Name")
-                .WithHeader("Added")
-                .WithHeader("Expires"));
+            var hr = new TableRow();
+            if(full)
+            {
+                hr.WithHeader("Inv. Id");
+                hr.WithHeader("Product ID");
+            }
+            hr.WithHeader("Added");
+            hr.WithHeader("Expires");
+            hr.WithHeader("");
+            table.Children.Add(hr);
             var inv = Service.GetInventory("default");
             foreach(var item in inv.OrderBy(x => x.ExpiresAt))
             {
                 var row = new TableRow();
-                row.WithCell(item.ProductId);
+                if(full)
+                {
+                    row.WithCell(item.Id.ToString());
+                    row.WithCell(item.ProductId);
+                }
                 row.WithCell(item.Product?.Name ?? "unknown");
                 row.WithCell($"{item.AddedAt:yyyy-MM-dd}");
                 row.WithCell($"{item.ExpiresAt:yyyy-MM-dd}");
@@ -40,6 +49,17 @@ namespace DiscordBot.MLAPI.Modules
                     row.Class = "expires-soon";
                 if (diff.TotalHours < 48)
                     row.Class = "expires-imminently";
+
+                row.Children.Add(new TableRow()
+                {
+                    Children = {
+                        new Input("button", "Delete", cls: "danger")
+                        {
+                            OnClick = $"removeInvItem({item.Id});"
+                        }
+                    }
+                });
+
                 table.Children.Add(row);
             }
             ReplyFile("base.html", 200, new Replacements()
@@ -76,7 +96,7 @@ namespace DiscordBot.MLAPI.Modules
             var p = Service.AddProduct(productId, productName, "");
             RespondRaw(LoadRedirectFile($"/food/new?code={productId}"), System.Net.HttpStatusCode.Found);
         }
-        [Method("POST"), Path("/api/food/inventory")]
+        [Method("POST"),   Path("/api/food/inventory")]
         public void NewInventory(string productId, string expires)
         {
             var split = expires.Split('-');
@@ -86,6 +106,20 @@ namespace DiscordBot.MLAPI.Modules
 
             Service.AddInventoryItem(productId, "default", date);
             RespondRaw(LoadRedirectFile($"/food/scan"), System.Net.HttpStatusCode.Found);
+        }
+        [Method("DELETE"), Path("/api/food/inventory")]
+        public void DeleteInventory(int invId)
+        {
+            using var db = Service.DB();
+            var entity = db.Inventory.Find(invId);
+            if(entity == null)
+            {
+                RespondRaw("", 404);
+                return;
+            }
+            db.Inventory.Remove(entity);
+            db.SaveChanges();
+            RespondRaw("", 200);
         }
     }
 }

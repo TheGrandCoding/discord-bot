@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 namespace DiscordBot.Interactions.Modules
 {
     [Group("food", "Commands for stuff")]
+    [RequireOwner]
     [DontAutoRegister]
     public class FoodModule : BotSlashBase
     {
@@ -31,8 +32,25 @@ namespace DiscordBot.Interactions.Modules
             await RespondWithModalAsync(mb.Build());
         }
     
+        [SlashCommand("inventory", "Edit an inventory item")]
+        public async Task EditInventoryItem(int invItem)
+        {
+            var inv = Service.GetInventoryItem(invItem);
+            if(inv == null)
+            {
+                await RespondAsync("No item by that ID.", ephemeral: true);
+                return;
+            }
+            var mb = new ModalBuilder();
+            mb.WithCustomId("food:inv:" + invItem.ToString());
+            mb.WithTitle("Edit Inventory Item");
+            mb.AddTextInput("Expires At", "expires", placeholder: "yyyy-MM-dd", 
+                maxLength: 10, required: true, value: $"{inv.ExpiresAt:yyyy-MM-dd}");
+
+            await RespondWithModalAsync(mb.Build());
+        }
+
         [SlashCommand("purge", "Removes all products")]
-        [RequireOwner]
         public async Task PurgeProducts()
         {
             await DeferAsync(true);
@@ -56,5 +74,13 @@ namespace DiscordBot.Interactions.Modules
         [InputLabel("Name")]
         [ModalTextInput("name")]
         public string Name { get; set; }
+    }
+
+    public class FoodInventoryModal : IModal
+    {
+        public string Title => "Edit Inventory Item";
+
+        [ModalTextInput("expires", placeholder: "yyyy-MM-dd", maxLength: 10)]
+        public string ExpiresAt { get; set; }
     }
 }

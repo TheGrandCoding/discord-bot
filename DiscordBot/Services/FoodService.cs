@@ -22,6 +22,11 @@ namespace DiscordBot.Services
             using var db = DB();
             return db.GetProduct(id);
         }
+        public InventoryItem GetInventoryItem(int id)
+        {
+            using var db = DB();
+            return db.GetInventoryItem(id);
+        }
         public Product AddProduct(string id, string name, string url)
         {
             using var db = DB();
@@ -52,6 +57,10 @@ namespace DiscordBot.Services
         public Product GetProduct(string id)
         {
             return Products.Find(id);
+        }
+        public InventoryItem GetInventoryItem(int id)
+        {
+            return Inventory.Find(id);
         }
         public Product AddProduct(string id, string name, string url)
         {
