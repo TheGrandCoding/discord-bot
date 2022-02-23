@@ -49,6 +49,7 @@ namespace DiscordBot.MLAPI
                 if (IPAddress.TryParse(context.Host, out var ips) && ips.IsLocal())
                     return PreconditionResult.FromSuccess();
             }
+            if(context.Host.EndsWith("ngrok.io")) return PreconditionResult.FromSuccess();
 #endif
             return _domain == null || context.Host == Domain
                 ? PreconditionResult.FromSuccess()

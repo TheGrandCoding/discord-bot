@@ -203,7 +203,7 @@ namespace DiscordBot.MLAPI
         public static async Task<AuthSession> GenerateNewSession(BotUser user, string ip, string userAgent, bool? forceApproved = null)
         {
             var s = new AuthSession(ip, userAgent, forceApproved ?? (user?.ApprovedIPs ?? new List<string>()).Contains(ip));
-            if (ip == "localhost" || ip == "127.0.0.1" || ip == "::1")
+            if (ip == "localhost" || ip == "127.0.0.1" || ip == "::1" || Program.BOT_DEBUG)
                 s.Approved = true;
             user.Sessions.Add(s);
             Program.Save();
