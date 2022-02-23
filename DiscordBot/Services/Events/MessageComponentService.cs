@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace DiscordBot.Services
 {
-    public class MessageComponentService : SavedService
+    /*public class MessageComponentService : SavedService
     {
         public MessageComponentService()
         {
@@ -166,5 +166,5 @@ namespace DiscordBot.Services
         public string State { get; set; }
         public string ComponentId { get; set; }
         public SocketMessageComponent Interaction { get; set; }
-    }
+    }*/
 }

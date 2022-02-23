@@ -7,7 +7,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DiscordBot.SlashCommands.Modules
+namespace DiscordBot.Interactions.Modules
 {
     public class Translate : BotSlashBase
     {

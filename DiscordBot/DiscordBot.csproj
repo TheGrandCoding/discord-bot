@@ -25,11 +25,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="SlashCommands\Attributes\**" />
+    <Compile Remove="Interactions\Attributes\**" />
     <Compile Remove="tesseract\**" />
-    <EmbeddedResource Remove="SlashCommands\Attributes\**" />
+    <EmbeddedResource Remove="Interactions\Attributes\**" />
     <EmbeddedResource Remove="tesseract\**" />
-    <None Remove="SlashCommands\Attributes\**" />
+    <None Remove="Interactions\Attributes\**" />
     <None Remove="tesseract\**" />
   </ItemGroup>
 

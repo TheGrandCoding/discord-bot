@@ -12,7 +12,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace DiscordBot.SlashCommands.Modules
+namespace DiscordBot.Interactions.Modules
 {
     [Group("move", "Move messages")]
     [DefaultPermission(false)]

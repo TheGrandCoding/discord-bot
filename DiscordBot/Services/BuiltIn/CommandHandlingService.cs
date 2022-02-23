@@ -48,8 +48,11 @@ namespace DiscordBot.Services
                 await InteractionService.AddModulesToGuildAsync(guild, true, InteractionService.Modules.ToArray());
 #else
                 await InteractionService.RegisterCommandsGloballyAsync();
-                var botMod = InteractionService.GetModuleInfo<DiscordBot.SlashCommands.Modules.BotDevCmds>();
-                await InteractionService.AddModulesToGuildAsync(guild, true, botMod);
+
+                await InteractionService.AddModulesToGuildAsync(guild, true, new Discord.Interactions.ModuleInfo[] {
+                    InteractionService.GetModuleInfo<DiscordBot.Interactions.Modules.BotDevCmds>(),
+                    InteractionService.GetModuleInfo<DiscordBot.Interactions.Modules.FoodModule>()
+                });
 #endif
 
 
@@ -79,7 +82,31 @@ namespace DiscordBot.Services
         {
             if(CommandVersion != Program.CommandVersions)
                 await registerCommands();
-            Program.Client.InteractionCreated += executeInteraction;
+
+            Func<SocketMessageComponent, Task> handleMsgComponent = async (interaction) => {
+                var ctx = new SocketInteractionContext<SocketMessageComponent>(Program.Client, interaction);
+                await InteractionService.ExecuteCommandAsync(ctx, Program.Services);
+            };
+
+            Program.Client.AutocompleteExecuted += async (interaction) =>
+            {
+                var ctx = new SocketInteractionContext<SocketAutocompleteInteraction>(Program.Client, interaction);
+                await InteractionService.ExecuteCommandAsync(ctx, Program.Services);
+            };
+            Program.Client.ButtonExecuted += handleMsgComponent;
+            Program.Client.SelectMenuExecuted += handleMsgComponent;
+            Program.Client.SlashCommandExecuted += async (interaction) =>
+            {
+                var ctx = new SocketInteractionContext<SocketSlashCommand>(Program.Client, interaction);
+                await InteractionService.ExecuteCommandAsync(ctx, Program.Services);
+            };
+            Program.Client.ModalSubmitted += async (modal) =>
+            {
+                var ctx = new SocketInteractionContext<SocketModal>(Program.Client, modal);
+                await InteractionService.ExecuteCommandAsync(ctx, Program.Services);
+            };
+
+            //Program.Client.InteractionCreated += executeInteraction;
         }
 
         public async Task InitializeAsync(InteractionService slash)
@@ -94,78 +121,11 @@ namespace DiscordBot.Services
         {
             if (Program.ignoringCommands)
                 return;
-            var components = Program.Services.GetRequiredService<MessageComponentService>();
-            try
+            var ctx = new SocketInteractionContext(_discord, x);
+            var specialResult = await InteractionService.ExecuteCommandAsync(ctx, Program.Services).ConfigureAwait(false);
+            if(!specialResult.IsSuccess)
             {
-                if (x.Type == InteractionType.ApplicationCommand)
-                {
-                    var ctx = new SocketInteractionContext(_discord, x);
-                    var specialResult = await InteractionService.ExecuteCommandAsync(ctx, Program.Services).ConfigureAwait(false);
-                    if(!specialResult.IsSuccess)
-                    {
-                        if(specialResult is Discord.Interactions.ExecuteResult sExe && sExe.Exception != null)
-                        {
-                            Program.LogError(sExe.Exception, "SlashCommand");
-                            try
-                            {
-                                await x.RespondAsync(":x: Internal exception occured whilst handling this interaction: " + sExe.Exception.Message,
-                                    ephemeral: true);
-                            }
-                            catch { }
-                        }
-                    }
-                    return;
-                }
-                if(x.Type == InteractionType.ApplicationCommandAutocomplete)
-                {
-                    var ctx = new SocketInteractionContext<SocketAutocompleteInteraction>(_discord, x as SocketAutocompleteInteraction);
-                    var specialResult = await InteractionService.ExecuteCommandAsync(ctx, _services).ConfigureAwait(false);
-                    if (!specialResult.IsSuccess)
-                    {
-                        if (specialResult is Discord.Interactions.ExecuteResult sExe && sExe.Exception != null)
-                        {
-                            Program.LogError(sExe.Exception, "SlashCommand");
-                            try
-                            {
-                                await x.RespondAsync(":x: Internal exception occured whilst handling this interaction: " + sExe.Exception.Message,
-                                    ephemeral: true);
-                            }
-                            catch { }
-                        }
-                    }
-                    return;
-
-                } 
-
-                Discord.Commands.IResult result;
-                if (x.Type == InteractionType.MessageComponent)
-                {
-                    Program.LogDebug($"Executing message component {x.Id}", "Interactions");
-                    result = await components.ExecuteAsync(x as SocketMessageComponent).ConfigureAwait(false);
-                    Program.LogInfo($"Executed interaction {x.Id}: {result.IsSuccess} {result.Error} {result.ErrorReason}", "Interactions");
-                }
-                else
-                {
-                    Program.LogInfo($"Unknown interaction type: {x.Type} {(int)x.Type}", "Interactions");
-                    result = MiscResult.FromError("Unknown interaction type");
-                }
-                if (!result.IsSuccess)
-                {
-                    if (result is Discord.Commands.ExecuteResult exec && exec.Exception != null)
-                    {
-                        Program.LogError(exec.Exception, "InteractionInvoke");
-                        try
-                        {
-                            await x.RespondAsync(":x: Internal exception occured whilst handling this interaction: " + exec.Exception.Message,
-                                ephemeral: true);
-                        }
-                        catch { }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Program.LogError($"{x.Id} {x.User?.Id ?? 0} {ex}", "InteractionCreated");
+                Program.LogError($"{specialResult.ErrorReason} {specialResult.Error}", "CommandHandling");
             }
         }
 

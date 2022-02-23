@@ -7,7 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DiscordBot.SlashCommands.Modules
+namespace DiscordBot.Interactions.Modules
 {
     [Group("activity", "Commands for creating VC activities")]
     public class Activity : BotSlashBase

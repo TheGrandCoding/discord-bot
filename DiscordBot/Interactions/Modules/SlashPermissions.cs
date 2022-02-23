@@ -10,7 +10,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DiscordBot.SlashCommands.Modules
+namespace DiscordBot.Interactions.Modules
 {
     [Group("commands", "List and modify slash commands in this guild")]
     [RequireUserPermission(GuildPermission.Administrator)]

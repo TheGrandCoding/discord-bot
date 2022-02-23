@@ -14,7 +14,7 @@ using System.Threading.Tasks;
 using System.Xml.Linq;
 using static DiscordBot.Services.JackettService;
 
-namespace DiscordBot.SlashCommands.Modules
+namespace DiscordBot.Interactions.Modules
 {
     [Group("torrents", "Commands for torrents")]
     public class Torrents : BotSlashBase

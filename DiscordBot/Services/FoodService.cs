@@ -12,7 +12,7 @@ namespace DiscordBot.Services
 {
     public class FoodService : Service
     {
-        FoodDbContext DB()
+        public FoodDbContext DB()
         {
             return Program.Services.GetRequiredService<FoodDbContext>();
         }

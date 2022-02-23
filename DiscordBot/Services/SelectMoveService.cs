@@ -22,13 +22,6 @@ namespace DiscordBot.Services
         {
             ComponentService.Register(sv.CustomId, sv.Message, async e =>
             {
-                var index = int.Parse(e.Interaction.Data.Values.First());
-                sv.Index = index;
-                await e.Interaction.UpdateAsync(x =>
-                {
-                    x.Content = "Updated!";
-                    x.Components = sv.GetBuilder().Build();
-                });
             }, doSave: false);
         }
 
