@@ -25,10 +25,22 @@ namespace DiscordBot.Interactions.Components
                 await Context.Interaction.FollowupAsync($"No product exists by that ID", ephemeral: true);
                 return;
             }
+            int? extends = null;
+            if (string.IsNullOrWhiteSpace(modal.Extends))
+                extends = null;
+            else if (int.TryParse(modal.Extends, out var e))
+            {
+                if(e > 0)
+                    extends = e;
+            }
+            else
+            {
+                await Context.Interaction.FollowupAsync($"Extends must be empty or a valid integer");
+            }
 
             if (prod.Id != modal.ProductId)
             {
-                var newProd = db.AddProduct(modal.ProductId, modal.Name, "");
+                var newProd = db.AddProduct(modal.ProductId, modal.Name, "", extends);
 
                 var inv = db.Inventory
                     .AsAsyncEnumerable()
@@ -58,6 +70,7 @@ namespace DiscordBot.Interactions.Components
             } else
             {
                 prod.Name = modal.Name;
+                prod.FreezingExtends = extends;
                 db.Products.Update(prod);
                 await db.SaveChangesAsync();
             }
