@@ -35,10 +35,10 @@ namespace DiscordBot.Services
             using var db = DB();
             return db.AddProduct(id, name, url);
         }
-        public InventoryItem AddInventoryItem(string productId, string inventryId, DateTime expires)
+        public InventoryItem AddInventoryItem(string productId, string inventryId, DateTime expires, bool frozen)
         {
             using var db = DB();
-            return db.AddInventoryItem(productId, inventryId, expires);
+            return db.AddInventoryItem(productId, inventryId, expires, frozen);
         }
         public List<InventoryItem> GetInventory(string id)
         {
@@ -121,14 +121,15 @@ namespace DiscordBot.Services
             return x.Entity;
         }
 
-        public InventoryItem AddInventoryItem(string productId, string inventoryId, DateTime expires)
+        public InventoryItem AddInventoryItem(string productId, string inventoryId, DateTime expires, bool frozen)
         {
             var inv = new InventoryItem()
             {
                 ProductId = productId,
                 InventoryId = inventoryId,
                 AddedAt = DateTime.UtcNow,
-                ExpiresAt = expires
+                InitialExpiresAt = expires,
+                Frozen = frozen
             };
             var x = Inventory.Add(inv);
             SaveChanges();
@@ -211,8 +212,13 @@ namespace DiscordBot.Services
         public string ProductId { get; set; }
 
         public DateTime AddedAt { get; set; }   
-        public DateTime ExpiresAt { get; set; }
 
+        [Column("ExpiresAt")]
+        public DateTime InitialExpiresAt { get; set; }
+        public bool Frozen { get; set; }
+
+        [NotMapped]
+        public DateTime ExpiresAt => Frozen ? InitialExpiresAt.AddDays(30) : InitialExpiresAt;
         [NotMapped]
         public bool HasExpired => ExpiresAt > DateTime.UtcNow;
     }

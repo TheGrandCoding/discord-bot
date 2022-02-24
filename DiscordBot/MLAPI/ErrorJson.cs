@@ -43,7 +43,7 @@ namespace DiscordBot.MLAPI
                     row.WithCell($"*");
                 } else
                 {
-                    row.WithCell(error.endpoint.GetDocs());
+                    row.Children.Add(new TableData(null) { Children = { error.endpoint.GetDocs() } });
                 }
                 row.WithCell(error.reason);
                 table.Children.Add(row);

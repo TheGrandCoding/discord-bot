@@ -67,15 +67,24 @@ namespace DiscordBot.Interactions.Components
         [ModalInteraction("food:inv:*")]
         public async Task EditInventoryItem(string currentId, Modules.FoodInventoryModal modal)
         {
-            if(!DateTime.TryParseExact(modal.ExpiresAt, "yyyy-MM-dd", Thread.CurrentThread.CurrentCulture, System.Globalization.DateTimeStyles.AssumeUniversal, out var expires))
+            if(!DateTime.TryParseExact(modal.ExpiresAt, "yyyy-MM-dd", 
+                Thread.CurrentThread.CurrentCulture, 
+                System.Globalization.DateTimeStyles.AssumeUniversal, 
+                out var expires))
             {
                 await RespondAsync("Expiration date is not in a valid format.", ephemeral: true);
+                return;
+            }
+            if(!bool.TryParse(modal.Frozen, out bool frozen))
+            {
+                await RespondAsync($"Frozen is not in a valid format.", ephemeral: true);
                 return;
             }
             await DeferAsync(ephemeral: true);
             using var db = Service.DB();
             var inv = db.GetInventoryItem(int.Parse(currentId));
-            inv.ExpiresAt = expires;
+            inv.InitialExpiresAt = expires;
+            inv.Frozen = frozen;
             db.Inventory.Update(inv);
             db.SaveChanges();
             await FollowupAsync($"Updated.", ephemeral: true);

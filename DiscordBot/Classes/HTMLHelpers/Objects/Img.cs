@@ -6,8 +6,9 @@ namespace DiscordBot.Classes.HTMLHelpers.Objects
 {
     public class Img : DOMBase
     {
-        public Img(string id = null, string cls = null) : base("img", id, cls)
+        public Img(string src = null, string id = null, string cls = null) : base("img", id, cls)
         {
+            Src = src;
         }
 
         public string Alt { get => get(nameof(Alt)); set => set(nameof(Alt), value); }

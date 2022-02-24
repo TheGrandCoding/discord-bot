@@ -47,6 +47,7 @@ namespace DiscordBot.Interactions.Modules
             mb.WithTitle("Edit Inventory Item");
             mb.AddTextInput("Expires At", "expires", placeholder: "yyyy-MM-dd", 
                 maxLength: 10, required: true, value: $"{inv.ExpiresAt:yyyy-MM-dd}");
+            mb.AddTextInput("Frozen", "frozen", placeholder: "true/false", minLength: 4, maxLength: 5, required: true, value: $"{inv.Frozen}");
 
             await RespondWithModalAsync(mb.Build());
         }
@@ -101,6 +102,9 @@ namespace DiscordBot.Interactions.Modules
 
         [ModalTextInput("expires", placeholder: "yyyy-MM-dd", maxLength: 10)]
         public string ExpiresAt { get; set; }
+
+        [ModalTextInput("frozen", placeholder: "true/false", maxLength: 5, minLength: 4)]
+        public string Frozen { get; set; }
     }
 
     public class FoodManuModal : IModal

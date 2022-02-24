@@ -1,5 +1,6 @@
 ﻿using DiscordBot.Classes.HTMLHelpers.Objects;
 using DiscordBot.Services;
+using DiscordBot.Utils;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
@@ -49,20 +50,58 @@ namespace DiscordBot.MLAPI.Modules
 
         TableData getExpirationInfo(InventoryItem item)
         {
+            string text;
             var diff = item.ExpiresAt - DateTime.UtcNow;
-            if(diff.TotalDays < -1)
-                return new TableData($"expired {(int)diff.TotalDays} days ago");
-            if (item.ExpiresAt.Date.Equals(DateTime.UtcNow.Date))
-                return new TableData("today");
-            if (item.ExpiresAt.Date.Equals(DateTime.UtcNow.Date.AddDays(1)))
-                return new TableData("tomorrow");
-            if (diff.TotalDays < 7)
-                return new TableData($"next {item.ExpiresAt.DayOfWeek}");
-            if (diff.TotalDays < 60)
-                return new TableData($"{item.ExpiresAt:dd MMM}");
-            if (item.ExpiresAt.Year == 2050)
-                return new TableData("n/a");
-            return new TableData($"{item.ExpiresAt:MMM yy}");
+            if (diff.TotalDays < -1)
+            {
+                text = $"expired {Math.Abs((int)diff.TotalDays)} days ago";
+            }
+            else if (item.ExpiresAt.Date.Equals(DateTime.UtcNow.Date))
+            {
+                text = "today";
+            }
+            else if (item.ExpiresAt.Date.Equals(DateTime.UtcNow.Date.AddDays(1)))
+            {
+                text = "tomorrow";
+            }
+            else if (diff.TotalDays < 7)
+            {
+                var nextSunday = DateTime.UtcNow.NextDay(DayOfWeek.Sunday);
+                if(item.ExpiresAt< nextSunday)
+                    text = $"this {item.ExpiresAt.DayOfWeek}";
+                else
+                    text = $"next {item.ExpiresAt.DayOfWeek}";
+                text += $" {item.ExpiresAt:dd}{Program.GetDaySuffix(item.ExpiresAt.Day)}";
+
+            }
+            else if (diff.TotalDays < 60)
+            {
+                text = $"{item.ExpiresAt:dd}{Program.GetDaySuffix(item.ExpiresAt.Day)} {item.ExpiresAt:MMMM}";
+            }
+            else if (item.ExpiresAt.Year == 2050)
+            {
+                text = "n/a";
+            }
+            else
+            {
+                text = $"{item.ExpiresAt:MMMM yyyy}";
+            }
+
+            if (item.Frozen)
+            {
+                return new TableData(null)
+                {
+                    Children =
+                    {
+                        new Img("/_/img/snowflake.png") {Style = "width: 32px;"},
+                        new Span() { RawText = text }
+                    }
+                };
+            }
+            else
+            {
+                return new TableData(text);
+            }
         }
 
         [Method("GET"), Path("/food")]
@@ -168,7 +207,7 @@ namespace DiscordBot.MLAPI.Modules
             RespondRaw(LoadRedirectFile($"/food/new?code={productId}"), System.Net.HttpStatusCode.Found);
         }
         [Method("POST"),   Path("/api/food/inventory")]
-        public void NewInventory(string productId, string expires)
+        public void NewInventory(string productId, string expires, string frozen)
         {
             productId = productId.Replace(" ", "");
             var split = expires.Split('-');
@@ -176,7 +215,7 @@ namespace DiscordBot.MLAPI.Modules
                                     int.Parse(split[1]),
                                     int.Parse(split[2]), 0, 0, 0, DateTimeKind.Utc);
 
-            Service.AddInventoryItem(productId, "default", date);
+            Service.AddInventoryItem(productId, "default", date, frozen == "on");
             RespondRaw(LoadRedirectFile($"/food/scan"), System.Net.HttpStatusCode.Found);
         }
         [Method("DELETE"), Path("/api/food/inventory")]
