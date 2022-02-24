@@ -53,7 +53,7 @@ namespace DiscordBot.Services
                 {
                     if(x.Length == id.Length)
                     {
-                        if (x.Replace("_", "").StartsWith(id))
+                        if (id.StartsWith(x.Replace("_", "")))
                             return key;
                     }
                 }

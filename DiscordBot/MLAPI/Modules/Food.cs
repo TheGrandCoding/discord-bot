@@ -27,7 +27,7 @@ namespace DiscordBot.MLAPI.Modules
                     + " " + id.Substring(7, 6);
             } else if(id.Length == 8)
             {
-                return id.Substring(0, 4) + " " + id.Substring(5);
+                return id.Substring(0, 4) + " " + id.Substring(4);
             }
             return id;
         }
@@ -134,6 +134,7 @@ namespace DiscordBot.MLAPI.Modules
         [Method("GET"), Path("/food/new")]
         public void NewFood(string code)
         {
+            code = code.Replace(" ", "");
             if (code.Length > 13)
                 return;
             var item = Service.GetProduct(code);
