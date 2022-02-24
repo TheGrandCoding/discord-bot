@@ -50,8 +50,13 @@ namespace DiscordBot.Services
             foreach((var key, var ls) in Manufacturers)
             {
                 foreach(var x in ls)
-                    if (id.StartsWith(x))
-                        return key;
+                {
+                    if(x.Length == id.Length)
+                    {
+                        if (x.Replace("_", "").StartsWith(id))
+                            return key;
+                    }
+                }
             }
             return null;
         }

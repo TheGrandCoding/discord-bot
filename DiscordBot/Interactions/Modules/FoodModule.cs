@@ -75,7 +75,7 @@ namespace DiscordBot.Interactions.Modules
                 CustomId = "food:manu:edit:" + name
             };
             mb.AddTextInput("Manufacturer Name", "manu_name", required: true, value: name);
-            mb.AddTextInput("Prefix", "prefix", placeholder: "prefix1,prefix2,prefix3");
+            mb.AddTextInput("Prefix", "prefix", placeholder: "prefix1,prefix2,prefix3", value: string.Join(",", ls));
 
             await RespondWithModalAsync(mb.Build());
         }

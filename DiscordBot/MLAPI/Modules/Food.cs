@@ -25,6 +25,9 @@ namespace DiscordBot.MLAPI.Modules
                 return id[0]
                     + " " + id.Substring(1, 6)
                     + " " + id.Substring(7, 6);
+            } else if(id.Length == 8)
+            {
+                return id.Substring(0, 4) + " " + id.Substring(5);
             }
             return id;
         }
