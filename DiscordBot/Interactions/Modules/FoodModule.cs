@@ -30,6 +30,7 @@ namespace DiscordBot.Interactions.Modules
             mb.AddTextInput("Product Id", "product_id", value: prodId, minLength: 8, maxLength: 13, required: true);
             mb.AddTextInput("Name", "name", value: prod.Name);
             mb.AddTextInput($"Days Freezing Extends Expiry", "extends", value: $"{(prod.FreezingExtends ?? 0)}");
+            mb.AddTextInput($"Tags", "tags", value: prod.Tags);
 
             await RespondWithModalAsync(mb.Build());
         }
@@ -98,6 +99,9 @@ namespace DiscordBot.Interactions.Modules
 
         [ModalTextInput("extends")]
         public string Extends { get; set; }
+
+        [ModalTextInput("tags")]
+        public string Tags { get; set; }
     }
 
     public class FoodInventoryModal : IModal

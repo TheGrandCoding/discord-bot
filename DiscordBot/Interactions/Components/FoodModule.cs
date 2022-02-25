@@ -40,7 +40,7 @@ namespace DiscordBot.Interactions.Components
 
             if (prod.Id != modal.ProductId)
             {
-                var newProd = db.AddProduct(modal.ProductId, modal.Name, "", extends);
+                var newProd = db.AddProduct(modal.ProductId, modal.Name, "", extends, modal.Tags);
 
                 var inv = db.Inventory
                     .AsAsyncEnumerable()
@@ -71,6 +71,7 @@ namespace DiscordBot.Interactions.Components
             {
                 prod.Name = modal.Name;
                 prod.FreezingExtends = extends;
+                prod.Tags = modal.Tags;
                 db.Products.Update(prod);
                 await db.SaveChangesAsync();
             }
