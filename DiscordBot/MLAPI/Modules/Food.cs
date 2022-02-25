@@ -185,13 +185,62 @@ namespace DiscordBot.MLAPI.Modules
             var item = Service.GetProduct(code);
             if(item == null)
             {
+                var manufs = Service.GetManufacturor(code);
+                if(!string.IsNullOrWhiteSpace(manufs))
+                {
+                    manufs = new Span() { Class = "badge", RawText = manufs };
+                    manufs += "<br/>";
+                } else
+                {
+                    manufs = "";
+                }
                 ReplyFile("new_product.html", 200, new Replacements()
-                    .Add("code", formatProductId(code)));
+                    .Add("code", formatProductId(code))
+                    .Add("manu", manufs));
             } else
             {
+                var existing = Service.GetInventory("default")
+                    .Where(x => x.ProductId == item.Id)
+                    .ToList();
+
+                string tableStr = "";
+                if(existing.Count > 0)
+                {
+                    var table = new Table();
+                    table.Children.Add(new TableRow()
+                        .WithHeader("Inventory Id")
+                        .WithHeader("Added")
+                        .WithHeader("Expires")
+                        .WithHeader("Remove"));
+                    foreach(var thing in existing)
+                    {
+                        var row = new TableRow();
+
+                        row.WithCell($"{thing.Id}");
+                        row.WithCell($"{thing.AddedAt:yyyy-MM-dd}");
+                        var d = getExpirationInfo(thing);
+                        d.Children.Add(new Span() { RawText = $" ({thing.ExpiresAt:yyyy-MM-dd})" });
+                        row.Children.Add(d);
+
+                        row.Children.Add(new TableData(null)
+                        {
+                            Children = {
+                            new Input("button", "Delete", cls: "danger")
+                            {
+                                OnClick = $"removeInvItem({thing.Id});"
+                            }
+                        }
+                        });
+
+                        table.Children.Add(row);
+                    }
+                    tableStr = table.ToString(true);
+                }
+
                 ReplyFile("new_inventory.html", 200, new Replacements()
                     .Add("prodId", formatProductId(code))
-                    .Add("prodName", getProductInfo(item)));
+                    .Add("prodName", getProductInfo(item))
+                    .Add("existing", tableStr));
             }
         }
 
