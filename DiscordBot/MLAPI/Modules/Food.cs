@@ -295,6 +295,7 @@ namespace DiscordBot.MLAPI.Modules
                         .WithHeader("Inventory Id")
                         .WithHeader("Added")
                         .WithHeader("Expires")
+                        .WithHeader($"Freeze")
                         .WithHeader("Remove"));
                     foreach(var thing in existing)
                     {
@@ -306,14 +307,29 @@ namespace DiscordBot.MLAPI.Modules
                         d.Children.Add(new Span() { RawText = $" ({thing.ExpiresAt:yyyy-MM-dd})" });
                         row.Children.Add(d);
 
+                        if(!thing.Frozen)
+                        {
+                            row.Children.Add(new TableData(null)
+                            {
+                                Children = {
+                                    new Input("button", "Freeze", cls: "danger")
+                                    {
+                                        OnClick = $"markFrozen({thing.Id});"
+                                    }
+                                }
+                            });
+                        } else
+                        {
+                            row.Children.Add(new TableData(""));
+                        }
                         row.Children.Add(new TableData(null)
                         {
                             Children = {
-                            new Input("button", "Delete", cls: "danger")
-                            {
-                                OnClick = $"removeInvItem({thing.Id});"
+                                new Input("button", "Delete", cls: "danger")
+                                {
+                                    OnClick = $"removeInvItem({thing.Id});"
+                                }
                             }
-                        }
                         });
 
                         table.Children.Add(row);
@@ -379,5 +395,21 @@ namespace DiscordBot.MLAPI.Modules
             db.SaveChanges();
             RespondRaw("", 200);
         }
+
+        [Method("PATCH"), Path("/api/food/inventory")]
+        public void EditInventory(int invId, bool frozen)
+        {
+            using var db = Service.DB();
+            var entity = db.Inventory.Find(invId);
+            if (entity == null)
+            {
+                RespondRaw("", 404);
+                return;
+            }
+            entity.Frozen = frozen;
+            db.SaveChanges();
+            RespondRaw("", 200);
+        }
+
     }
 }
