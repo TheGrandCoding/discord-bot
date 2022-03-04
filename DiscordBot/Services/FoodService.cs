@@ -109,6 +109,12 @@ namespace DiscordBot.Services
         {
             return Inventory.Find(id);
         }
+        public IReadOnlyCollection<InventoryItem> GetExpiresBetween(DateTime start, DateTime end)
+        {
+            return Inventory.AsEnumerable()
+                .Where(x => x.ExpiresAt >= start && x.ExpiresAt < end)
+                .ToArray();
+        }
         public Product AddProduct(string id, string name, string url, int? extends, string tags)
         {
             var prod = new Product() { 

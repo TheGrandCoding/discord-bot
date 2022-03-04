@@ -59,6 +59,13 @@ namespace DiscordBot.MLAPI
             Context.HTTP.Response.Close(bytes, true);
         }
 
+        public virtual void RespondJson(Newtonsoft.Json.Linq.JToken json, int code = 200)
+        {
+            Context.HTTP.Response.AddHeader("Content-Type", "application/json");
+            json ??= Newtonsoft.Json.Linq.JValue.CreateNull();
+            RespondRaw(json.ToString(Program.BOT_DEBUG ? Formatting.Indented : Formatting.None), code);
+        }
+
         public void RespondRaw(string obj, HttpStatusCode code)
             => RespondRaw(obj, (int)code);
 

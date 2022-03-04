@@ -2,6 +2,7 @@
 using DiscordBot.Services;
 using DiscordBot.Utils;
 using Microsoft.Extensions.DependencyInjection;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -239,10 +240,12 @@ namespace DiscordBot.MLAPI.Modules
             links += new Anchor($"/food?full={!full}&grouped={grouped}", full ? "View less information" : "View full information");
             links += " -- ";
             links += new Anchor($"/food?full={full}&grouped={!grouped}", grouped ? "View non-grouped" : "View grouped information");
+            links += "<br/>";
+            links += new Anchor($"/food/calendar", "View as calandar");
 
-            if(Context.User != null)
+            if (Context.User != null)
             {
-                links += "<br/>";
+                links += " -- ";
                 links += new Anchor("/food/scan", "Scan new item");
             }
 
@@ -347,6 +350,42 @@ namespace DiscordBot.MLAPI.Modules
                     .Add("existing", tableStr));
             }
         }
+
+
+        [Method("GET"), Path("/food/calendar")]
+        public void Calendar()
+        {
+            InjectObjects = new List<Classes.HTMLHelpers.HTMLBase>();
+            ReplyFile("calendar.html", 200);
+        }
+        [Method("GET"), Path("/api/food/calendar")]
+        public void APIGetWeek(DateTime start, DateTime end)
+        {
+            start = start.ToUniversalTime();
+            end = end.ToUniversalTime();
+            using var db = Service.DB();
+            var items = db.GetExpiresBetween(start, end);
+            var jarray = new JArray();
+            foreach(var item in items)
+            {
+                var t = new DateTimeOffset(item.ExpiresAt.Ticks, TimeSpan.Zero);
+                var jobj = new JObject();
+                jobj["id"] = $"{item.Id}";
+                jobj["allDay"] = true;
+                jobj["start"] = t.ToUnixTimeMilliseconds();
+                jobj["title"] = item.Product.Name;
+                if(!string.IsNullOrWhiteSpace(item.Product.Tags))
+                    jobj["tags"] = new JArray(item.Product.Tags.Split(';'));
+                jobj["product"] = item.Product.Id;
+                jobj["frozen"] = item.Frozen;
+                var man = Service.GetManufacturor(item.Product.Id);
+                if(!string.IsNullOrWhiteSpace(man))
+                    jobj["manu"] = man;
+                jarray.Add(jobj);
+            }
+            RespondJson(jarray);
+        }
+
 
         [Method("POST"), Path("/api/food/products")]
         public void NewProduct(string productId, string productName, int extends)
