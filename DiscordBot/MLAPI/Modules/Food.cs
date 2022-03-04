@@ -104,14 +104,46 @@ namespace DiscordBot.MLAPI.Modules
             }
         }
 
-        [Method("GET"), Path("/food")]
-        [RequireApproval(false)]
-        [RequireAuthentication(false, false)]
-        public void Base(bool full = false)
+        TableRow getRow(InventoryItem item, bool full)
+        {
+            var row = new TableRow();
+            if (full)
+            {
+                row.WithCell(item.Id.ToString());
+                row.WithCell(formatProductId(item.ProductId));
+            }
+            if (item.Product == null)
+                row.WithCell("n/a");
+            else
+                row.Children.Add(getProductInfo(item.Product));
+            row.WithCell($"{item.AddedAt:yyyy-MM-dd}");
+            row.Children.Add(getExpirationInfo(item));
+            var diff = item.ExpiresAt - DateTime.UtcNow;
+            if (diff.TotalDays < 7)
+                row.Class = "expires-soon";
+            if (diff.TotalHours < 48)
+                row.Class = "expires-imminently";
+
+            if (Context.User != null)
+            {
+                row.Children.Add(new TableData(null)
+                {
+                    Children = {
+                            new Input("button", "Delete", cls: "danger")
+                            {
+                                OnClick = $"removeInvItem({item.Id});"
+                            }
+                        }
+                });
+            }
+            return row;
+        }
+
+        string getNonGrouped(bool full)
         {
             var table = new Table();
             var hr = new TableRow();
-            if(full)
+            if (full)
             {
                 hr.WithHeader("Inv. Id");
                 hr.WithHeader("Product ID");
@@ -119,49 +151,101 @@ namespace DiscordBot.MLAPI.Modules
             hr.WithHeader("Item");
             hr.WithHeader("Added");
             hr.WithHeader("Expires");
-            if(Context.User != null)
+            if (Context.User != null)
                 hr.WithHeader("");
             table.Children.Add(hr);
             var inv = Service.GetInventory("default");
-            foreach(var item in inv.OrderBy(x => x.ExpiresAt))
+            foreach (var item in inv.OrderBy(x => x.ExpiresAt))
             {
-                var row = new TableRow();
-                if(full)
-                {
-                    row.WithCell(item.Id.ToString());
-                    row.WithCell(formatProductId(item.ProductId));
-                }
-                if (item.Product == null)
-                    row.WithCell("n/a");
-                else
-                    row.Children.Add(getProductInfo(item.Product));
-                row.WithCell($"{item.AddedAt:yyyy-MM-dd}");
-                row.Children.Add(getExpirationInfo(item));
-                var diff = item.ExpiresAt - DateTime.UtcNow;
-                if (diff.TotalDays < 7)
-                    row.Class = "expires-soon";
-                if (diff.TotalHours < 48)
-                    row.Class = "expires-imminently";
-
-                if(Context.User != null)
-                {
-                    row.Children.Add(new TableData(null)
-                    {
-                        Children = {
-                            new Input("button", "Delete", cls: "danger")
-                            {
-                                OnClick = $"removeInvItem({item.Id});"
-                            }
-                        }
-                    });
-                }
-
-                table.Children.Add(row);
+                table.Children.Add(getRow(item, full));
             }
-            var s = table.ToString(true);
+            return table.ToString(true);
+        }
+
+        string getGroupedInfo(bool full)
+        {
+            var inv = Service.GetInventory("default");
+            var grouped = new Dictionary<string, List<InventoryItem>>();
+
+            foreach(var item in inv)
+            {
+                if (string.IsNullOrWhiteSpace(item.Product?.Tags ?? ""))
+                    continue;
+                foreach(var tag in item.Product.Tags.Split(';'))
+                {
+                    grouped.AddInner(tag, item);
+                }
+            }
+
+            var table = new Table();
+            var hr = new TableRow();
+            if (full)
+            {
+                hr.WithHeader("Inv. Id");
+                hr.WithHeader("Product ID");
+            }
+            hr.WithHeader("Item");
+            hr.WithHeader("Added");
+            hr.WithHeader("Expires");
+            if (Context.User != null)
+                hr.WithHeader("");
+            table.Children.Add(hr);
+
+            foreach((var groupName, var ls) in grouped)
+            {
+                table.Children.Add(new TableRow()
+                {
+                    Children =
+                    {
+                        new TableHeader(groupName) {ColSpan = hr.Children.Count.ToString()}
+                    }
+                });
+                foreach(var item in ls.OrderBy(x => x.ExpiresAt))
+                {
+                    var row = getRow(item, full);
+                    if(!string.IsNullOrWhiteSpace(item.Product.Tags))
+                    {
+                        var c = item.Product.Tags.Split(';');
+                        if(c.Length > 1)
+                        {
+                            var nameCell = row.Children[full ? 2 : 0] as TableData;
+                            var warnSpan = new Span(cls: "product-warn")
+                            {
+                                RawText = $"<br/> (!) Duplicated in multiple categories: {string.Join(", ", c)}"
+                            };
+                            nameCell.Children.Add(warnSpan);
+                        }
+                    }
+                    table.Children.Add(row);
+                }
+            }
+            return table;
+        }
+
+        [Method("GET"), Path("/food")]
+        [RequireApproval(false)]
+        [RequireAuthentication(false, false)]
+        public void Base(bool grouped = false, bool full = false)
+        {
+            var s = grouped
+                ? getGroupedInfo(full)
+                : getNonGrouped(full);
+
+            string links = "";
+            links += new Anchor($"/food?full={!full}&grouped={grouped}", full ? "View less information" : "View full information");
+            links += " -- ";
+            links += new Anchor($"/food?full={full}&grouped={!grouped}", grouped ? "View non-grouped" : "View grouped information");
+
+            if(Context.User != null)
+            {
+                links += "<br/>";
+                links += new Anchor("/food/scan", "Scan new item");
+            }
+
             ReplyFile("base.html", 200, new Replacements()
                 .Add("inventoryid", "default")
-                .Add("table", s));
+                .Add("table", s)
+                .Add("links", links));
         }
 
         [Method("GET"), Path("/food/scan")]
@@ -211,6 +295,7 @@ namespace DiscordBot.MLAPI.Modules
                         .WithHeader("Inventory Id")
                         .WithHeader("Added")
                         .WithHeader("Expires")
+                        .WithHeader($"Freeze")
                         .WithHeader("Remove"));
                     foreach(var thing in existing)
                     {
@@ -222,6 +307,21 @@ namespace DiscordBot.MLAPI.Modules
                         d.Children.Add(new Span() { RawText = $" ({thing.ExpiresAt:yyyy-MM-dd})" });
                         row.Children.Add(d);
 
+                        if(!thing.Frozen)
+                        {
+                            row.Children.Add(new TableData(null)
+                            {
+                                Children = {
+                                    new Input("button", "Freeze", cls: "danger")
+                                    {
+                                        OnClick = $"markFrozen({thing.Id});"
+                                    }
+                                }
+                            });
+                        } else
+                        {
+                            row.Children.Add(new TableData(""));
+                        }
                         row.Children.Add(new TableData(null)
                         {
                             Children = {
@@ -270,7 +370,7 @@ namespace DiscordBot.MLAPI.Modules
             int? e = null;
             if (extends > 0)
                 e = extends;
-            var p = Service.AddProduct(productId, productName, "", e);
+            var p = Service.AddProduct(productId, productName, "", e, "");
             RespondRaw(LoadRedirectFile($"/food/new?code={productId}"), System.Net.HttpStatusCode.Found);
         }
         [Method("POST"),   Path("/api/food/inventory")]
@@ -299,5 +399,21 @@ namespace DiscordBot.MLAPI.Modules
             db.SaveChanges();
             RespondRaw("", 200);
         }
+
+        [Method("PATCH"), Path("/api/food/inventory")]
+        public void EditInventory(int invId, bool frozen)
+        {
+            using var db = Service.DB();
+            var entity = db.Inventory.Find(invId);
+            if (entity == null)
+            {
+                RespondRaw("", 404);
+                return;
+            }
+            entity.Frozen = frozen;
+            db.SaveChanges();
+            RespondRaw("", 200);
+        }
+
     }
 }

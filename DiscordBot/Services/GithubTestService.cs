@@ -399,7 +399,7 @@ namespace DiscordBot.Services
             var buildAnnotations = new List<NewCheckRunAnnotation>();
             foreach (var line in x.Split('\n'))
             {
-                if (line.StartsWith(leadingPath) && line.Contains(": error: "))
+                if (line.StartsWith(leadingPath) && (line.Contains(": error: ") || line.Contains(": fatal error: ")))
                 { // format:
                   // /path/to/file.h:LINE:COLUMN: error: MESSAGE
                     var restLine = line.Replace(leadingPath, "");
