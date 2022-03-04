@@ -225,11 +225,15 @@ namespace DiscordBot.MLAPI.Modules
                         row.Children.Add(new TableData(null)
                         {
                             Children = {
-                            new Input("button", "Delete", cls: "danger")
-                            {
-                                OnClick = $"removeInvItem({thing.Id});"
+                                new Input("button", "Delete", cls: "danger")
+                                {
+                                    OnClick = $"removeInvItem({thing.Id});"
+                                },
+                                new Input("button", thing.Frozen ? "Unfreeze" : "Freeze", cls: "freeze")
+                                {
+                                    OnClick = $"toggleFrozen({thing.Id}, {thing.Frozen.ToString().ToLower()});"
+                                }
                             }
-                        }
                         });
 
                         table.Children.Add(row);
