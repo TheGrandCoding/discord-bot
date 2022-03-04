@@ -132,6 +132,10 @@ namespace DiscordBot.MLAPI.Modules
                             new Input("button", "Delete", cls: "danger")
                             {
                                 OnClick = $"removeInvItem({item.Id});"
+                            },
+                            new Input("button", item.Frozen ? "Unfreeze" : "Freeze", cls: "freeze")
+                            {
+                                OnClick = $"toggleFrozen({item.Id}, {item.Frozen.ToString().ToLower()});"
                             }
                         }
                 });
@@ -328,10 +332,6 @@ namespace DiscordBot.MLAPI.Modules
                                 new Input("button", "Delete", cls: "danger")
                                 {
                                     OnClick = $"removeInvItem({thing.Id});"
-                                },
-                                new Input("button", thing.Frozen ? "Unfreeze" : "Freeze", cls: "freeze")
-                                {
-                                    OnClick = $"toggleFrozen({thing.Id}, {thing.Frozen.ToString().ToLower()});"
                                 }
                             }
                         });
