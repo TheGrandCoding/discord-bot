@@ -353,12 +353,18 @@ namespace DiscordBot.MLAPI.Modules
 
 
         [Method("GET"), Path("/food/calendar")]
+        [RequireApproval(false)]
+        [RequireAuthentication(false, false)]
         public void Calendar()
         {
             InjectObjects = new List<Classes.HTMLHelpers.HTMLBase>();
             ReplyFile("calendar.html", 200);
         }
+        
+        
         [Method("GET"), Path("/api/food/calendar")]
+        [RequireApproval(false)]
+        [RequireAuthentication(false, false)]
         public void APIGetWeek(DateTime start, DateTime end)
         {
             start = start.ToUniversalTime();
