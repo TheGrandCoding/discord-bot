@@ -45,6 +45,25 @@ namespace DiscordBot.Services
             using var db = DB();
             return db.GetInventory(id);
         }
+        public bool DeleteInventoryItem(int id)
+        {
+            using var db = DB();
+            var item = GetInventoryItem(id);
+            if (item == null)
+                return false;
+            db.Inventory.Remove(item);
+            var his = new HistoricItem()
+            {
+                ProductId = item.ProductId,
+                InventoryId = item.Id,
+                AddedAt = item.AddedAt,
+                RemovedAt = DateTime.Now.ToUniversalTime(),
+            };
+            db.PreviousInventory.Add(his);
+            db.SaveChanges();
+            return true;
+        }
+        
         public string GetManufacturor(string id)
         {
             foreach((var key, var ls) in Manufacturers)
@@ -237,7 +256,7 @@ namespace DiscordBot.Services
         public int Id { get; set; }
 
         public string ProductId { get; set; }
-        public string InventoryId { get; set; }
+        public int InventoryId { get; set; }
 
         public DateTime AddedAt { get; set; }
         public DateTime RemovedAt { get; set; }

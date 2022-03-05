@@ -433,16 +433,13 @@ namespace DiscordBot.MLAPI.Modules
         [Method("DELETE"), Path("/api/food/inventory")]
         public void DeleteInventory(int invId)
         {
-            using var db = Service.DB();
-            var entity = db.Inventory.Find(invId);
-            if(entity == null)
+            if(Service.DeleteInventoryItem(invId))
+            {
+                RespondRaw("", 200);
+            } else
             {
                 RespondRaw("", 404);
-                return;
             }
-            db.Inventory.Remove(entity);
-            db.SaveChanges();
-            RespondRaw("", 200);
         }
 
         [Method("PATCH"), Path("/api/food/inventory")]
