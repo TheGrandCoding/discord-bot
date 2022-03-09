@@ -130,7 +130,7 @@ namespace DiscordBot.Services
         {
             var annotations = new List<NewCheckRunAnnotation>();
             var cppFiles = folder.GetFiles("*.cpp")
-                .Select(x => x.Name)
+                .Select(x => x.FullName)
                 .Where(x => x != "Game.cpp")
                 .ToList();
             var cmakeFile = new FileInfo(Path.Combine(folder.FullName, "CMakeLists.txt"));
@@ -169,7 +169,7 @@ namespace DiscordBot.Services
                                 $"    add_library( {libName} {libName}.cpp )"));
                         }
                         libraries.Add(libName);
-                        if(!cppFiles.Remove(fileName))
+                        if(cppFiles.RemoveAll(x => githubPath(x) == fileName) == 0)
                         {
                             annotations.Add(new NewCheckRunAnnotation(githubPath(cmakeFile.FullName), 
                                 lineNo, lineNo, 
@@ -215,11 +215,15 @@ namespace DiscordBot.Services
                     lastLineOfLibraries, lastLineOfLibraries,
                     CheckAnnotationLevel.Failure,
                     $"The following .cpp files are not linked here, meaning they will not be built by CMake:\n\n    " +
-                    string.Join("\n    ", cppFiles) + "\n\n" +
+                    string.Join("\n    ", cppFiles.Select(x => githubPath(x)) + "\n\n" +
                     "These can be linked using the following syntax:\r\n" +
                     $"    add_library( [NAME] [NAME].cpp )\n\n" +
                     $"Hence, a potential fix could be to place the following lines into the file:\n\n" +
-                    $"    " + string.Join("\n    ", cppFiles.Select(x => $"add_library( {Path.GetFileNameWithoutExtension(x)} {x} )"))));
+                    $"    " + string.Join("\n    ", cppFiles.Select(x =>
+                    {
+                        var path = githubPath(x);
+                        return $"add_library( {path.Replace(".cpp", "")} {path} )";
+                    })))));
             }
             return annotations;
         } 
