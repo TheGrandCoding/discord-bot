@@ -131,7 +131,7 @@ namespace DiscordBot.Services
             var annotations = new List<NewCheckRunAnnotation>();
             var cppFiles = folder.GetFiles("*.cpp")
                 .Select(x => x.FullName)
-                .Where(x => x != "Game.cpp")
+                .Where(x => !x.EndsWith("Game.cpp"))
                 .ToList();
             var cmakeFile = new FileInfo(Path.Combine(folder.FullName, "CMakeLists.txt"));
 
@@ -223,7 +223,8 @@ namespace DiscordBot.Services
                     {
                         var path = githubPath(x);
                         return $"add_library( {path.Replace(".cpp", "")} {path} )";
-                    })))));
+                    }))
+                ));
             }
             return annotations;
         } 
