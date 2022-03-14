@@ -215,7 +215,7 @@ namespace DiscordBot.Services
                     lastLineOfLibraries, lastLineOfLibraries,
                     CheckAnnotationLevel.Failure,
                     $"The following .cpp files are not linked here, meaning they will not be built by CMake:\n\n    " +
-                    string.Join("\n    ", cppFiles.Select(x => githubPath(x)) + "\n\n" +
+                    string.Join("\n    ", cppFiles.Select(x => githubPath(x))) + "\n\n" +
                     "These can be linked using the following syntax:\r\n" +
                     $"    add_library( [NAME] [NAME].cpp )\n\n" +
                     $"Hence, a potential fix could be to place the following lines into the file:\n\n" +
