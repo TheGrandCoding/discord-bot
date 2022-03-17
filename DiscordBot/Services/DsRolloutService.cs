@@ -118,6 +118,7 @@ namespace DiscordBot.Services
 
         public async Task updateTask()
         {
+            HasRecentlySynced.Value = true;
             var fromAPIExperiments = await GetCurrentExperiments();
 
             var updatedExperiments = new List<Experiment>();
@@ -189,7 +190,6 @@ namespace DiscordBot.Services
                 }
             }
 
-            HasRecentlySynced.Value = true;
             if(changes)
             {
                 Experiments.Clear();

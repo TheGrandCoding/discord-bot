@@ -86,7 +86,8 @@ namespace DiscordBot.Services
             Func<SocketMessageComponent, Task> handleMsgComponent = async (interaction) => {
                 if (Program.ignoringCommands) return;
                 var ctx = new SocketInteractionContext<SocketMessageComponent>(Program.Client, interaction);
-                await InteractionService.ExecuteCommandAsync(ctx, Program.Services);
+                var r = await InteractionService.ExecuteCommandAsync(ctx, Program.Services);
+                Program.LogInfo($"{r.IsSuccess} {r.Error} {r.ErrorReason}", "CmdMessageCmp");
             };
 
             Program.Client.AutocompleteExecuted += async (interaction) =>
