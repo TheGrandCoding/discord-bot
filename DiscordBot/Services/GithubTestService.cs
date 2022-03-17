@@ -131,7 +131,7 @@ namespace DiscordBot.Services
             var annotations = new List<NewCheckRunAnnotation>();
             var cppFiles = folder.GetFiles("*.cpp")
                 .Select(x => x.FullName)
-                .Where(x => x != "Game.cpp")
+                .Where(x => !x.EndsWith("Game.cpp"))
                 .ToList();
             var cmakeFile = new FileInfo(Path.Combine(folder.FullName, "CMakeLists.txt"));
 
@@ -215,7 +215,7 @@ namespace DiscordBot.Services
                     lastLineOfLibraries, lastLineOfLibraries,
                     CheckAnnotationLevel.Failure,
                     $"The following .cpp files are not linked here, meaning they will not be built by CMake:\n\n    " +
-                    string.Join("\n    ", cppFiles.Select(x => githubPath(x)) + "\n\n" +
+                    string.Join("\n    ", cppFiles.Select(x => githubPath(x))) + "\n\n" +
                     "These can be linked using the following syntax:\r\n" +
                     $"    add_library( [NAME] [NAME].cpp )\n\n" +
                     $"Hence, a potential fix could be to place the following lines into the file:\n\n" +
@@ -223,7 +223,8 @@ namespace DiscordBot.Services
                     {
                         var path = githubPath(x);
                         return $"add_library( {path.Replace(".cpp", "")} {path} )";
-                    })))));
+                    }))
+                ));
             }
             return annotations;
         } 
