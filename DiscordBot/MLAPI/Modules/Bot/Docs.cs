@@ -112,16 +112,16 @@ namespace DiscordBot.MLAPI.Modules
             }
             return text;
         }
-        string[] listPerms(ChannelPermission? channel, GuildPermission? guild)
+        ListItem[] listPerms(ChannelPermission? channel, GuildPermission? guild)
         {
-            var ls = new List<string>();
+            var ls = new List<ListItem>();
             var flags = new List<ulong>();
             if(channel != null)
             {
                 var a = new ChannelPermissions((ulong)channel);
                 foreach (var x in a.ToList())
                 {
-                    ls.Add(x.ToString());
+                    ls.Add(new ListItem(x.ToString()));
                     flags.Add((ulong)x);
                 }
             }
@@ -130,7 +130,7 @@ namespace DiscordBot.MLAPI.Modules
                 var b = new GuildPermissions((ulong)guild);
                 foreach (var x in b.ToList())
                     if(!flags.Contains((ulong)x))
-                        ls.Add(x.ToString());
+                        ls.Add(new ListItem(x.ToString()));
             }
             return ls.ToArray();
         }
@@ -285,7 +285,13 @@ namespace DiscordBot.MLAPI.Modules
         {
             var ul = new UnorderedList();
             foreach (var x in arr)
-                ul.AddItem($"<code>{x}</code>");
+                ul.AddItem(new ListItem()
+                {
+                    Children =
+                    {
+                        new Code(x)
+                    }
+                });
             return ul;
         }
         
@@ -310,7 +316,7 @@ namespace DiscordBot.MLAPI.Modules
                 var anchor = new Anchor(href,
                         text: module.Name,
                         cls: "navLink-1Neui4 navLinkSmall-34Tbhm");
-                list.Children.Add(new ListItem(null)
+                list.Children.Add(new ListItem()
                 {
                     Children =
                     {

@@ -45,7 +45,7 @@ namespace DiscordBot.MLAPI
         protected List<Classes.HTMLHelpers.HTMLBase> InjectObjects { get; set; } = new List<Classes.HTMLHelpers.HTMLBase>()
         {
             new Classes.HTMLHelpers.Objects.PageLink("stylesheet", "text/css", "/_/css/common.css"),
-            new Classes.HTMLHelpers.Objects.RawObject("<script src='/_/js/common.js' type='text/javascript'></script>")
+            new Classes.HTMLHelpers.Objects.Script("/_/js/common.js")
         };
 
         public int StatusSent { get; set; } = 0;

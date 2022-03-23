@@ -361,6 +361,46 @@ namespace DiscordBot.MLAPI.Modules
             ReplyFile("calendar.html", 200);
         }
         
+        [Method("GET"), Path("/food/recipes")]
+        public void ViewRecipes()
+        {
+            var table = new Table()
+            {
+                Children =
+                {
+                    new TableRow()
+                        .WithHeader("Ingredients")
+                        .WithHeader("Steps")
+                }
+            };
+            foreach(var x in Service.Recipes)
+            {
+                var r = new TableRow();
+
+                var ing = new UnorderedList();
+                foreach(var i in x.Ingredients)
+                {
+                    ing.AddItem(new ListItem($"{i.Value}x {i.Key}"));
+                }
+                r.Children.Add(new TableData(null) { Children = { ing } });
+
+                var steps = new UnorderedList();
+                foreach(var s in x.Steps)
+                {
+                    steps.AddItem(s.GetListItem());
+                }
+                r.Children.Add(new TableData(null) { Children = { steps } });
+                table.Children.Add(r);
+            }
+
+            ReplyFile("recipe.html", 200, new Replacements().Add("table", table));
+        }
+
+        [Method("GET"), Path("/food/add-recipe")]
+        public void NewRecipe()
+        {
+            ReplyFile("new_recipe.html", 200);
+        }
         
         [Method("GET"), Path("/api/food/calendar")]
         [RequireApproval(false)]
@@ -457,5 +497,78 @@ namespace DiscordBot.MLAPI.Modules
             RespondRaw("", 200);
         }
 
+        SavedStep parseStep(JObject obj)
+        {
+            var saved = new SavedStep();
+            saved.Description = obj.GetValue("description")?.ToObject<string>();
+            if (string.IsNullOrWhiteSpace(saved.Description))
+                throw new ArgumentException($"Description cannot be null");
+            if (obj.TryGetValue("children", out var children))
+            {
+                var arr = children as JArray;
+                saved.Children = arr.Select(x => parseStep(x as JObject)).ToList();
+            } else
+            {
+                saved.Duration = obj.GetValue("duration")?.ToObject<int?>() ?? 0;
+                saved.Delay = obj.GetValue("delay")?.ToObject<int?>() ?? 0;
+            }
+            return saved;
+        }
+
+        [Method("POST"), Path("/api/food/recipes")]
+        public void AddRecipe()
+        {
+            var jobj = JObject.Parse(Context.Body);
+            var recipe = new SavedRecipe();
+
+            if(!jobj.TryGetValue("ingredients", out var ingToken))
+            {
+                RespondRaw("Ingredients absent", 400);
+                return;
+            }
+            if(!jobj.TryGetValue("steps", out var stepsA))
+            {
+                RespondRaw("Steps absent", 400);
+                return;
+            }
+            var ingredients = ingToken as JArray;
+            foreach(var x in ingredients)
+            {
+                var ing = x as JObject;
+                var id = ing.GetValue("id")?.ToObject<string>();
+                if(string.IsNullOrWhiteSpace(id))
+                {
+                    RespondRaw("Ingredient ID is null", 400);
+                    return;
+                }
+                var units = ing.GetValue("unitsUsed")?.ToObject<int?>();
+                if(!units.HasValue)
+                {
+                    RespondRaw("Units used is null", 400);
+                    return;
+                }
+
+                var prod = Service.GetProduct(id);
+                if(prod == null)
+                {
+                    RespondRaw($"No product exists with ID '{id}'", 400);
+                    return;
+                }
+
+                recipe.Ingredients.Add(id, units.Value);
+            }
+
+            var steps = stepsA as JArray;
+            foreach(var x in steps)
+            {
+                var step = parseStep(x as JObject);
+                recipe.Steps.Add(step);
+            }
+
+            Service.Recipes.Add(recipe);
+            Service.OnSave();
+
+            RespondRaw("OK");
+        }
     }
 }

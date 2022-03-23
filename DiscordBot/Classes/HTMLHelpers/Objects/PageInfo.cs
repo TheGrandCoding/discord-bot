@@ -84,6 +84,14 @@ namespace DiscordBot.Classes.HTMLHelpers.Objects
             tagValues["href"] = href;
         }
     }
+    public class Script : HTMLBase
+    {
+        public Script(string src) : base("script", null, null)
+        {
+            tagValues["src"] = src;
+            tagValues["type"] = "text/javascript";
+        }
+    }
 
     public class Meta : HTMLBase
     {

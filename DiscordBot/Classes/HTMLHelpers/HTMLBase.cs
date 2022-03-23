@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
@@ -19,7 +20,15 @@ namespace DiscordBot.Classes.HTMLHelpers
 
         public List<string> ClassList { get => m_classes; }
 
-        public string RawText { get; set; }
+        private string _rawText;
+        public string RawText { get
+            {
+                return _rawText;
+            } set
+            {
+                _rawText = System.Web.HttpUtility.HtmlEncode(value);
+            }
+        }
         protected Dictionary<string, string> tagValues { get; set; } = new Dictionary<string, string>();
         public HTMLBase(string tag, string id, string cls)
         {

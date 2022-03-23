@@ -6,7 +6,7 @@ namespace DiscordBot.Classes.HTMLHelpers.Objects
 {
     public class ListItem : DOMBase
     {
-        public ListItem(string content, string id = null, string cls = null) : base("li", id, cls)
+        public ListItem(string content = null, string id = null, string cls = null) : base("li", id, cls)
         {
             RawText = content;
         }
@@ -16,9 +16,9 @@ namespace DiscordBot.Classes.HTMLHelpers.Objects
         public UnorderedList(string id = null, string cls = null) : base("ul", id, cls)
         {
         }
-        public UnorderedList AddItem(string item)
+        public UnorderedList AddItem(ListItem item)
         {
-            this.Children.Add(new ListItem(item));
+            this.Children.Add(item);
             return this;
         }
     }
@@ -27,9 +27,9 @@ namespace DiscordBot.Classes.HTMLHelpers.Objects
         public OrderedList(string id = null, string cls = null) : base("ol", id, cls)
         {
         }
-        public void AddItem(string item)
+        public void AddItem(ListItem item)
         {
-            this.Children.Add(new ListItem(item));
+            this.Children.Add(item);
         }
     }
 }

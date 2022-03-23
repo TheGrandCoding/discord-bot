@@ -57,7 +57,8 @@ Changed how permissions worked for bot.
 
         public static Random RND { get; set; } = new Random();
 
-        public static bool ShouldDownload { get; set; } = false;
+        public static bool ShouldServiceDownloads { get; set; } = false;
+        public static bool ShouldSaveDownload { get; set; } = false;
 
         public int something = 0xff;
 
@@ -111,7 +112,7 @@ Changed how permissions worked for bot.
                 );
             var recipe = new WorkingRecipe()
             {
-                Steps = new List<WorkingMultiStep>()
+                Steps = new List<WorkingStepBase>()
                 {
                     huntersChicken,
                     roastbeef
@@ -148,7 +149,7 @@ Changed how permissions worked for bot.
 
         static int Main(string[] args)
         {
-            debugtest();
+            //debugtest();
 
 
             _braille = new List<char>();
@@ -233,7 +234,7 @@ Changed how permissions worked for bot.
             return;
 #endif
             List<Service> savedServices;
-            if (ShouldDownload)
+            if (ShouldServiceDownloads)
             {
                 savedServices = services.Where(x => x is SavedService).ToList();
             } else
@@ -243,7 +244,8 @@ Changed how permissions worked for bot.
                     .ToList();
             }
             var files = savedServices.Select(x => ((SavedService)x).SaveFile).ToList();
-            files.Add(saveName);
+            if(ShouldSaveDownload)
+                files.Add(saveName);
             foreach(var x in files)
             {
                 fetchFile(x);

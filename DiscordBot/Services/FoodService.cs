@@ -14,6 +14,11 @@ namespace DiscordBot.Services
     public class FoodService : SavedService
     {
         public ConcurrentDictionary<string, List<string>> Manufacturers { get; set; } = new ConcurrentDictionary<string, List<string>>();
+        public ConcurrentBag<SavedRecipe> Recipes { get; set; } = new ConcurrentBag<SavedRecipe>();
+
+
+        public ConcurrentBag<WorkingRecipe> OngoingRecipes { get; set; } = new ConcurrentBag<WorkingRecipe>();
+        
         public FoodDbContext DB()
         {
             return Program.Services.GetRequiredService<FoodDbContext>();
@@ -90,9 +95,11 @@ namespace DiscordBot.Services
         public override string GenerateSave()
         {
             var dict = new Dictionary<string, List<string>>(Manufacturers);
+            var recipList = new List<SavedRecipe>(Recipes);
             var sv = new foodSave()
             {
-                manufacturerPrefixes = dict
+                manufacturerPrefixes = dict,
+                recipes = recipList
             };
             return Program.Serialise(sv);
         }
@@ -100,6 +107,7 @@ namespace DiscordBot.Services
         {
             var sv = Program.Deserialise<foodSave>(ReadSave());
             Manufacturers = new ConcurrentDictionary<string, List<string>>(sv.manufacturerPrefixes ?? new Dictionary<string, List<string>>());
+            Recipes = new ConcurrentBag<SavedRecipe>(sv.recipes ?? new List<SavedRecipe>());
 
         }
     }
@@ -108,6 +116,9 @@ namespace DiscordBot.Services
     {
         [JsonProperty("manuf")]
         public Dictionary<string, List<string>> manufacturerPrefixes { get; set; } = new Dictionary<string, List<string>>();
+
+        public List<SavedRecipe> recipes { get; set; } = new List<SavedRecipe>();
+
     }
 
     public class FoodDbContext : DbContext
@@ -264,9 +275,31 @@ namespace DiscordBot.Services
 
     public class SavedRecipe
     {
-        public Dictionary<int, int> Ingredients { get; set; }
+        int _id = 0;
+        public SavedRecipe()
+        {
+            Id = System.Threading.Interlocked.Increment(ref _id);
+        }
+        [JsonConstructor]
+        private SavedRecipe(int id)
+        {
+            Id = id;
+            if (id > _id)
+                _id = id;
+        }
+
+        public int Id { get; }
+        public Dictionary<string, int> Ingredients { get; set; } = new Dictionary<string, int>();
         [JsonProperty("steps", ItemTypeNameHandling = TypeNameHandling.All)]
-        public List<SavedStep> Steps { get; set; }
+        public List<SavedStep> Steps { get; set; } = new List<SavedStep>();
+
+        public WorkingRecipe ToWorking()
+        {
+            return new WorkingRecipe()
+            {
+                Steps = Steps.Select(x => x.ToWorking()).ToList()
+            };
+        }
     }
 
     public class SavedStep
@@ -278,11 +311,54 @@ namespace DiscordBot.Services
         [JsonProperty("delay")]
         public int? Delay { get; set; }
         public List<SavedStep> Children { get; set; }
+
+        public WorkingStepBase ToWorking()
+        {
+            if(Children != null && Children.Count > 0)
+            {
+                var multi = new WorkingMultiStep(Description);
+                foreach (var x in Children)
+                    multi.WithChild(x.ToWorking());
+                return multi;
+            } else
+            {
+                return new WorkingSimpleStep(Description, Duration ?? 0, Delay ?? 0);
+            }
+        }
+
+
+
+        public Classes.HTMLHelpers.Objects.ListItem GetListItem()
+        {
+            var li = new Classes.HTMLHelpers.Objects.ListItem(null);
+            li.Children.Add(new Classes.HTMLHelpers.Objects.Span() { RawText = Description });
+
+            if(Children == null || Children.Count == 0)
+            {
+                if (Duration.GetValueOrDefault(0) > 0)
+                    li.Children.Add(new Classes.HTMLHelpers.Objects.Span() { RawText = $", for {Duration}" });
+                if (Delay.GetValueOrDefault(0) > 0)
+                    li.Children.Add(new Classes.HTMLHelpers.Objects.Span() { RawText = $", after {Delay}" });
+            } else
+            {
+                var inner = new Classes.HTMLHelpers.Objects.UnorderedList();
+                foreach (var x in Children ?? new List<SavedStep>())
+                    inner.AddItem(x.GetListItem());
+                li.Children.Add(inner);
+            }
+            return li;
+        }
     }
 
     public class WorkingRecipe
     {
-        public List<WorkingMultiStep> Steps { get; set; }
+        static int _id = 1;
+        public WorkingRecipe()
+        {
+            Id = System.Threading.Interlocked.Increment(ref _id);
+        }
+        public int Id { get; }
+        public List<WorkingStepBase> Steps { get; set; }
 
         public WorkingStepBase NextStep { get; set; }
 
@@ -382,6 +458,14 @@ namespace DiscordBot.Services
             //Console.WriteLine($"   {c} {Description} target {targetEndsAt}, length {FullLength}, start: {IdealStartAt}");
         }
         public abstract string GetDebuggerDisplay();
+
+        public virtual JObject ToShortJson()
+        {
+            var jobj = new JObject();
+            jobj["description"] = Description;
+            jobj["at"] = new DateTimeOffset(IdealStartAt).ToUnixTimeMilliseconds().ToString();
+            return jobj;
+        }
     }
 
     [DebuggerDisplay("{" + nameof(GetDebuggerDisplay) + "(),nq}")]
