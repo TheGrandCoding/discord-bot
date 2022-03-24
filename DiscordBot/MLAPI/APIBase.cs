@@ -87,7 +87,13 @@ namespace DiscordBot.MLAPI
             if (path.StartsWith("/"))
                 path = path.Substring(1);
             proper = Path.Combine(proper, path);
-            return File.ReadAllText(proper, Encoding.UTF8);
+            try
+            {
+                return File.ReadAllText(proper, Encoding.UTF8);
+            } catch( FileNotFoundException)
+            {
+                throw new InvalidOperationException("The file required for this operation was not found");
+            }
         }
 
         const string matchRegex = "[<$]REPLACE id=['\"](\\S+)['\"]\\/[>$]";

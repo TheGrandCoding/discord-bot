@@ -371,6 +371,7 @@ namespace DiscordBot.MLAPI.Modules
                     new TableRow()
                         .WithHeader("Ingredients")
                         .WithHeader("Steps")
+                        .WithHeader("Actions")
                 }
             };
             foreach(var x in Service.Recipes)
@@ -390,10 +391,41 @@ namespace DiscordBot.MLAPI.Modules
                     steps.AddItem(s.GetListItem());
                 }
                 r.Children.Add(new TableData(null) { Children = { steps } });
+
+                r.Children.Add(new TableData(null)
+                {
+                    Children =
+                    {
+                        new Input("button", "Start")
+                        {
+                            OnClick = $"startRecipe({x.Id});"
+                        }
+                    }
+                });
                 table.Children.Add(r);
             }
 
             ReplyFile("recipe.html", 200, new Replacements().Add("table", table));
+        }
+        
+        [Method("PUT"), Path("/food/recipes")]
+        public void StartRecipe(int id)
+        {
+            var recipe = Service.Recipes.FirstOrDefault(x => x.Id == id);
+            if(recipe == null)
+            {
+                RespondRaw("No recipe by that id found", 404);
+                return;
+            }
+            var existing = Service.OngoingRecipes.FirstOrDefault(x => x.From.Id == id);
+            if(existing != null)
+            {
+                RespondRaw($"{existing.Id}", 200);
+                return;
+            }
+            var working = recipe.ToWorking();
+            Service.OngoingRecipes.Add(working);
+            RespondRaw($"{working.Id}", 203);
         }
 
         [Method("GET"), Path("/food/add-recipe")]
@@ -402,6 +434,7 @@ namespace DiscordBot.MLAPI.Modules
             ReplyFile("new_recipe.html", 200);
         }
         
+
         [Method("GET"), Path("/api/food/calendar")]
         [RequireApproval(false)]
         [RequireAuthentication(false, false)]

@@ -74,6 +74,11 @@ namespace DiscordBot.Websockets
             => Log(message, Discord.LogSeverity.Info, source);
         protected virtual void Warn(string message, string source = null)
             => Log(message, Discord.LogSeverity.Warning, source);
+
+        public void Send(JToken json, bool indent = true)
+        {
+            Send(json.ToString(indent ? Newtonsoft.Json.Formatting.Indented : Newtonsoft.Json.Formatting.None));
+        }
     }
 
     public abstract class BotPacketWSBase<TPacketId> : BotWSBase

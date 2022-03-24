@@ -110,7 +110,7 @@ Changed how permissions worked for bot.
                     .WithChild(new WorkingSimpleStep("Put it in", 5 , 0))
                     .WithChild(new WorkingSimpleStep("Take it out", 0, 0))
                 );
-            var recipe = new WorkingRecipe()
+            var recipe = new WorkingRecipe(null)
             {
                 Steps = new List<WorkingStepBase>()
                 {

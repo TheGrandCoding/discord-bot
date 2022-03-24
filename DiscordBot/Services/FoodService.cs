@@ -295,7 +295,7 @@ namespace DiscordBot.Services
 
         public WorkingRecipe ToWorking()
         {
-            return new WorkingRecipe()
+            return new WorkingRecipe(this)
             {
                 Steps = Steps.Select(x => x.ToWorking()).ToList()
             };
@@ -353,11 +353,15 @@ namespace DiscordBot.Services
     public class WorkingRecipe
     {
         static int _id = 1;
-        public WorkingRecipe()
+        public WorkingRecipe(SavedRecipe from)
         {
             Id = System.Threading.Interlocked.Increment(ref _id);
+            From = from;
         }
         public int Id { get; }
+
+        public SavedRecipe From { get; }
+
         public List<WorkingStepBase> Steps { get; set; }
 
         public WorkingStepBase NextStep { get; set; }
