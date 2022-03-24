@@ -77,7 +77,8 @@ namespace DiscordBot.Websockets
 
         public void Send(JToken json, bool indent = true)
         {
-            Send(json.ToString(indent ? Newtonsoft.Json.Formatting.Indented : Newtonsoft.Json.Formatting.None));
+            var str = json.ToString(indent ? Newtonsoft.Json.Formatting.Indented : Newtonsoft.Json.Formatting.None);
+            base.Send(str);
         }
     }
 

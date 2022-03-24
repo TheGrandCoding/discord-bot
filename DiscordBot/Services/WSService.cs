@@ -39,6 +39,7 @@ namespace DiscordBot.Services
             Server.AddWebSocketService<TimeTrackerWS>("/time-tracker");
             Server.AddWebSocketService<StatisticsWS>("/statistics");
             Server.AddWebSocketService<MasterlistWS>("/masterlist");
+            Server.AddWebSocketService<FoodWS>("/food");
             //Server.Log.Level = LogLevel.Trace;
             Server.Log.Output = (x, y) =>
             {

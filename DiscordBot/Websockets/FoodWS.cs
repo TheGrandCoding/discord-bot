@@ -23,19 +23,46 @@ namespace DiscordBot.Websockets
             base.OnError(e);
         }
 
+        void sendDone()
+        {
+            var jobj = new JObject();
+            jobj["done"] = "done";
+            Send(jobj);
+        }
+
+        void SendCurrent()
+        {
+            if(Recipe.NextStep == null)
+            {
+                sendDone();
+            } else
+            {
+                var obj = Recipe.NextStep.ToShortJson();
+                obj["started"] = Recipe.Started;
+                if(Recipe.EstimatedEndAt.HasValue)
+                {
+                    obj["end"] = new DateTimeOffset(Recipe.EstimatedEndAt.Value).ToUnixTimeMilliseconds();
+                }
+                Send(obj);
+            }
+        }
+
         protected override void OnMessage(MessageEventArgs e)
         {
             var jobj = JObject.Parse(e.Data);
             var data = jobj["data"].ToObject<string>();
             if(data == "next")
             {
+                Recipe.NextStep.MarkStarted();
                 Recipe.NextStep = Recipe.getNext();
-                if(Recipe.NextStep == null)
+                if (Recipe.NextStep == null)
                 {
-                    Sessions.Broadcast("{'data': 'done'}");
-                } else
+                    FoodService.OngoingRecipes.Remove(Recipe.Id, out _);
+                }
+                foreach (var x in Sessions.Sessions)
                 {
-                    Sessions.Broadcast(Recipe.NextStep.ToShortJson().ToString(Newtonsoft.Json.Formatting.Indented));
+                    if (x is FoodWS f)
+                        f.SendCurrent();
                 }
             }
         }
@@ -53,18 +80,18 @@ namespace DiscordBot.Websockets
                 return;
             }
             FoodService = Program.Services.GetRequiredService<FoodService>();
-            Recipe = FoodService.OngoingRecipes.FirstOrDefault(x => x.Id == id);
-            if(Recipe == null)
+            if(!FoodService.OngoingRecipes.TryGetValue(id, out var v))
             {
                 Context.WebSocket.Close(CloseStatusCode.Normal, "Recipe not found");
                 return;
             }
+            Recipe = v;
 
             if(Recipe.NextStep == null)
             {
                 Recipe.NextStep = Recipe.getNext();
             }
-            Send(Recipe.NextStep.ToShortJson());
+            SendCurrent();
         }
     }
 }

@@ -408,32 +408,23 @@ namespace DiscordBot.MLAPI.Modules
             ReplyFile("recipe.html", 200, new Replacements().Add("table", table));
         }
         
-        [Method("PUT"), Path("/food/recipes")]
-        public void StartRecipe(int id)
-        {
-            var recipe = Service.Recipes.FirstOrDefault(x => x.Id == id);
-            if(recipe == null)
-            {
-                RespondRaw("No recipe by that id found", 404);
-                return;
-            }
-            var existing = Service.OngoingRecipes.FirstOrDefault(x => x.From.Id == id);
-            if(existing != null)
-            {
-                RespondRaw($"{existing.Id}", 200);
-                return;
-            }
-            var working = recipe.ToWorking();
-            Service.OngoingRecipes.Add(working);
-            RespondRaw($"{working.Id}", 203);
-        }
-
         [Method("GET"), Path("/food/add-recipe")]
         public void NewRecipe()
         {
             ReplyFile("new_recipe.html", 200);
         }
         
+        [Method("GET"), Path("/food/ongoing-recipe")]
+        public void ViewOngoingRecipe(int id)
+        {
+            if(!Service.OngoingRecipes.TryGetValue(id, out var _))
+            { // no recipe
+                RespondRaw(LoadRedirectFile("/food/recipes"), System.Net.HttpStatusCode.Found);
+            } else
+            {
+                ReplyFile("view_ongoing.html", 200, new Replacements().Add("id", id));
+            }
+        }
 
         [Method("GET"), Path("/api/food/calendar")]
         [RequireApproval(false)]
@@ -603,5 +594,26 @@ namespace DiscordBot.MLAPI.Modules
 
             RespondRaw("OK");
         }
+
+        [Method("PUT"), Path("/api/food/recipes")]
+        public void StartRecipe(int id)
+        {
+            var recipe = Service.Recipes.FirstOrDefault(x => x.Id == id);
+            if (recipe == null)
+            {
+                RespondRaw("No recipe by that id found", 404);
+                return;
+            }
+            if(Service.OngoingRecipes.TryGetValue(id, out var existing))
+            {
+                RespondRaw($"{existing.Id}", 200);
+                return;
+            }
+            var working = recipe.ToWorking();
+            Service.OngoingRecipes.TryAdd(working.Id, working);
+            RespondRaw($"{working.Id}", 203);
+        }
+
+
     }
 }

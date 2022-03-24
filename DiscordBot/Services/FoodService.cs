@@ -16,8 +16,7 @@ namespace DiscordBot.Services
         public ConcurrentDictionary<string, List<string>> Manufacturers { get; set; } = new ConcurrentDictionary<string, List<string>>();
         public ConcurrentBag<SavedRecipe> Recipes { get; set; } = new ConcurrentBag<SavedRecipe>();
 
-
-        public ConcurrentBag<WorkingRecipe> OngoingRecipes { get; set; } = new ConcurrentBag<WorkingRecipe>();
+        public ConcurrentDictionary<int, WorkingRecipe> OngoingRecipes { get; set; } = new ConcurrentDictionary<int, WorkingRecipe>();
         
         public FoodDbContext DB()
         {
@@ -275,7 +274,7 @@ namespace DiscordBot.Services
 
     public class SavedRecipe
     {
-        int _id = 0;
+        static int _id = 0;
         public SavedRecipe()
         {
             Id = System.Threading.Interlocked.Increment(ref _id);
@@ -360,7 +359,10 @@ namespace DiscordBot.Services
         }
         public int Id { get; }
 
+        public bool Started { get; set; }
+
         public SavedRecipe From { get; }
+        public DateTime? EstimatedEndAt { get; set; }
 
         public List<WorkingStepBase> Steps { get; set; }
 
@@ -368,11 +370,14 @@ namespace DiscordBot.Services
 
         public WorkingStepBase getNext()
         {
+            if (NextStep != null)
+                Started = true;
             var ordered = Steps.OrderByDescending(x => x.FullLength).ToList();
             var longestStep = ordered.First();
             var endsAt = DateTime.Now.AddSeconds(longestStep.FullLength);
-            Console.WriteLine($"Ideal end at: {endsAt}");
             foreach (var x in Steps) x.UpdateIdealStart(endsAt);
+
+            EstimatedEndAt = endsAt;
 
             var ideals = Steps.Where(x => !x.IsFinished).OrderBy(x => x.IdealStartAt);
             foreach(var step in ideals)
