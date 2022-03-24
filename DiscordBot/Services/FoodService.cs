@@ -2,6 +2,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -184,6 +185,7 @@ namespace DiscordBot.Services
         {
 #if WINDOWS
             options.UseSqlServer(Program.getDbString("food"));
+            var x = CharSet.Utf8Mb4;
 #else
                 options.UseMySql(Program.getDbString("food"),
                     new MariaDbServerVersion(new Version(10, 3, 25)), mysqlOptions =>

@@ -498,6 +498,7 @@ Changed how permissions worked for bot.
 #if WINDOWS
                 options.UseSqlServer(getDbString("watch"));
                 options.EnableSensitiveDataLogging();
+                var x = CharSet.Utf8Mb4;
 #else
                 options.UseMySql(getDbString("watch"), 
                     new MariaDbServerVersion(new Version(10, 3, 25)), mysqlOptions =>
