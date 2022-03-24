@@ -75,7 +75,11 @@ namespace DiscordBot.Websockets
         protected virtual void Warn(string message, string source = null)
             => Log(message, Discord.LogSeverity.Warning, source);
 
-        public void Send(JToken json, bool indent = true)
+#if DEBUG
+        public void SendJson(JToken json, bool indent = true)
+#else
+        public void SendJson(JToken json, bool indent = false)
+#endif
         {
             var str = json.ToString(indent ? Newtonsoft.Json.Formatting.Indented : Newtonsoft.Json.Formatting.None);
             base.Send(str);

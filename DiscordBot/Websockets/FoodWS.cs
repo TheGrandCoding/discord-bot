@@ -27,7 +27,7 @@ namespace DiscordBot.Websockets
         {
             var jobj = new JObject();
             jobj["done"] = "done";
-            Send(jobj);
+            SendJson(jobj);
         }
 
         void SendCurrent()
@@ -43,7 +43,7 @@ namespace DiscordBot.Websockets
                 {
                     obj["end"] = new DateTimeOffset(Recipe.EstimatedEndAt.Value).ToUnixTimeMilliseconds();
                 }
-                Send(obj);
+                SendJson(obj);
             }
         }
 
