@@ -220,6 +220,11 @@ namespace DiscordBot.Services
             foreach(var exp in (sv.experiments ?? new List<Experiment>()))
                 Experiments[exp.Id] = exp;
             Guilds = new ConcurrentDictionary<ulong, GuildSave>(sv.guilds ?? new Dictionary<ulong, GuildSave>());
+
+#if DEBUG
+            updateTask().Wait();
+#endif
+
         }
 
         public class serviceSave
@@ -620,6 +625,15 @@ namespace DiscordBot.Services
         }
         public override string ToString() 
             => $"{Bucket} {string.Join(", ", Ranges.Select(x => x.ToString()))}";
+
+        public List<Change> GetChanges(Population otherPop)
+        {
+            if (Ranges.Count != otherPop.Ranges.Count)
+                return new Change("Ranges changed", Ranges.Count, otherPop.Ranges.Count);
+            if (Count != otherPop.Count)
+                return new Change("Size changed", Count, otherPop.Count);
+            return new List<Change>();
+        }
     }
 
     public class PopulationGroups
@@ -676,13 +690,27 @@ namespace DiscordBot.Services
 
         public List<Change> GetChanges(PopulationGroups other)
         {
+            var changes = new List<Change>();
             if(this.Populations.Count < other.Populations.Count)
             {
                 return new Change("New population", $"{this.Populations.Count}", $"{other.Populations.Count}");
             } else if(this.Populations.Count < other.Populations.Count)
             {
                 return new Change("Removed population", $"{this.Populations.Count}", $"{other.Populations.Count}");
+            } else
+            {
+                for(int i = 0; i < Populations.Count; i++)
+                {
+                    var pop = Populations[i];
+                    var otherPop = other.Populations.FirstOrDefault(x => x.Bucket == pop.Bucket);
+                    if (otherPop == null)
+                        return new Change("Population bucket changed", $"{pop.Bucket}", $"{otherPop.Bucket}");
+                    changes.AddRange(pop.GetChanges(otherPop)
+                        .Select(x => new Change($"Populations[{i}].{x.Type}", x.Before, x.After))
+                    );
+                }
             }
+
             if(this.Filters.Count < other.Filters.Count)
             {
                 return new Change("New filters", $"{this.Filters.Count}", $"{other.Filters.Count}");
@@ -692,15 +720,14 @@ namespace DiscordBot.Services
                 return new Change("Removed filters", $"{this.Filters.Count}", $"{other.Filters.Count}");
             } else
             {
-                var c = new List<Change>();
                 for (int i = 0; i < this.Filters.Count; i++)
                 {
-                    c.AddRange(this.Filters[i].GetChanges(this.Filters[i])
+                    changes.AddRange(this.Filters[i].GetChanges(this.Filters[i])
                         .Select(x => new Change($"Filters[{i}].{x.Type}", x.Before, x.After))
                     );
                 }
-                return c;
             }
+            return changes;
         }
     }
 
