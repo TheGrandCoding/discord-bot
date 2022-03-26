@@ -141,12 +141,14 @@ namespace DiscordBot.Classes
         public LazyGuild(SocketGuild guild)
         {
             _guild = guild;
-            _id = guild.Id;
+            _id = guild?.Id ?? 0;
         }
         private SocketGuild _guild;
         private ulong _id;
         public SocketGuild guild { get
             {
+                if (_id == 0)
+                    return null;
                 if (_guild == null)
                     _guild = Program.Client.GetGuild(_id);
                 return _guild;
