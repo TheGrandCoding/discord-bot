@@ -222,10 +222,6 @@ namespace DiscordBot.Services
                 Experiments[exp.Id] = exp;
             Guilds = new ConcurrentDictionary<ulong, GuildSave>(sv.guilds ?? new Dictionary<ulong, GuildSave>());
 
-#if DEBUG
-            updateTask().Wait();
-#endif
-
         }
 
         public class serviceSave

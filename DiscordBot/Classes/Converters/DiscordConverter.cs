@@ -47,7 +47,8 @@ namespace DiscordBot.Classes
                 || objectType == typeof(IGuildUser)
                 || objectType == typeof(SocketGuildUser)
                 || objectType == typeof(SocketUser)
-                || objectType == typeof(IUser);
+                || objectType == typeof(IUser)
+                || typeof(LazyObject).IsAssignableFrom(objectType);
         }
 
         public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
@@ -58,6 +59,8 @@ namespace DiscordBot.Classes
             var split = thing.Split('.');
             var gid = ulong.Parse(split[0]);
             var id = ulong.Parse(split[1]);
+
+
 
             var guild = Program.Client.GetGuild(gid);
             var lazyGuild = new LazyGuild(guild);
@@ -83,8 +86,13 @@ namespace DiscordBot.Classes
                 || objectType == typeof(SocketSystemMessage) || objectType == typeof(ISystemMessage)
                 || objectType == typeof(SocketMessage) || objectType == typeof(IMessage))
             {
+                IMessageChannel channel;
+                if (guild == null)
+                    channel = new LazyDMChannel(id);
+                else
+                    channel = new LazyGuildTextChannel(lazyGuild, id);
                 var msgId = ulong.Parse(split[2]);
-                return new LazyIUserMessage(gid, id, msgId);
+                return new LazyIUserMessage(channel, msgId);
             }
             return null;
         }
@@ -105,9 +113,6 @@ namespace DiscordBot.Classes
             else if (value is IGuildUser gu)
             {
                 return $"{gu.GuildId}.{gu.Id}";
-            } else if(value is LazyIUserMessage lazy)
-            {
-                return lazy.ToString();
             } else if (value is IMessage s)
             {
                 ulong gId = 0;
@@ -585,7 +590,11 @@ namespace DiscordBot.Classes
 
     internal class LazyObject
     {
-        public LazyObject(ulong id)
+    }
+
+    internal class LazySkowflakeEntity : LazyObject
+    {
+        public LazySkowflakeEntity(ulong id)
         {
             _id = id;
         }
@@ -593,7 +602,7 @@ namespace DiscordBot.Classes
         public ulong Id => _id;
     }
 
-    internal class LazyGuildObject : LazyObject
+    internal class LazyGuildObject : LazySkowflakeEntity
     {
         public LazyGuildObject(LazyGuild _guild, ulong id) : base(id)
         {
@@ -774,8 +783,9 @@ namespace DiscordBot.Classes
     {
         public LazyGuildTextChannel(LazyGuild _guild, ulong channelId) : base(_guild, channelId)
         {
-            Program.LogVerbose($"Lazily making text channel {_guild.Id}:{channelId}", "LazyGuildTChannel");
+            Program.LogVerbose($"Making {_guild.Id}:{channelId}", GetType().Name);
         }
+        public override string ToString() => $"{guild.Id}.{Id}";
 
         private SocketTextChannel _channel;
         public SocketTextChannel Channel { get
@@ -1021,26 +1031,148 @@ namespace DiscordBot.Classes
         {
             return ((IDeletable)Channel).DeleteAsync(options);
         }
-
-
-
         #endregion
     }
 
-    internal class LazyIUserMessage : LazyObject, IUserMessage
+    internal class LazyDMChannel : LazyObject, IDMChannel
     {
-        public LazyIUserMessage(ulong _guildId, ulong _channelId, ulong _messageId) : base(_messageId)
+        public LazyDMChannel(ulong _userId)
         {
-            guildId = _guildId;
-            channelId = _channelId;
-            Program.LogVerbose($"Lazily making message {ToString()}", "LazyGuildTChannel");
+            userId = _userId;
+            Program.LogVerbose($"Making {ToString()}", GetType().Name);
         }
-        private ulong guildId;
-        private ulong channelId;
+        private ulong userId;
+        public override string ToString() => $"0.{userId}";
+
+
+        private IDMChannel _dm;
+
+        public IDMChannel DM
+        {
+            get
+            {
+                if (_dm == null)
+                {
+                    Program.LogVerbose($"Loading {ToString()}", GetType().Name);
+                    var usr = Program.Client.GetUser(userId);
+                    _dm = usr.CreateDMChannelAsync().Result;
+                }
+                return _dm;
+            }
+        }
+
+        #region DM
+        public Task CloseAsync(RequestOptions options = null)
+        {
+            return DM.CloseAsync(options);
+        }
+
+        public Task<IUserMessage> SendMessageAsync(string text = null, bool isTTS = false, Embed embed = null, RequestOptions options = null, AllowedMentions allowedMentions = null, MessageReference messageReference = null, MessageComponent components = null, ISticker[] stickers = null, Embed[] embeds = null)
+        {
+            return DM.SendMessageAsync(text, isTTS, embed, options, allowedMentions, messageReference, components, stickers, embeds);
+        }
+
+        public Task<IUserMessage> SendFileAsync(string filePath, string text = null, bool isTTS = false, Embed embed = null, RequestOptions options = null, bool isSpoiler = false, AllowedMentions allowedMentions = null, MessageReference messageReference = null, MessageComponent components = null, ISticker[] stickers = null, Embed[] embeds = null)
+        {
+            return DM.SendFileAsync(filePath, text, isTTS, embed, options, isSpoiler, allowedMentions, messageReference, components, stickers, embeds);
+        }
+
+        public Task<IUserMessage> SendFileAsync(Stream stream, string filename, string text = null, bool isTTS = false, Embed embed = null, RequestOptions options = null, bool isSpoiler = false, AllowedMentions allowedMentions = null, MessageReference messageReference = null, MessageComponent components = null, ISticker[] stickers = null, Embed[] embeds = null)
+        {
+            return DM.SendFileAsync(stream, filename, text, isTTS, embed, options, isSpoiler, allowedMentions, messageReference, components, stickers, embeds);
+        }
+
+        public Task<IUserMessage> SendFileAsync(FileAttachment attachment, string text = null, bool isTTS = false, Embed embed = null, RequestOptions options = null, AllowedMentions allowedMentions = null, MessageReference messageReference = null, MessageComponent components = null, ISticker[] stickers = null, Embed[] embeds = null)
+        {
+            return DM.SendFileAsync(attachment, text, isTTS, embed, options, allowedMentions, messageReference, components, stickers, embeds);
+        }
+
+        public Task<IUserMessage> SendFilesAsync(IEnumerable<FileAttachment> attachments, string text = null, bool isTTS = false, Embed embed = null, RequestOptions options = null, AllowedMentions allowedMentions = null, MessageReference messageReference = null, MessageComponent components = null, ISticker[] stickers = null, Embed[] embeds = null)
+        {
+            return DM.SendFilesAsync(attachments, text, isTTS, embed, options, allowedMentions, messageReference, components, stickers, embeds);
+        }
+
+        public Task<IMessage> GetMessageAsync(ulong id, CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
+        {
+            return DM.GetMessageAsync(id, mode, options);
+        }
+
+        public IAsyncEnumerable<IReadOnlyCollection<IMessage>> GetMessagesAsync(int limit = 100, CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
+        {
+            return DM.GetMessagesAsync(limit, mode, options);
+        }
+
+        public IAsyncEnumerable<IReadOnlyCollection<IMessage>> GetMessagesAsync(ulong fromMessageId, Direction dir, int limit = 100, CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
+        {
+            return DM.GetMessagesAsync(fromMessageId, dir, limit, mode, options);
+        }
+
+        public IAsyncEnumerable<IReadOnlyCollection<IMessage>> GetMessagesAsync(IMessage fromMessage, Direction dir, int limit = 100, CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
+        {
+            return DM.GetMessagesAsync(fromMessage, dir, limit, mode, options);
+        }
+
+        public Task<IReadOnlyCollection<IMessage>> GetPinnedMessagesAsync(RequestOptions options = null)
+        {
+            return DM.GetPinnedMessagesAsync(options);
+        }
+
+        public Task DeleteMessageAsync(ulong messageId, RequestOptions options = null)
+        {
+            return DM.DeleteMessageAsync(messageId, options);
+        }
+
+        public Task DeleteMessageAsync(IMessage message, RequestOptions options = null)
+        {
+            return DM.DeleteMessageAsync(message, options);
+        }
+
+        public Task<IUserMessage> ModifyMessageAsync(ulong messageId, Action<MessageProperties> func, RequestOptions options = null)
+        {
+            return DM.ModifyMessageAsync(messageId, func, options);
+        }
+
+        public Task TriggerTypingAsync(RequestOptions options = null)
+        {
+            return DM.TriggerTypingAsync(options);
+        }
+
+        public IDisposable EnterTypingState(RequestOptions options = null)
+        {
+            return DM.EnterTypingState(options);
+        }
+
+        public IAsyncEnumerable<IReadOnlyCollection<IUser>> GetUsersAsync(CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
+        {
+            return DM.GetUsersAsync(mode, options);
+        }
+
+        public Task<IUser> GetUserAsync(ulong id, CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
+        {
+            return DM.GetUserAsync(id, mode, options);
+        }
+        public IUser Recipient => DM.Recipient;
+        public IReadOnlyCollection<IUser> Recipients => DM.Recipients;
+        public string Name => DM.Name;
+        public DateTimeOffset CreatedAt => DM.CreatedAt;
+        public ulong Id => DM.Id;
+        #endregion
+    }
+
+
+
+    internal class LazyIUserMessage : LazySkowflakeEntity, IUserMessage
+    {
+        public LazyIUserMessage(IMessageChannel channel, ulong _messageId) : base(_messageId)
+        {
+            _channel = channel;
+            Program.LogVerbose($"Making {ToString()}", GetType().Name);
+        }
+        private IMessageChannel _channel;
 
         public override string ToString()
         {
-            return $"{guildId}.{channelId}.{Id}";
+            return $"{_channel}.{Id}";
         }
 
         private IUserMessage _message;
@@ -1051,21 +1183,15 @@ namespace DiscordBot.Classes
             {
                 if (_message == null)
                 {
-                Program.LogVerbose($"Lazily loading message {ToString()}", "LazyGuildTChannel");
-                    var guild = Program.Client.GetGuild(guildId);
-                    if (guild == null)
-                    {
-                        var chnl = Program.Client.GetUser(channelId).CreateDMChannelAsync().Result;
-                        _message = chnl.GetMessageAsync(Id).Result as IUserMessage;
-                    }
-                    else
-                    {
-                        _message = guild.GetTextChannel(channelId)?.GetMessageAsync(Id)?.Result as IUserMessage;
-                    }
+                    Program.LogVerbose($"Loading {ToString()}", GetType().Name);
+                    _message = _channel.GetMessageAsync(Id).Result as IUserMessage;
                 }
                 return _message;
             }
         }
+
+        public IMessageChannel Channel => _channel;
+
         #region IUserMessage items
         public IUserMessage ReferencedMessage => Message.ReferencedMessage;
 
@@ -1089,7 +1215,6 @@ namespace DiscordBot.Classes
 
         public DateTimeOffset? EditedTimestamp => Message.EditedTimestamp;
 
-        public IMessageChannel Channel => Message.Channel;
 
         public IUser Author => Message.Author;
 

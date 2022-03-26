@@ -665,9 +665,9 @@ Changed how permissions worked for bot.
                 Environment.Exit(2);
                 return;
             }
+            Program.Save(true); // for some DailyValidationFailed things.
             Program.Save(); // for some DailyValidationFailed things.
             timerOverall.Stop();
-#if !DEBUG
             try
             {
                 AppInfo.Owner.SendMessageAsync(embed: new EmbedBuilder()
@@ -676,7 +676,6 @@ Changed how permissions worked for bot.
                     .Build());
             }
             catch { }
-#endif
         }
 
         private static async Task ClientReady()
