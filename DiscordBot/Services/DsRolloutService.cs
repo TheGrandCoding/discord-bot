@@ -19,6 +19,7 @@ using System.Threading.Tasks;
 
 namespace DiscordBot.Services
 {
+    [Classes.Attributes.AlwaysSync]
     public class DsRolloutService : SavedService
     {
         public ConcurrentDictionary<string, Experiment> Experiments { get; set; } = new ConcurrentDictionary<string, Experiment>();
@@ -628,8 +629,6 @@ namespace DiscordBot.Services
 
         public List<Change> GetChanges(Population otherPop)
         {
-            if (Ranges.Count != otherPop.Ranges.Count)
-                return new Change("Ranges changed", Ranges.Count, otherPop.Ranges.Count);
             if (Count != otherPop.Count)
                 return new Change("Size changed", Count, otherPop.Count);
             return new List<Change>();
@@ -694,7 +693,7 @@ namespace DiscordBot.Services
             if(this.Populations.Count < other.Populations.Count)
             {
                 return new Change("New population", $"{this.Populations.Count}", $"{other.Populations.Count}");
-            } else if(this.Populations.Count < other.Populations.Count)
+            } else if(this.Populations.Count > other.Populations.Count)
             {
                 return new Change("Removed population", $"{this.Populations.Count}", $"{other.Populations.Count}");
             } else
@@ -715,7 +714,7 @@ namespace DiscordBot.Services
             {
                 return new Change("New filters", $"{this.Filters.Count}", $"{other.Filters.Count}");
             }
-            else if (this.Filters.Count < other.Filters.Count)
+            else if (this.Filters.Count > other.Filters.Count)
             {
                 return new Change("Removed filters", $"{this.Filters.Count}", $"{other.Filters.Count}");
             } else
