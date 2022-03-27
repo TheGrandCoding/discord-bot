@@ -85,72 +85,9 @@ Changed how permissions worked for bot.
         #endregion
 
 
-        static void debugtest()
-        {
-            var huntersChicken = new WorkingMultiStep("Hunters Chicken")
-                .WithChild(new WorkingMultiStep("Cook Chicken")
-                    .WithChild(new WorkingSimpleStep("Put chicken in", 20 , 0))
-                    .WithChild(new WorkingSimpleStep("Apply sauce", 10, 0))
-                    .WithChild(new WorkingSimpleStep("Put chicken back in", 10 , 0))
-                    .WithChild(new WorkingSimpleStep("Dish chicken", 0, 0)))
-                .WithChild(new WorkingMultiStep("Cook Chips")
-                    .WithChild(new WorkingSimpleStep("Put chips in", 8 , 0))
-                    .WithChild(new WorkingSimpleStep("Shake chips", 10, 0))
-                    .WithChild(new WorkingSimpleStep("Put chips back in", 8 , 0))
-                    .WithChild(new WorkingSimpleStep("Dish chips", 0, 0))
-                );
-            var roastbeef = new WorkingMultiStep("Roast Beef Dinner")
-                .WithChild(new WorkingMultiStep("Roast Potateos")
-                    .WithChild(new WorkingSimpleStep("Put roasts in", 30 , 0))
-                    .WithChild(new WorkingSimpleStep("Take roasts out", 0, 0)))
-                .WithChild(new WorkingMultiStep("Beef and Veg")
-                    .WithChild(new WorkingSimpleStep("Put them in", 15 , 0))
-                    .WithChild(new WorkingSimpleStep("Take them out", 0, 0)))
-                .WithChild(new WorkingMultiStep("Yourkshire Pudding")
-                    .WithChild(new WorkingSimpleStep("Put it in", 5 , 0))
-                    .WithChild(new WorkingSimpleStep("Take it out", 0, 0))
-                );
-            var recipe = new WorkingRecipe(null)
-            {
-                Steps = new List<WorkingStepBase>()
-                {
-                    huntersChicken,
-                    roastbeef
-                }
-            };
-            DateTime start = DateTime.Now;
-            recipe.NextStep = recipe.getNext();
-
-            while (recipe.NextStep != null)
-            {
-                var ideal = recipe.NextStep.IdealStartAt;
-                TimeSpan diff;
-                Console.WriteLine("");
-                do
-                {
-                    diff = ideal - DateTime.Now;
-                    string time = "";
-                    if (diff.TotalMilliseconds > 0)
-                        time = $"; in {diff.Hours:00}:{diff.Minutes:00}:{diff.Seconds:00}";
-
-
-                    Console.Write($"\rTask: {recipe.NextStep.Description} for {recipe.NextStep.Duration}{time} at {ideal.TimeOfDay}");
-                    var diffStart = DateTime.Now - start;
-                    Console.Write($" | t+: {diffStart}                                   ");
-                } while(diff.TotalMilliseconds > 0);
-                Console.WriteLine("");
-                recipe.NextStep.MarkStarted();
-                Console.WriteLine($"Started that.");
-                recipe.NextStep = recipe.getNext();
-            }
-            Console.WriteLine("Fin.");
-            Environment.Exit(0);
-        }
 
         static int Main(string[] args)
         {
-            //debugtest();
-
 
             _braille = new List<char>();
             foreach (var chr in "⠀⠁⠂⠃⠄⠅⠆⠇⠈⠉⠊⠋⠌⠍⠎⠏⠐⠑⠒⠓⠔⠕⠖⠗⠘⠙⠚⠛⠜⠝⠞⠟⠠⠡⠢⠣⠤⠥⠦⠧⠨⠩⠪⠫⠬⠭⠮⠯⠰⠱⠲⠳⠴⠵⠶⠷⠸⠹⠺⠻⠼⠽⠾⠿⡀⡁⡂⡃⡄⡅⡆⡇⡈⡉⡊⡋⡌⡍⡎⡏⡐⡑⡒⡓⡔⡕⡖" +

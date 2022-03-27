@@ -30,20 +30,22 @@ namespace DiscordBot.Websockets
             SendJson(jobj);
         }
 
-        void SendCurrent()
+        void SendSteps()
         {
             if(Recipe.NextStep == null)
             {
                 sendDone();
             } else
             {
-                var obj = Recipe.NextStep.ToShortJson();
-                obj["started"] = Recipe.Started;
-                if(Recipe.EstimatedEndAt.HasValue)
+                var packet = new JObject();
+                packet["started"] = Recipe.Started;
+                if (Recipe.EstimatedEndAt.HasValue)
                 {
-                    obj["end"] = new DateTimeOffset(Recipe.EstimatedEndAt.Value).ToUnixTimeMilliseconds();
+                    packet["end"] = new DateTimeOffset(Recipe.EstimatedEndAt.Value).ToUnixTimeMilliseconds();
                 }
-                SendJson(obj);
+                packet["current"] = Recipe.NextStep.ToShortJson();
+                packet["next"] = Recipe.getAfter()?.ToShortJson() ?? null;
+                SendJson(packet);
             }
         }
 
@@ -62,7 +64,7 @@ namespace DiscordBot.Websockets
                 foreach (var x in Sessions.Sessions)
                 {
                     if (x is FoodWS f)
-                        f.SendCurrent();
+                        f.SendSteps();
                 }
             }
         }
@@ -91,7 +93,7 @@ namespace DiscordBot.Websockets
             {
                 Recipe.NextStep = Recipe.getNext();
             }
-            SendCurrent();
+            SendSteps();
         }
     }
 }

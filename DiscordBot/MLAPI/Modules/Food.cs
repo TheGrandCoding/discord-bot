@@ -396,16 +396,26 @@ namespace DiscordBot.MLAPI.Modules
                 {
                     Children =
                     {
-                        new Input("button", "Start")
-                        {
-                            OnClick = $"startRecipe({x.Id});"
-                        }
+                        new Input("checkbox", id: x.Id.ToString(), cls: "recipe-selects")
                     }
                 });
                 table.Children.Add(r);
             }
 
-            ReplyFile("recipe.html", 200, new Replacements().Add("table", table));
+            var ongoing = new UnorderedList();
+            foreach(var keypair in Service.OngoingRecipes)
+            {
+                ongoing.AddItem(new ListItem()
+                {
+                    Children =
+                    {
+                        new Anchor($"/food/ongoing-recipe?id={keypair.Key}", $"Ends at {keypair.Value.EstimatedEndAt}")
+                    }
+                });
+            }
+            var str = Service.OngoingRecipes.Count > 0 ? ongoing.ToString() : "";
+
+            ReplyFile("recipe.html", 200, new Replacements().Add("table", table).Add("ongoing", str));
         }
         
         [Method("GET"), Path("/food/add-recipe")]
@@ -531,6 +541,7 @@ namespace DiscordBot.MLAPI.Modules
             {
                 var arr = children as JArray;
                 saved.Children = arr.Select(x => parseStep(x as JObject)).ToList();
+                saved.InOrder = obj["order"]?.ToObject<bool?>() ?? false;
             } else
             {
                 saved.Duration = obj.GetValue("duration")?.ToObject<int?>() ?? 0;
@@ -544,6 +555,7 @@ namespace DiscordBot.MLAPI.Modules
         {
             var jobj = JObject.Parse(Context.Body);
             var recipe = new SavedRecipe();
+            recipe.InOrder = jobj["order"].ToObject<bool>();
 
             if(!jobj.TryGetValue("ingredients", out var ingToken))
             {
@@ -596,20 +608,34 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("PUT"), Path("/api/food/recipes")]
-        public void StartRecipe(int id)
+        public void StartRecipe()
         {
-            var recipe = Service.Recipes.FirstOrDefault(x => x.Id == id);
-            if (recipe == null)
+            var array = Newtonsoft.Json.JsonConvert.DeserializeObject<int[]>(Context.Body);
+            var recipes = array.Select(x => Service.Recipes.FirstOrDefault(r => r.Id == x)).ToList();
+            if(recipes.Any(x => x == null))
             {
-                RespondRaw("No recipe by that id found", 404);
+                RespondRaw("A recipe is null", 400);
                 return;
             }
-            if(Service.OngoingRecipes.TryGetValue(id, out var existing))
+            if(recipes.Count == 0)
             {
-                RespondRaw($"{existing.Id}", 200);
+                RespondRaw("No recipes selected", 400);
                 return;
             }
-            var working = recipe.ToWorking();
+            WorkingRecipe working;
+            if(recipes.Count == 1)
+            {
+                working = recipes[0].ToWorking();
+            } else
+            {
+                working = new WorkingRecipe(recipes.ToArray());
+                working.Steps = new WorkingMultiStep("Combined Root", false)
+                {
+                    Children = recipes.Select(x => x.ToWorking().Steps)
+                        .Cast<WorkingStepBase>()
+                        .ToList()
+                };
+            }
             Service.OngoingRecipes.TryAdd(working.Id, working);
             RespondRaw($"{working.Id}", 203);
         }

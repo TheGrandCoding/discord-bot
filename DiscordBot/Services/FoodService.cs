@@ -6,6 +6,7 @@ using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Diagnostics;
 using System.Linq;
@@ -294,11 +295,19 @@ namespace DiscordBot.Services
         [JsonProperty("steps", ItemTypeNameHandling = TypeNameHandling.All)]
         public List<SavedStep> Steps { get; set; } = new List<SavedStep>();
 
+        [JsonProperty("order")]
+        [DefaultValue(false)]
+        public bool InOrder { get; set; }
+
         public WorkingRecipe ToWorking()
         {
-            return new WorkingRecipe(this)
+            var multi = new WorkingMultiStep("Root", InOrder);
+            return new WorkingRecipe(new[] {this})
             {
-                Steps = Steps.Select(x => x.ToWorking()).ToList()
+                Steps = new WorkingMultiStep("Root", InOrder)
+                {
+                    Children = Steps.Select(x => x.ToWorking()).ToList()
+                }
             };
         }
     }
@@ -313,11 +322,15 @@ namespace DiscordBot.Services
         public int? Delay { get; set; }
         public List<SavedStep> Children { get; set; }
 
+        [JsonProperty("order", NullValueHandling = NullValueHandling.Ignore)]
+        [DefaultValue(true)]
+        public bool? InOrder { get; set; }
+
         public WorkingStepBase ToWorking()
         {
             if(Children != null && Children.Count > 0)
             {
-                var multi = new WorkingMultiStep(Description);
+                var multi = new WorkingMultiStep(Description, InOrder.GetValueOrDefault(true));
                 foreach (var x in Children)
                     multi.WithChild(x.ToWorking());
                 return multi;
@@ -354,7 +367,7 @@ namespace DiscordBot.Services
     public class WorkingRecipe
     {
         static int _id = 1;
-        public WorkingRecipe(SavedRecipe from)
+        public WorkingRecipe(SavedRecipe[] from)
         {
             Id = System.Threading.Interlocked.Increment(ref _id);
             From = from;
@@ -363,10 +376,10 @@ namespace DiscordBot.Services
 
         public bool Started { get; set; }
 
-        public SavedRecipe From { get; }
+        public SavedRecipe[] From { get; }
         public DateTime? EstimatedEndAt { get; set; }
 
-        public List<WorkingStepBase> Steps { get; set; }
+        public WorkingMultiStep Steps { get; set; }
 
         public WorkingStepBase NextStep { get; set; }
 
@@ -374,21 +387,17 @@ namespace DiscordBot.Services
         {
             if (NextStep != null)
                 Started = true;
-            var ordered = Steps.OrderByDescending(x => x.FullLength).ToList();
-            var longestStep = ordered.First();
-            var endsAt = DateTime.Now.AddSeconds(longestStep.FullLength);
-            foreach (var x in Steps) x.UpdateIdealStart(endsAt);
+            var next = Steps.getNext(out var e);
+            EstimatedEndAt = e;
+            return next;
+        }
 
-            EstimatedEndAt = endsAt;
-
-            var ideals = Steps.Where(x => !x.IsFinished).OrderBy(x => x.IdealStartAt);
-            foreach(var step in ideals)
-            {
-                if(step.IsFinished) continue;
-                if (!step.StartedAt.HasValue) return step;
-            }
-            return null;
-
+        public WorkingStepBase getAfter()
+        {
+            var ordered = Steps.getOrderedSteps(out _);
+            var ind = ordered.IndexOf(NextStep);
+            if (ind == -1) return null;
+            return ordered.ElementAtOrDefault(ind + 1);
         }
 
     }
@@ -510,13 +519,17 @@ namespace DiscordBot.Services
     public class WorkingMultiStep : WorkingStepBase
     {
         public string Title { get; set; }
-        public List<WorkingStepBase> Children { get; }
+        public List<WorkingStepBase> Children { get; set; }
         public int Step { get; set; }
 
-        public WorkingStepBase Current => Children.ElementAtOrDefault(Step);
+        public bool InOrder { get; set; }
 
-        public WorkingMultiStep(string title)
+        public WorkingStepBase Current { get; private set; }
+        public WorkingStepBase Previous { get; private set; }
+
+        public WorkingMultiStep(string title, bool inOrder)
         {
+            InOrder = inOrder;
             Title = title;
             Children = new List<WorkingStepBase>();
             Step = 0;
@@ -528,12 +541,55 @@ namespace DiscordBot.Services
             return this;
         }
 
+        public List<WorkingStepBase> getOrderedSteps(out DateTime endsAt)
+        {
+            if (InOrder)
+            {
+                var start = (Current?.StartedAt) ?? DateTime.Now;
+                foreach (var step in Children)
+                {
+                    step.IdealStartAt = start;
+                    start = start.AddSeconds(step.FullLength);
+                }
+                endsAt = start;
+                return Children;
+            } else
+            {
+                var ordered = Children.OrderByDescending(x => x.FullLength).ToList();
+                var longest = ordered.First();
+                endsAt = DateTime.Now.AddSeconds(longest.FullLength);
+                foreach(var x in ordered)
+                {
+                    x.IdealStartAt = endsAt.AddSeconds(x.FullLength * -1);
+                }
+                return ordered;
+            }
+        }
+
+        public WorkingStepBase getNext(out DateTime estimatedEndsAt)
+        {
+            var ordered = getOrderedSteps(out estimatedEndsAt); //Children.OrderByDescending(x => x.FullLength).ToList();
+            //var longestStep = ordered.First();
+            //var endsAt = DateTime.Now.AddSeconds(longestStep.FullLength);
+            //foreach (var x in Children) x.UpdateIdealStart(endsAt);
+
+            var ideals = Children.Where(x => !x.IsFinished).OrderBy(x => x.IdealStartAt);
+            foreach (var step in ideals)
+            {
+                if (step.IsFinished) continue;
+                if (!step.StartedAt.HasValue) return step;
+            }
+            return null;
+        }
+
         public override void MarkDone()
         {
             Current.MarkDone();
             if(Current.IsFinished)
             {
                 Step++;
+                Previous = Current;
+                Current = getNext(out _);
             }
         }
 
@@ -575,10 +631,8 @@ namespace DiscordBot.Services
         public override void MarkStarted()
         {
             Current.MarkStarted();
-            if(Step++ > 0)
-            {
-                Children[Step - 1].MarkDone();
-            }
+            if(Previous != null)
+                Previous.MarkDone();
         }
     }
 }
