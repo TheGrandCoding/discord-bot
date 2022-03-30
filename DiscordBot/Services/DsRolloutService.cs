@@ -48,10 +48,11 @@ namespace DiscordBot.Services
         {
             var http = Program.Services.GetRequiredService<Classes.BotHttpClient>()
                 .Child(nameof(DsRolloutService), debug: true);
-            var response = await http.GetAsync("https://rollouts.advaith.workers.dev");
+            http.DefaultRequestHeaders.Add("referer", "https://rollouts.advaith.io");
+            http.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.4844.84 Safari/537.36");
+            var response = await http.GetAsync("https://rollouts.advaith.workers.dev/");
 
-            if (!response.IsSuccessStatusCode)
-                return null;
+            response.EnsureSuccessStatusCode();
 
             var text = await response.Content.ReadAsStringAsync();
             var arr = JArray.Parse(text);
@@ -221,7 +222,6 @@ namespace DiscordBot.Services
             foreach(var exp in (sv.experiments ?? new List<Experiment>()))
                 Experiments[exp.Id] = exp;
             Guilds = new ConcurrentDictionary<ulong, GuildSave>(sv.guilds ?? new Dictionary<ulong, GuildSave>());
-
         }
 
         public class serviceSave

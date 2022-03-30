@@ -107,19 +107,13 @@ namespace DiscordBot.Classes
             builder.Append("\n");
             if (response.Content == null)
                 return builder.ToString();
-            if (response.Content is StringContent content)
-            {
-                var s = await content.ReadAsStringAsync();
-                builder.Append(s);
-            }
-            else
-            {
-                builder.Append($"<content: {response.Content.GetType().Name}>");
-            }
+            builder.Append($"<content: {response.Content.GetType().Name}>\n");
+            var s = await response.Content.ReadAsStringAsync();
+            builder.Append(s);
             return builder.ToString();
         }
 
-        public static string LogFolder => Path.Combine(Program.BASE_PATH, "data", "logs", "http", "sent");
+        public static string LogFolder => Path.Combine(Program.BASE_PATH, "data", "logs", "http", "sent", DateTime.Now.ToString("yyyy-MM-dd"));
 
         async Task<HttpResponseMessage> InternalSendAsync(HttpRequestMessage message, string source, CancellationToken? token)
         {
@@ -205,5 +199,4 @@ namespace DiscordBot.Classes
     public class BotHttpHeaders : HttpHeaders
     {
     }
-
 }
