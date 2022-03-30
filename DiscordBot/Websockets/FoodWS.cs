@@ -44,7 +44,12 @@ namespace DiscordBot.Websockets
                     packet["end"] = new DateTimeOffset(Recipe.EstimatedEndAt.Value).ToUnixTimeMilliseconds();
                 }
                 packet["current"] = Recipe.OnScreenNow.ToShortJson();
-                packet["next"] = Recipe.Steps.Next?.ToShortJson() ?? null;
+                packet["next"] = Recipe.Next?.ToShortJson() ?? null;
+
+                var jar = new JArray();
+                foreach (var step in Recipe.Steps)
+                    jar.Add(step.ToFullJson());
+                packet["steps"] = jar;
                 SendJson(packet);
             }
         }
@@ -56,8 +61,9 @@ namespace DiscordBot.Websockets
             var data = jobj["data"].ToObject<string>();
             if(data == "next")
             {
-                Recipe.Steps.MarkStarted();
-                Recipe.OnScreenNow = Recipe.Steps.Current;
+                Recipe.OnScreenNow.MarkStarted();
+                Recipe.Previous?.MarkDone();
+                Recipe.Index++;
                 if (Recipe.OnScreenNow == null)
                 {
                     FoodService.OngoingRecipes.Remove(Recipe.Id, out _);
@@ -92,7 +98,7 @@ namespace DiscordBot.Websockets
 
             if(Recipe.OnScreenNow == null)
             {
-                Recipe.OnScreenNow = Recipe.Steps.Current;
+                throw new ArgumentNullException("Recipe on screen was null??");
             }
             SendSteps();
         }

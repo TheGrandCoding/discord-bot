@@ -630,9 +630,10 @@ namespace DiscordBot.MLAPI.Modules
             {
                 working = new WorkingRecipe(recipes.ToArray());
                 var combined = new WorkingMultiStep("Combined Root", false);
-                foreach (var x in recipes.Select(x => x.ToWorking().Steps))
-                    combined.WithChild(x);
-                working.Steps = combined;
+                var flattened = new List<WorkingSimpleStep>();
+                foreach (var x in recipes.Select(x => x.ToWorking()))
+                    flattened.AddRange(x.Steps);
+                working.WithSteps(flattened);
             }
             Service.OngoingRecipes.TryAdd(working.Id, working);
             RespondRaw($"{working.Id}", 203);

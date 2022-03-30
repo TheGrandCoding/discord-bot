@@ -304,11 +304,12 @@ namespace DiscordBot.Services
             var multi = new WorkingMultiStep("Root", InOrder);
             foreach (var x in Steps.Select(x => x.ToWorking(multi)))
                 multi.WithChild(x);
-            multi.SetIdealTimeDiff(TimeSpan.Zero);
-            return new WorkingRecipe(new[] {this})
-            {
-                Steps = multi
-            };
+            multi.SetIdealTimeDiff(TimeSpan.Zero, null);
+
+
+
+            return new WorkingRecipe(new[] { this })
+                .WithSteps(multi.Flatten());
         }
     }
 
@@ -381,25 +382,64 @@ namespace DiscordBot.Services
         {
             get
             {
-                return DateTime.Now.AddSeconds(Steps.FullLength);
+                DateTime? maxEndsAt = null;
+                foreach(var s in Steps)
+                {
+                    var ends = s.StartedAt.GetValueOrDefault(DateTime.Now).AddSeconds(s.FullLength);
+                    if(!maxEndsAt.HasValue || ends > maxEndsAt.Value)
+                    {
+                        maxEndsAt = ends;
+                    }
+                }
+                return maxEndsAt;
             }
         }
 
-        public WorkingMultiStep Steps { get; set; }
+        public WorkingSimpleStep[] Steps { get; set; }
 
-        public WorkingStepBase OnScreenNow { get; set; }
+        public WorkingRecipe WithSteps(List<WorkingSimpleStep> flat)
+        {
+            flat = flat.OrderBy(x => x.IdealTimeDiff).ToList();
+            WorkingSimpleStep collate = null;
+            for (int i = 0; i < flat.Count; i++)
+            {
+                if (collate == null)
+                {
+                    collate = flat[i];
+                    continue;
+                }
+                var next = flat[i];
+                var diff = Math.Abs((collate.IdealTimeDiff - next.IdealTimeDiff).TotalSeconds);
+                if (diff < 1)
+                { // they're close enough to merge together
+                    collate.Description += " & " + next.Description;
+                    flat.RemoveAt(i);
+                    i--;
+                } else
+                {
+                    collate = next;
+                }
+            }
+            Steps = flat.ToArray();
+            return this;
+        }
 
+
+        public int Index { get; set; }
+        public WorkingSimpleStep Previous => Steps.ElementAtOrDefault(Index - 1);
+        public WorkingSimpleStep OnScreenNow => Steps.ElementAtOrDefault(Index);
+        public WorkingSimpleStep Next => Steps.ElementAtOrDefault(Index + 1);
     }
 
     public abstract class WorkingStepBase
     {
-        public virtual string Description { get; protected set; }
+        public virtual string Description { get; set; }
         public virtual int Duration { get; protected set; }
 
         public virtual int Delay { get; protected set; }
 
         public TimeSpan IdealTimeDiff { get; set; }
-        public abstract TimeSpan SetIdealTimeDiff(TimeSpan startDiff);
+        public abstract TimeSpan SetIdealTimeDiff(TimeSpan startDiff, TimeSpan? targetEnd);
 
         public virtual DateTime? StartedAt { get; internal set; }
 
@@ -483,6 +523,13 @@ namespace DiscordBot.Services
             jobj["at"] = new DateTimeOffset(EstimatedStartTime).ToUnixTimeMilliseconds().ToString();
             return jobj;
         }
+        public virtual JObject ToFullJson()
+        {
+            var jobj = ToShortJson();
+            jobj["diff"] = (int)IdealTimeDiff.TotalSeconds;
+            jobj["duration"] = Duration + Delay;
+            return jobj;
+        }
     }
 
     [DebuggerDisplay("{" + nameof(GetDebuggerDisplay) + "(),nq}")]
@@ -513,7 +560,7 @@ namespace DiscordBot.Services
             IsFinished = true;
         }
 
-        public override TimeSpan SetIdealTimeDiff(TimeSpan startDiff)
+        public override TimeSpan SetIdealTimeDiff(TimeSpan startDiff, TimeSpan? targetEnd)
         {
             IdealTimeDiff = startDiff;
             return startDiff + TimeSpan.FromSeconds(FullLength);
@@ -539,6 +586,19 @@ namespace DiscordBot.Services
                 return Children.ElementAtOrDefault(Step + 1);
             } }
 
+        public List<WorkingSimpleStep> Flatten()
+        {
+            var ls = new List<WorkingSimpleStep>();
+            foreach(var x in Children)
+            {
+                if (x is WorkingSimpleStep s)
+                    ls.Add(s);
+                else if (x is WorkingMultiStep m)
+                    ls.AddRange(m.Flatten());
+            }
+            return ls;
+        }
+
         public WorkingMultiStep(string title, bool inOrder)
         {
             InOrder = inOrder;
@@ -552,27 +612,39 @@ namespace DiscordBot.Services
             Children.Add(c);
             return this;
         }
-        public override TimeSpan SetIdealTimeDiff(TimeSpan startDiff)
+        public override TimeSpan SetIdealTimeDiff(TimeSpan startDiff, TimeSpan? targetEnd)
         {
             Sort();
-            if(InOrder)
+            int length;
+            if (targetEnd.HasValue)
             {
-                int length = 0;
+                var fullLength = FullLength;
+                //var ts = targetEnd.Value.Add(TimeSpan.FromSeconds(fullLength * -1));
+                var diff = targetEnd.Value - startDiff;
+                length = (int)Math.Max(0, diff.TotalSeconds - fullLength);
+            }
+            else
+            {
+                length = 0;
+            }
+            if (InOrder)
+            {
                 foreach (var step in Children)
                 {
-                    step.SetIdealTimeDiff(startDiff + TimeSpan.FromSeconds(length));
+                    step.SetIdealTimeDiff(startDiff + TimeSpan.FromSeconds(length), targetEnd);
                     length += step.FullLength;
                 }
                 return startDiff + TimeSpan.FromSeconds(length);
-            } else
+            }
+            else
             {
                 var longest = Children.First();
                 var maxLength = longest.FullLength;
                 foreach (var step in Children)
                 {
-                    step.IdealTimeDiff = startDiff + TimeSpan.FromSeconds(maxLength - step.FullLength);
+                    step.SetIdealTimeDiff(startDiff, targetEnd ?? TimeSpan.FromSeconds(maxLength));
                 }
-                return startDiff + TimeSpan.FromSeconds(maxLength);
+                return startDiff;//+ TimeSpan.FromSeconds(maxLength);
             }
         }
         public void Sort()
