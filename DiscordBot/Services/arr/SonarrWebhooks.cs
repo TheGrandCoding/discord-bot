@@ -42,7 +42,7 @@ namespace DiscordBot.Services.Sonarr
         {
             var save = Program.Deserialise<Save>(ReadSave("{}"));
             Channels = new List<SaveChannel>();
-            foreach(var chnl in save.Channels)
+            foreach(var chnl in (save.Channels ?? new List<SaveChannel>()))
             {
                 if (!(chnl.Channel is NullTextChannel))
                     Channels.Add(chnl);
@@ -327,7 +327,7 @@ namespace DiscordBot.Services.Sonarr
 
     public class Save
     {
-        public List<SaveChannel> Channels { get; set; }
+        public List<SaveChannel> Channels { get; set; } = new List<SaveChannel>();
     }
     public class SaveChannel
     {

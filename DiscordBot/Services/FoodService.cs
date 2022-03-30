@@ -302,12 +302,12 @@ namespace DiscordBot.Services
         public WorkingRecipe ToWorking()
         {
             var multi = new WorkingMultiStep("Root", InOrder);
+            foreach (var x in Steps.Select(x => x.ToWorking(multi)))
+                multi.WithChild(x);
+            multi.SetIdealTimeDiff(TimeSpan.Zero);
             return new WorkingRecipe(new[] {this})
             {
-                Steps = new WorkingMultiStep("Root", InOrder)
-                {
-                    Children = Steps.Select(x => x.ToWorking()).ToList()
-                }
+                Steps = multi
             };
         }
     }
@@ -326,13 +326,13 @@ namespace DiscordBot.Services
         [DefaultValue(true)]
         public bool? InOrder { get; set; }
 
-        public WorkingStepBase ToWorking()
+        public WorkingStepBase ToWorking(WorkingMultiStep parent)
         {
             if(Children != null && Children.Count > 0)
             {
                 var multi = new WorkingMultiStep(Description, InOrder.GetValueOrDefault(true));
                 foreach (var x in Children)
-                    multi.WithChild(x.ToWorking());
+                    multi.WithChild(x.ToWorking(multi));
                 return multi;
             } else
             {
@@ -377,28 +377,17 @@ namespace DiscordBot.Services
         public bool Started { get; set; }
 
         public SavedRecipe[] From { get; }
-        public DateTime? EstimatedEndAt { get; set; }
+        public DateTime? EstimatedEndAt
+        {
+            get
+            {
+                return DateTime.Now.AddSeconds(Steps.FullLength);
+            }
+        }
 
         public WorkingMultiStep Steps { get; set; }
 
-        public WorkingStepBase NextStep { get; set; }
-
-        public WorkingStepBase getNext()
-        {
-            if (NextStep != null)
-                Started = true;
-            var next = Steps.getNext(out var e);
-            EstimatedEndAt = e;
-            return next;
-        }
-
-        public WorkingStepBase getAfter()
-        {
-            var ordered = Steps.getOrderedSteps(out _);
-            var ind = ordered.IndexOf(NextStep);
-            if (ind == -1) return null;
-            return ordered.ElementAtOrDefault(ind + 1);
-        }
+        public WorkingStepBase OnScreenNow { get; set; }
 
     }
 
@@ -409,16 +398,17 @@ namespace DiscordBot.Services
 
         public virtual int Delay { get; protected set; }
 
-        public virtual DateTime IdealStartAt { get; set; }
+        public TimeSpan IdealTimeDiff { get; set; }
+        public abstract TimeSpan SetIdealTimeDiff(TimeSpan startDiff);
 
-        public virtual DateTime? StartedAt { get; protected set; }
+        public virtual DateTime? StartedAt { get; internal set; }
 
         public virtual DateTime? EndsAt
         {
             get
             {
                 if (StartedAt.HasValue)
-                    return StartedAt.Value.AddSeconds(Duration);
+                    return StartedAt.Value.AddSeconds(FullLength);
                 return null;
             }
         }
@@ -427,12 +417,11 @@ namespace DiscordBot.Services
         {
             get
             {
+                int length = Duration + Delay;
                 if (StartedAt.HasValue)
                 {
-                    var v = (EndsAt.Value - DateTime.Now).TotalSeconds;
-                    if (v > 0)
-                        return (int)Math.Round(v);
-                    return 0;
+                    var done = (DateTime.Now - StartedAt.Value).TotalSeconds;
+                    return Math.Min(0, (int)Math.Round(length - done));
                 }
                 else if (IsFinished)
                 {
@@ -440,7 +429,7 @@ namespace DiscordBot.Services
                 }
                 else
                 {
-                    return Duration + Delay;
+                    return length;
                 }
             }
         }
@@ -461,29 +450,37 @@ namespace DiscordBot.Services
 
         public WorkingMultiStep Parent { get; set; }
 
+        public string dbg { get
+            {
+                return "  " + (Parent?.dbg ?? "");
+            } }
+        public string dbg_text { get
+            {
+                if (Parent == null)
+                    return Description;
+                return Parent.dbg_text + " " + Description;
+            } }
+
+        public DateTime EstimatedStartTime { get
+            {
+                WorkingMultiStep parent = Parent;
+                if (parent == null)
+                    return StartedAt.GetValueOrDefault(DateTime.Now) + IdealTimeDiff;
+                while (parent.Parent != null)
+                    parent = parent.Parent;
+                return parent.StartedAt.GetValueOrDefault(DateTime.Now) + IdealTimeDiff;
+            } }
+
         public abstract void MarkStarted();
         public abstract void MarkDone();
 
-        public virtual void UpdateIdealStart(DateTime targetEndsAt)
-        {
-            string c;
-            if (StartedAt.HasValue)
-                c = "*";
-            else if (IsFinished)
-                c = "v";
-            else
-                c = "-";
-            IdealStartAt = targetEndsAt.AddSeconds(FullLength * -1);
-
-            //Console.WriteLine($"   {c} {Description} target {targetEndsAt}, length {FullLength}, start: {IdealStartAt}");
-        }
         public abstract string GetDebuggerDisplay();
 
         public virtual JObject ToShortJson()
         {
             var jobj = new JObject();
             jobj["description"] = Description;
-            jobj["at"] = new DateTimeOffset(IdealStartAt).ToUnixTimeMilliseconds().ToString();
+            jobj["at"] = new DateTimeOffset(EstimatedStartTime).ToUnixTimeMilliseconds().ToString();
             return jobj;
         }
     }
@@ -501,6 +498,7 @@ namespace DiscordBot.Services
 
         public override void MarkStarted()
         {
+            Program.LogInfo($"{dbg}{dbg_text} Started: {Duration}-{Delay}", "SimpleStep");
             StartedAt = DateTime.Now;
         }
 
@@ -511,7 +509,14 @@ namespace DiscordBot.Services
 
         public override void MarkDone()
         {
+            Program.LogInfo($"{dbg}{dbg_text} Done: {Duration}-{Delay}", "SimpleStep");
             IsFinished = true;
+        }
+
+        public override TimeSpan SetIdealTimeDiff(TimeSpan startDiff)
+        {
+            IdealTimeDiff = startDiff;
+            return startDiff + TimeSpan.FromSeconds(FullLength);
         }
     }
 
@@ -519,13 +524,20 @@ namespace DiscordBot.Services
     public class WorkingMultiStep : WorkingStepBase
     {
         public string Title { get; set; }
-        public List<WorkingStepBase> Children { get; set; }
+        public List<WorkingStepBase> Children { get; private set; } = new List<WorkingStepBase>();
         public int Step { get; set; }
 
         public bool InOrder { get; set; }
 
-        public WorkingStepBase Current { get; private set; }
-        public WorkingStepBase Previous { get; private set; }
+        public WorkingStepBase Previous => Children.ElementAtOrDefault(Step - 1);
+        public WorkingStepBase Current => Children.ElementAtOrDefault(Step);
+
+        public WorkingStepBase Next { get
+            {
+                if (Current is WorkingMultiStep && !Current.IsFinished)
+                    return Current;
+                return Children.ElementAtOrDefault(Step + 1);
+            } }
 
         public WorkingMultiStep(string title, bool inOrder)
         {
@@ -540,99 +552,82 @@ namespace DiscordBot.Services
             Children.Add(c);
             return this;
         }
-
-        public List<WorkingStepBase> getOrderedSteps(out DateTime endsAt)
+        public override TimeSpan SetIdealTimeDiff(TimeSpan startDiff)
         {
-            if (InOrder)
+            Sort();
+            if(InOrder)
             {
-                var start = (Current?.StartedAt) ?? DateTime.Now;
+                int length = 0;
                 foreach (var step in Children)
                 {
-                    step.IdealStartAt = start;
-                    start = start.AddSeconds(step.FullLength);
+                    step.SetIdealTimeDiff(startDiff + TimeSpan.FromSeconds(length));
+                    length += step.FullLength;
                 }
-                endsAt = start;
-                return Children;
+                return startDiff + TimeSpan.FromSeconds(length);
             } else
             {
-                var ordered = Children.OrderByDescending(x => x.FullLength).ToList();
-                var longest = ordered.First();
-                endsAt = DateTime.Now.AddSeconds(longest.FullLength);
-                foreach(var x in ordered)
+                var longest = Children.First();
+                var maxLength = longest.FullLength;
+                foreach (var step in Children)
                 {
-                    x.IdealStartAt = endsAt.AddSeconds(x.FullLength * -1);
+                    step.IdealTimeDiff = startDiff + TimeSpan.FromSeconds(maxLength - step.FullLength);
                 }
-                return ordered;
+                return startDiff + TimeSpan.FromSeconds(maxLength);
             }
         }
-
-        public WorkingStepBase getNext(out DateTime estimatedEndsAt)
+        public void Sort()
         {
-            var ordered = getOrderedSteps(out estimatedEndsAt); //Children.OrderByDescending(x => x.FullLength).ToList();
-            //var longestStep = ordered.First();
-            //var endsAt = DateTime.Now.AddSeconds(longestStep.FullLength);
-            //foreach (var x in Children) x.UpdateIdealStart(endsAt);
-
-            var ideals = Children.Where(x => !x.IsFinished).OrderBy(x => x.IdealStartAt);
-            foreach (var step in ideals)
+            if (!InOrder) 
+                Children = Children.OrderByDescending(x => x.FullLength).ToList();
+            foreach (var x in Children)
             {
-                if (step.IsFinished) continue;
-                if (!step.StartedAt.HasValue) return step;
-            }
-            return null;
-        }
-
-        public override void MarkDone()
-        {
-            Current.MarkDone();
-            if(Current.IsFinished)
-            {
-                Step++;
-                Previous = Current;
-                Current = getNext(out _);
+                if (x is WorkingMultiStep m)
+                    m.Sort();
             }
         }
 
         public override string Description => Current.Description;
         public override int Delay => Current.Delay;
-        public override DateTime? ActuallyEndedAt => Current.ActuallyEndedAt;
+        public override DateTime? ActuallyEndedAt => Current?.ActuallyEndedAt;
         public override int Duration => Current.Duration;
-        public override DateTime? StartedAt => Current.StartedAt;
-        public override DateTime? EndsAt => Current.EndsAt;
+        public override DateTime? StartedAt => Current?.StartedAt;
+        public override DateTime? EndsAt => Current?.EndsAt;
         public override bool IsFinished => Step == Children.Count;
-        public override DateTime IdealStartAt => Current.IdealStartAt;
 
         public override int FullLength { get
             {
                 if (IsFinished) return 0;
-                return Children.Sum(x => x.FullLength);
+                if(InOrder)
+                {
+                    return Children.Sum(x => x.FullLength);
+                } else
+                {
+                    return Children.OrderByDescending(x => x.FullLength).FirstOrDefault()?.FullLength ?? 0;
+                }
             } }
 
         public override string GetDebuggerDisplay()
         {
             return $"[{Step}/{Children.Count}|{FullLength}] {(Current?.GetDebuggerDisplay() ?? "non")}";
         }
-        public override void UpdateIdealStart(DateTime targetEndsAt)
-        {
-            if (IsFinished) return;
-            var theoretical = targetEndsAt.AddSeconds(FullLength * -1);
-            //Console.WriteLine($"== {Title} target {targetEndsAt}, theoretical start: {theoretical}");
-            for(int i = Children.Count - 1; i >= 0; i--)
-            {
-                WorkingStepBase child = Children[i];
-                child.UpdateIdealStart(targetEndsAt);
-                targetEndsAt = targetEndsAt.AddSeconds(child.FullLength * -1);
-            }
-            //Console.WriteLine($"== final end: {targetEndsAt}");
-
-            //IdealStartAt = targetEndsAt;
-        }
 
         public override void MarkStarted()
         {
+            Program.LogInfo($"{dbg}{dbg_text} Started: {Current.Description} | {Step}/{Children.Count}", "MultiStep");
             Current.MarkStarted();
-            if(Previous != null)
-                Previous.MarkDone();
+            Previous?.MarkDone();
+            if (Current is WorkingSimpleStep s)
+                Step++;
+            else if (Current is WorkingMultiStep m)
+                if (m.IsFinished)
+                    Step++;
+            Program.LogInfo($"{dbg}{dbg_text} Step now: {Step}/{Children.Count}", "MultiStep");
         }
+        public override void MarkDone()
+        {
+            Program.LogInfo($"{dbg}{dbg_text} Done:?? {Step}", "MultiStep");
+        }
+
+
     }
 }
