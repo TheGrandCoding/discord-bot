@@ -82,6 +82,9 @@ namespace DiscordBot.Websockets
 #endif
         {
             var str = json.ToString(indent ? Newtonsoft.Json.Formatting.Indented : Newtonsoft.Json.Formatting.None);
+#if DEBUG
+            Debug(str, "WS >>");
+#endif
             base.Send(str);
         }
     }

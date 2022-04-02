@@ -32,7 +32,7 @@ namespace DiscordBot.Websockets
 
         void SendSteps()
         {
-            if(Recipe.NextStep == null)
+            if(Recipe.OnScreenNow == null)
             {
                 sendDone();
             } else
@@ -43,8 +43,13 @@ namespace DiscordBot.Websockets
                 {
                     packet["end"] = new DateTimeOffset(Recipe.EstimatedEndAt.Value).ToUnixTimeMilliseconds();
                 }
-                packet["current"] = Recipe.NextStep.ToShortJson();
-                packet["next"] = Recipe.getAfter()?.ToShortJson() ?? null;
+                packet["current"] = Recipe.OnScreenNow.ToShortJson();
+                packet["next"] = Recipe.Next?.ToShortJson() ?? null;
+
+                var jar = new JArray();
+                foreach (var step in Recipe.Steps)
+                    jar.Add(step.ToFullJson());
+                packet["steps"] = jar;
                 SendJson(packet);
             }
         }
@@ -52,12 +57,14 @@ namespace DiscordBot.Websockets
         protected override void OnMessage(MessageEventArgs e)
         {
             var jobj = JObject.Parse(e.Data);
+            Debug(jobj.ToString(), "OnMessage");
             var data = jobj["data"].ToObject<string>();
             if(data == "next")
             {
-                Recipe.NextStep.MarkStarted();
-                Recipe.NextStep = Recipe.getNext();
-                if (Recipe.NextStep == null)
+                Recipe.OnScreenNow.MarkStarted();
+                Recipe.Previous?.MarkDone();
+                Recipe.Index++;
+                if (Recipe.OnScreenNow == null)
                 {
                     FoodService.OngoingRecipes.Remove(Recipe.Id, out _);
                 }
@@ -89,9 +96,9 @@ namespace DiscordBot.Websockets
             }
             Recipe = v;
 
-            if(Recipe.NextStep == null)
+            if(Recipe.OnScreenNow == null)
             {
-                Recipe.NextStep = Recipe.getNext();
+                throw new ArgumentNullException("Recipe on screen was null??");
             }
             SendSteps();
         }
