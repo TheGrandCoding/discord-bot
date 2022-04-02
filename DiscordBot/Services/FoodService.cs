@@ -355,9 +355,14 @@ namespace DiscordBot.Services
                     li.Children.Add(new Classes.HTMLHelpers.Objects.Span() { RawText = $", after {Delay}" });
             } else
             {
-                var inner = new Classes.HTMLHelpers.Objects.UnorderedList();
+
+                var inner = (InOrder ?? true)  ? (Classes.HTMLHelpers.DOMBase) new Classes.HTMLHelpers.Objects.OrderedList() 
+                                               : (Classes.HTMLHelpers.DOMBase) new Classes.HTMLHelpers.Objects.UnorderedList();
                 foreach (var x in Children ?? new List<SavedStep>())
-                    inner.AddItem(x.GetListItem());
+                    if(inner is Classes.HTMLHelpers.Objects.OrderedList ol)
+                        ol.AddItem(x.GetListItem());
+                    else if(inner is Classes.HTMLHelpers.Objects.UnorderedList ul)
+                        ul.AddItem(x.GetListItem());
                 li.Children.Add(inner);
             }
             return li;

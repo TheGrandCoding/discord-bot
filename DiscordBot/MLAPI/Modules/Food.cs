@@ -34,19 +34,19 @@ namespace DiscordBot.MLAPI.Modules
             return id;
         }
 
-        TableData getProductInfo(Product product)
+        Classes.HTMLHelpers.DOMBase getProductInfo(Product product, Classes.HTMLHelpers.DOMBase container = null)
         {
-            var data = new TableData(null);
+            container ??= new TableData(null);
 
             string retailerName = Service.GetManufacturor(product.Id);
 
             if(retailerName != null)
             {
-                data.Children.Add(new Span(cls: "badge") { RawText = retailerName });
+                container.Children.Add(new Span(cls: "badge") { RawText = retailerName });
             }
-            data.Children.Add(new Span(cls: "product-name") { RawText = product.Name });
+            container.Children.Add(new Span(cls: "product-name") { RawText = product.Name });
 
-            return data;
+            return container;
         }
 
         TableData getExpirationInfo(InventoryItem item)
@@ -381,14 +381,26 @@ namespace DiscordBot.MLAPI.Modules
                 var ing = new UnorderedList();
                 foreach(var i in x.Ingredients)
                 {
-                    ing.AddItem(new ListItem($"{i.Value}x {i.Key}"));
+                    var prod = Service.GetProduct(i.Key);
+                    if (prod == null)
+                        continue;
+                    ing.AddItem(new ListItem($"{i.Value}x ")
+                    {
+                        Children =
+                        {
+                            getProductInfo(prod, new Classes.HTMLHelpers.Objects.Span())
+                        }
+                    });
                 }
                 r.Children.Add(new TableData(null) { Children = { ing } });
 
-                var steps = new UnorderedList();
+                var steps = x.InOrder ? (Classes.HTMLHelpers.DOMBase)new OrderedList() : (Classes.HTMLHelpers.DOMBase)new UnorderedList();
                 foreach(var s in x.Steps)
                 {
-                    steps.AddItem(s.GetListItem());
+                    if (steps is OrderedList ol)
+                        ol.AddItem(s.GetListItem());
+                    else if (steps is UnorderedList ul)
+                        ul.AddItem(s.GetListItem());
                 }
                 r.Children.Add(new TableData(null) { Children = { steps } });
 
@@ -572,6 +584,7 @@ namespace DiscordBot.MLAPI.Modules
             {
                 var ing = x as JObject;
                 var id = ing.GetValue("id")?.ToObject<string>();
+                id = (id ?? "").Replace(" ", "");
                 if(string.IsNullOrWhiteSpace(id))
                 {
                     RespondRaw("Ingredient ID is null", 400);
