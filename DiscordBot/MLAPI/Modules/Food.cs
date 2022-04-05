@@ -408,7 +408,8 @@ namespace DiscordBot.MLAPI.Modules
                 {
                     Children =
                     {
-                        new Input("checkbox", id: x.Id.ToString(), cls: "recipe-selects")
+                        new Input("checkbox", id: x.Id.ToString(), cls: "recipe-selects"),
+                        new Input("button", "Delete") {OnClick = $"deleteRecipe({x.Id});"}
                     }
                 });
                 table.Children.Add(r);
@@ -620,6 +621,13 @@ namespace DiscordBot.MLAPI.Modules
             RespondRaw("OK");
         }
 
+        [Method("DELETE"), Path("/api/food/recipe")]
+        public void DeleteRecipe(int id)
+        {
+            Service.DeleteRecipe(id);
+            RespondRaw("OK", 200);
+        }
+
         [Method("PUT"), Path("/api/food/recipes")]
         public void StartRecipe()
         {
@@ -643,9 +651,12 @@ namespace DiscordBot.MLAPI.Modules
             {
                 working = new WorkingRecipe(recipes.ToArray());
                 var combined = new WorkingMultiStep("Combined Root", false);
-                var flattened = new List<WorkingSimpleStep>();
-                foreach (var x in recipes.Select(x => x.ToWorking()))
-                    flattened.AddRange(x.Steps);
+                foreach (var x in recipes)
+                    combined.WithChild(x.ToChild());
+                combined.SetIdealTimeDiff(TimeSpan.Zero, null);
+
+
+                var flattened = combined.Flatten();
                 working.WithSteps(flattened);
             }
             Service.OngoingRecipes.TryAdd(working.Id, working);

@@ -68,7 +68,6 @@ namespace DiscordBot.Services
             db.SaveChanges();
             return true;
         }
-
         public string GetManufacturor(string id)
         {
             foreach ((var key, var ls) in Manufacturers)
@@ -91,6 +90,15 @@ namespace DiscordBot.Services
             else
                 Manufacturers[name] = new List<string>() { idPrefix };
             OnSave();
+        }
+
+        public void DeleteRecipe(int id)
+        {
+            var ls = new List<SavedRecipe>();
+            foreach(var x in Recipes)
+                if(x.Id != id)
+                    ls.Add(x);
+            Recipes = new ConcurrentBag<SavedRecipe>(ls);
         }
 
         public override string GenerateSave()
@@ -299,14 +307,18 @@ namespace DiscordBot.Services
         [DefaultValue(false)]
         public bool InOrder { get; set; }
 
-        public WorkingRecipe ToWorking()
+        public WorkingMultiStep ToChild()
         {
-            var multi = new WorkingMultiStep("Root", InOrder);
+            var multi = new WorkingMultiStep($"Root {Id}", InOrder);
             foreach (var x in Steps.Select(x => x.ToWorking(multi)))
                 multi.WithChild(x);
+            return multi;
+        }
+
+        public WorkingRecipe ToWorking()
+        {
+            var multi = ToChild();
             multi.SetIdealTimeDiff(TimeSpan.Zero, null);
-
-
 
             return new WorkingRecipe(new[] { this })
                 .WithSteps(multi.Flatten());
@@ -387,16 +399,16 @@ namespace DiscordBot.Services
         {
             get
             {
-                DateTime? maxEndsAt = null;
+                TimeSpan maxEnds = TimeSpan.Zero;
                 foreach(var s in Steps)
                 {
-                    var ends = s.StartedAt.GetValueOrDefault(DateTime.Now).AddSeconds(s.FullLength);
-                    if(!maxEndsAt.HasValue || ends > maxEndsAt.Value)
+                    var ends = s.IdealTimeDiff + TimeSpan.FromSeconds(s.FullLength);
+                    if(ends > maxEnds)
                     {
-                        maxEndsAt = ends;
+                        maxEnds = ends;
                     }
                 }
-                return maxEndsAt;
+                return DateTime.Now.Add(maxEnds);
             }
         }
 
@@ -620,18 +632,7 @@ namespace DiscordBot.Services
         public override TimeSpan SetIdealTimeDiff(TimeSpan startDiff, TimeSpan? targetEnd)
         {
             Sort();
-            int length;
-            if (targetEnd.HasValue)
-            {
-                var fullLength = FullLength;
-                //var ts = targetEnd.Value.Add(TimeSpan.FromSeconds(fullLength * -1));
-                var diff = targetEnd.Value - startDiff;
-                length = (int)Math.Max(0, diff.TotalSeconds - fullLength);
-            }
-            else
-            {
-                length = 0;
-            }
+            int length = 0;
             if (InOrder)
             {
                 foreach (var step in Children)
@@ -643,11 +644,15 @@ namespace DiscordBot.Services
             }
             else
             {
-                var longest = Children.First();
-                var maxLength = longest.FullLength;
+                targetEnd ??= TimeSpan.FromSeconds(Children.First().FullLength);
                 foreach (var step in Children)
                 {
-                    step.SetIdealTimeDiff(startDiff, targetEnd ?? TimeSpan.FromSeconds(maxLength));
+                    if(targetEnd.HasValue)
+                    {
+                        var diff = targetEnd.Value - startDiff;
+                        length = (int)Math.Max(0, diff.TotalSeconds - step.FullLength);
+                    }
+                    step.SetIdealTimeDiff(startDiff + TimeSpan.FromSeconds(length), targetEnd);
                 }
                 return startDiff;//+ TimeSpan.FromSeconds(maxLength);
             }
