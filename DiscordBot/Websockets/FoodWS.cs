@@ -68,6 +68,7 @@ namespace DiscordBot.Websockets
                 {
                     FoodService.OngoingRecipes.Remove(Recipe.Id, out _);
                 }
+                Recipe.UpdateEstimatedTimes();
                 foreach (var x in Sessions.Sessions)
                 {
                     if (x is FoodWS f)
@@ -100,6 +101,7 @@ namespace DiscordBot.Websockets
             {
                 throw new ArgumentNullException("Recipe on screen was null??");
             }
+            Recipe.UpdateEstimatedTimes();
             SendSteps();
         }
     }

@@ -392,23 +392,23 @@ namespace DiscordBot.Services
         }
         public int Id { get; }
 
-        public bool Started { get; set; }
+        public bool Started => Index > 0;
 
         public SavedRecipe[] From { get; }
         public DateTime? EstimatedEndAt
         {
             get
             {
-                TimeSpan maxEnds = TimeSpan.Zero;
+                DateTime maxEnds = DateTime.Now;
                 foreach(var s in Steps)
                 {
-                    var ends = s.IdealTimeDiff + TimeSpan.FromSeconds(s.FullLength);
+                    var ends = s.StartedAt.GetValueOrDefault(s.EstimatedStartTime) + TimeSpan.FromSeconds(s.FullLength);
                     if(ends > maxEnds)
                     {
                         maxEnds = ends;
                     }
                 }
-                return DateTime.Now.Add(maxEnds);
+                return maxEnds;
             }
         }
 
@@ -441,6 +441,25 @@ namespace DiscordBot.Services
             return this;
         }
 
+        public void UpdateEstimatedTimes()
+        {
+            var startedAt = Steps.First().StartedAt.GetValueOrDefault(DateTime.Now);
+            TimeSpan lastDiff = TimeSpan.Zero;
+            foreach(var step in Steps)
+            {
+                var diff = step.IdealTimeDiff - lastDiff;
+                lastDiff = step.IdealTimeDiff;
+                if(step.StartedAt.HasValue)
+                {
+                    step.EstimatedStartTime = step.StartedAt.Value;
+                    startedAt = step.StartedAt.Value;
+                } else
+                {
+                    step.EstimatedStartTime = startedAt + diff;
+                    startedAt = step.EstimatedStartTime;
+                }
+            }
+        }
 
         public int Index { get; set; }
         public WorkingSimpleStep Previous => Steps.ElementAtOrDefault(Index - 1);
@@ -518,15 +537,7 @@ namespace DiscordBot.Services
                 return Parent.dbg_text + " " + Description;
             } }
 
-        public DateTime EstimatedStartTime { get
-            {
-                WorkingMultiStep parent = Parent;
-                if (parent == null)
-                    return StartedAt.GetValueOrDefault(DateTime.Now) + IdealTimeDiff;
-                while (parent.Parent != null)
-                    parent = parent.Parent;
-                return parent.StartedAt.GetValueOrDefault(DateTime.Now) + IdealTimeDiff;
-            } }
+        public DateTime EstimatedStartTime { get; set; }
 
         public abstract void MarkStarted();
         public abstract void MarkDone();
