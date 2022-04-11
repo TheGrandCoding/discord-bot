@@ -49,7 +49,7 @@ namespace DiscordBot.MLAPI.Modules
             return container;
         }
 
-        TableData getExpirationInfo(InventoryItem item)
+        TableData getExpirationInfo(InventoryItem item, bool full)
         {
             string text;
             var diff = item.ExpiresAt - DateTime.UtcNow;
@@ -88,6 +88,11 @@ namespace DiscordBot.MLAPI.Modules
                 text = $"{item.ExpiresAt:MMMM yyyy}";
             }
 
+            if(full && item.Frozen && (item.Product?.FreezingExtends ?? 0) > 0)
+            {
+                text += $"; original: {item.InitialExpiresAt:yyyy-MM-dd}";
+            }
+
             if (item.Frozen)
             {
                 return new TableData(null)
@@ -118,7 +123,7 @@ namespace DiscordBot.MLAPI.Modules
             else
                 row.Children.Add(getProductInfo(item.Product));
             row.WithCell($"{item.AddedAt:yyyy-MM-dd}");
-            row.Children.Add(getExpirationInfo(item));
+            row.Children.Add(getExpirationInfo(item, full));
             var diff = item.ExpiresAt - DateTime.UtcNow;
             if (diff.TotalDays < 7)
                 row.Class = "expires-soon";
@@ -310,7 +315,7 @@ namespace DiscordBot.MLAPI.Modules
 
                         row.WithCell($"{thing.Id}");
                         row.WithCell($"{thing.AddedAt:yyyy-MM-dd}");
-                        var d = getExpirationInfo(thing);
+                        var d = getExpirationInfo(thing, true);
                         d.Children.Add(new Span() { RawText = $" ({thing.ExpiresAt:yyyy-MM-dd})" });
                         row.Children.Add(d);
 
