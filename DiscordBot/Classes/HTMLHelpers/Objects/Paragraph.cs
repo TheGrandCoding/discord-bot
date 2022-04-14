@@ -11,4 +11,9 @@ namespace DiscordBot.Classes.HTMLHelpers.Objects
             RawText = content;
         }
     }
+
+    public class Break : DOMBase
+    {
+        public Break(string id = null, string cls = null) : base("br", id, cls) { }
+    }
 }

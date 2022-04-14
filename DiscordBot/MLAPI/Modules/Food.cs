@@ -215,14 +215,15 @@ namespace DiscordBot.MLAPI.Modules
                     var row = getRow(item, full);
                     if(!string.IsNullOrWhiteSpace(item.Product.Tags))
                     {
-                        var c = item.Product.Tags.Split(';');
-                        if(c.Length > 1)
+                        var c = item.Product.Tags.Split(';')
+                            .Where(cn => cn != groupName)
+                            .ToList();
+                        if(c.Count > 0)
                         {
                             var nameCell = row.Children[full ? 2 : 0] as TableData;
-                            var warnSpan = new Span(cls: "product-warn")
-                            {
-                                RawText = $"<br/> (!) Duplicated in multiple categories: {string.Join(", ", c)}"
-                            };
+                            var warnSpan = new Span(cls: "product-warn");
+                            warnSpan.Children.Add(new Break());
+                            warnSpan.Children.Add(new RawObject($"(!) This item is also listed in other categories: {string.Join(", ", c)}"));
                             nameCell.Children.Add(warnSpan);
                         }
                     }
