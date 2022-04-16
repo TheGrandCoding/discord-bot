@@ -309,7 +309,7 @@ namespace DiscordBot.Services
 
         public WorkingMultiStep ToChild()
         {
-            var multi = new WorkingMultiStep($"Root {Id}", InOrder);
+            var multi = new WorkingMultiStep(this, $"Root {Id}", InOrder);
             foreach (var x in Steps.Select(x => x.ToWorking(multi)))
                 multi.WithChild(x);
             return multi;
@@ -343,13 +343,13 @@ namespace DiscordBot.Services
         {
             if(Children != null && Children.Count > 0)
             {
-                var multi = new WorkingMultiStep(Description, InOrder.GetValueOrDefault(true));
+                var multi = new WorkingMultiStep(parent.Recipe, Description, InOrder.GetValueOrDefault(true));
                 foreach (var x in Children)
                     multi.WithChild(x.ToWorking(multi));
                 return multi;
             } else
             {
-                return new WorkingSimpleStep(Description, Duration ?? 0, Delay ?? 0);
+                return new WorkingSimpleStep(parent.Recipe, Description, Duration ?? 0, Delay ?? 0);
             }
         }
 
@@ -469,6 +469,11 @@ namespace DiscordBot.Services
 
     public abstract class WorkingStepBase
     {
+        public SavedRecipe Recipe { get; set; }
+        public WorkingStepBase(SavedRecipe recipe)
+        {
+            Recipe = recipe;
+        }
         public virtual string Description { get; set; }
         public virtual int Duration { get; protected set; }
 
@@ -476,6 +481,7 @@ namespace DiscordBot.Services
 
         public TimeSpan IdealTimeDiff { get; set; }
         public abstract TimeSpan SetIdealTimeDiff(TimeSpan startDiff, TimeSpan? targetEnd);
+        public abstract void OffsetIdealTimeDiff(TimeSpan offset);
 
         public virtual DateTime? StartedAt { get; internal set; }
 
@@ -563,7 +569,7 @@ namespace DiscordBot.Services
     [DebuggerDisplay("{" + nameof(GetDebuggerDisplay) + "(),nq}")]
     public class WorkingSimpleStep : WorkingStepBase
     {
-        public WorkingSimpleStep(string desc, int dur, int del)
+        public WorkingSimpleStep(SavedRecipe recipe, string desc, int dur, int del) : base(recipe)
         {
             Description = desc;
             Duration = dur;
@@ -592,6 +598,11 @@ namespace DiscordBot.Services
         {
             IdealTimeDiff = startDiff;
             return startDiff + TimeSpan.FromSeconds(FullLength);
+        }
+
+        public override void OffsetIdealTimeDiff(TimeSpan offset)
+        {
+            IdealTimeDiff = IdealTimeDiff.Add(offset);
         }
     }
 
@@ -627,7 +638,7 @@ namespace DiscordBot.Services
             return ls;
         }
 
-        public WorkingMultiStep(string title, bool inOrder)
+        public WorkingMultiStep(SavedRecipe recipe, string title, bool inOrder) : base(recipe)
         {
             InOrder = inOrder;
             Title = title;
@@ -668,6 +679,13 @@ namespace DiscordBot.Services
                 return startDiff;//+ TimeSpan.FromSeconds(maxLength);
             }
         }
+
+        public override void OffsetIdealTimeDiff(TimeSpan offset)
+        {
+            foreach (var x in Children)
+                x.OffsetIdealTimeDiff(offset);
+        }
+
         public void Sort()
         {
             if (!InOrder) 
