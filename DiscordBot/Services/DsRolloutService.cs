@@ -546,7 +546,7 @@ namespace DiscordBot.Services
             if(thisPops.Count < otherPops.Count)
             {
                 return new Change("New population group", $"{thisPops.Count}", $"{otherPops.Count}");
-            } else if (thisPops.Count < otherPops.Count)
+            } else if (thisPops.Count > otherPops.Count)
             {
                 return new Change("Removed population group", $"{thisPops.Count}", $"{otherPops.Count}");
             } else
