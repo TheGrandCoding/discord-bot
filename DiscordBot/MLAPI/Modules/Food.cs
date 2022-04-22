@@ -414,7 +414,12 @@ namespace DiscordBot.MLAPI.Modules
                 {
                     Children =
                     {
-                        new Input("checkbox", id: x.Id.ToString(), cls: "recipe-selects"),
+                        new Input("checkbox", id: x.Id.ToString(), cls: "recipe-selects") {
+                            OnClick = "cbToggled(event)"
+                        },
+                        new Input("number", id: $"delay-{x.Id}") {
+                            Style = "display: none"
+                        }.WithTag("placeholder", "Offset (s)"),
                         new Input("button", "Delete") {OnClick = $"deleteRecipe({x.Id});"}
                     }
                 });
@@ -637,8 +642,8 @@ namespace DiscordBot.MLAPI.Modules
         [Method("PUT"), Path("/api/food/recipes")]
         public void StartRecipe()
         {
-            var array = Newtonsoft.Json.JsonConvert.DeserializeObject<int[]>(Context.Body);
-            var recipes = array.Select(x => Service.Recipes.FirstOrDefault(r => r.Id == x)).ToList();
+            var dict = Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<int, int>>(Context.Body);
+            var recipes = dict.Keys.Select(x => Service.Recipes.FirstOrDefault(r => r.Id == x)).ToList();
             if(recipes.Any(x => x == null))
             {
                 RespondRaw("A recipe is null", 400);
@@ -656,11 +661,17 @@ namespace DiscordBot.MLAPI.Modules
             } else
             {
                 working = new WorkingRecipe(recipes.ToArray());
-                var combined = new WorkingMultiStep("Combined Root", false);
+                var combined = new WorkingMultiStep(null, "Combined Root", false);
                 foreach (var x in recipes)
                     combined.WithChild(x.ToChild());
                 combined.SetIdealTimeDiff(TimeSpan.Zero, null);
 
+                foreach(var step in combined.Children)
+                {
+                    var offset = dict.GetValueOrDefault(step.Recipe.Id, 0);
+                    if(offset != 0)
+                        step.OffsetIdealTimeDiff(TimeSpan.FromSeconds(offset));
+                }
 
                 var flattened = combined.Flatten();
                 working.WithSteps(flattened);
