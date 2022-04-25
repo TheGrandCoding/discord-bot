@@ -1,5 +1,6 @@
 ﻿using Discord;
 using DiscordBot.Classes;
+using DiscordBot.Classes.Attributes;
 using JsonSubTypes;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
@@ -15,6 +16,7 @@ using System.Threading.Tasks;
 
 namespace DiscordBot.Services.Sonarr
 {
+    [RequireService(typeof(TraktService))]
     public class SonarrWebhooksService : SavedService
     {
         public List<SaveChannel> Channels { get; set; }
@@ -27,6 +29,7 @@ namespace DiscordBot.Services.Sonarr
 
         public Semaphore Lock = new Semaphore(1, 1);
         public BotHttpClient HTTP { get; private set; }
+        public TraktService Trakt { get; private set; }
         public CacheDictionary<int, string> TagsCache { get; } = new CacheDictionary<int, string>(60 * 24);
         public CacheDictionary<int, string[]> SeriesTagsCache { get; } = new CacheDictionary<int, string[]>(60 * 24); // day
 
@@ -47,6 +50,7 @@ namespace DiscordBot.Services.Sonarr
                 if (!(chnl.Channel is NullTextChannel))
                     Channels.Add(chnl);
             }
+            Trakt = Program.Services.GetRequiredService<TraktService>();
         }
 
         const string CONFIG_API_KEY = "tokens:sonarr";
@@ -243,8 +247,13 @@ namespace DiscordBot.Services.Sonarr
             }
             else
             {
-                Episodes[e.Series.Id] = new Episodes(this, e);
+                var eps = new Episodes(this, e);
+                Episodes[e.Series.Id] = eps;
+#if DEBUG
+                Trakt.CollectNew(eps).Wait();
+#endif
             }
+
         }
 
         void loop(object param)
@@ -264,6 +273,7 @@ namespace DiscordBot.Services.Sonarr
                         if (diff.TotalMinutes >= 60)
                         {
                             rem.Add(keypair.Key);
+                            Trakt.CollectNew(keypair.Value).Wait(token);
                         }
                     }
                     foreach (var x in rem)

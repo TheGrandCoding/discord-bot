@@ -28,6 +28,7 @@ namespace DiscordBot.Services.Radarr
 #endif
         public Semaphore Lock = new Semaphore(1, 1);
         public BotHttpClient HTTP { get; private set; }
+        public TraktService Trakt { get; private set; }
         public CacheDictionary<int, string> TagsCache { get; } = new CacheDictionary<int, string>(60 * 24);
         public CacheDictionary<int, string[]> MovieTagsCache { get; } = new CacheDictionary<int, string[]>(60 * 24); // day
 
@@ -43,6 +44,7 @@ namespace DiscordBot.Services.Radarr
         {
             var save = Program.Deserialise<Save>(ReadSave("{}"));
             Channels = save.Channels ?? new List<SaveChannel>();
+            Trakt = Program.Services.GetRequiredService<TraktService>();
         }
         public override void OnLoaded()
         {
@@ -63,6 +65,14 @@ namespace DiscordBot.Services.Radarr
 
         async Task HandleRadarrOnDownload(OnDownloadRadarrEvent e)
         {
+            try
+            {
+                await Trakt.CollectNew(e);
+            }
+            catch (Exception ex)
+            {
+                ErrorToOwner(ex, "RadarrDL");
+            }
             var embed = new EmbedBuilder();
             var movie = await GetMovie(e.Movie.Id);
             embed.Title = $"{movie.Title} {movie.Year}";

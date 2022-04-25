@@ -140,6 +140,99 @@ namespace DiscordBot.Services
             return network;
         }
 
+
+        TraktShowCollectInfo GetCollectInfo(Sonarr.Episodes episodes)
+        {
+            var info = new TraktShowCollectInfo()
+            {
+                Title = episodes.Series.Title,
+                Ids = new TraktShowIdsInfo()
+                {
+                    TvDBId = episodes.Series.TvDbId
+                },
+            };
+            var grouped = episodes.List.GroupBy(x => x.SeasonNumber);
+            foreach(var keypair in grouped)
+            {
+                var seasonInfo = new TraktSeasonCollectInfo()
+                {
+                    Number = keypair.Key
+                };
+                foreach(var episode in keypair)
+                {
+                    var epInfo = new TraktEpisodeCollectInfo()
+                    {
+                        Number = episode.EpisodeNumber
+                    };
+                    if(episodes.Files.TryGetValue(episode.Id, out var file))
+                    {
+                        if (file.Quality.Contains("480"))
+                            epInfo.Resolution = "sd_480p";
+                        else if (file.Quality.Contains("720"))
+                            epInfo.Resolution = "hd_720p";
+                        else if (file.Quality.Contains("1080"))
+                            epInfo.Resolution = "hd_1080p";
+                    }
+                    seasonInfo.Episodes.Add(epInfo);
+                }
+                info.Seasons.Add(seasonInfo);
+            }
+
+            return info;
+        }
+
+        public async Task SendCollectAsync(TraktCollectSend payload)
+        {
+            var s = JsonConvert.SerializeObject(payload);
+            foreach ((var userid, var save) in Users)
+            {
+                if (!save.AutoCollect) continue;
+
+                var token = await save.AccessToken.GetToken(this);
+
+                var request = new HttpRequestMessage(HttpMethod.Post, traktApiBase + "/sync/collection");
+                request.Content = new StringContent(s, Encoding.UTF8, "application/json");
+                request.Headers.Add("Authorization", "Bearer " + token);
+                request.Headers.Add("trakt-api-version", "2");
+                request.Headers.Add("trakt-api-key", ClientId);
+
+                var resp = await HTTP.SendAsync(request);
+                var body = await resp.Content.ReadAsStringAsync();
+            }
+        }
+
+        public async Task CollectNew(Sonarr.Episodes episodes)
+        {
+            var info = GetCollectInfo(episodes);
+            var payload = new TraktCollectSend()
+            {
+                Shows = new[] { info }
+            };
+            await SendCollectAsync(payload);
+        }
+        public async Task CollectNew(Radarr.OnDownloadRadarrEvent e)
+        {
+            var info = new TraktMovieCollectInfo()
+            {
+                Title = e.Movie.Title,
+                Ids = new TraktShowIdsInfo()
+                {
+                    TmDBId = e.Movie.TmdbId
+                },
+            };
+            if (e.MovieFile.Quality.Contains("480"))
+                info.Resolution = "sd_480p";
+            else if (e.MovieFile.Quality.Contains("720"))
+                info.Resolution = "hd_720p";
+            else if (e.MovieFile.Quality.Contains("1080"))
+                info.Resolution = "hd_1080p";
+            var payload = new TraktCollectSend()
+            {
+                Movies = new[] { info }
+            };
+            await SendCollectAsync(payload);
+        }
+
         public async Task Send()
         {
             foreach((var userId, var save) in Users)
@@ -166,12 +259,12 @@ namespace DiscordBot.Services
 
                     foreach (var airingInfo in airingToday)
                     {
-                        airingByShow.AddInner(airingInfo.Show.Ids.TraktId, airingInfo);
+                        airingByShow.AddInner(airingInfo.Show.Ids.TraktId ?? 0, airingInfo);
                     }
                     foreach((var key, var ls) in airingByShow)
                     {
                         var show = ls.First().Show;
-                        var network = await GetShowNetwork(show.Ids.TraktId);
+                        var network = await GetShowNetwork(show.Ids.TraktId ?? 0);
 
                         var value = new StringBuilder();
                         value.Append($"**{network}**\r\n");
@@ -211,6 +304,9 @@ namespace DiscordBot.Services
 
         [JsonProperty("token")]
         public TraktAccessToken AccessToken { get; set; }
+
+        [JsonProperty("autoc")]
+        public bool AutoCollect { get; set; }
 
     }
 
@@ -256,13 +352,13 @@ namespace DiscordBot.Services
     [DebuggerDisplay("{" + nameof(GetDebuggerDisplay) + "(),nq}")]
     public class TraktIdsInfo
     {
-        [JsonProperty("trakt")]
-        public int TraktId { get; set; }
-        [JsonProperty("tvdb")]
+        [JsonProperty("trakt", NullValueHandling = NullValueHandling.Ignore)]
+        public int? TraktId { get; set; }
+        [JsonProperty("tvdb", NullValueHandling = NullValueHandling.Ignore)]
         public int? TvDBId { get; set; }
-        [JsonProperty("imdb")]
+        [JsonProperty("imdb", NullValueHandling = NullValueHandling.Ignore)]
         public string ImDBId { get; set; }
-        [JsonProperty("tmdb")]
+        [JsonProperty("tmdb", NullValueHandling = NullValueHandling.Ignore)]
         public int? TmDBId { get; set; }
 
         protected StringBuilder debuggerAppend(StringBuilder builder, string name, string value)
@@ -295,7 +391,7 @@ namespace DiscordBot.Services
     [DebuggerDisplay("{" + nameof(GetDebuggerDisplay) + "(),nq}")]
     public class TraktShowIdsInfo : TraktIdsInfo
     {
-        [JsonProperty("slug")]
+        [JsonProperty("slug", NullValueHandling = NullValueHandling.Ignore)]
         public string Slug { get; set; }
 
         protected override string GetDebuggerDisplay()
@@ -328,8 +424,8 @@ namespace DiscordBot.Services
     {
         [JsonProperty("title")]
         public string Title { get; set; }
-        [JsonProperty("year")]
-        public int Year { get; set; }
+        [JsonProperty("year", NullValueHandling = NullValueHandling.Ignore)]
+        public int? Year { get; set; }
         [JsonProperty("ids")]
         public TraktShowIdsInfo Ids { get; set; }
 
@@ -337,5 +433,52 @@ namespace DiscordBot.Services
         {
             return $"{Title} ({Year:0000})";
         }
+    }
+
+    public class TraktCollectData
+    {
+        [JsonProperty("media_type", NullValueHandling = NullValueHandling.Ignore)]
+        public string MediaType = "digital";
+        [JsonProperty("resolution", NullValueHandling = NullValueHandling.Ignore)]
+        public string Resolution { get; set; }
+    }
+
+    public class TraktEpisodeCollectInfo : TraktCollectData
+    {
+        [JsonProperty("number")]
+        public int Number { get; set; }
+    }
+
+    public class TraktSeasonCollectInfo
+    {
+        [JsonProperty("number")]
+        public int Number { get; set; }
+
+        [JsonProperty("episodes")]
+        public List<TraktEpisodeCollectInfo> Episodes { get; set; } = new List<TraktEpisodeCollectInfo>();
+    }
+
+    public class TraktShowCollectInfo : TraktShowInfo
+    {
+        [JsonProperty("seasons")]
+        public List<TraktSeasonCollectInfo> Seasons { get; set; } = new List<TraktSeasonCollectInfo>();
+    }
+
+    public class TraktMovieCollectInfo : TraktCollectData
+    {
+        [JsonProperty("title")]
+        public string Title { get; set; }
+        [JsonProperty("year", NullValueHandling = NullValueHandling.Ignore)]
+        public int? Year { get; set; }
+        [JsonProperty("ids")]
+        public TraktShowIdsInfo Ids { get; set; }
+    }
+
+    public class TraktCollectSend
+    {
+        [JsonProperty("shows", NullValueHandling = NullValueHandling.Ignore)]
+        public TraktShowCollectInfo[] Shows { get; set; }
+        [JsonProperty("movies", NullValueHandling = NullValueHandling.Ignore)]
+        public TraktMovieCollectInfo[] Movies { get; set; }
     }
 }

@@ -61,5 +61,20 @@ namespace DiscordBot.Interactions.Modules
                 await RespondAsync($"You were not in our records to begin with", ephemeral: true);
             }
         }
+    
+        [SlashCommand("autocollect", "Automatically collect added things")]
+        public async Task AutoCollect()
+        {
+
+            if (!Service.Users.TryGetValue(Context.User.Id, out var save))
+            {
+                await RespondAsync($"You must first authorize Trakt via the following link:\r\n<{Service.OAuthUri}>",
+                    ephemeral: true);
+                return;
+            }
+            save.AutoCollect = !save.AutoCollect;
+            Service.OnSave();
+            await RespondAsync(save.AutoCollect ? "Autocollect is now enabled" : "Autocollect is now disabled", ephemeral: true);
+        }
     }
 }
