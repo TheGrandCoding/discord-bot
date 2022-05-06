@@ -61,6 +61,8 @@ namespace DiscordBot.Services
             CachedShowNetworks = sv.shows ?? new Dictionary<int, string>();
             HTTP = Program.Services.GetRequiredService<BotHttpClient>()
                 .Child(Name, debug: Program.BOT_DEBUG);
+            HTTP.DefaultRequestHeaders.Add("trakt-api-version", "2");
+            HTTP.DefaultRequestHeaders.Add("trakt-api-key", ClientId);
         }
 
         public override void OnDailyTick()
@@ -109,8 +111,6 @@ namespace DiscordBot.Services
             DateTime date = startDate ?? DateTime.Now;
             var request = new HttpRequestMessage(HttpMethod.Get, traktApiBase + $"/calendars/my/shows/{date:yyyy-MM-dd}/{days}");
             request.Headers.Add("Authorization", "Bearer " + token);
-            request.Headers.Add("trakt-api-version", "2");
-            request.Headers.Add("trakt-api-key", ClientId);
 
             var response = await HTTP.SendAsync(request);
             var body = await response.Content.ReadAsStringAsync();
@@ -144,14 +144,7 @@ namespace DiscordBot.Services
 
         TraktShowCollectInfo GetCollectInfo(Sonarr.Episodes episodes)
         {
-            var info = new TraktShowCollectInfo()
-            {
-                Title = episodes.Series.Title,
-                Ids = new TraktShowIdsInfo()
-                {
-                    TvDBId = episodes.Series.TvDbId
-                },
-            };
+            var info = TraktShowCollectInfo.From(episodes.Series);
             var grouped = episodes.List.GroupBy(x => x.SeasonNumber);
             foreach(var keypair in grouped)
             {
@@ -182,7 +175,39 @@ namespace DiscordBot.Services
             return info;
         }
 
-        public async Task SendCollectAsync(TraktCollectSend payload)
+        async Task<string> GetCollectionAsync(string kind, string token)
+        {
+
+            var request = new HttpRequestMessage(HttpMethod.Get, $"{traktApiBase}/sync/collection/{kind}");
+            request.Headers.Add("Authorization", "Bearer " + token);
+            var response = await HTTP.SendAsync(request);
+            response.EnsureSuccessStatusCode();
+            return await response.Content.ReadAsStringAsync();
+        }
+        public async Task<List<TraktShowCollectInfo>> GetCollectedShowsAsync(string token)
+        {
+            var body = await GetCollectionAsync("shows", token);
+            return JsonConvert.DeserializeObject<List<TraktShowCollectInfo>>(body);
+        }
+        public async Task<List<TraktMovieCollectInfo>> GetCollectedMoviesAsync(string token)
+        {
+            var body = await GetCollectionAsync("movies", token);
+            return JsonConvert.DeserializeObject<List<TraktMovieCollectInfo>>(body);
+        }
+
+        public async Task<string> SendCollectionAsync(string token, string payload)
+        {
+            var request = new HttpRequestMessage(HttpMethod.Post, traktApiBase + "/sync/collection");
+            request.Content = new StringContent(payload, Encoding.UTF8, "application/json");
+            request.Headers.Add("Authorization", "Bearer " + token);
+
+            var resp = await HTTP.SendAsync(request);
+            var body = await resp.Content.ReadAsStringAsync();
+            resp.EnsureSuccessStatusCode();
+            return body;
+        }
+
+        public async Task BroadcastCollectionAsync(TraktCollection payload)
         {
             var s = JsonConvert.SerializeObject(payload);
             foreach ((var userid, var save) in Users)
@@ -190,26 +215,19 @@ namespace DiscordBot.Services
                 if (!save.AutoCollect) continue;
 
                 var token = await save.AccessToken.GetToken(this);
+                await SendCollectionAsync(token, s);
 
-                var request = new HttpRequestMessage(HttpMethod.Post, traktApiBase + "/sync/collection");
-                request.Content = new StringContent(s, Encoding.UTF8, "application/json");
-                request.Headers.Add("Authorization", "Bearer " + token);
-                request.Headers.Add("trakt-api-version", "2");
-                request.Headers.Add("trakt-api-key", ClientId);
-
-                var resp = await HTTP.SendAsync(request);
-                var body = await resp.Content.ReadAsStringAsync();
             }
         }
 
         public async Task CollectNew(Sonarr.Episodes episodes)
         {
             var info = GetCollectInfo(episodes);
-            var payload = new TraktCollectSend()
+            var payload = new TraktCollection()
             {
-                Shows = new[] { info }
+                Shows = new List<TraktShowCollectInfo>() { info }
             };
-            await SendCollectAsync(payload);
+            await BroadcastCollectionAsync(payload);
         }
         public async Task CollectNew(Radarr.OnDownloadRadarrEvent e)
         {
@@ -227,11 +245,11 @@ namespace DiscordBot.Services
                 info.Resolution = "hd_720p";
             else if (e.MovieFile.Quality.Contains("1080"))
                 info.Resolution = "hd_1080p";
-            var payload = new TraktCollectSend()
+            var payload = new TraktCollection()
             {
-                Movies = new[] { info }
+                Movies = new List<TraktMovieCollectInfo>() { info }
             };
-            await SendCollectAsync(payload);
+            await BroadcastCollectionAsync(payload);
         }
 
         public async Task Send()
@@ -457,12 +475,43 @@ namespace DiscordBot.Services
 
         [JsonProperty("episodes")]
         public List<TraktEpisodeCollectInfo> Episodes { get; set; } = new List<TraktEpisodeCollectInfo>();
+
+        public bool ShouldSerializeEpisodes() => Episodes.Count > 0;
     }
 
     public class TraktShowCollectInfo : TraktShowInfo
     {
+        [JsonConstructor]
+        private TraktShowCollectInfo(TraktShowInfo show)
+        {
+            Title = show.Title;
+            Year = show.Year;
+            Ids = show.Ids;
+        }
+        public TraktShowCollectInfo() { }
+
         [JsonProperty("seasons")]
         public List<TraktSeasonCollectInfo> Seasons { get; set; } = new List<TraktSeasonCollectInfo>();
+
+        public bool ShouldSerializeSeasons() => Seasons.Count > 0;
+
+        [JsonProperty("collected_at", NullValueHandling = NullValueHandling.Ignore)]
+        public DateTimeOffset? CollectedAt { get; set; }
+
+        public static TraktShowCollectInfo From(Sonarr.SonarrStubSeries series)
+        {
+            return new TraktShowCollectInfo()
+            {
+                Title = series.Title,
+                Ids = new TraktShowIdsInfo()
+                {
+                    TvDBId = series.TvDbId
+                },
+            };
+        }
+
+        [JsonIgnore]
+        public int EpisodeCount => Seasons.Sum(x => x.Episodes.Count);
     }
 
     public class TraktMovieCollectInfo : TraktCollectData
@@ -475,11 +524,13 @@ namespace DiscordBot.Services
         public TraktShowIdsInfo Ids { get; set; }
     }
 
-    public class TraktCollectSend
+    public class TraktCollection
     {
         [JsonProperty("shows", NullValueHandling = NullValueHandling.Ignore)]
-        public TraktShowCollectInfo[] Shows { get; set; }
+        public List<TraktShowCollectInfo> Shows { get; set; }
+        public bool ShouldSerializeShows() => Shows.Count > 0;
         [JsonProperty("movies", NullValueHandling = NullValueHandling.Ignore)]
-        public TraktMovieCollectInfo[] Movies { get; set; }
+        public List<TraktMovieCollectInfo> Movies { get; set; }
+        public bool ShouldSerializeMovies() => Movies.Count > 0;
     }
 }

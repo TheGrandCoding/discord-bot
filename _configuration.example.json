@@ -25,7 +25,8 @@
   "prefix": "<string>",
   "settings": {
     "admin": "<ulong>",
-    "log": "<Critical|Error|Warning|Info|Verbose|Debug>"
+    "log": "<Critical|Error|Warning|Info|Verbose|Debug>",
+    "logchannel": "<ulong>"
   },
   "tokens": {
     "appSecret": "<string>",

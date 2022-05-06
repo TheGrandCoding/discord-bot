@@ -1,8 +1,13 @@
 ﻿using Discord;
 using Discord.Interactions;
 using DiscordBot.Services;
+using DiscordBot.Services.Radarr;
+using DiscordBot.Services.Sonarr;
+using Microsoft.Extensions.DependencyInjection;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -75,6 +80,81 @@ namespace DiscordBot.Interactions.Modules
             save.AutoCollect = !save.AutoCollect;
             Service.OnSave();
             await RespondAsync(save.AutoCollect ? "Autocollect is now enabled" : "Autocollect is now disabled", ephemeral: true);
+        }
+
+        async Task syncShows(string token, TraktCollection sync, StringBuilder output)
+        {
+            var collectedAlready = await Service.GetCollectedShowsAsync(token);
+            var sonarr = Program.Services.GetRequiredService<SonarrWebhooksService>();
+            var shows = await sonarr.GetShows();
+
+            foreach(var show in shows)
+            {
+                var syncShow = TraktShowCollectInfo.From(show);
+                syncShow.CollectedAt = show.Added;
+                var existing = collectedAlready.FirstOrDefault(x => x.Ids.TvDBId == show.TvDbId);
+
+                if(show.EpisodeCount == (existing?.EpisodeCount ?? 0))
+                { // we're already up to date.
+                    continue;
+                }
+                if(show.EpisodeCount == show.TotalEpisodeCount)
+                {
+                    sync.Shows.Add(syncShow);
+                    output.AppendLine($"Adding full show {show.Title}, with {show.EpisodeCount} episodes");
+                    continue;
+                }
+                bool add = false;
+                foreach(var season in show.Seasons)
+                {
+                    var existingSeason = existing?.Seasons.FirstOrDefault(x => x.Number == season.SeasonNumber) ?? null;
+                    if(season.Statistics.EpisodeCount == (existingSeason?.Episodes.Count ?? 0))
+                    { // already synced all
+                        continue;
+                    }
+                    if(season.Statistics.EpisodeCount == season.Statistics.TotalEpisodeCount)
+                    { // downloaded this whole season
+                        var syncSeason = new TraktSeasonCollectInfo()
+                        {
+                            Number = season.SeasonNumber
+                        };
+                        output.AppendLine($"Adding Season {season.SeasonNumber} of {show.Title}");
+                        syncShow.Seasons.Add(syncSeason);
+                        add = true;
+                    }
+                }
+                if (add)
+                {
+                    sync.Shows.Add(syncShow);
+                }
+            }
+        }
+
+        [SlashCommand("sync", "Force sync stuff")]
+        [RequireOwner]
+        public async Task Sync()
+        {
+            if (!Service.Users.TryGetValue(Context.User.Id, out var save))
+            {
+                await RespondAsync($"You must first authorize Trakt via the following link:\r\n<{Service.OAuthUri}>",
+                    ephemeral: true);
+                return;
+            }
+            await RespondAsync("Calculating necessary data...", ephemeral: true);
+            var token = await save.AccessToken.GetToken(Service);
+            var sb = new StringBuilder();
+            var sync = new TraktCollection()
+            {
+                Shows = new List<TraktShowCollectInfo>(),
+                Movies = new List<TraktMovieCollectInfo>()
+            };
+            await syncShows(token, sync, sb);
+            Program.LogInfo(sb.ToString(), "TraktSync");
+            await ModifyOriginalResponseAsync(x => x.Content = $"Syncing with Trakt...\r\nShows: {sync.Shows.Count}");
+            var s = JsonConvert.SerializeObject(sync);
+            var resp = await Service.SendCollectionAsync(token, s);
+            Program.LogInfo(resp, "TraktSync-R");
+            await ModifyOriginalResponseAsync(x => x.Content = $"Done");
         }
     }
 }

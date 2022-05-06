@@ -197,15 +197,14 @@ namespace DiscordBot.Services
             var x = CharSet.Utf8Mb4;
 #else
                 options.UseMySql(Program.getDbString("food"),
-                    new MariaDbServerVersion(new Version(10, 3, 25)), mysqlOptions =>
-                    {
-                        mysqlOptions.CharSet(CharSet.Utf8Mb4);
-                    });
+                    new MariaDbServerVersion(new Version(10, 3, 25)));
 #endif
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            modelBuilder.HasCharSet("utf8mb4");
+
             modelBuilder.Entity<Product>()
                 .HasKey(x => x.Id);
             modelBuilder.Entity<Product>()
