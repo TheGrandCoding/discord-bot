@@ -1,5 +1,6 @@
 ﻿using Discord;
 using DiscordBot.Classes;
+using DiscordBot.Services.Radarr;
 using DiscordBot.Utils;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
@@ -192,7 +193,14 @@ namespace DiscordBot.Services
         public async Task<List<TraktMovieCollectInfo>> GetCollectedMoviesAsync(string token)
         {
             var body = await GetCollectionAsync("movies", token);
-            return JsonConvert.DeserializeObject<List<TraktMovieCollectInfo>>(body);
+            var movies = new List<TraktMovieCollectInfo>();
+            foreach(var item in JArray.Parse(body))
+            {
+                var m = item["movie"].ToObject<TraktMovieCollectInfo>();
+                movies.Add(m);
+            }
+
+            return movies;
         }
 
         public async Task<string> SendCollectionAsync(string token, string payload)
@@ -514,6 +522,7 @@ namespace DiscordBot.Services
         public int EpisodeCount => Seasons.Sum(x => x.Episodes.Count);
     }
 
+    [DebuggerDisplay($"{{{nameof(GetDebuggerDisplay)}(),nq}}")]
     public class TraktMovieCollectInfo : TraktCollectData
     {
         [JsonProperty("title")]
@@ -521,7 +530,21 @@ namespace DiscordBot.Services
         [JsonProperty("year", NullValueHandling = NullValueHandling.Ignore)]
         public int? Year { get; set; }
         [JsonProperty("ids")]
-        public TraktShowIdsInfo Ids { get; set; }
+        public TraktIdsInfo Ids { get; set; }
+
+        public static TraktMovieCollectInfo From(MovieInfo movie)
+        {
+            var x = new TraktMovieCollectInfo();
+            x.Title = movie.Title;
+            x.Year = movie.Year;
+            x.Ids = new() { TmDBId = movie.TmdbId };
+            return x;
+        }
+
+        private string GetDebuggerDisplay()
+        {
+            return $"{Title} {Year} {Ids}";
+        }
     }
 
     public class TraktCollection

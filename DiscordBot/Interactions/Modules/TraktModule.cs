@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -101,7 +102,7 @@ namespace DiscordBot.Interactions.Modules
                 if(show.EpisodeCount == show.TotalEpisodeCount)
                 {
                     sync.Shows.Add(syncShow);
-                    output.AppendLine($"Adding full show {show.Title}, with {show.EpisodeCount} episodes");
+                    output.AppendLine($"+ Full show {show.Title}, with {show.EpisodeCount} episodes");
                     continue;
                 }
                 bool add = false;
@@ -118,7 +119,7 @@ namespace DiscordBot.Interactions.Modules
                         {
                             Number = season.SeasonNumber
                         };
-                        output.AppendLine($"Adding Season {season.SeasonNumber} of {show.Title}");
+                        output.AppendLine($"+ Season {season.SeasonNumber} of {show.Title}");
                         syncShow.Seasons.Add(syncSeason);
                         add = true;
                     }
@@ -126,6 +127,23 @@ namespace DiscordBot.Interactions.Modules
                 if (add)
                 {
                     sync.Shows.Add(syncShow);
+                }
+            }
+        }
+
+        async Task syncMovies(string token, TraktCollection sync, StringBuilder output)
+        {
+            var collectedAlready = await Service.GetCollectedMoviesAsync(token);
+            var radarr = Program.Services.GetRequiredService<RadarrWebhookService>();
+            var movies = await radarr.GetMovies();
+
+            foreach(var movie in movies)
+            {
+                var collected = collectedAlready.FirstOrDefault(x => x.Ids.TmDBId == movie.TmdbId);
+                if(collected == null)
+                {
+                    output.AppendLine($"+ {movie.Title} {movie.Year}");
+                    sync.Movies.Add(TraktMovieCollectInfo.From(movie));
                 }
             }
         }
@@ -149,12 +167,19 @@ namespace DiscordBot.Interactions.Modules
                 Movies = new List<TraktMovieCollectInfo>()
             };
             await syncShows(token, sync, sb);
-            Program.LogInfo(sb.ToString(), "TraktSync");
-            await ModifyOriginalResponseAsync(x => x.Content = $"Syncing with Trakt...\r\nShows: {sync.Shows.Count}");
+            await syncMovies(token, sync, sb);
+            await ModifyOriginalResponseAsync(x => x.Content = $"Syncing with Trakt..." +
+                $"\r\nShows: {sync.Shows.Count}" +
+                $"\r\nMovies: {sync.Movies.Count}");
             var s = JsonConvert.SerializeObject(sync);
             var resp = await Service.SendCollectionAsync(token, s);
             Program.LogInfo(resp, "TraktSync-R");
             await ModifyOriginalResponseAsync(x => x.Content = $"Done");
+            var temp = Path.Join(Path.GetTempPath(), "output.txt");
+            await File.WriteAllTextAsync(temp, sb.ToString());
+            await FollowupWithFileAsync(temp, ephemeral: true);
+
+            File.Delete(temp);
         }
     }
 }

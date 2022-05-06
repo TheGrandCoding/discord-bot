@@ -8,6 +8,7 @@ using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Linq;
 using System.Net.Http;
 using System.Threading;
@@ -22,7 +23,7 @@ namespace DiscordBot.Services.Radarr
 
 
 #if DEBUG
-        const string apiUrl = "http://192.168.1.3:7878/api";
+        const string apiUrl = "http://192.168.1.3:7878/api/v3";
 #else
         const string apiUrl = "http://localhost:7878/api/v3";
 #endif
@@ -164,6 +165,15 @@ namespace DiscordBot.Services.Radarr
             return await GetHistory(movieId, attempts + 1);
         }
 
+        public async Task<MovieInfo[]> GetMovies()
+        {
+            var request = new HttpRequestMessage(HttpMethod.Get, apiUrl + $"/movie");
+            var response = await HTTP.SendAsync(request);
+            var content = await response.Content.ReadAsStringAsync();
+
+            return JsonConvert.DeserializeObject<MovieInfo[]>(content);
+        }
+
         async Task<string> GetTagLabel(int id)
         {
             if (TagsCache.TryGetValue(id, out var s))
@@ -291,6 +301,8 @@ namespace DiscordBot.Services.Radarr
         public string FolderPath { get; set; }
         public int TmdbId { get; set; }
     }
+
+    [DebuggerDisplay($"{{{nameof(GetDebuggerDisplay)}(),nq}}")]
     public class MovieInfo : StubMovieInfo
     {
         public string SortTitle { get; set; }
@@ -311,6 +323,11 @@ namespace DiscordBot.Services.Radarr
         public int Runtime { get; set; }
         public string[] Genres { get; set; }
         public int[] Tags { get; set; }
+
+        private string GetDebuggerDisplay()
+        {
+            return $"{Title} {Year} {TmdbId}";
+        }
     }
     public class MovieImage
     {
