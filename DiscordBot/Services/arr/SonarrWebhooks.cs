@@ -8,6 +8,7 @@ using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -73,6 +74,7 @@ namespace DiscordBot.Services.Sonarr
 #endif
         }
 
+        #region Sonarr API
         async Task<string> GetTagLabel(int id)
         {
             if (TagsCache.TryGetValue(id, out var s))
@@ -109,6 +111,19 @@ namespace DiscordBot.Services.Sonarr
             Info($"For {seriesId}: [{string.Join(", ", parsed)}]");
             return parsed.ToArray();
         }
+        
+        public async Task<List<SonarrSeries>> GetShows()
+        {
+            var request = new HttpRequestMessage(HttpMethod.Get, apiUrl + "/series");
+            var response = await HTTP.SendAsync(request);
+            response.EnsureSuccessStatusCode();
+            var body = await response.Content.ReadAsStringAsync();
+            return JsonConvert.DeserializeObject<List<Sonarr.SonarrSeries>>(body);
+        }
+
+        #endregion
+
+
 
         public async Task<bool> SeriesHasTag(int seriesId, Func<string, bool> tagPredicate)
         {
@@ -467,26 +482,49 @@ namespace DiscordBot.Services.Sonarr
     {
     }
 
-#endregion
+    #endregion
 
-#region Infos
+    #region Infos
+    [DebuggerDisplay("{" + nameof(GetDebuggerDisplay) + "(),nq}")]
     public class SonarrStubSeries
     {
         public int Id { get; set; }
         public string Title { get; set; }
         public string Path { get; set; }
         public int TvDbId { get; set; }
+
+        private string GetDebuggerDisplay()
+        {
+            return $"{Id} {Title} {TvDbId}";
+        }
     }
+
+    public class SonarrSeasonStats
+    {
+        public DateTimeOffset PreviousAiring { get; set; }
+        public int EpisodeFileCount { get; set; }
+        public int EpisodeCount { get; set; }
+        public int TotalEpisodeCount { get; set; }
+        public ulong SizeOnDisk { get; set; }
+    }
+
+    [DebuggerDisplay("{" + nameof(GetDebuggerDisplay) + "(),nq}")]
     public class SonarrSeasonStatus
     {
         public int SeasonNumber { get; set; }
         public bool Monitored { get; set; }
+        public SonarrSeasonStats Statistics { get; set; }
+
+        private string GetDebuggerDisplay()
+            => $"S{SeasonNumber:00} {Statistics.EpisodeCount} / {Statistics.TotalEpisodeCount}";
     }
     public class SonarrImage
     {
         public string CoverType { get; set; }
         public string Url { get; set; }
     }
+
+    [DebuggerDisplay("{" + nameof(GetDebuggerDisplay) + "(),nq}")]
     public class SonarrSeries : SonarrStubSeries
     {
         public int SeasonCount { get; set; }
@@ -502,6 +540,16 @@ namespace DiscordBot.Services.Sonarr
         public int Runtime { get; set; }
         public string[] Genres { get; set; }
         public string[] Tags { get; set; }
+
+        public DateTimeOffset Added { get; set; }
+
+        public int EpisodeCount { get; set; }
+        public int TotalEpisodeCount { get; set; }
+
+        private string GetDebuggerDisplay()
+        {
+            return $"{Id} {Title} seasons={SeasonCount}; eps={EpisodeCount} / {TotalEpisodeCount}";
+        }
     }
     public class SonarrEpisode
     {
