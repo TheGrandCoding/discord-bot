@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 namespace DiscordBot.Interactions.Modules
 {
     [Group("links", "Automatic thread creation for links")]
-    [DefaultPermission(false)]
+    [DefaultMemberPermissions(GuildPermission.ManageGuild)]
     public class Links : BotSlashBase
     {
         public LinksThreaderService Service { get; set; }

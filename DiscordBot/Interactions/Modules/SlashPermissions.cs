@@ -1,4 +1,5 @@
-﻿using Discord;
+﻿#if USE_SLASH_PERMS
+using Discord;
 using Discord.Interactions;
 using Discord.Rest;
 using Discord.WebSocket;
@@ -324,3 +325,4 @@ namespace DiscordBot.Interactions.Modules
         }
     }
 }
+#endif // USE_SLASH_PERMS

@@ -40,40 +40,40 @@
   <ItemGroup>
     <PackageReference Include="BencodeNET" Version="4.0.0" />
     <PackageReference Include="CheAle14.EduLinkDLL" Version="0.0.4-alpha06" />
-    <PackageReference Include="CodeHollow.FeedReader" Version="1.2.1" />
-    <PackageReference Include="CoenM.ImageSharp.ImageHash" Version="1.0.0" />
+    <PackageReference Include="CodeHollow.FeedReader" Version="1.2.4" />
+    <PackageReference Include="CoenM.ImageSharp.ImageHash" Version="1.2.30" />
     <PackageReference Include="Discord.InteractivityAddon" Version="3.3.0" />
-    <PackageReference Include="Discord.Net.Commands" Version="3.3.1-alpha02" />
-    <PackageReference Include="Discord.Net.Core" Version="3.3.1-alpha02" />
-    <PackageReference Include="Discord.Net.Interactions" Version="3.3.1-alpha02" />
-    <PackageReference Include="Discord.Net.Rest" Version="3.3.1-alpha02" />
-    <PackageReference Include="Discord.Net.Webhook" Version="3.3.1-alpha02" />
-    <PackageReference Include="Discord.Net.WebSocket" Version="3.3.1-alpha02" />
+    <PackageReference Include="Discord.Net.Commands" Version="3.6.1" />
+    <PackageReference Include="Discord.Net.Core" Version="3.6.1" />
+    <PackageReference Include="Discord.Net.Interactions" Version="3.6.1" />
+    <PackageReference Include="Discord.Net.Rest" Version="3.6.1" />
+    <PackageReference Include="Discord.Net.Webhook" Version="3.6.1" />
+    <PackageReference Include="Discord.Net.WebSocket" Version="3.6.1" />
     <PackageReference Include="GitHubJwt" Version="0.0.5" />
-    <PackageReference Include="Google.Apis.YouTube.v3" Version="1.50.0.2238" />
+    <PackageReference Include="Google.Apis.YouTube.v3" Version="1.57.0.2665" />
     <PackageReference Include="Google.Cloud.Translation.V2" Version="2.0.0" />
-    <PackageReference Include="Html2Markdown" Version="4.0.0.427" />
-    <PackageReference Include="HttpMultipartParser" Version="5.0.0" />
-    <PackageReference Include="IdentityModel" Version="4.2.0" />
+    <PackageReference Include="Html2Markdown" Version="5.0.2.561" />
+    <PackageReference Include="HttpMultipartParser" Version="5.1.0" />
+    <PackageReference Include="IdentityModel" Version="6.0.0" />
     <PackageReference Include="JsonSubTypes" Version="1.8.0" />
-    <PackageReference Include="Markdig" Version="0.24.0" />
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="3.9.0" />
+    <PackageReference Include="Markdig" Version="0.30.2" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.1.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="5.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="5.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="5.0.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.Extensions.Configuration" Version="5.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="5.0.0" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="5.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="6.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="6.0.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="6.0.0" />
     <PackageReference Include="murmurhash" Version="1.0.3" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
-    <PackageReference Include="Octokit" Version="0.50.0" />
+    <PackageReference Include="Octokit" Version="0.51.0" />
     <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="5.0.0-alpha.2" />
     <PackageReference Include="Sodium.Core" Version="1.2.3" />
-    <PackageReference Include="System.Drawing.Common" Version="4.7.0" />
-    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="6.5.1" />
+    <PackageReference Include="System.Drawing.Common" Version="6.0.0" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="6.17.0" />
     <PackageReference Include="WebSocketSharp-netstandard" Version="1.0.1" />
   </ItemGroup>
 

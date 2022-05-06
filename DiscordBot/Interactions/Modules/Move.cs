@@ -15,7 +15,7 @@ using System.Threading.Tasks;
 namespace DiscordBot.Interactions.Modules
 {
     [Group("move", "Move messages")]
-    [DefaultPermission(false)]
+    [DefaultMemberPermissions(GuildPermission.ManageMessages)]
     public class Move : BotSlashBase
     {
         public Move()

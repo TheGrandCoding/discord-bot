@@ -14,7 +14,7 @@ namespace DiscordBot.Interactions.Modules
 {
     [Group("bot", "Bot developer commands")]
     [DontAutoRegister]
-    [DefaultPermission(false)]
+    [DefaultMemberPermissions(GuildPermission.Administrator)]
     public class BotDevCmds : BotSlashBase
     {
         async Task<bool> Forbidden()

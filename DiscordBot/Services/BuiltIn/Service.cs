@@ -86,11 +86,11 @@ namespace DiscordBot.Services
                 // send as file.
                 var path = Path.Combine(Path.GetTempPath(), "exception.txt");
                 File.WriteAllText(path, errorText);
-                Program.AppInfo?.Owner.SendFileAsync(path, embed: embed.Build());
+                Program.SendLogFileAsync(path, embed: embed.Build()).Wait();
             } else
             {
                 embed.Description = "```\r\n" + ex?.ToString() + "\r\n```";
-                Program.AppInfo?.Owner.SendMessageAsync(embed: embed.Build());
+                Program.SendLogMessageAsync(embed: embed.Build()).Wait();
             }
         }
 

@@ -607,7 +607,7 @@ Changed how permissions worked for bot.
             timerOverall.Stop();
             try
             {
-                AppInfo.Owner.SendMessageAsync(embed: new EmbedBuilder()
+                SendLogMessageAsync(embed: new EmbedBuilder()
                     .WithTitle("Started v" + VER_STR)
                     .WithDescription($"Bot launched in {timerOverall.ElapsedMilliseconds}ms")
                     .Build());
@@ -625,6 +625,36 @@ Changed how permissions worked for bot.
         }
 
         public static bool ignoringCommands = false;
+
+        static async Task<IMessageChannel> getLogChannel()
+        {
+            IMessageChannel channel;
+            var settings = Program.Configuration["settings:logchannel"];
+            if(!string.IsNullOrWhiteSpace(settings) && ulong.TryParse(settings, out var settingId))
+            {
+                channel = Program.Client.GetChannel(settingId) as IMessageChannel;
+            } else
+            {
+                channel = await Program.AppInfo.Owner.CreateDMChannelAsync();
+            }
+            return channel;
+        }
+
+        public static async Task<IUserMessage> SendLogMessageAsync(string content = null, Embed embed = null)
+        {
+            if (content == null && embed == null)
+                throw new ArgumentException("One of content or embed must be provided");
+            var channel = await getLogChannel();
+            return await channel.SendMessageAsync(content, embed: embed);
+        }
+
+        public static async Task<IUserMessage> SendLogFileAsync(string path, string content = null, Embed embed = null)
+        {
+            if (content == null && embed == null)
+                throw new ArgumentException("One of content or embed must be provided");
+            var channel = await getLogChannel();
+            return await channel.SendFileAsync(path, text: content, embed: embed);
+        }
 
 #endregion
 

@@ -124,7 +124,6 @@ namespace DiscordBot.Services
         {
             if (CachedShowNetworks.TryGetValue(traktId, out var s))
                 return s;
-
             var request = new HttpRequestMessage(HttpMethod.Get, TraktService.traktApiBase + $"/shows/{traktId}?extended=full");
             request.Headers.Add("trakt-api-version", "2");
             request.Headers.Add("trakt-api-key", ClientId);
@@ -139,6 +138,8 @@ namespace DiscordBot.Services
             OnSave();
             return network;
         }
+
+        
 
 
         TraktShowCollectInfo GetCollectInfo(Sonarr.Episodes episodes)

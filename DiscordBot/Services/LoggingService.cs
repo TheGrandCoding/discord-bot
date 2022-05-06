@@ -462,7 +462,8 @@ namespace DiscordBot.Services
             builder.Title = "Thread Created";
             builder.AddField($"Name", arg.Name + "\r\n" + arg.Mention, true);
             builder.AddField("Created by", $"{(arg.Owner?.Mention ?? "n/a")}", true);
-            builder.AddField("Channel", $"{(arg.ParentChannel?.Mention ?? "n/a")}", true);
+            var mention = arg.ParentChannel == null ? "n/a" : MentionUtils.MentionChannel(arg.ParentChannel.Id);
+            builder.AddField("Channel", mention, true);
             await SendLog(arg.Guild, "threads", builder, arg.Id);
         }
 
@@ -472,7 +473,8 @@ namespace DiscordBot.Services
             builder.Title = $"Thread Updated";
             builder.AddField($"Name", arg2.Name + "\r\n" + arg2.Mention, true);
             builder.AddField("Created by", $"{(arg2.Owner?.Mention ?? "n/a")}", true);
-            builder.AddField("Channel", $"{(arg2.ParentChannel?.Mention ?? "n/a")}", true);
+            var mention = arg2.ParentChannel == null ? "n/a" : MentionUtils.MentionChannel(arg2.ParentChannel.Id);
+            builder.AddField("Channel", mention, true);
 
             var arg1 = await cached1.GetOrDownloadAsync();
             if (arg1 != null)
@@ -496,7 +498,9 @@ namespace DiscordBot.Services
                 var arg = await cached.GetOrDownloadAsync();
                 builder.AddField($"Name", arg.Name + "\r\n" + arg.Mention, true);
                 builder.AddField("Created by", $"{(arg.Owner?.Mention ?? "n/a")}", true);
-                builder.AddField("Channel", $"{(arg.ParentChannel?.Mention ?? "n/a")}", true);
+
+                var mention = arg.ParentChannel == null ? "n/a" : MentionUtils.MentionChannel(arg.ParentChannel.Id);
+                builder.AddField("Channel", mention, true);
                 await SendLog(arg.Guild, "threads", builder, arg.Id);
             } else
             {

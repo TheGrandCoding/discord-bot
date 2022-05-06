@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 namespace DiscordBot.Interactions.Modules
 {
     [Group("experiments", "Register or search guilde experiments")]
-    [DefaultPermission(false)]
+    [DefaultMemberPermissions(GuildPermission.ManageGuild)]
     public class Experiments : BotSlashBase
     {
         public DsRolloutService Service { get; set; }
