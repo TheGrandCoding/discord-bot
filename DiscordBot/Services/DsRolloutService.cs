@@ -74,16 +74,16 @@ namespace DiscordBot.Services
             if (thread != null)
                 return thread;
 
-            if(guild.CachedThreads.Count == 0)
+            /*if(guild.CachedThreads.Count == 0)
             {
-                var archivedThreads = await guild.Channel.GetPublicArchivedThreadsAsync();
+                var archivedThreads = await guild.thr
                 foreach (var th in archivedThreads)
                     guild.CachedThreads[th.Id] = th;
             }
             if (guild.CachedThreads.TryGetValue(message.Id, out thread))
-                return thread;
+                return thread;*/
 
-            thread = await guild.Channel.CreateThreadAsync(Program.Clamp(experiment.Title, 100), message: message);
+            thread = await guild.Channel.CreateThreadAsync(Program.Clamp(experiment.Title, 100), autoArchiveDuration: ThreadArchiveDuration.OneWeek, message: message);
             return thread;
         }
 
@@ -699,7 +699,7 @@ namespace DiscordBot.Services
                     var pop = Populations[i];
                     var otherPop = other.Populations.FirstOrDefault(x => x.Bucket == pop.Bucket);
                     if (otherPop == null)
-                        return new Change("Population bucket changed", $"{pop.Bucket}", $"{otherPop.Bucket}");
+                        return new Change("Population bucket changed", $"{pop.Bucket}", null);
                     changes.AddRange(pop.GetChanges(otherPop)
                         .Select(x => new Change($"Populations[{i}].{x.Type}", x.Before, x.After))
                     );

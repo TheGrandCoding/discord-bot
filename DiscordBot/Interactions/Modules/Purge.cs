@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 namespace DiscordBot.Interactions.Modules
 {
     [Group("purge", "Remove many messages at once")]
-    [DefaultPermission(false)]
+    [DefaultMemberPermissions(GuildPermission.ManageMessages)]
     public class Purge : BotSlashBase
     {
 

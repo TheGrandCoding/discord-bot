@@ -160,11 +160,13 @@ namespace DiscordBot.Classes
             } }
 
         public ulong Id => _id;
+
+        public string Name => ((IGuild)guild).Name;
+
         public SocketGuildUser GetUser(ulong id) => guild.GetUser(id);
         public SocketTextChannel GetTextChannel(ulong id) => guild.GetTextChannel(id);
 
         #region GuildItems
-        public string Name => ((IGuild)guild).Name;
         public int AFKTimeout => ((IGuild)guild).AFKTimeout;
         public bool IsWidgetEnabled => ((IGuild)guild).IsWidgetEnabled;
         public DefaultMessageNotifications DefaultMessageNotifications => ((IGuild)guild).DefaultMessageNotifications;
@@ -204,45 +206,160 @@ namespace DiscordBot.Classes
         public int? MaxVideoChannelUsers => ((IGuild)guild).MaxVideoChannelUsers;
         public int? ApproximateMemberCount => ((IGuild)guild).ApproximateMemberCount;
         public int? ApproximatePresenceCount => ((IGuild)guild).ApproximatePresenceCount;
-
         public int MaxBitrate => ((IGuild)guild).MaxBitrate;
-
         public string PreferredLocale => ((IGuild)guild).PreferredLocale;
-
         public NsfwLevel NsfwLevel => ((IGuild)guild).NsfwLevel;
-
         public CultureInfo PreferredCulture => ((IGuild)guild).PreferredCulture;
-
         public bool IsBoostProgressBarEnabled => ((IGuild)guild).IsBoostProgressBarEnabled;
-
         public ulong MaxUploadLimit => ((IGuild)guild).MaxUploadLimit;
-
         public DateTimeOffset CreatedAt => ((ISnowflakeEntity)guild).CreatedAt;
-
-
+        public Task ModifyAsync(Action<GuildProperties> func, RequestOptions options = null)
+        {
+            return ((IGuild)guild).ModifyAsync(func, options);
+        }
+        public Task ModifyWidgetAsync(Action<GuildWidgetProperties> func, RequestOptions options = null)
+        {
+            return ((IGuild)guild).ModifyWidgetAsync(func, options);
+        }
+        public Task ReorderChannelsAsync(IEnumerable<ReorderChannelProperties> args, RequestOptions options = null)
+        {
+            return ((IGuild)guild).ReorderChannelsAsync(args, options);
+        }
+        public Task ReorderRolesAsync(IEnumerable<ReorderRoleProperties> args, RequestOptions options = null)
+        {
+            return ((IGuild)guild).ReorderRolesAsync(args, options);
+        }
+        public Task LeaveAsync(RequestOptions options = null)
+        {
+            return ((IGuild)guild).LeaveAsync(options);
+        }
+        public IAsyncEnumerable<IReadOnlyCollection<IBan>> GetBansAsync(int limit = 1000, RequestOptions options = null)
+        {
+            return ((IGuild)guild).GetBansAsync(limit, options);
+        }
+        public IAsyncEnumerable<IReadOnlyCollection<IBan>> GetBansAsync(ulong fromUserId, Direction dir, int limit = 1000, RequestOptions options = null)
+        {
+            return ((IGuild)guild).GetBansAsync(fromUserId, dir, limit, options);
+        }
+        public IAsyncEnumerable<IReadOnlyCollection<IBan>> GetBansAsync(IUser fromUser, Direction dir, int limit = 1000, RequestOptions options = null)
+        {
+            return ((IGuild)guild).GetBansAsync(fromUser, dir, limit, options);
+        }
+        public Task<IBan> GetBanAsync(IUser user, RequestOptions options = null)
+        {
+            return ((IGuild)guild).GetBanAsync(user, options);
+        }
+        public Task<IBan> GetBanAsync(ulong userId, RequestOptions options = null)
+        {
+            return ((IGuild)guild).GetBanAsync(userId, options);
+        }
         public Task AddBanAsync(IUser user, int pruneDays = 0, string reason = null, RequestOptions options = null)
         {
             return ((IGuild)guild).AddBanAsync(user, pruneDays, reason, options);
         }
-
         public Task AddBanAsync(ulong userId, int pruneDays = 0, string reason = null, RequestOptions options = null)
         {
             return ((IGuild)guild).AddBanAsync(userId, pruneDays, reason, options);
         }
-
-        public Task<IGuildUser> AddGuildUserAsync(ulong userId, string accessToken, Action<AddGuildUserProperties> func = null, RequestOptions options = null)
+        public Task RemoveBanAsync(IUser user, RequestOptions options = null)
         {
-            return ((IGuild)guild).AddGuildUserAsync(userId, accessToken, func, options);
+            return ((IGuild)guild).RemoveBanAsync(user, options);
+        }
+        public Task RemoveBanAsync(ulong userId, RequestOptions options = null)
+        {
+            return ((IGuild)guild).RemoveBanAsync(userId, options);
+        }
+        public Task<IReadOnlyCollection<IGuildChannel>> GetChannelsAsync(CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
+        {
+            return ((IGuild)guild).GetChannelsAsync(mode, options);
+        }
+        public Task<IGuildChannel> GetChannelAsync(ulong id, CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
+        {
+            return ((IGuild)guild).GetChannelAsync(id, mode, options);
+        }
+        public Task<IReadOnlyCollection<ITextChannel>> GetTextChannelsAsync(CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
+        {
+            return ((IGuild)guild).GetTextChannelsAsync(mode, options);
+        }
+        public Task<ITextChannel> GetTextChannelAsync(ulong id, CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
+        {
+            return ((IGuild)guild).GetTextChannelAsync(id, mode, options);
+        }
+        public Task<IReadOnlyCollection<IVoiceChannel>> GetVoiceChannelsAsync(CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
+        {
+            return ((IGuild)guild).GetVoiceChannelsAsync(mode, options);
+        }
+        public Task<IReadOnlyCollection<ICategoryChannel>> GetCategoriesAsync(CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
+        {
+            return ((IGuild)guild).GetCategoriesAsync(mode, options);
+        }
+        public Task<IVoiceChannel> GetVoiceChannelAsync(ulong id, CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
+        {
+            return ((IGuild)guild).GetVoiceChannelAsync(id, mode, options);
+        }
+        public Task<IStageChannel> GetStageChannelAsync(ulong id, CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
+        {
+            return ((IGuild)guild).GetStageChannelAsync(id, mode, options);
         }
 
-        public Task<IReadOnlyCollection<IApplicationCommand>> BulkOverwriteApplicationCommandsAsync(ApplicationCommandProperties[] properties, RequestOptions options = null)
+        public Task<IReadOnlyCollection<IStageChannel>> GetStageChannelsAsync(CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
         {
-            return ((IGuild)guild).BulkOverwriteApplicationCommandsAsync(properties, options);
+            return ((IGuild)guild).GetStageChannelsAsync(mode, options);
         }
 
-        public Task<IApplicationCommand> CreateApplicationCommandAsync(ApplicationCommandProperties properties, RequestOptions options = null)
+        public Task<IVoiceChannel> GetAFKChannelAsync(CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
         {
-            return ((IGuild)guild).CreateApplicationCommandAsync(properties, options);
+            return ((IGuild)guild).GetAFKChannelAsync(mode, options);
+        }
+
+        public Task<ITextChannel> GetSystemChannelAsync(CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
+        {
+            return ((IGuild)guild).GetSystemChannelAsync(mode, options);
+        }
+
+        public Task<ITextChannel> GetDefaultChannelAsync(CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
+        {
+            return ((IGuild)guild).GetDefaultChannelAsync(mode, options);
+        }
+
+        public Task<IGuildChannel> GetWidgetChannelAsync(CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
+        {
+            return ((IGuild)guild).GetWidgetChannelAsync(mode, options);
+        }
+
+        public Task<ITextChannel> GetRulesChannelAsync(CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
+        {
+            return ((IGuild)guild).GetRulesChannelAsync(mode, options);
+        }
+
+        public Task<ITextChannel> GetPublicUpdatesChannelAsync(CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
+        {
+            return ((IGuild)guild).GetPublicUpdatesChannelAsync(mode, options);
+        }
+
+        public Task<IThreadChannel> GetThreadChannelAsync(ulong id, CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
+        {
+            return ((IGuild)guild).GetThreadChannelAsync(id, mode, options);
+        }
+
+        public Task<IReadOnlyCollection<IThreadChannel>> GetThreadChannelsAsync(CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
+        {
+            return ((IGuild)guild).GetThreadChannelsAsync(mode, options);
+        }
+
+        public Task<ITextChannel> CreateTextChannelAsync(string name, Action<TextChannelProperties> func = null, RequestOptions options = null)
+        {
+            return ((IGuild)guild).CreateTextChannelAsync(name, func, options);
+        }
+
+        public Task<IVoiceChannel> CreateVoiceChannelAsync(string name, Action<VoiceChannelProperties> func = null, RequestOptions options = null)
+        {
+            return ((IGuild)guild).CreateVoiceChannelAsync(name, func, options);
+        }
+
+        public Task<IStageChannel> CreateStageChannelAsync(string name, Action<VoiceChannelProperties> func = null, RequestOptions options = null)
+        {
+            return ((IGuild)guild).CreateStageChannelAsync(name, func, options);
         }
 
         public Task<ICategoryChannel> CreateCategoryAsync(string name, Action<GuildChannelProperties> func = null, RequestOptions options = null)
@@ -250,19 +367,34 @@ namespace DiscordBot.Classes
             return ((IGuild)guild).CreateCategoryAsync(name, func, options);
         }
 
-        public Task<GuildEmote> CreateEmoteAsync(string name, Image image, Optional<IEnumerable<IRole>> roles = default, RequestOptions options = null)
+        public Task<IReadOnlyCollection<IVoiceRegion>> GetVoiceRegionsAsync(RequestOptions options = null)
         {
-            return ((IGuild)guild).CreateEmoteAsync(name, image, roles, options);
+            return ((IGuild)guild).GetVoiceRegionsAsync(options);
         }
 
-        public Task<IGuildScheduledEvent> CreateEventAsync(string name, DateTimeOffset startTime, GuildScheduledEventType type, GuildScheduledEventPrivacyLevel privacyLevel = GuildScheduledEventPrivacyLevel.Private, string description = null, DateTimeOffset? endTime = null, ulong? channelId = null, string location = null, RequestOptions options = null)
+        public Task<IReadOnlyCollection<IIntegration>> GetIntegrationsAsync(RequestOptions options = null)
         {
-            return ((IGuild)guild).CreateEventAsync(name, startTime, type, privacyLevel, description, endTime, channelId, location, options);
+            return ((IGuild)guild).GetIntegrationsAsync(options);
         }
 
-        public Task<IGuildIntegration> CreateIntegrationAsync(ulong id, string type, RequestOptions options = null)
+        public Task DeleteIntegrationAsync(ulong id, RequestOptions options = null)
         {
-            return ((IGuild)guild).CreateIntegrationAsync(id, type, options);
+            return ((IGuild)guild).DeleteIntegrationAsync(id, options);
+        }
+
+        public Task<IReadOnlyCollection<IInviteMetadata>> GetInvitesAsync(RequestOptions options = null)
+        {
+            return ((IGuild)guild).GetInvitesAsync(options);
+        }
+
+        public Task<IInviteMetadata> GetVanityInviteAsync(RequestOptions options = null)
+        {
+            return ((IGuild)guild).GetVanityInviteAsync(options);
+        }
+
+        public IRole GetRole(ulong id)
+        {
+            return ((IGuild)guild).GetRole(id);
         }
 
         public Task<IRole> CreateRoleAsync(string name, GuildPermissions? permissions = null, Color? color = null, bool isHoisted = false, RequestOptions options = null)
@@ -275,9 +407,94 @@ namespace DiscordBot.Classes
             return ((IGuild)guild).CreateRoleAsync(name, permissions, color, isHoisted, isMentionable, options);
         }
 
-        public Task<IStageChannel> CreateStageChannelAsync(string name, Action<VoiceChannelProperties> func = null, RequestOptions options = null)
+        public Task<IGuildUser> AddGuildUserAsync(ulong userId, string accessToken, Action<AddGuildUserProperties> func = null, RequestOptions options = null)
         {
-            return ((IGuild)guild).CreateStageChannelAsync(name, func, options);
+            return ((IGuild)guild).AddGuildUserAsync(userId, accessToken, func, options);
+        }
+
+        public Task DisconnectAsync(IGuildUser user)
+        {
+            return ((IGuild)guild).DisconnectAsync(user);
+        }
+
+        public Task<IReadOnlyCollection<IGuildUser>> GetUsersAsync(CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
+        {
+            return ((IGuild)guild).GetUsersAsync(mode, options);
+        }
+
+        public Task<IGuildUser> GetUserAsync(ulong id, CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
+        {
+            return ((IGuild)guild).GetUserAsync(id, mode, options);
+        }
+
+        public Task<IGuildUser> GetCurrentUserAsync(CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
+        {
+            return ((IGuild)guild).GetCurrentUserAsync(mode, options);
+        }
+
+        public Task<IGuildUser> GetOwnerAsync(CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
+        {
+            return ((IGuild)guild).GetOwnerAsync(mode, options);
+        }
+
+        public Task DownloadUsersAsync()
+        {
+            return ((IGuild)guild).DownloadUsersAsync();
+        }
+
+        public Task<int> PruneUsersAsync(int days = 30, bool simulate = false, RequestOptions options = null, IEnumerable<ulong> includeRoleIds = null)
+        {
+            return ((IGuild)guild).PruneUsersAsync(days, simulate, options, includeRoleIds);
+        }
+
+        public Task<IReadOnlyCollection<IGuildUser>> SearchUsersAsync(string query, int limit = 1000, CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
+        {
+            return ((IGuild)guild).SearchUsersAsync(query, limit, mode, options);
+        }
+
+        public Task<IReadOnlyCollection<IAuditLogEntry>> GetAuditLogsAsync(int limit = 100, CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null, ulong? beforeId = null, ulong? userId = null, ActionType? actionType = null)
+        {
+            return ((IGuild)guild).GetAuditLogsAsync(limit, mode, options, beforeId, userId, actionType);
+        }
+
+        public Task<IWebhook> GetWebhookAsync(ulong id, RequestOptions options = null)
+        {
+            return ((IGuild)guild).GetWebhookAsync(id, options);
+        }
+
+        public Task<IReadOnlyCollection<IWebhook>> GetWebhooksAsync(RequestOptions options = null)
+        {
+            return ((IGuild)guild).GetWebhooksAsync(options);
+        }
+
+        public Task<IReadOnlyCollection<GuildEmote>> GetEmotesAsync(RequestOptions options = null)
+        {
+            return ((IGuild)guild).GetEmotesAsync(options);
+        }
+
+        public Task<GuildEmote> GetEmoteAsync(ulong id, RequestOptions options = null)
+        {
+            return ((IGuild)guild).GetEmoteAsync(id, options);
+        }
+
+        public Task<GuildEmote> CreateEmoteAsync(string name, Image image, Optional<IEnumerable<IRole>> roles = default, RequestOptions options = null)
+        {
+            return ((IGuild)guild).CreateEmoteAsync(name, image, roles, options);
+        }
+
+        public Task<GuildEmote> ModifyEmoteAsync(GuildEmote emote, Action<EmoteProperties> func, RequestOptions options = null)
+        {
+            return ((IGuild)guild).ModifyEmoteAsync(emote, func, options);
+        }
+
+        public Task MoveAsync(IGuildUser user, IVoiceChannel targetChannel)
+        {
+            return ((IGuild)guild).MoveAsync(user, targetChannel);
+        }
+
+        public Task DeleteEmoteAsync(GuildEmote emote, RequestOptions options = null)
+        {
+            return ((IGuild)guild).DeleteEmoteAsync(emote, options);
         }
 
         public Task<ICustomSticker> CreateStickerAsync(string name, string description, IEnumerable<string> tags, Image image, RequestOptions options = null)
@@ -295,109 +512,19 @@ namespace DiscordBot.Classes
             return ((IGuild)guild).CreateStickerAsync(name, description, tags, stream, filename, options);
         }
 
-        public Task<ITextChannel> CreateTextChannelAsync(string name, Action<TextChannelProperties> func = null, RequestOptions options = null)
+        public Task<ICustomSticker> GetStickerAsync(ulong id, CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
         {
-            return ((IGuild)guild).CreateTextChannelAsync(name, func, options);
+            return ((IGuild)guild).GetStickerAsync(id, mode, options);
         }
 
-        public Task<IVoiceChannel> CreateVoiceChannelAsync(string name, Action<VoiceChannelProperties> func = null, RequestOptions options = null)
+        public Task<IReadOnlyCollection<ICustomSticker>> GetStickersAsync(CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
         {
-            return ((IGuild)guild).CreateVoiceChannelAsync(name, func, options);
-        }
-
-        public Task DeleteAsync(RequestOptions options = null)
-        {
-            return ((IDeletable)guild).DeleteAsync(options);
-        }
-
-        public Task DeleteEmoteAsync(GuildEmote emote, RequestOptions options = null)
-        {
-            return ((IGuild)guild).DeleteEmoteAsync(emote, options);
+            return ((IGuild)guild).GetStickersAsync(mode, options);
         }
 
         public Task DeleteStickerAsync(ICustomSticker sticker, RequestOptions options = null)
         {
             return ((IGuild)guild).DeleteStickerAsync(sticker, options);
-        }
-
-        public Task DisconnectAsync(IGuildUser user)
-        {
-            return ((IGuild)guild).DisconnectAsync(user);
-        }
-
-        public Task DownloadUsersAsync()
-        {
-            return ((IGuild)guild).DownloadUsersAsync();
-        }
-
-        public Task<IVoiceChannel> GetAFKChannelAsync(CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
-        {
-            return ((IGuild)guild).GetAFKChannelAsync(mode, options);
-        }
-
-        public Task<IApplicationCommand> GetApplicationCommandAsync(ulong id, CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
-        {
-            return ((IGuild)guild).GetApplicationCommandAsync(id, mode, options);
-        }
-
-        public Task<IReadOnlyCollection<IApplicationCommand>> GetApplicationCommandsAsync(RequestOptions options = null)
-        {
-            return ((IGuild)guild).GetApplicationCommandsAsync(options);
-        }
-
-        public Task<IReadOnlyCollection<IAuditLogEntry>> GetAuditLogsAsync(int limit = 100, CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null, ulong? beforeId = null, ulong? userId = null, ActionType? actionType = null)
-        {
-            return ((IGuild)guild).GetAuditLogsAsync(limit, mode, options, beforeId, userId, actionType);
-        }
-
-        public Task<IBan> GetBanAsync(IUser user, RequestOptions options = null)
-        {
-            return ((IGuild)guild).GetBanAsync(user, options);
-        }
-
-        public Task<IBan> GetBanAsync(ulong userId, RequestOptions options = null)
-        {
-            return ((IGuild)guild).GetBanAsync(userId, options);
-        }
-
-        public Task<IReadOnlyCollection<IBan>> GetBansAsync(RequestOptions options = null)
-        {
-            return ((IGuild)guild).GetBansAsync(options);
-        }
-
-        public Task<IReadOnlyCollection<ICategoryChannel>> GetCategoriesAsync(CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
-        {
-            return ((IGuild)guild).GetCategoriesAsync(mode, options);
-        }
-
-        public Task<IGuildChannel> GetChannelAsync(ulong id, CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
-        {
-            return ((IGuild)guild).GetChannelAsync(id, mode, options);
-        }
-
-        public Task<IReadOnlyCollection<IGuildChannel>> GetChannelsAsync(CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
-        {
-            return ((IGuild)guild).GetChannelsAsync(mode, options);
-        }
-
-        public Task<IGuildUser> GetCurrentUserAsync(CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
-        {
-            return ((IGuild)guild).GetCurrentUserAsync(mode, options);
-        }
-
-        public Task<ITextChannel> GetDefaultChannelAsync(CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
-        {
-            return ((IGuild)guild).GetDefaultChannelAsync(mode, options);
-        }
-
-        public Task<GuildEmote> GetEmoteAsync(ulong id, RequestOptions options = null)
-        {
-            return ((IGuild)guild).GetEmoteAsync(id, options);
-        }
-
-        public Task<IReadOnlyCollection<GuildEmote>> GetEmotesAsync(RequestOptions options = null)
-        {
-            return ((IGuild)guild).GetEmotesAsync(options);
         }
 
         public Task<IGuildScheduledEvent> GetEventAsync(ulong id, RequestOptions options = null)
@@ -410,182 +537,38 @@ namespace DiscordBot.Classes
             return ((IGuild)guild).GetEventsAsync(options);
         }
 
-        public Task<IReadOnlyCollection<IGuildIntegration>> GetIntegrationsAsync(RequestOptions options = null)
+        public Task<IGuildScheduledEvent> CreateEventAsync(string name, DateTimeOffset startTime, GuildScheduledEventType type, GuildScheduledEventPrivacyLevel privacyLevel = GuildScheduledEventPrivacyLevel.Private, string description = null, DateTimeOffset? endTime = null, ulong? channelId = null, string location = null, Image? coverImage = null, RequestOptions options = null)
         {
-            return ((IGuild)guild).GetIntegrationsAsync(options);
+            return ((IGuild)guild).CreateEventAsync(name, startTime, type, privacyLevel, description, endTime, channelId, location, coverImage, options);
         }
 
-        public Task<IReadOnlyCollection<IInviteMetadata>> GetInvitesAsync(RequestOptions options = null)
+        public Task<IReadOnlyCollection<IApplicationCommand>> GetApplicationCommandsAsync(RequestOptions options = null)
         {
-            return ((IGuild)guild).GetInvitesAsync(options);
+            return ((IGuild)guild).GetApplicationCommandsAsync(options);
         }
 
-        public Task<IGuildUser> GetOwnerAsync(CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
+        public Task<IApplicationCommand> GetApplicationCommandAsync(ulong id, CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
         {
-            return ((IGuild)guild).GetOwnerAsync(mode, options);
+            return ((IGuild)guild).GetApplicationCommandAsync(id, mode, options);
         }
 
-        public Task<ITextChannel> GetPublicUpdatesChannelAsync(CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
+        public Task<IApplicationCommand> CreateApplicationCommandAsync(ApplicationCommandProperties properties, RequestOptions options = null)
         {
-            return ((IGuild)guild).GetPublicUpdatesChannelAsync(mode, options);
+            return ((IGuild)guild).CreateApplicationCommandAsync(properties, options);
         }
 
-        public IRole GetRole(ulong id)
+        public Task<IReadOnlyCollection<IApplicationCommand>> BulkOverwriteApplicationCommandsAsync(ApplicationCommandProperties[] properties, RequestOptions options = null)
         {
-            return ((IGuild)guild).GetRole(id);
+            return ((IGuild)guild).BulkOverwriteApplicationCommandsAsync(properties, options);
         }
 
-        public Task<ITextChannel> GetRulesChannelAsync(CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
+        public Task DeleteAsync(RequestOptions options = null)
         {
-            return ((IGuild)guild).GetRulesChannelAsync(mode, options);
+            return ((IDeletable)guild).DeleteAsync(options);
         }
 
-        public Task<IStageChannel> GetStageChannelAsync(ulong id, CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
-        {
-            return ((IGuild)guild).GetStageChannelAsync(id, mode, options);
-        }
 
-        public Task<IReadOnlyCollection<IStageChannel>> GetStageChannelsAsync(CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
-        {
-            return ((IGuild)guild).GetStageChannelsAsync(mode, options);
-        }
-
-        public Task<ICustomSticker> GetStickerAsync(ulong id, CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
-        {
-            return ((IGuild)guild).GetStickerAsync(id, mode, options);
-        }
-
-        public Task<IReadOnlyCollection<ICustomSticker>> GetStickersAsync(CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
-        {
-            return ((IGuild)guild).GetStickersAsync(mode, options);
-        }
-
-        public Task<ITextChannel> GetSystemChannelAsync(CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
-        {
-            return ((IGuild)guild).GetSystemChannelAsync(mode, options);
-        }
-
-        public Task<ITextChannel> GetTextChannelAsync(ulong id, CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
-        {
-            return ((IGuild)guild).GetTextChannelAsync(id, mode, options);
-        }
-
-        public Task<IReadOnlyCollection<ITextChannel>> GetTextChannelsAsync(CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
-        {
-            return ((IGuild)guild).GetTextChannelsAsync(mode, options);
-        }
-
-        public Task<IThreadChannel> GetThreadChannelAsync(ulong id, CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
-        {
-            return ((IGuild)guild).GetThreadChannelAsync(id, mode, options);
-        }
-
-        public Task<IReadOnlyCollection<IThreadChannel>> GetThreadChannelsAsync(CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
-        {
-            return ((IGuild)guild).GetThreadChannelsAsync(mode, options);
-        }
-
-        public Task<IGuildUser> GetUserAsync(ulong id, CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
-        {
-            return ((IGuild)guild).GetUserAsync(id, mode, options);
-        }
-
-        public Task<IReadOnlyCollection<IGuildUser>> GetUsersAsync(CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
-        {
-            return ((IGuild)guild).GetUsersAsync(mode, options);
-        }
-
-        public Task<IInviteMetadata> GetVanityInviteAsync(RequestOptions options = null)
-        {
-            return ((IGuild)guild).GetVanityInviteAsync(options);
-        }
-
-        public Task<IVoiceChannel> GetVoiceChannelAsync(ulong id, CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
-        {
-            return ((IGuild)guild).GetVoiceChannelAsync(id, mode, options);
-        }
-
-        public Task<IReadOnlyCollection<IVoiceChannel>> GetVoiceChannelsAsync(CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
-        {
-            return ((IGuild)guild).GetVoiceChannelsAsync(mode, options);
-        }
-
-        public Task<IReadOnlyCollection<IVoiceRegion>> GetVoiceRegionsAsync(RequestOptions options = null)
-        {
-            return ((IGuild)guild).GetVoiceRegionsAsync(options);
-        }
-
-        public Task<IWebhook> GetWebhookAsync(ulong id, RequestOptions options = null)
-        {
-            return ((IGuild)guild).GetWebhookAsync(id, options);
-        }
-
-        public Task<IReadOnlyCollection<IWebhook>> GetWebhooksAsync(RequestOptions options = null)
-        {
-            return ((IGuild)guild).GetWebhooksAsync(options);
-        }
-
-        public Task<IGuildChannel> GetWidgetChannelAsync(CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
-        {
-            return ((IGuild)guild).GetWidgetChannelAsync(mode, options);
-        }
-
-        public Task LeaveAsync(RequestOptions options = null)
-        {
-            return ((IGuild)guild).LeaveAsync(options);
-        }
-
-        public Task ModifyAsync(Action<GuildProperties> func, RequestOptions options = null)
-        {
-            return ((IGuild)guild).ModifyAsync(func, options);
-        }
-
-        public Task<GuildEmote> ModifyEmoteAsync(GuildEmote emote, Action<EmoteProperties> func, RequestOptions options = null)
-        {
-            return ((IGuild)guild).ModifyEmoteAsync(emote, func, options);
-        }
-
-        public Task ModifyWidgetAsync(Action<GuildWidgetProperties> func, RequestOptions options = null)
-        {
-            return ((IGuild)guild).ModifyWidgetAsync(func, options);
-        }
-
-        public Task MoveAsync(IGuildUser user, IVoiceChannel targetChannel)
-        {
-            return ((IGuild)guild).MoveAsync(user, targetChannel);
-        }
-
-        public Task<int> PruneUsersAsync(int days = 30, bool simulate = false, RequestOptions options = null, IEnumerable<ulong> includeRoleIds = null)
-        {
-            return ((IGuild)guild).PruneUsersAsync(days, simulate, options, includeRoleIds);
-        }
-
-        public Task RemoveBanAsync(IUser user, RequestOptions options = null)
-        {
-            return ((IGuild)guild).RemoveBanAsync(user, options);
-        }
-
-        public Task RemoveBanAsync(ulong userId, RequestOptions options = null)
-        {
-            return ((IGuild)guild).RemoveBanAsync(userId, options);
-        }
-
-        public Task ReorderChannelsAsync(IEnumerable<ReorderChannelProperties> args, RequestOptions options = null)
-        {
-            return ((IGuild)guild).ReorderChannelsAsync(args, options);
-        }
-
-        public Task ReorderRolesAsync(IEnumerable<ReorderRoleProperties> args, RequestOptions options = null)
-        {
-            return ((IGuild)guild).ReorderRolesAsync(args, options);
-        }
-
-        public Task<IReadOnlyCollection<IGuildUser>> SearchUsersAsync(string query, int limit = 1000, CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
-        {
-            return ((IGuild)guild).SearchUsersAsync(query, limit, mode, options);
-        }
-
-        #endregion // Guild Items
+        #endregion
     }
 
     internal class LazyObject
@@ -690,6 +673,12 @@ namespace DiscordBot.Classes
 
         public DateTimeOffset? RequestToSpeakTimestamp => ((IVoiceState)User).RequestToSpeakTimestamp;
 
+        public string DisplayName => ((IGuildUser)User).DisplayName;
+
+        public string DisplayAvatarId => ((IGuildUser)User).DisplayAvatarId;
+
+        public bool IsVideoing => ((IVoiceState)User).IsVideoing;
+
         public ChannelPermissions GetPermissions(IGuildChannel channel)
         {
             return ((IGuildUser)User).GetPermissions(channel);
@@ -775,6 +764,11 @@ namespace DiscordBot.Classes
             return ((IUser)User).CreateDMChannelAsync(options);
         }
 
+        public string GetDisplayAvatarUrl(ImageFormat format = ImageFormat.Auto, ushort size = 128)
+        {
+            return ((IGuildUser)User).GetDisplayAvatarUrl(format, size);
+        }
+
         #endregion
 
     }
@@ -855,36 +849,6 @@ namespace DiscordBot.Classes
         public Task<IThreadChannel> CreateThreadAsync(string name, ThreadType type = ThreadType.PublicThread, ThreadArchiveDuration autoArchiveDuration = ThreadArchiveDuration.OneDay, IMessage message = null, bool? invitable = null, int? slowmode = null, RequestOptions options = null)
         {
             return ((ITextChannel)Channel).CreateThreadAsync(name, type, autoArchiveDuration, message, invitable, slowmode, options);
-        }
-
-        public Task<IReadOnlyCollection<IThreadChannel>> GetPublicArchivedThreadsAsync(DateTimeOffset? before = null, int? limit = null, RequestOptions options = null)
-        {
-            return ((ITextChannel)Channel).GetPublicArchivedThreadsAsync(before, limit, options);
-        }
-
-        public Task<IUserMessage> SendMessageAsync(string text = null, bool isTTS = false, Embed embed = null, RequestOptions options = null, AllowedMentions allowedMentions = null, MessageReference messageReference = null, MessageComponent components = null, ISticker[] stickers = null, Embed[] embeds = null)
-        {
-            return ((IMessageChannel)Channel).SendMessageAsync(text, isTTS, embed, options, allowedMentions, messageReference, components, stickers, embeds);
-        }
-
-        public Task<IUserMessage> SendFileAsync(string filePath, string text = null, bool isTTS = false, Embed embed = null, RequestOptions options = null, bool isSpoiler = false, AllowedMentions allowedMentions = null, MessageReference messageReference = null, MessageComponent components = null, ISticker[] stickers = null, Embed[] embeds = null)
-        {
-            return ((IMessageChannel)Channel).SendFileAsync(filePath, text, isTTS, embed, options, isSpoiler, allowedMentions, messageReference, components, stickers, embeds);
-        }
-
-        public Task<IUserMessage> SendFileAsync(Stream stream, string filename, string text = null, bool isTTS = false, Embed embed = null, RequestOptions options = null, bool isSpoiler = false, AllowedMentions allowedMentions = null, MessageReference messageReference = null, MessageComponent components = null, ISticker[] stickers = null, Embed[] embeds = null)
-        {
-            return ((IMessageChannel)Channel).SendFileAsync(stream, filename, text, isTTS, embed, options, isSpoiler, allowedMentions, messageReference, components, stickers, embeds);
-        }
-
-        public Task<IUserMessage> SendFileAsync(FileAttachment attachment, string text = null, bool isTTS = false, Embed embed = null, RequestOptions options = null, AllowedMentions allowedMentions = null, MessageReference messageReference = null, MessageComponent components = null, ISticker[] stickers = null, Embed[] embeds = null)
-        {
-            return ((IMessageChannel)Channel).SendFileAsync(attachment, text, isTTS, embed, options, allowedMentions, messageReference, components, stickers, embeds);
-        }
-
-        public Task<IUserMessage> SendFilesAsync(IEnumerable<FileAttachment> attachments, string text = null, bool isTTS = false, Embed embed = null, RequestOptions options = null, AllowedMentions allowedMentions = null, MessageReference messageReference = null, MessageComponent components = null, ISticker[] stickers = null, Embed[] embeds = null)
-        {
-            return ((IMessageChannel)Channel).SendFilesAsync(attachments, text, isTTS, embed, options, allowedMentions, messageReference, components, stickers, embeds);
         }
 
         public Task<IMessage> GetMessageAsync(ulong id, CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
@@ -1031,6 +995,31 @@ namespace DiscordBot.Classes
         {
             return ((IDeletable)Channel).DeleteAsync(options);
         }
+
+        public Task<IUserMessage> SendMessageAsync(string text = null, bool isTTS = false, Embed embed = null, RequestOptions options = null, AllowedMentions allowedMentions = null, MessageReference messageReference = null, MessageComponent components = null, ISticker[] stickers = null, Embed[] embeds = null, MessageFlags flags = MessageFlags.None)
+        {
+            return ((IMessageChannel)Channel).SendMessageAsync(text, isTTS, embed, options, allowedMentions, messageReference, components, stickers, embeds, flags);
+        }
+
+        public Task<IUserMessage> SendFileAsync(string filePath, string text = null, bool isTTS = false, Embed embed = null, RequestOptions options = null, bool isSpoiler = false, AllowedMentions allowedMentions = null, MessageReference messageReference = null, MessageComponent components = null, ISticker[] stickers = null, Embed[] embeds = null, MessageFlags flags = MessageFlags.None)
+        {
+            return ((IMessageChannel)Channel).SendFileAsync(filePath, text, isTTS, embed, options, isSpoiler, allowedMentions, messageReference, components, stickers, embeds, flags);
+        }
+
+        public Task<IUserMessage> SendFileAsync(Stream stream, string filename, string text = null, bool isTTS = false, Embed embed = null, RequestOptions options = null, bool isSpoiler = false, AllowedMentions allowedMentions = null, MessageReference messageReference = null, MessageComponent components = null, ISticker[] stickers = null, Embed[] embeds = null, MessageFlags flags = MessageFlags.None)
+        {
+            return ((IMessageChannel)Channel).SendFileAsync(stream, filename, text, isTTS, embed, options, isSpoiler, allowedMentions, messageReference, components, stickers, embeds, flags);
+        }
+
+        public Task<IUserMessage> SendFileAsync(FileAttachment attachment, string text = null, bool isTTS = false, Embed embed = null, RequestOptions options = null, AllowedMentions allowedMentions = null, MessageReference messageReference = null, MessageComponent components = null, ISticker[] stickers = null, Embed[] embeds = null, MessageFlags flags = MessageFlags.None)
+        {
+            return ((IMessageChannel)Channel).SendFileAsync(attachment, text, isTTS, embed, options, allowedMentions, messageReference, components, stickers, embeds, flags);
+        }
+
+        public Task<IUserMessage> SendFilesAsync(IEnumerable<FileAttachment> attachments, string text = null, bool isTTS = false, Embed embed = null, RequestOptions options = null, AllowedMentions allowedMentions = null, MessageReference messageReference = null, MessageComponent components = null, ISticker[] stickers = null, Embed[] embeds = null, MessageFlags flags = MessageFlags.None)
+        {
+            return ((IMessageChannel)Channel).SendFilesAsync(attachments, text, isTTS, embed, options, allowedMentions, messageReference, components, stickers, embeds, flags);
+        }
         #endregion
     }
 
@@ -1065,31 +1054,6 @@ namespace DiscordBot.Classes
         public Task CloseAsync(RequestOptions options = null)
         {
             return DM.CloseAsync(options);
-        }
-
-        public Task<IUserMessage> SendMessageAsync(string text = null, bool isTTS = false, Embed embed = null, RequestOptions options = null, AllowedMentions allowedMentions = null, MessageReference messageReference = null, MessageComponent components = null, ISticker[] stickers = null, Embed[] embeds = null)
-        {
-            return DM.SendMessageAsync(text, isTTS, embed, options, allowedMentions, messageReference, components, stickers, embeds);
-        }
-
-        public Task<IUserMessage> SendFileAsync(string filePath, string text = null, bool isTTS = false, Embed embed = null, RequestOptions options = null, bool isSpoiler = false, AllowedMentions allowedMentions = null, MessageReference messageReference = null, MessageComponent components = null, ISticker[] stickers = null, Embed[] embeds = null)
-        {
-            return DM.SendFileAsync(filePath, text, isTTS, embed, options, isSpoiler, allowedMentions, messageReference, components, stickers, embeds);
-        }
-
-        public Task<IUserMessage> SendFileAsync(Stream stream, string filename, string text = null, bool isTTS = false, Embed embed = null, RequestOptions options = null, bool isSpoiler = false, AllowedMentions allowedMentions = null, MessageReference messageReference = null, MessageComponent components = null, ISticker[] stickers = null, Embed[] embeds = null)
-        {
-            return DM.SendFileAsync(stream, filename, text, isTTS, embed, options, isSpoiler, allowedMentions, messageReference, components, stickers, embeds);
-        }
-
-        public Task<IUserMessage> SendFileAsync(FileAttachment attachment, string text = null, bool isTTS = false, Embed embed = null, RequestOptions options = null, AllowedMentions allowedMentions = null, MessageReference messageReference = null, MessageComponent components = null, ISticker[] stickers = null, Embed[] embeds = null)
-        {
-            return DM.SendFileAsync(attachment, text, isTTS, embed, options, allowedMentions, messageReference, components, stickers, embeds);
-        }
-
-        public Task<IUserMessage> SendFilesAsync(IEnumerable<FileAttachment> attachments, string text = null, bool isTTS = false, Embed embed = null, RequestOptions options = null, AllowedMentions allowedMentions = null, MessageReference messageReference = null, MessageComponent components = null, ISticker[] stickers = null, Embed[] embeds = null)
-        {
-            return DM.SendFilesAsync(attachments, text, isTTS, embed, options, allowedMentions, messageReference, components, stickers, embeds);
         }
 
         public Task<IMessage> GetMessageAsync(ulong id, CacheMode mode = CacheMode.AllowDownload, RequestOptions options = null)
@@ -1151,6 +1115,32 @@ namespace DiscordBot.Classes
         {
             return DM.GetUserAsync(id, mode, options);
         }
+
+        public Task<IUserMessage> SendMessageAsync(string text = null, bool isTTS = false, Embed embed = null, RequestOptions options = null, AllowedMentions allowedMentions = null, MessageReference messageReference = null, MessageComponent components = null, ISticker[] stickers = null, Embed[] embeds = null, MessageFlags flags = MessageFlags.None)
+        {
+            return DM.SendMessageAsync(text, isTTS, embed, options, allowedMentions, messageReference, components, stickers, embeds, flags);
+        }
+
+        public Task<IUserMessage> SendFileAsync(string filePath, string text = null, bool isTTS = false, Embed embed = null, RequestOptions options = null, bool isSpoiler = false, AllowedMentions allowedMentions = null, MessageReference messageReference = null, MessageComponent components = null, ISticker[] stickers = null, Embed[] embeds = null, MessageFlags flags = MessageFlags.None)
+        {
+            return DM.SendFileAsync(filePath, text, isTTS, embed, options, isSpoiler, allowedMentions, messageReference, components, stickers, embeds, flags);
+        }
+
+        public Task<IUserMessage> SendFileAsync(Stream stream, string filename, string text = null, bool isTTS = false, Embed embed = null, RequestOptions options = null, bool isSpoiler = false, AllowedMentions allowedMentions = null, MessageReference messageReference = null, MessageComponent components = null, ISticker[] stickers = null, Embed[] embeds = null, MessageFlags flags = MessageFlags.None)
+        {
+            return DM.SendFileAsync(stream, filename, text, isTTS, embed, options, isSpoiler, allowedMentions, messageReference, components, stickers, embeds, flags);
+        }
+
+        public Task<IUserMessage> SendFileAsync(FileAttachment attachment, string text = null, bool isTTS = false, Embed embed = null, RequestOptions options = null, AllowedMentions allowedMentions = null, MessageReference messageReference = null, MessageComponent components = null, ISticker[] stickers = null, Embed[] embeds = null, MessageFlags flags = MessageFlags.None)
+        {
+            return DM.SendFileAsync(attachment, text, isTTS, embed, options, allowedMentions, messageReference, components, stickers, embeds, flags);
+        }
+
+        public Task<IUserMessage> SendFilesAsync(IEnumerable<FileAttachment> attachments, string text = null, bool isTTS = false, Embed embed = null, RequestOptions options = null, AllowedMentions allowedMentions = null, MessageReference messageReference = null, MessageComponent components = null, ISticker[] stickers = null, Embed[] embeds = null, MessageFlags flags = MessageFlags.None)
+        {
+            return DM.SendFilesAsync(attachments, text, isTTS, embed, options, allowedMentions, messageReference, components, stickers, embeds, flags);
+        }
+
         public IUser Recipient => DM.Recipient;
         public IReadOnlyCollection<IUser> Recipients => DM.Recipients;
         public string Name => DM.Name;
