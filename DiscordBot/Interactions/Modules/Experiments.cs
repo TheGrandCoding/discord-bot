@@ -13,6 +13,7 @@ namespace DiscordBot.Interactions.Modules
 {
     [Group("experiments", "Register or search guilde experiments")]
     [DefaultMemberPermissions(GuildPermission.ManageGuild)]
+    [DefaultPermission(false)]
     public class Experiments : BotSlashBase
     {
         public DsRolloutService Service { get; set; }

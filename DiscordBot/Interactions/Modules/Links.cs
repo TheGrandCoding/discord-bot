@@ -13,6 +13,7 @@ namespace DiscordBot.Interactions.Modules
 {
     [Group("links", "Automatic thread creation for links")]
     [DefaultMemberPermissions(GuildPermission.ManageGuild)]
+    [DefaultPermission(false)]
     public class Links : BotSlashBase
     {
         public LinksThreaderService Service { get; set; }

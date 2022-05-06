@@ -16,6 +16,7 @@ namespace DiscordBot.Interactions.Modules
 {
     [Group("move", "Move messages")]
     [DefaultMemberPermissions(GuildPermission.ManageMessages)]
+    [DefaultPermission(false)]
     public class Move : BotSlashBase
     {
         public Move()

@@ -18,7 +18,7 @@ namespace DiscordBot.Services
 {
     public class CommandHandlingService
     {
-        public const uint CommandVersion = 3;
+        public const uint CommandVersion = 4;
         private readonly CommandService _commands;
         private readonly DiscordSocketClient _discord;
         private readonly IServiceProvider _services;

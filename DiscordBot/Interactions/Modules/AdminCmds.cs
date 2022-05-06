@@ -14,6 +14,7 @@ namespace DiscordBot.Interactions.Modules
         [SlashCommand("aduty", "Toggles administrator role")]
         [DefaultMemberPermissions(GuildPermission.Administrator)]
         [EnabledInDm(false)]
+        [DefaultPermission(false)]
         public async Task ToggleAdminDuty()
         {
             var adminRole = (Context.Interaction.Channel as IGuildChannel).Guild.Roles.FirstOrDefault(x => x.Name.StartsWith("Admin", StringComparison.OrdinalIgnoreCase) && x.Permissions.Administrator);
