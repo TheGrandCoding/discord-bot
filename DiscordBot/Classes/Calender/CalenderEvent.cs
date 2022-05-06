@@ -40,6 +40,8 @@ namespace DiscordBot.Classes.Calender
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            modelBuilder.HasCharSet("utf8mb4");
+
             modelBuilder.Entity<Attendee>()
                 .HasKey(x => new { x.EventId, x._userId });
 

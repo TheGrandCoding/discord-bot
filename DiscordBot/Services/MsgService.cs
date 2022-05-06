@@ -37,15 +37,14 @@ namespace DiscordBot.Services
             options.UseSqlServer(Program.getDbString("BotLog"));
 #else
                 options.UseMySql(Program.getDbString("botData"),
-                    new MariaDbServerVersion(new Version(10, 3, 25)), mysqlOptions =>
-                    {
-                        mysqlOptions.CharSet(CharSet.Utf8Mb4);
-                    });
+                    new MariaDbServerVersion(new Version(10, 3, 25)));
 #endif
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            modelBuilder.HasCharSet("utf8mb4");
+
             modelBuilder.Entity<MsgModel>()
                 .HasKey(m => new { m.GuildId, m.ChannelId, m.MessageId });
             modelBuilder.Entity<NameTimestamps>()

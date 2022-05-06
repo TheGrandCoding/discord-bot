@@ -211,6 +211,8 @@ namespace DiscordBot.Services
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            modelBuilder.HasCharSet("utf8mb4");
+
             modelBuilder.Entity<VideoData>()
                 .HasKey(x => new { x._userId, x.VideoId });
             modelBuilder.Entity<RedditData>()

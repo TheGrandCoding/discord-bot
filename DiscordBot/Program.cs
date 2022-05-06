@@ -438,10 +438,7 @@ Changed how permissions worked for bot.
                 var x = CharSet.Utf8Mb4;
 #else
                 options.UseMySql(getDbString("watch"), 
-                    new MariaDbServerVersion(new Version(10, 3, 25)), mysqlOptions =>
-                    {
-                        mysqlOptions.CharSet(CharSet.Utf8Mb4);
-                    });
+                    new MariaDbServerVersion(new Version(10, 3, 25)));
 #endif
             }, ServiceLifetime.Transient);
             coll.AddDbContext<CalenderDb>(options =>
@@ -451,10 +448,7 @@ Changed how permissions worked for bot.
                 options.EnableSensitiveDataLogging();
 #else
                 options.UseMySql(getDbString("calendar"), 
-                    new MariaDbServerVersion(new Version(10, 3, 25)), mysqlOptions =>
-                    {
-                        mysqlOptions.CharSet(CharSet.Utf8Mb4);
-                    });
+                    new MariaDbServerVersion(new Version(10, 3, 25)));
 #endif
             }, ServiceLifetime.Transient);
             coll.AddDbContext<FoodDbContext>(options =>
@@ -464,10 +458,7 @@ Changed how permissions worked for bot.
                 options.EnableSensitiveDataLogging();
 #else
                 options.UseMySql(getDbString("food"), 
-                    new MariaDbServerVersion(new Version(10, 3, 25)), mysqlOptions =>
-                    {
-                        mysqlOptions.CharSet(CharSet.Utf8Mb4);
-                    });
+                    new MariaDbServerVersion(new Version(10, 3, 25)));
 #endif
             }, ServiceLifetime.Transient);
             var yClient = new Google.Apis.YouTube.v3.YouTubeService(new Google.Apis.Services.BaseClientService.Initializer()
