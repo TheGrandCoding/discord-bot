@@ -1,7 +1,7 @@
 language: csharp
 solution: DiscordBot/DiscordBot.sln
 mono: none
-dotnet: 3.1
+dotnet: 6.0
 dist: xenial
 env:
   global:
