@@ -17,7 +17,7 @@ jobs:
     - name: ReleaseM
       if: branch = master
       script: 
-        - dotnet publish -c LinRelease -f netcoreapp3.1 -r linux-arm DiscordBot/DiscordBot.sln
+        - dotnet publish -c LinRelease -f net6.0 -r linux-arm DiscordBot/DiscordBot.sln
       after_success:
         - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then bash deploy.sh master; fi'
       after_failure:
@@ -27,7 +27,7 @@ jobs:
     - name: ReleaseN
       if: branch = dev
       script: 
-        - dotnet publish -c LinDebug -f netcoreapp3.1 -r linux-arm DiscordBot/DiscordBot.sln -o /home/travis/build/TheGrandCoding/discord-bot/DiscordBot/bin/Release/netcoreapp3.1/linux-arm/publish/
+        - dotnet publish -c LinDebug -f net6.0 -r linux-arm DiscordBot/DiscordBot.sln -o /home/travis/build/TheGrandCoding/discord-bot/DiscordBot/bin/Release/netcoreapp3.1/linux-arm/publish/
       after_success:
         - wget https://raw.githubusercontent.com/DiscordHooks/travis-ci-discord-webhook/master/send.sh
         - chmod +x send.sh
