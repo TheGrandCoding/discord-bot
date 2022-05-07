@@ -484,7 +484,7 @@ namespace DiscordBot.Services
         [JsonProperty("episodes")]
         public List<TraktEpisodeCollectInfo> Episodes { get; set; } = new List<TraktEpisodeCollectInfo>();
 
-        public bool ShouldSerializeEpisodes() => Episodes.Count > 0;
+        public bool ShouldSerializeEpisodes() => Episodes != null && Episodes.Count > 0;
     }
 
     public class TraktShowCollectInfo : TraktShowInfo
@@ -551,9 +551,9 @@ namespace DiscordBot.Services
     {
         [JsonProperty("shows", NullValueHandling = NullValueHandling.Ignore)]
         public List<TraktShowCollectInfo> Shows { get; set; }
-        public bool ShouldSerializeShows() => Shows.Count > 0;
+        public bool ShouldSerializeShows() => Shows?.Count > 0;
         [JsonProperty("movies", NullValueHandling = NullValueHandling.Ignore)]
         public List<TraktMovieCollectInfo> Movies { get; set; }
-        public bool ShouldSerializeMovies() => Movies.Count > 0;
+        public bool ShouldSerializeMovies() => Movies?.Count > 0;
     }
 }
