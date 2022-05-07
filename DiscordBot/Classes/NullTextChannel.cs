@@ -266,5 +266,10 @@ namespace DiscordBot.Classes
         {
             throw new NotImplementedException();
         }
+
+        Task<IReadOnlyCollection<IThreadChannel>> ITextChannel.GetPublicArchivedThreadsAsync(DateTimeOffset? before, int? limit, RequestOptions options)
+        {
+            throw new NotImplementedException();
+        }
     }
 }
