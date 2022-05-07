@@ -74,14 +74,14 @@ namespace DiscordBot.Services
             if (thread != null)
                 return thread;
 
-            /*if(guild.CachedThreads.Count == 0)
+            if(guild.CachedThreads.Count == 0)
             {
-                var archivedThreads = await guild.thr
+                var archivedThreads = await guild.Channel.GetPublicArchivedThreadsAsync();
                 foreach (var th in archivedThreads)
                     guild.CachedThreads[th.Id] = th;
             }
             if (guild.CachedThreads.TryGetValue(message.Id, out thread))
-                return thread;*/
+                return thread;
 
             thread = await guild.Channel.CreateThreadAsync(Program.Clamp(experiment.Title, 100), autoArchiveDuration: ThreadArchiveDuration.OneWeek, message: message);
             return thread;

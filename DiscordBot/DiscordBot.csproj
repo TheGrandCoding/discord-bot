@@ -43,12 +43,12 @@
     <PackageReference Include="CodeHollow.FeedReader" Version="1.2.4" />
     <PackageReference Include="CoenM.ImageSharp.ImageHash" Version="1.2.30" />
     <PackageReference Include="Discord.InteractivityAddon" Version="3.3.0" />
-    <PackageReference Include="Discord.Net.Commands" Version="3.6.1" />
-    <PackageReference Include="Discord.Net.Core" Version="3.6.1" />
-    <PackageReference Include="Discord.Net.Interactions" Version="3.6.1" />
-    <PackageReference Include="Discord.Net.Rest" Version="3.6.1" />
-    <PackageReference Include="Discord.Net.Webhook" Version="3.6.1" />
-    <PackageReference Include="Discord.Net.WebSocket" Version="3.6.1" />
+    <PackageReference Include="Discord.Net.Commands" Version="3.6.2-alpha02" />
+    <PackageReference Include="Discord.Net.Core" Version="3.6.2-alpha02" />
+    <PackageReference Include="Discord.Net.Interactions" Version="3.6.2-alpha02" />
+    <PackageReference Include="Discord.Net.Rest" Version="3.6.2-alpha02" />
+    <PackageReference Include="Discord.Net.Webhook" Version="3.6.2-alpha02" />
+    <PackageReference Include="Discord.Net.WebSocket" Version="3.6.2-alpha02" />
     <PackageReference Include="GitHubJwt" Version="0.0.5" />
     <PackageReference Include="Google.Apis.YouTube.v3" Version="1.57.0.2665" />
     <PackageReference Include="Google.Cloud.Translation.V2" Version="2.1.0" />
