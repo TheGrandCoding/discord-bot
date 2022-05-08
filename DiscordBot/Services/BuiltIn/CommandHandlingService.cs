@@ -78,10 +78,24 @@ namespace DiscordBot.Services
             }
         }
 
+        async Task syncCommands()
+        {
+#if !DEBUG
+
+            if (Program.DailyValidateFailed())
+                return;
+            await InteractionService.SyncCommandsAsync(x =>
+            {
+                return new ulong[] { 420240046428258304 };
+            }, simulate: false);
+#endif
+        }
+
         private async Task _discord_Ready()
         {
-            if(CommandVersion != Program.CommandVersions)
-                await registerCommands();
+            //if(CommandVersion != Program.CommandVersions)
+            //    await registerCommands();
+            await syncCommands();
 
             Func<SocketMessageComponent, Task> handleMsgComponent = async (interaction) => {
                 if (Program.ignoringCommands) return;
