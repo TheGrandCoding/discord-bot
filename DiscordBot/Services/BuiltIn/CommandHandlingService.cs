@@ -81,14 +81,16 @@ namespace DiscordBot.Services
         async Task syncCommands()
         {
 #if !DEBUG
-
             if (Program.DailyValidateFailed())
                 return;
+#endif
             await InteractionService.SyncCommandsAsync(x =>
             {
-                return new ulong[] { 420240046428258304 };
+                if (x.Name.GetValueOrDefault() == "watch")
+                    return new ulong[] { 420240046428258304, 769852222711791656 };
+                else
+                    return new ulong[] { 420240046428258304 };
             }, simulate: false);
-#endif
         }
 
         private async Task _discord_Ready()

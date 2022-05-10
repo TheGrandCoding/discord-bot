@@ -121,6 +121,15 @@ namespace DiscordBot.Services.Sonarr
             return JsonConvert.DeserializeObject<List<Sonarr.SonarrSeries>>(body);
         }
 
+        public async Task<SonarrSeries> GetShow(int id)
+        {
+            var request = new HttpRequestMessage(HttpMethod.Get, apiUrl + $"/series/{id}");
+            var response = await HTTP.SendAsync(request);
+            response.EnsureSuccessStatusCode();
+            var body = await response.Content.ReadAsStringAsync();
+            return JsonConvert.DeserializeObject<Sonarr.SonarrSeries>(body);
+        }
+
         #endregion
 
 
@@ -219,7 +228,7 @@ namespace DiscordBot.Services.Sonarr
                 if(builder.ImageUrl == null)
                 {
                     builder.ImageUrl = (recentGrab.Series.Images.FirstOrDefault(x => x.CoverType == "poster")
-                        ?? recentGrab.Series.Images.First()).Url;
+                        ?? recentGrab.Series.Images.First()).RemoteUrl;
                 }
                 Info($"{episode.Id} :: {recentGrab.Series.Title} {recentGrab.data.guid}");
                 if (!existing)
@@ -522,6 +531,8 @@ namespace DiscordBot.Services.Sonarr
     {
         public string CoverType { get; set; }
         public string Url { get; set; }
+
+        public string RemoteUrl { get; set; }
     }
 
     [DebuggerDisplay("{" + nameof(GetDebuggerDisplay) + "(),nq}")]

@@ -80,7 +80,8 @@
   },
   "urls": {
     "download": "<uri>",
-    "jackett": "<uri>"
+    "jackett": "<uri>",
+    "jellyfin": "<uri>"
   },
   "vote": {
     "adminEmail": "<string>"
