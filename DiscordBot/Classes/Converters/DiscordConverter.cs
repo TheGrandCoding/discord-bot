@@ -1020,6 +1020,11 @@ namespace DiscordBot.Classes
         {
             return ((IMessageChannel)Channel).SendFilesAsync(attachments, text, isTTS, embed, options, allowedMentions, messageReference, components, stickers, embeds, flags);
         }
+
+        public Task<IReadOnlyCollection<IThreadChannel>> GetPublicArchivedThreadsAsync(DateTimeOffset? before = null, int? limit = null, RequestOptions options = null)
+        {
+            return ((ITextChannel)Channel).GetPublicArchivedThreadsAsync(before, limit, options);
+        }
         #endregion
     }
 

@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 namespace DiscordBot.Interactions.Modules
 {
     [Group("echo", "Repeats stuff")]
+    [DefaultMemberPermissions(GuildPermission.ManageMessages)]
     public class Echo : BotSlashBase
     {
         [SlashCommand("text", "Repeats what you send")]
