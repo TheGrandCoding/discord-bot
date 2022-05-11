@@ -127,8 +127,8 @@ namespace DiscordBot.Classes
                 message.Headers.Add("Cookie", header);
             }
 
-            int count = Interlocked.Increment(ref order);
-            string fName = $"{count:0000}.txt";
+            int count = (int)DateTime.Now.TimeOfDay.TotalSeconds;
+            string fName = $"{count:00000}.txt";
             if (!Directory.Exists(LogFolder))
                 Directory.CreateDirectory(LogFolder);
             var path = Path.Combine(LogFolder, fName);

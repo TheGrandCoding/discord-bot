@@ -61,7 +61,7 @@ namespace DiscordBot.Services
             Users = sv.Users ?? new Dictionary<ulong, TraktUserSave>();
             CachedShowNetworks = sv.shows ?? new Dictionary<int, string>();
             HTTP = Program.Services.GetRequiredService<BotHttpClient>()
-                .Child(Name, debug: Program.BOT_DEBUG);
+                .Child(Name, debug: true);
             HTTP.DefaultRequestHeaders.Add("trakt-api-version", "2");
             HTTP.DefaultRequestHeaders.Add("trakt-api-key", ClientId);
         }
@@ -221,8 +221,21 @@ namespace DiscordBot.Services
             foreach ((var userid, var save) in Users)
             {
                 if (!save.AutoCollect) continue;
+                if (save.AccessToken == null) continue;
 
-                var token = await save.AccessToken.GetToken(this);
+                string token;
+                try
+                {
+                    token = await save.AccessToken.GetToken(this);
+                }
+                catch (HttpRequestException ex)
+                {
+                    save.AccessToken = null;
+                    var usr = Program.Client.GetUser(userid);
+                    usr?.SendMessageAsync($"Your Trakt access token could not be fetched, please try authorizing again:\r\n{OAuthUri}");
+                    Program.LogInfo($"Token error", "TraktBroadcastColl", ex);
+                    return;
+                }
                 await SendCollectionAsync(token, s);
 
             }
@@ -267,7 +280,20 @@ namespace DiscordBot.Services
                 try
                 {
                     if (save.Channel == null) continue;
-                    var token = await save.AccessToken.GetToken(this);
+                    if (save.AccessToken == null) continue;
+                    string token;
+                    try
+                    {
+                        token = await save.AccessToken.GetToken(this);
+                    }
+                    catch (HttpRequestException ex)
+                    {
+                        save.AccessToken = null;
+                        var usr = Program.Client.GetUser(userId);
+                        usr?.SendMessageAsync($"Your Trakt access token could not be fetched, please try authorizing again:\r\n{OAuthUri}");
+                        Program.LogInfo($"Token error", "TraktBroadcastColl", ex);
+                        return;
+                    }
                     var airingToday = await GetCalendarShowsAsync(token);
 
                     var airingByShow = new Dictionary<int, List<TraktAiringInfo>>();
@@ -310,6 +336,7 @@ namespace DiscordBot.Services
                 } catch(Exception ex)
                 {
                     Error(ex, userId.ToString());
+                    await Program.SendLogMessageAsync($"TraktService Send() error:\r\n```\r\n{ex}\r\n```");
                 }
             }
         }

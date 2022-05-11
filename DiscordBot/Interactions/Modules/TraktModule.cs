@@ -9,6 +9,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -152,14 +153,28 @@ namespace DiscordBot.Interactions.Modules
         [RequireOwner]
         public async Task Sync()
         {
-            if (!Service.Users.TryGetValue(Context.User.Id, out var save))
+            if (!Service.Users.TryGetValue(Context.User.Id, out var save) || save.AccessToken == null)
             {
                 await RespondAsync($"You must first authorize Trakt via the following link:\r\n<{Service.OAuthUri}>",
                     ephemeral: true);
                 return;
             }
             await RespondAsync("Calculating necessary data...", ephemeral: true);
-            var token = await save.AccessToken.GetToken(Service);
+            string token;
+            try
+            {
+                token = await save.AccessToken.GetToken(Service);
+            }
+            catch (HttpRequestException ex)
+            {
+                save.AccessToken = null;
+                await ModifyOriginalResponseAsync(x =>
+                {
+                    x.Content = $":x: Access token could not be fetched, please try authorizing again:\r\n{Service.OAuthUri}";
+                });
+                Program.LogInfo($"Token error", "TraktSync", ex);
+                return;
+            }
             var sb = new StringBuilder();
             var sync = new TraktCollection()
             {
