@@ -130,6 +130,15 @@ namespace DiscordBot.Services.Sonarr
             return JsonConvert.DeserializeObject<Sonarr.SonarrSeries>(body);
         }
 
+        public async Task<List<SonarrEpisode>> GetAllEpisodesAsync(int seriesId)
+        {
+            var request = new HttpRequestMessage(HttpMethod.Get, apiUrl + $"/episode?seriesId={seriesId}");
+            var response = await HTTP.SendAsync(request);
+            response.EnsureSuccessStatusCode();
+            var body = await response.Content.ReadAsStringAsync();
+            return JsonConvert.DeserializeObject<List<SonarrEpisode>>(body);
+        }
+
         #endregion
 
 
@@ -570,6 +579,7 @@ namespace DiscordBot.Services.Sonarr
         public string Title { get; set; }
         public DateTime? AirDate { get; set; }
         public DateTime? AirDateUtc { get; set; }
+        public bool HasFile { get; set; }
     }
     public class SonarrRelease
     {

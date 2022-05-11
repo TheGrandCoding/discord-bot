@@ -42,7 +42,7 @@ namespace DiscordBot.Interactions.Modules
         [SlashCommand("where", "Sees where reminders are sent")]
         public async Task Where()
         {
-            if (!Service.Users.TryGetValue(Context.User.Id, out var save))
+            if (!Service.Users.TryGetValue(Context.User.Id, out var save) || save.AccessToken == null)
             {
                 await RespondAsync($"Reminders are being sent nowhere. You must first authorize Trakt via the following link:\r\n<{Service.OAuthUri}>",
                     ephemeral: true);
@@ -73,7 +73,7 @@ namespace DiscordBot.Interactions.Modules
         public async Task AutoCollect()
         {
 
-            if (!Service.Users.TryGetValue(Context.User.Id, out var save))
+            if (!Service.Users.TryGetValue(Context.User.Id, out var save) || save.AccessToken == null)
             {
                 await RespondAsync($"You must first authorize Trakt via the following link:\r\n<{Service.OAuthUri}>",
                     ephemeral: true);
@@ -96,6 +96,7 @@ namespace DiscordBot.Interactions.Modules
                 syncShow.CollectedAt = show.Added;
                 var existing = collectedAlready.FirstOrDefault(x => x.Ids.TvDBId == show.TvDbId);
 
+
                 if(show.EpisodeCount == (existing?.EpisodeCount ?? 0))
                 { // we're already up to date.
                     continue;
@@ -103,27 +104,49 @@ namespace DiscordBot.Interactions.Modules
                 if(show.EpisodeCount == show.TotalEpisodeCount)
                 {
                     sync.Shows.Add(syncShow);
-                    output.AppendLine($"+ Full show {show.Title}, with {show.EpisodeCount} episodes");
+                    output.AppendLine($"+ {show.Title}: All {show.EpisodeCount} episodes");
                     continue;
                 }
+
+                List<SonarrEpisode> _episodes = null;
+                Func<int, Task<IEnumerable<SonarrEpisode>>> getEpisodes = async (int seasonNum) => {
+                    if (_episodes == null)
+                        _episodes = await sonarr.GetAllEpisodesAsync(show.Id);
+                    return _episodes.Where(x => x.SeasonNumber == seasonNum);
+                };
                 bool add = false;
-                foreach(var season in show.Seasons)
+                output.AppendLine($"+ {show.Title}:");
+                foreach (var season in show.Seasons)
                 {
                     var existingSeason = existing?.Seasons.FirstOrDefault(x => x.Number == season.SeasonNumber) ?? null;
                     if(season.Statistics.EpisodeCount == (existingSeason?.Episodes.Count ?? 0))
                     { // already synced all
                         continue;
                     }
-                    if(season.Statistics.EpisodeCount == season.Statistics.TotalEpisodeCount)
+
+                    var syncSeason = new TraktSeasonCollectInfo()
+                    {
+                        Number = season.SeasonNumber
+                    };
+                    var seasonEpisodes = await getEpisodes(season.SeasonNumber);
+                    if (seasonEpisodes.All(x => x.HasFile))
                     { // downloaded this whole season
-                        var syncSeason = new TraktSeasonCollectInfo()
-                        {
-                            Number = season.SeasonNumber
-                        };
-                        output.AppendLine($"+ Season {season.SeasonNumber} of {show.Title}");
-                        syncShow.Seasons.Add(syncSeason);
-                        add = true;
+                        output.AppendLine($"-+ Season {season.SeasonNumber}");
                     }
+                    else
+                    { // downloaded only some episodes, let's see which ones
+                        output.AppendLine($"-+ Season {season.SeasonNumber}:");
+                        foreach(var x in seasonEpisodes.Where(x => x.HasFile))
+                        {
+                            output.AppendLine($"---+ Episode {x.EpisodeNumber}");
+                            syncSeason.Episodes.Add(new TraktEpisodeCollectInfo()
+                            {
+                                Number = x.EpisodeNumber
+                            });
+                        }
+                    }
+                    add = true;
+                    syncShow.Seasons.Add(syncSeason);
                 }
                 if (add)
                 {
@@ -182,14 +205,16 @@ namespace DiscordBot.Interactions.Modules
                 Movies = new List<TraktMovieCollectInfo>()
             };
             await syncShows(token, sync, sb);
-            await syncMovies(token, sync, sb);
-            await ModifyOriginalResponseAsync(x => x.Content = $"Syncing with Trakt..." +
+            //await syncMovies(token, sync, sb);
+            string response = $"Syncing with Trakt..." +
                 $"\r\nShows: {sync.Shows.Count}" +
-                $"\r\nMovies: {sync.Movies.Count}");
+                $"\r\nMovies: {sync.Movies.Count}";
+            await ModifyOriginalResponseAsync(x => x.Content = response);
+
             var s = JsonConvert.SerializeObject(sync);
             var resp = await Service.SendCollectionAsync(token, s);
             Program.LogInfo(resp, "TraktSync-R");
-            await ModifyOriginalResponseAsync(x => x.Content = $"Done");
+            await ModifyOriginalResponseAsync(x => x.Content = response += "\r\nDone.");
             var temp = Path.Join(Path.GetTempPath(), "output.txt");
             await File.WriteAllTextAsync(temp, sb.ToString());
             await FollowupWithFileAsync(temp, ephemeral: true);
