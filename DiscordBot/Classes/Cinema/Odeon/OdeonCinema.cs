@@ -50,7 +50,7 @@ namespace DiscordBot.Classes.Cinema.Odeon
         }
 
         private BotHttpClient http = Program.Services.GetRequiredService<BotHttpClient>()
-            .Child("OdeonAPI", true, 3000, true)
+            .Child("OdeonAPI", true, new BotHttpClient.DefaultRateLimiter(3000), true)
             .WithCookie(new Cookie("__cf_bm", "RArBUmKXB4nH73gDSb2mMmkRMFBwpW6iCu0OS3WzFZM-1636754503-0-AX/H6vRbvjsyA5FaEPFl5nvmWl0EzGEFMRPklVekTjgXheM7OfoJJjLHgjkDX3xGkva2ApsQziIWB+qrj+2yuto=", "/", Domain));
         private SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
 

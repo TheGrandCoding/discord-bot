@@ -17,19 +17,19 @@ namespace DiscordBot.Classes
         private HttpClient http;
         protected static SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
         public BotHttpClient(HttpClient client, string source = null, bool debug = false, 
-            int ratelimitMs = -1,
+            IRateLimiter ratelimiter = null,
             bool storeCookies = false)
         {
             http = client;
             _source = source;
             _debug = debug;
-            _ratelimit = ratelimitMs;
+            _ratelimiter = ratelimiter ?? new DefaultRateLimiter();
             _storeCookies = storeCookies;
         }
 
         private string _source;
         private bool _debug;
-        private int _ratelimit;
+        private IRateLimiter _ratelimiter;
         private bool _storeCookies;
 
         private CookieContainer _cookies = new CookieContainer();
@@ -40,9 +40,9 @@ namespace DiscordBot.Classes
 
         public HttpHeaders DefaultRequestHeaders { get; set; } = new BotHttpHeaders();
 
-        public BotHttpClient Child(string source, bool debug = false, int ratelimit = -1, bool storeCookies = false)
+        public BotHttpClient Child(string source, bool debug = false, IRateLimiter rateLimiter = null, bool storeCookies = false)
         {
-            var x = new BotHttpClient(http, source, debug, ratelimit, storeCookies);
+            var x = new BotHttpClient(http, source, debug, rateLimiter, storeCookies);
             return x;
         }
         public BotHttpClient WithCookie(Cookie cookie)
@@ -138,16 +138,7 @@ namespace DiscordBot.Classes
             }
             await _lock.WaitAsync();
             var ct = Program.GetToken();
-            if(_ratelimit > 0)
-            {
-                var diff = (DateTimeOffset.Now - _lastSent).TotalMilliseconds;
-                var wait = (int)(_ratelimit - diff);
-                if (wait > 0)
-                {
-                    Program.LogWarning($"{wait}ms ratelimit invoked on {str(message)}", source);
-                    await Task.Delay(wait, ct);
-                }
-            }
+            await _ratelimiter?.BeforeRequest(message);
             try
             {
                 Program.LogDebug(str(message), source);
@@ -167,6 +158,8 @@ namespace DiscordBot.Classes
                 {
                     _cookies.SetCookies(message.RequestUri, string.Join(", ", s));
                 }
+
+                await _ratelimiter?.AfterRequest(response);
 
                 return response;
             } finally
@@ -194,9 +187,59 @@ namespace DiscordBot.Classes
             req.Content = content;
             return SendAsync(req, source, token);
         }
+
+        public static Task DelayUntil(DateTimeOffset datetime, int maxDelay = -1)
+        {
+            var intDiff = (int)(DateTimeOffset.Now - datetime).TotalMilliseconds;
+            if (intDiff > 0)
+            {
+                if (maxDelay > 0)
+                    intDiff = Math.Min(intDiff, maxDelay);
+                return Task.Delay(intDiff);
+            }
+            return Task.CompletedTask;
+        }
+
+        public class DefaultRateLimiter : IRateLimiter
+        {
+            private Dictionary<string, DateTimeOffset> domainLastSent = new Dictionary<string, DateTimeOffset>();
+            private int msDelay;
+            public DefaultRateLimiter(int mstimeout = 1000)
+            {
+                if (mstimeout <= 0) throw new ArgumentException($"Timeout must be greater than zero ms", nameof(mstimeout));
+                msDelay = mstimeout;
+            }
+            public Task AfterRequest(HttpResponseMessage message)
+            {
+                return Task.CompletedTask;
+            }
+
+            public async Task BeforeRequest(HttpRequestMessage message)
+            {
+                if(domainLastSent.TryGetValue(message.RequestUri.Host, out DateTimeOffset date))
+                {
+                    var diff = DateTimeOffset.Now - date;
+                    int intD = (int)(msDelay - diff.TotalMilliseconds);
+                    if(intD > 0)
+                    {
+                        Program.LogVerbose($"Ratelimiting {message.Method} {message.RequestUri}", "HttpClient");
+                        await Task.Delay(intD);
+                    }
+                }
+                domainLastSent[message.RequestUri.Host] = DateTimeOffset.Now;
+            }
+        }
     }
 
     public class BotHttpHeaders : HttpHeaders
     {
     }
+
+    public interface IRateLimiter
+    {
+        public Task BeforeRequest(HttpRequestMessage message);
+        public Task AfterRequest(HttpResponseMessage message);
+
+    }
+
 }

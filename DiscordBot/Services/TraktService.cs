@@ -342,6 +342,56 @@ namespace DiscordBot.Services
         }
     }
 
+    public class TraktRatelimiter : IRateLimiter
+    {
+        private Dictionary<string, TraktLimit> rateLimits = new();
+
+        string getKind(HttpRequestMessage req)
+        {
+            string k;
+            if (req.Headers.TryGetValues("Authorization", out _))
+                k = "AUTHED";
+            else
+                k = "UNAUTHED";
+            if (req.Method == HttpMethod.Post || req.Method == HttpMethod.Put || req.Method == HttpMethod.Delete)
+                return k + "_API_POST_LIMIT";
+            return k = "_API_GET_LIMIT";
+        }
+
+        public Task AfterRequest(HttpResponseMessage message)
+        {
+            if(message.Headers.TryGetValues("X-Ratelimit", out var ls))
+            {
+                var value = ls.First();
+                var rl = JsonConvert.DeserializeObject<TraktLimit>(value);
+                rateLimits[rl.Name] = rl;
+            }
+            return Task.CompletedTask;
+        }
+
+        public async Task BeforeRequest(HttpRequestMessage message)
+        {
+            var kind = getKind(message);
+            if(rateLimits.TryGetValue(kind, out var ls))
+            {
+                if(ls.Remaining == 0)
+                {
+                    Program.LogVerbose($"Ratelimiting {message.Method} {message.RequestUri}", "TraktRatelimit");
+                    await BotHttpClient.DelayUntil(ls.Until);
+                }
+            }
+        }
+
+        struct TraktLimit
+        {
+            public string Name { get; set; }
+            public int Period { get; set; }
+            public int Limit { get; set; }
+            public int Remaining { get; set; }
+
+            public DateTimeOffset Until { get; set; }
+        }
+    }
     public class TraktSave
     {
         [JsonProperty("users")]
