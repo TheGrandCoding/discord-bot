@@ -164,7 +164,7 @@ namespace DiscordBot.MLAPI.Modules
             Program.Save(); // ensure we save the session so it persists for multiple days
             context.HTTP.Response.Cookies.Add(new Cookie(AuthSession.CookieName, session.Token, "/")
             {
-                Expires = DateTime.Now.AddDays(7)
+                Expires = DateTime.Now.AddDays(60)
             });
         }
 
