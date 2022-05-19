@@ -460,6 +460,19 @@ namespace DiscordBot.MLAPI.Modules
             }
         }
 
+        [Method("GET"), Path("/food/ongoing-any")]
+        public void ViewFirstOngoing()
+        {
+            if(Service.OngoingRecipes.Count > 0)
+            {
+                RespondRaw(LoadRedirectFile($"/food/ongoing-recipe?id={Service.OngoingRecipes.First().Key}"), System.Net.HttpStatusCode.Found);
+                return;
+            } else
+            {
+                ReplyFile("pending.html", 200);
+            }
+        }
+
         [Method("GET"), Path("/api/food/calendar")]
         [RequireApproval(false)]
         [RequireAuthentication(false, false)]
