@@ -267,13 +267,20 @@ namespace DiscordBot.MLAPI.Modules
             ReplyFile("scan.html", 200);
         }
 
+        [Method("GET"), Path("/food/enter")]
+        public void Enter()
+        {
+            ReplyFile("enter.html", 200);
+        }
+
         [Method("GET"), Path("/food/new")]
-        public void NewFood(string code = null)
+        public void NewFood(string code = null, string redirect = null)
         {
             if(code == null)
             {
                 ReplyFile("new_product.html", 200, new Replacements()
-                    .Add("code", ""));
+                    .Add("code", "")
+                    .Add("redirect", redirect));
                 return;
             }
             code = code.Replace(" ", "");
@@ -293,6 +300,7 @@ namespace DiscordBot.MLAPI.Modules
                 }
                 ReplyFile("new_product.html", 200, new Replacements()
                     .Add("code", formatProductId(code))
+                    .Add("redirect", redirect)
                     .Add("manu", manufs));
             } else
             {
@@ -353,6 +361,7 @@ namespace DiscordBot.MLAPI.Modules
                 ReplyFile("new_inventory.html", 200, new Replacements()
                     .Add("prodId", formatProductId(code))
                     .Add("prodName", getProductInfo(item))
+                    .Add("redirect", redirect)
                     .Add("existing", tableStr));
             }
         }
@@ -473,6 +482,46 @@ namespace DiscordBot.MLAPI.Modules
             }
         }
 
+
+        [Method("POST"), Path("/api/food/scanned")]
+        [RequireApproval(false)]
+        [RequireAuthentication(false)]
+        public void APIScannedCode(string code, string token)
+        {
+            if(token != Program.Configuration["tokens:foodnotify"])
+            {
+                RespondRaw("", System.Net.HttpStatusCode.Unauthorized);
+                return;
+            }
+            bool any = false;
+            if(WSService.Server.WebSocketServices.TryGetServiceHost("/food-scan", out var host))
+            {
+                foreach (var session in host.Sessions.Sessions)
+                {
+                    if (session is Websockets.FoodScanWS ws)
+                    {
+                        try
+                        {
+                            ws.SendCode(code);
+                            any = true;
+                        }
+                        catch (Exception ex)
+                        {
+                            Program.LogError(ex, "APIScannedCode");
+                        }
+                    }
+                }
+            }
+            if(any)
+            {
+                RespondRaw("Redirected user.", 200);
+            } else
+            {
+                RespondRaw("Notified user", 200);
+                Service.NotifyScannedProduct(code).Wait();
+            }
+        }
+
         [Method("GET"), Path("/api/food/calendar")]
         [RequireApproval(false)]
         [RequireAuthentication(false, false)]
@@ -505,8 +554,13 @@ namespace DiscordBot.MLAPI.Modules
 
 
         [Method("POST"), Path("/api/food/products")]
-        public void NewProduct(string productId, string productName, int extends)
+        public void NewProduct(string redirect, string productId, string productName, int extends)
         {
+            if(redirect != "enter" && redirect != "scan")
+            {
+                RespondRaw("", 400);
+                return;
+            }
             productId = productId.Replace(" ", "");
             if(string.IsNullOrWhiteSpace(productId) || productId.Length > 13)
             {
@@ -527,11 +581,16 @@ namespace DiscordBot.MLAPI.Modules
             if (extends > 0)
                 e = extends;
             var p = Service.AddProduct(productId, productName, "", e, "");
-            RespondRaw(LoadRedirectFile($"/food/new?code={productId}"), System.Net.HttpStatusCode.Found);
+            RespondRaw(LoadRedirectFile($"/food/new?code={productId}&redirect={redirect}"), System.Net.HttpStatusCode.Found);
         }
         [Method("POST"),   Path("/api/food/inventory")]
-        public void NewInventory(string productId, string expires, string frozen = "off")
+        public void NewInventory(string redirect, string productId, string expires, string frozen = "off")
         {
+            if (redirect != "enter" && redirect != "scan")
+            {
+                RespondRaw("", 400);
+                return;
+            }
             productId = productId.Replace(" ", "");
             var split = expires.Split('-');
             var date = new DateTime(int.Parse(split[0]),
@@ -539,7 +598,7 @@ namespace DiscordBot.MLAPI.Modules
                                     int.Parse(split[2]), 0, 0, 0, DateTimeKind.Utc);
 
             Service.AddInventoryItem(productId, "default", date, frozen == "on");
-            RespondRaw(LoadRedirectFile($"/food/scan"), System.Net.HttpStatusCode.Found);
+            RespondRaw(LoadRedirectFile($"/food/{redirect}"), System.Net.HttpStatusCode.Found);
         }
         [Method("DELETE"), Path("/api/food/inventory")]
         public void DeleteInventory(int invId)

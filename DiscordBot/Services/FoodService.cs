@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Discord;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -10,6 +11,8 @@ using System.ComponentModel;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Diagnostics;
 using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace DiscordBot.Services
 {
@@ -101,6 +104,56 @@ namespace DiscordBot.Services
             Recipes = new ConcurrentBag<SavedRecipe>(ls);
         }
 
+        public async Task NotifyScannedProduct(string code)
+        {
+            EmbedBuilder builder = new();
+            ComponentBuilder components = null;
+            builder.Title = "Scanned";
+            string link = $"{MLAPI.Handler.LocalAPIUrl}/food/new?code={code}";
+            builder.Url = link;
+            var desc = new StringBuilder();
+            desc.Append($"**{code}**");
+            var product = GetProduct(code);
+            if (product == null)
+            {
+                desc.Append("\nNo product exists with that code.\n" +
+                    $"Add one [at this link]({link})");
+                builder.Color = Color.Red;
+            } else
+            {
+                var manu = this.GetManufacturor(code);
+                desc.Append("\n");
+                if (manu != null)
+                    desc.Append($"[{manu}] ");
+                desc.Append(product.Name);
+                var items = product.InventoryItems ?? new List<InventoryItem>();
+                if(items.Count == 0)
+                {
+                    desc.Append("\nThere are no existing items of this product.");
+                } else
+                {
+                    desc.Append($"\nSelect an item below to remove it.");
+                    var sm = new SelectMenuBuilder();
+                    sm.WithCustomId($"food:scanned:{code}");
+                    sm.MaxValues = 1;
+                    foreach (var item in items)
+                        sm.AddOption($"Added {item.AddedAt:yyyy-MM-dd}, expires {item.InitialExpiresAt:yyyy-MM-dd}{(item.Frozen ? " (Frozen)" : "")}", item.Id.ToString());
+                    components = new ComponentBuilder()
+                        .WithSelectMenu(sm);
+                }
+            }
+            builder.Description = desc.ToString();
+            IMessageChannel channel;
+            if(ulong.TryParse(Program.Configuration["settings:foodnotify"], out var channelId))
+            {
+                channel = Program.Client.GetChannel(channelId) as IMessageChannel;
+            } else
+            {
+                channel = await Program.AppInfo.Owner.CreateDMChannelAsync();
+            }
+            await channel.SendMessageAsync(embeds: new[] { builder.Build() }, components: components?.Build() ?? null);
+        }
+
         public override string GenerateSave()
         {
             var dict = new Dictionary<string, List<string>>(Manufacturers);
@@ -127,7 +180,6 @@ namespace DiscordBot.Services
         public Dictionary<string, List<string>> manufacturerPrefixes { get; set; } = new Dictionary<string, List<string>>();
 
         public List<SavedRecipe> recipes { get; set; } = new List<SavedRecipe>();
-
     }
 
     public class FoodDbContext : DbContext

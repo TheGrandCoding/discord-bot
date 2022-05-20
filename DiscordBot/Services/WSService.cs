@@ -40,6 +40,7 @@ namespace DiscordBot.Services
             Server.AddWebSocketService<StatisticsWS>("/statistics");
             Server.AddWebSocketService<MasterlistWS>("/masterlist");
             Server.AddWebSocketService<FoodWS>("/food");
+            Server.AddWebSocketService<FoodScanWS>("/food-scan");
             //Server.Log.Level = LogLevel.Trace;
             Server.Log.Output = (x, y) =>
             {
