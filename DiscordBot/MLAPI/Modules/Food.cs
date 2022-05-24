@@ -670,7 +670,9 @@ namespace DiscordBot.MLAPI.Modules
 
             foreach(var keypair in productDict)
             {
-                //if (keypair.Value.Count <= 3) continue;
+#if !DEBUG
+                if (keypair.Value.Count <= 3) continue;
+#endif
 
                 var data = new FutureData(keypair.Value);
 
@@ -695,7 +697,9 @@ namespace DiscordBot.MLAPI.Modules
             var tagData = new Dictionary<string, FutureData>();
             foreach(var keypair in tagDict)
             {
-                //if (keypair.Value.Count <= 3) continue;
+#if !DEBUG
+                if (keypair.Value.Count <= 3) continue;
+#endif
                 var data = new FutureData(keypair.Value);
 
                 var estimatedNumber = data.AddedPerWeek * differenceWeeks;
