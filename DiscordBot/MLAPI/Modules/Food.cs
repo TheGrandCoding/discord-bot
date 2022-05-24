@@ -703,7 +703,6 @@ namespace DiscordBot.MLAPI.Modules
                 var data = new FutureData(keypair.Value);
 
                 var estimatedNumber = data.AddedPerWeek * differenceWeeks;
-
                 var existingWithTag = inventory.Where(x => (getProduct(x.ProductId)?.Tags ?? "").Contains(keypair.Key)).ToList();
                 
                 int numExisting = 0;
