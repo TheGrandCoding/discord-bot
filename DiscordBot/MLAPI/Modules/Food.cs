@@ -561,8 +561,8 @@ namespace DiscordBot.MLAPI.Modules
 
             public FutureData(List<HistoricItem> items)
             {
-                OldestAdded = DateTime.MinValue;
-                OldestRemoved = DateTime.MinValue;
+                OldestAdded = DateTime.MaxValue;
+                OldestRemoved = DateTime.MaxValue;
                 Count = items.Count;
 
                 foreach(var x in items)
