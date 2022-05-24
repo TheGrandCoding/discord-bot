@@ -704,7 +704,7 @@ namespace DiscordBot.MLAPI.Modules
 
                 var estimatedNumber = data.AddedPerWeek * differenceWeeks;
 
-                var existingWithTag = inventory.Where(x => (Service.GetManufacturor(x.ProductId) ?? "").Contains(keypair.Key)).ToList();
+                var existingWithTag = inventory.Where(x => (getProduct(x.ProductId)?.Tags ?? "").Contains(keypair.Key)).ToList();
                 
                 int numExisting = 0;
                 foreach (var exist in existingWithTag)
