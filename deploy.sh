@@ -1,5 +1,5 @@
 echo Deploying to $1
-
+echo Using token [$2]
 
 cd DiscordBot/bin/Release/net6.0/linux-arm
 git init
@@ -12,5 +12,5 @@ git add .
 git config --global user.email "buildbot@github.com"
 git config --global user.name "Build Bot"
 git commit -a -m "Automatic forcepush of build"
-git remote add origin https://$2@github.com:CheAle14/bot-binary.git
+git remote add origin https://$2@github.com/CheAle14/bot-binary.git
 git push origin HEAD:$1 --force
