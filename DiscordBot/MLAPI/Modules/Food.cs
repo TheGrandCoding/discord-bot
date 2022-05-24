@@ -550,12 +550,24 @@ namespace DiscordBot.MLAPI.Modules
                 }
             }
 
+            public double AverageTimeBetweenAdd { get; set; }
+
+            public double AverageTimeBetweenRemove { get; set; }
+
+            public double AverageLifetime { get; set; }
+
+            public int EstimatedNeeded { get; set; }
+
             public JObject ToJson()
             {
                 var jobj = new JObject();
                 jobj["count"] = Count;
                 jobj["add"] = AddedPerWeek;
                 jobj["rem"] = RemovedPerWeek;
+                jobj["avgAdd"] = AverageTimeBetweenAdd;
+                jobj["avgRem"] = AverageTimeBetweenRemove;
+                jobj["avgLifetime"] = AverageLifetime;
+                jobj["estimation"] = EstimatedNeeded;
                 return jobj;
             }
 
@@ -564,15 +576,40 @@ namespace DiscordBot.MLAPI.Modules
                 OldestAdded = DateTime.MaxValue;
                 OldestRemoved = DateTime.MaxValue;
                 Count = items.Count;
+                EstimatedNeeded = -1;
 
-                foreach(var x in items)
+                var diffAdd = new List<TimeSpan>();
+                var diffRem = new List<TimeSpan>();
+                var diffLive = new List<TimeSpan>();
+
+                DateTime? lastAdd = null;
+                foreach(var x in items.OrderBy(x => x.AddedAt))
                 {
                     if (x.AddedAt < OldestAdded)
                         OldestAdded = x.AddedAt;
                     if (x.RemovedAt < OldestRemoved)
                         OldestRemoved = x.RemovedAt;
+                    diffLive.Add(x.RemovedAt - x.AddedAt);
+                    if(lastAdd.HasValue)
+                        diffAdd.Add(x.AddedAt - lastAdd.Value);
+                    else
+                        lastAdd = x.AddedAt;
                 }
+
+                AverageTimeBetweenAdd = diffAdd.Count == 0 ? 0 : diffAdd.Select(x => x.TotalMilliseconds).Average();
+
+                DateTime? lastRem = null;
+                foreach(var x in items.OrderBy(x => x.RemovedAt))
+                {
+                    if (lastRem.HasValue)
+                        diffRem.Add(x.RemovedAt - lastRem.Value);
+                    else lastRem = x.RemovedAt;
+                }
+                AverageTimeBetweenRemove = diffRem.Count == 0 ? 0 : diffRem.Select(x => x.TotalMilliseconds).Average();
+                AverageLifetime = diffLive.Select(x => x.TotalMilliseconds).Average();
+
             }
+
         }
 
         [Method("GET"), Path("/api/food/future")]
@@ -627,7 +664,9 @@ namespace DiscordBot.MLAPI.Modules
             }
 
             var predicted = new JObject();
-            var predicted_products = new JObject();
+            var productData = new Dictionary<string, FutureData>();
+
+            var differenceWeeks = (date - DateTime.Now).TotalDays / 7;
 
             foreach(var keypair in productDict)
             {
@@ -635,19 +674,52 @@ namespace DiscordBot.MLAPI.Modules
 
                 var data = new FutureData(keypair.Value);
 
-                predicted_products[keypair.Key] = data.ToJson();
+                var estimatedNumber = data.AddedPerWeek * differenceWeeks;
+                var existing = inventory.Where(x => x.ProductId == keypair.Key).ToList();
+                int numExisting = 0;
+                foreach(var exist in existing)
+                {
+                    var estimatedRemoval = exist.AddedAt.AddMilliseconds(data.AverageLifetime);
+                    if (estimatedRemoval < date)
+                        numExisting++;
+                }
+
+                data.EstimatedNeeded = (int)Math.Round(estimatedNumber - numExisting);
+
+
+                productData[keypair.Key] = data;
             }
-            var predicted_tags = new JObject();
+
+
+
+            var tagData = new Dictionary<string, FutureData>();
             foreach(var keypair in tagDict)
             {
                 //if (keypair.Value.Count <= 3) continue;
                 var data = new FutureData(keypair.Value);
 
-                predicted_tags[keypair.Key] = data.ToJson();
+                var estimatedNumber = data.AddedPerWeek * differenceWeeks;
+
+                var existingWithTag = inventory.Where(x => (Service.GetManufacturor(x.ProductId) ?? "").Contains(keypair.Key)).ToList();
+                
+                int numExisting = 0;
+                foreach (var exist in existingWithTag)
+                {
+                    if(productData.TryGetValue(exist.ProductId, out var itemData))
+                    {
+                        var estimatedRemoval = exist.AddedAt.AddMilliseconds(itemData.AverageLifetime);
+                        if (estimatedRemoval < date)
+                            numExisting++;
+                    }
+                }
+
+                data.EstimatedNeeded = (int)Math.Round(estimatedNumber - numExisting);
+
+                tagData[keypair.Key] = data;
             }
 
-            predicted["products"] = predicted_products;
-            predicted["tags"] = predicted_tags;
+            predicted["products"] = productData.ToJson(x => x.ToJson());
+            predicted["tags"] = tagData.ToJson(x => x.ToJson());
 
             var body = new JObject();
             body["expiring"] = missingItems;

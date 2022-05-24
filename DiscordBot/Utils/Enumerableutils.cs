@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Newtonsoft.Json.Linq;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -17,6 +18,18 @@ namespace DiscordBot.Utils
         public static void Increment<TKey>(this Dictionary<TKey, int> dict, TKey key)
         {
             dict[key] = dict.GetValueOrDefault(key, 0) + 1;
+        }
+
+        public static JObject ToJson<TValue>(this Dictionary<string, TValue> dict, Func<TValue, JToken> converter)
+        {
+            var j = new JObject();
+            foreach(var keypair in dict)
+                j[keypair.Key] = converter(keypair.Value);
+            return j;
+        }
+        public static JObject ToJson<TValue>(this Dictionary<string, TValue> dict)
+        {
+            return ToJson<TValue>(dict, (x => JToken.FromObject(x)));
         }
     }
 }
