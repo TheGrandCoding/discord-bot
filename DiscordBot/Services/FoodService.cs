@@ -48,10 +48,16 @@ namespace DiscordBot.Services
             using var db = DB();
             return db.AddInventoryItem(productId, inventryId, expires, frozen);
         }
-        public List<InventoryItem> GetInventory(string id)
+        public List<InventoryItem> GetInventoryItems(string id)
         {
             using var db = DB();
             return db.GetInventory(id);
+        }
+
+        public List<HistoricItem> GetHistoricItems()
+        {
+            using var db = DB();
+            return db.GetHistoricItems();
         }
         public bool DeleteInventoryItem(int id)
         {
@@ -239,6 +245,13 @@ namespace DiscordBot.Services
             return Inventory
                 .AsQueryable()
                 .Where(x => x.InventoryId == id)
+                .ToList();
+        }
+
+        public List<HistoricItem> GetHistoricItems()
+        {
+            return PreviousInventory
+                .AsQueryable()
                 .ToList();
         }
 

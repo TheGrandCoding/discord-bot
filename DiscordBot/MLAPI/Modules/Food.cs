@@ -164,7 +164,7 @@ namespace DiscordBot.MLAPI.Modules
             if (Context.User != null)
                 hr.WithHeader("");
             table.Children.Add(hr);
-            var inv = Service.GetInventory("default");
+            var inv = Service.GetInventoryItems("default");
             foreach (var item in inv.OrderBy(x => x.ExpiresAt))
             {
                 table.Children.Add(getRow(item, full));
@@ -174,7 +174,7 @@ namespace DiscordBot.MLAPI.Modules
 
         string getGroupedInfo(bool full)
         {
-            var inv = Service.GetInventory("default");
+            var inv = Service.GetInventoryItems("default");
             var grouped = new Dictionary<string, List<InventoryItem>>();
 
             foreach(var item in inv)
@@ -304,7 +304,7 @@ namespace DiscordBot.MLAPI.Modules
                     .Add("manu", manufs));
             } else
             {
-                var existing = Service.GetInventory("default")
+                var existing = Service.GetInventoryItems("default")
                     .Where(x => x.ProductId == item.Id)
                     .ToList();
 
@@ -482,6 +482,11 @@ namespace DiscordBot.MLAPI.Modules
             }
         }
 
+        [Method("GET"), Path("/food/next")]
+        public void ViewFutures()
+        {
+            ReplyFile("next.html", 200);
+        }
 
         [Method("POST"), Path("/api/food/scanned")]
         [RequireApproval(false)]
@@ -521,6 +526,143 @@ namespace DiscordBot.MLAPI.Modules
                 Service.NotifyScannedProduct(code).Wait();
             }
         }
+
+
+        struct FutureData
+        {
+            public int Count { get; set; }
+            public DateTime OldestAdded { get; set; }
+            public DateTime OldestRemoved { get; set; }
+
+            public double AddedPerWeek { get
+                {
+                    var diff = DateTime.Now - OldestAdded;
+                    var weeks = diff.TotalDays / 7;
+                    return Count / weeks;
+                } }
+            public double RemovedPerWeek
+            {
+                get
+                {
+                    var diff = DateTime.Now - OldestRemoved;
+                    var weeks = diff.TotalDays / 7;
+                    return Count / weeks;
+                }
+            }
+
+            public JObject ToJson()
+            {
+                var jobj = new JObject();
+                jobj["count"] = Count;
+                jobj["add"] = AddedPerWeek;
+                jobj["rem"] = RemovedPerWeek;
+                return jobj;
+            }
+
+            public FutureData(List<HistoricItem> items)
+            {
+                OldestAdded = DateTime.MinValue;
+                OldestRemoved = DateTime.MinValue;
+                Count = items.Count;
+
+                foreach(var x in items)
+                {
+                    if (x.AddedAt < OldestAdded)
+                        OldestAdded = x.AddedAt;
+                    if (x.RemovedAt < OldestRemoved)
+                        OldestRemoved = x.RemovedAt;
+                }
+            }
+        }
+
+        [Method("GET"), Path("/api/food/future")]
+        public void APIFutures(DateTime date)
+        {
+            var inventory = Service.GetInventoryItems("default");
+
+            var productCache = new Dictionary<string, Product>();
+            Func<string, Product> getProduct = (x) =>
+            {
+                if (productCache.TryGetValue(x, out var product))
+                    return product;
+                product = Service.GetProduct(x);
+                productCache[x] = product;
+                return product;
+            };
+
+            var missingItems = new JArray();
+
+            foreach(var item in inventory)
+            {
+                if(item.ExpiresAt < date)
+                {
+                    var jb = new JObject();
+                    var prod = getProduct(item.ProductId);
+                    var tags = Service.GetManufacturor(item.ProductId);
+                    string name = "";
+                    if (tags != null)
+                        name = $"({tags}) ";
+                    name += prod?.Name ?? "n/a";
+                    jb["name"] = name;
+                    jb["expires"] = new DateTimeOffset(item.ExpiresAt).ToUnixTimeMilliseconds();
+                    missingItems.Add(jb);
+                }
+            }
+
+            var historic = Service.GetHistoricItems();
+
+            var productDict = new Dictionary<string, List<HistoricItem>>();
+            var tagDict = new Dictionary<string, List<HistoricItem>>();
+
+            foreach(var item in historic)
+            {
+                productDict.AddInner(item.ProductId, item);
+                var prod = getProduct(item.ProductId);
+                if(prod != null)
+                {
+                    foreach (var tag in (prod.Tags ?? "").Split(';'))
+                        if(!string.IsNullOrWhiteSpace(tag))
+                            tagDict.AddInner(tag, item);
+                }
+            }
+
+            var predicted = new JObject();
+            var predicted_products = new JObject();
+
+            foreach(var keypair in productDict)
+            {
+                //if (keypair.Value.Count <= 3) continue;
+
+                var data = new FutureData(keypair.Value);
+
+                predicted_products[keypair.Key] = data.ToJson();
+            }
+            var predicted_tags = new JObject();
+            foreach(var keypair in tagDict)
+            {
+                //if (keypair.Value.Count <= 3) continue;
+                var data = new FutureData(keypair.Value);
+
+                predicted_tags[keypair.Key] = data.ToJson();
+            }
+
+            predicted["products"] = predicted_products;
+            predicted["tags"] = predicted_tags;
+
+            var body = new JObject();
+            body["expiring"] = missingItems;
+            body["predicted"] = predicted;
+
+            var thing = new JObject();
+            foreach(var keypair in productCache)
+            {
+                thing[keypair.Key] = keypair.Value.ToJson();
+            }
+            body["products"] = thing;
+
+            RespondJson(body);
+        }
+
 
         [Method("GET"), Path("/api/food/calendar")]
         [RequireApproval(false)]
