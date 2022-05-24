@@ -21,5 +21,7 @@ jobs:
       run: dotnet publish -c LinRelease -f net6.0 -r linux-arm DiscordBot/DiscordBot.sln
       if: github.event_name == 'push'
     - name: Deploy
-      run: ./deploy.sh master ${{ secrets.token }}
+      run: |
+          chmod +x ./deploy.sh
+          ./deploy.sh master ${{ secrets.token }}
       if: github.event_name == 'push'
