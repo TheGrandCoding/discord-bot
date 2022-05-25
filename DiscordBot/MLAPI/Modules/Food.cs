@@ -613,7 +613,7 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("GET"), Path("/api/food/future")]
-        public void APIFutures(DateTime date)
+        public void APIFutures(DateTime date, DateTime prev)
         {
             var inventory = Service.GetInventoryItems("default");
 
@@ -648,6 +648,8 @@ namespace DiscordBot.MLAPI.Modules
 
             var historic = Service.GetHistoricItems();
 
+            var recent = new JObject();
+
             var productDict = new Dictionary<string, List<HistoricItem>>();
             var tagDict = new Dictionary<string, List<HistoricItem>>();
 
@@ -655,11 +657,20 @@ namespace DiscordBot.MLAPI.Modules
             {
                 productDict.AddInner(item.ProductId, item);
                 var prod = getProduct(item.ProductId);
-                if(prod != null)
+                if (prod != null)
                 {
                     foreach (var tag in (prod.Tags ?? "").Split(';'))
                         if(!string.IsNullOrWhiteSpace(tag))
                             tagDict.AddInner(tag, item);
+                    if (item.RemovedAt > prev)
+                    {
+                        var _j = new JObject();
+                        var manu = Service.GetManufacturor(prod.Id);
+                        string s = manu == null ? "" : $"({manu}) ";
+                        _j["name"] = s + prod.Name;
+                        _j["removed"] = new DateTimeOffset(item.RemovedAt).ToUnixTimeMilliseconds();
+                        recent[item.Id.ToString()] = _j;
+                    }
                 }
             }
 
@@ -727,6 +738,7 @@ namespace DiscordBot.MLAPI.Modules
             var body = new JObject();
             body["expiring"] = missingItems;
             body["predicted"] = predicted;
+            body["recent"] = recent;
 
             var thing = new JObject();
             foreach(var keypair in productCache)
