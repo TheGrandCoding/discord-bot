@@ -164,7 +164,7 @@ namespace DiscordBot.MLAPI.Modules
             if (Context.User != null)
                 hr.WithHeader("");
             table.Children.Add(hr);
-            var inv = Service.GetInventory("default");
+            var inv = Service.GetInventoryItems("default");
             foreach (var item in inv.OrderBy(x => x.ExpiresAt))
             {
                 table.Children.Add(getRow(item, full));
@@ -174,7 +174,7 @@ namespace DiscordBot.MLAPI.Modules
 
         string getGroupedInfo(bool full)
         {
-            var inv = Service.GetInventory("default");
+            var inv = Service.GetInventoryItems("default");
             var grouped = new Dictionary<string, List<InventoryItem>>();
 
             foreach(var item in inv)
@@ -267,13 +267,20 @@ namespace DiscordBot.MLAPI.Modules
             ReplyFile("scan.html", 200);
         }
 
+        [Method("GET"), Path("/food/enter")]
+        public void Enter()
+        {
+            ReplyFile("enter.html", 200);
+        }
+
         [Method("GET"), Path("/food/new")]
-        public void NewFood(string code = null)
+        public void NewFood(string code = null, string redirect = null)
         {
             if(code == null)
             {
                 ReplyFile("new_product.html", 200, new Replacements()
-                    .Add("code", ""));
+                    .Add("code", "")
+                    .Add("redirect", redirect));
                 return;
             }
             code = code.Replace(" ", "");
@@ -293,10 +300,11 @@ namespace DiscordBot.MLAPI.Modules
                 }
                 ReplyFile("new_product.html", 200, new Replacements()
                     .Add("code", formatProductId(code))
+                    .Add("redirect", redirect)
                     .Add("manu", manufs));
             } else
             {
-                var existing = Service.GetInventory("default")
+                var existing = Service.GetInventoryItems("default")
                     .Where(x => x.ProductId == item.Id)
                     .ToList();
 
@@ -353,6 +361,7 @@ namespace DiscordBot.MLAPI.Modules
                 ReplyFile("new_inventory.html", 200, new Replacements()
                     .Add("prodId", formatProductId(code))
                     .Add("prodName", getProductInfo(item))
+                    .Add("redirect", redirect)
                     .Add("existing", tableStr));
             }
         }
@@ -473,6 +482,275 @@ namespace DiscordBot.MLAPI.Modules
             }
         }
 
+        [Method("GET"), Path("/food/next")]
+        public void ViewFutures()
+        {
+            ReplyFile("next.html", 200);
+        }
+
+        [Method("POST"), Path("/api/food/scanned")]
+        [RequireApproval(false)]
+        [RequireAuthentication(false)]
+        public void APIScannedCode(string code, string token)
+        {
+            if(token != Program.Configuration["tokens:foodnotify"])
+            {
+                RespondRaw("", System.Net.HttpStatusCode.Unauthorized);
+                return;
+            }
+            bool any = false;
+            if(WSService.Server.WebSocketServices.TryGetServiceHost("/food-scan", out var host))
+            {
+                foreach (var session in host.Sessions.Sessions)
+                {
+                    if (session is Websockets.FoodScanWS ws)
+                    {
+                        try
+                        {
+                            ws.SendCode(code);
+                            any = true;
+                        }
+                        catch (Exception ex)
+                        {
+                            Program.LogError(ex, "APIScannedCode");
+                        }
+                    }
+                }
+            }
+            if(any)
+            {
+                RespondRaw("Redirected user.", 200);
+            } else
+            {
+                RespondRaw("Notified user", 200);
+                Service.NotifyScannedProduct(code).Wait();
+            }
+        }
+
+
+        struct FutureData
+        {
+            public int Count { get; set; }
+            public DateTime OldestAdded { get; set; }
+            public DateTime OldestRemoved { get; set; }
+
+            public double AddedPerWeek { get
+                {
+                    var diff = DateTime.Now - OldestAdded;
+                    var weeks = diff.TotalDays / 7;
+                    return Count / weeks;
+                } }
+            public double RemovedPerWeek
+            {
+                get
+                {
+                    var diff = DateTime.Now - OldestRemoved;
+                    var weeks = diff.TotalDays / 7;
+                    return Count / weeks;
+                }
+            }
+
+            public double AverageTimeBetweenAdd { get; set; }
+
+            public double AverageTimeBetweenRemove { get; set; }
+
+            public double AverageLifetime { get; set; }
+
+            public int EstimatedNeeded { get; set; }
+
+            public JObject ToJson()
+            {
+                var jobj = new JObject();
+                jobj["count"] = Count;
+                jobj["add"] = AddedPerWeek;
+                jobj["rem"] = RemovedPerWeek;
+                jobj["avgAdd"] = AverageTimeBetweenAdd;
+                jobj["avgRem"] = AverageTimeBetweenRemove;
+                jobj["avgLifetime"] = AverageLifetime;
+                jobj["estimation"] = EstimatedNeeded;
+                return jobj;
+            }
+
+            public FutureData(List<HistoricItem> items)
+            {
+                OldestAdded = DateTime.MaxValue;
+                OldestRemoved = DateTime.MaxValue;
+                Count = items.Count;
+                EstimatedNeeded = -1;
+
+                var diffAdd = new List<TimeSpan>();
+                var diffRem = new List<TimeSpan>();
+                var diffLive = new List<TimeSpan>();
+
+                DateTime? lastAdd = null;
+                foreach(var x in items.OrderBy(x => x.AddedAt))
+                {
+                    if (x.AddedAt < OldestAdded)
+                        OldestAdded = x.AddedAt;
+                    if (x.RemovedAt < OldestRemoved)
+                        OldestRemoved = x.RemovedAt;
+                    diffLive.Add(x.RemovedAt - x.AddedAt);
+                    if(lastAdd.HasValue)
+                        diffAdd.Add(x.AddedAt - lastAdd.Value);
+                    else
+                        lastAdd = x.AddedAt;
+                }
+
+                AverageTimeBetweenAdd = diffAdd.Count == 0 ? 0 : diffAdd.Select(x => x.TotalMilliseconds).Average();
+
+                DateTime? lastRem = null;
+                foreach(var x in items.OrderBy(x => x.RemovedAt))
+                {
+                    if (lastRem.HasValue)
+                        diffRem.Add(x.RemovedAt - lastRem.Value);
+                    else lastRem = x.RemovedAt;
+                }
+                AverageTimeBetweenRemove = diffRem.Count == 0 ? 0 : diffRem.Select(x => x.TotalMilliseconds).Average();
+                AverageLifetime = diffLive.Select(x => x.TotalMilliseconds).Average();
+
+            }
+
+        }
+
+        [Method("GET"), Path("/api/food/future")]
+        public void APIFutures(DateTime date, DateTime prev)
+        {
+            var inventory = Service.GetInventoryItems("default");
+
+            var productCache = new Dictionary<string, Product>();
+            Func<string, Product> getProduct = (x) =>
+            {
+                if (productCache.TryGetValue(x, out var product))
+                    return product;
+                product = Service.GetProduct(x);
+                productCache[x] = product;
+                return product;
+            };
+
+            var missingItems = new JArray();
+
+            foreach(var item in inventory)
+            {
+                if(item.ExpiresAt < date)
+                {
+                    var jb = new JObject();
+                    var prod = getProduct(item.ProductId);
+                    var tags = Service.GetManufacturor(item.ProductId);
+                    string name = "";
+                    if (tags != null)
+                        name = $"({tags}) ";
+                    name += prod?.Name ?? "n/a";
+                    jb["name"] = name;
+                    jb["expires"] = new DateTimeOffset(item.ExpiresAt).ToUnixTimeMilliseconds();
+                    missingItems.Add(jb);
+                }
+            }
+
+            var historic = Service.GetHistoricItems();
+
+            var recent = new JObject();
+
+            var productDict = new Dictionary<string, List<HistoricItem>>();
+            var tagDict = new Dictionary<string, List<HistoricItem>>();
+
+            foreach(var item in historic)
+            {
+                productDict.AddInner(item.ProductId, item);
+                var prod = getProduct(item.ProductId);
+                if (prod != null)
+                {
+                    foreach (var tag in (prod.Tags ?? "").Split(';'))
+                        if(!string.IsNullOrWhiteSpace(tag))
+                            tagDict.AddInner(tag, item);
+                    if (item.RemovedAt > prev)
+                    {
+                        var _j = new JObject();
+                        var manu = Service.GetManufacturor(prod.Id);
+                        string s = manu == null ? "" : $"({manu}) ";
+                        _j["name"] = s + prod.Name;
+                        _j["removed"] = new DateTimeOffset(item.RemovedAt).ToUnixTimeMilliseconds();
+                        recent[item.Id.ToString()] = _j;
+                    }
+                }
+            }
+
+            var predicted = new JObject();
+            var productData = new Dictionary<string, FutureData>();
+
+            var differenceWeeks = (date - DateTime.Now).TotalDays / 7;
+
+            foreach(var keypair in productDict)
+            {
+#if !DEBUG
+                if (keypair.Value.Count <= 3) continue;
+#endif
+
+                var data = new FutureData(keypair.Value);
+
+                var estimatedNumber = data.AddedPerWeek * differenceWeeks;
+                var existing = inventory.Where(x => x.ProductId == keypair.Key).ToList();
+                int numExisting = 0;
+                foreach(var exist in existing)
+                {
+                    var estimatedRemoval = exist.AddedAt.AddMilliseconds(data.AverageLifetime);
+                    if (estimatedRemoval < date)
+                        numExisting++;
+                }
+
+                data.EstimatedNeeded = (int)Math.Round(estimatedNumber - numExisting);
+
+
+                productData[keypair.Key] = data;
+            }
+
+
+
+            var tagData = new Dictionary<string, FutureData>();
+            foreach(var keypair in tagDict)
+            {
+#if !DEBUG
+                if (keypair.Value.Count <= 3) continue;
+#endif
+                var data = new FutureData(keypair.Value);
+
+                var estimatedNumber = data.AddedPerWeek * differenceWeeks;
+                var existingWithTag = inventory.Where(x => (getProduct(x.ProductId)?.Tags ?? "").Contains(keypair.Key)).ToList();
+                
+                int numExisting = 0;
+                foreach (var exist in existingWithTag)
+                {
+                    if(productData.TryGetValue(exist.ProductId, out var itemData))
+                    {
+                        var estimatedRemoval = exist.AddedAt.AddMilliseconds(itemData.AverageLifetime);
+                        if (estimatedRemoval < date)
+                            numExisting++;
+                    }
+                }
+
+                data.EstimatedNeeded = (int)Math.Round(estimatedNumber - numExisting);
+
+                tagData[keypair.Key] = data;
+            }
+
+            predicted["products"] = productData.ToJson(x => x.ToJson());
+            predicted["tags"] = tagData.ToJson(x => x.ToJson());
+
+            var body = new JObject();
+            body["expiring"] = missingItems;
+            body["predicted"] = predicted;
+            body["recent"] = recent;
+
+            var thing = new JObject();
+            foreach(var keypair in productCache)
+            {
+                thing[keypair.Key] = keypair.Value.ToJson();
+            }
+            body["products"] = thing;
+
+            RespondJson(body);
+        }
+
+
         [Method("GET"), Path("/api/food/calendar")]
         [RequireApproval(false)]
         [RequireAuthentication(false, false)]
@@ -505,8 +783,13 @@ namespace DiscordBot.MLAPI.Modules
 
 
         [Method("POST"), Path("/api/food/products")]
-        public void NewProduct(string productId, string productName, int extends)
+        public void NewProduct(string redirect, string productId, string productName, int extends)
         {
+            if(redirect != "enter" && redirect != "scan")
+            {
+                RespondRaw("", 400);
+                return;
+            }
             productId = productId.Replace(" ", "");
             if(string.IsNullOrWhiteSpace(productId) || productId.Length > 13)
             {
@@ -527,11 +810,16 @@ namespace DiscordBot.MLAPI.Modules
             if (extends > 0)
                 e = extends;
             var p = Service.AddProduct(productId, productName, "", e, "");
-            RespondRaw(LoadRedirectFile($"/food/new?code={productId}"), System.Net.HttpStatusCode.Found);
+            RespondRaw(LoadRedirectFile($"/food/new?code={productId}&redirect={redirect}"), System.Net.HttpStatusCode.Found);
         }
         [Method("POST"),   Path("/api/food/inventory")]
-        public void NewInventory(string productId, string expires, string frozen = "off")
+        public void NewInventory(string redirect, string productId, string expires, string frozen = "off")
         {
+            if (redirect != "enter" && redirect != "scan")
+            {
+                RespondRaw("", 400);
+                return;
+            }
             productId = productId.Replace(" ", "");
             var split = expires.Split('-');
             var date = new DateTime(int.Parse(split[0]),
@@ -539,7 +827,7 @@ namespace DiscordBot.MLAPI.Modules
                                     int.Parse(split[2]), 0, 0, 0, DateTimeKind.Utc);
 
             Service.AddInventoryItem(productId, "default", date, frozen == "on");
-            RespondRaw(LoadRedirectFile($"/food/scan"), System.Net.HttpStatusCode.Found);
+            RespondRaw(LoadRedirectFile($"/food/{redirect}"), System.Net.HttpStatusCode.Found);
         }
         [Method("DELETE"), Path("/api/food/inventory")]
         public void DeleteInventory(int invId)

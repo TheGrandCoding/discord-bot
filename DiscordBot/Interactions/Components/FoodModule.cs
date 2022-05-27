@@ -115,5 +115,21 @@ namespace DiscordBot.Interactions.Components
             Service.OnSave();
             await RespondAsync("Updated.", ephemeral: true);
         }
+    
+        [ComponentInteraction("food:scanned:*")]
+        public async Task ScanSelect(string customId, string[] selected)
+        {
+            if(Service.DeleteInventoryItem(int.Parse(selected[0])))
+            {
+                if(Context.Interaction is SocketMessageComponent comp)
+                {
+                    await RespondAsync("Removed item.", ephemeral: true);
+                    await comp.Message.DeleteAsync();
+                }
+            } else
+            {
+                await RespondAsync(":x: Could not remove item", ephemeral: true);
+            }
+        }
     }
 }
