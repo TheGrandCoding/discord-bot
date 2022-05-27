@@ -9,3 +9,5 @@ updates:
     directory: "/DiscordBot" # Location of package manifests
     schedule:
       interval: "daily"
+    ignore:
+      - dependency-name: "Discord.Net*"
