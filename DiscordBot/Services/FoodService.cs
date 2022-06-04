@@ -40,8 +40,33 @@ namespace DiscordBot.Services
         }
         public Product AddProduct(string id, string name, string url, int? extends, string tags)
         {
-            using var db = DB();
-            return db.AddProduct(id, name, url, extends, tags);
+            Product prod;
+            using (var db = DB())
+            {
+                prod = db.AddProduct(id, name, url, extends, tags);
+            }
+            var channel = getLogChannel().Result;
+            var embed = new EmbedBuilder();
+            embed.Title = $"New Product Added";
+            var sb = new StringBuilder();
+            var man = GetManufacturor(id);
+            if(man != null)
+                sb.AppendLine("**" + man + "**");
+            sb.AppendLine(name);
+            sb.AppendLine($"*{id}*");
+            if(extends.HasValue)
+                sb.AppendLine($"+{extends}");
+            if (!string.IsNullOrWhiteSpace(tags))
+                sb.AppendLine(tags);
+            if (!string.IsNullOrWhiteSpace(url))
+                sb.AppendLine(url);
+            embed.Description = sb.ToString();
+
+            var components = new ComponentBuilder()
+                .WithButton("Edit", $"food:edit:{id}", ButtonStyle.Primary);
+
+            channel.SendMessageAsync(embed: embed.Build(), components: components.Build()).Wait();
+            return prod;
         }
         public InventoryItem AddInventoryItem(string productId, string inventryId, DateTime expires, bool frozen)
         {
@@ -110,6 +135,20 @@ namespace DiscordBot.Services
             Recipes = new ConcurrentBag<SavedRecipe>(ls);
         }
 
+        async Task<IMessageChannel> getLogChannel()
+        {
+            IMessageChannel channel;
+            if (ulong.TryParse(Program.Configuration["settings:foodnotify"], out var channelId))
+            {
+                channel = Program.Client.GetChannel(channelId) as IMessageChannel;
+            }
+            else
+            {
+                channel = await Program.AppInfo.Owner.CreateDMChannelAsync();
+            }
+            return channel;
+        }
+
         public async Task NotifyScannedProduct(string code)
         {
             EmbedBuilder builder = new();
@@ -149,14 +188,7 @@ namespace DiscordBot.Services
                 }
             }
             builder.Description = desc.ToString();
-            IMessageChannel channel;
-            if(ulong.TryParse(Program.Configuration["settings:foodnotify"], out var channelId))
-            {
-                channel = Program.Client.GetChannel(channelId) as IMessageChannel;
-            } else
-            {
-                channel = await Program.AppInfo.Owner.CreateDMChannelAsync();
-            }
+            IMessageChannel channel = await getLogChannel();
             await channel.SendMessageAsync(embeds: new[] { builder.Build() }, components: components?.Build() ?? null);
         }
 

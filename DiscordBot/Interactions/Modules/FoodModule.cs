@@ -27,7 +27,7 @@ namespace DiscordBot.Interactions.Modules
             var mb = new ModalBuilder();
             mb.WithTitle("Edit Product");
             mb.WithCustomId("food:edit:" + prodId);
-            mb.AddTextInput("Product Id", "product_id", value: prodId, minLength: 8, maxLength: 13, required: true);
+            mb.AddTextInput("Product Id", "product_id", value: prodId, minLength: 4, maxLength: 16, required: true);
             mb.AddTextInput("Name", "name", value: prod.Name);
             mb.AddTextInput($"Days Freezing Extends Expiry", "extends", value: $"{(prod.FreezingExtends ?? 0)}");
             mb.AddTextInput($"Tags", "tags", value: prod.Tags, required: false);

@@ -131,5 +131,26 @@ namespace DiscordBot.Interactions.Components
                 await RespondAsync(":x: Could not remove item", ephemeral: true);
             }
         }
+    
+        [ComponentInteraction("food:edit:*")]
+        public async Task EditProductButton(string prodId)
+        {
+            var prod = Service.GetProduct(prodId);
+            if (prod == null)
+            {
+                await RespondAsync("No product by that ID.", ephemeral: true);
+                return;
+            }
+            var mb = new ModalBuilder();
+            mb.WithTitle("Edit Product");
+            mb.WithCustomId("food:edit:" + prodId);
+            mb.AddTextInput("Product Id", "product_id", value: prodId, minLength: 4, maxLength: 16, required: true);
+            mb.AddTextInput("Name", "name", value: prod.Name);
+            mb.AddTextInput($"Days Freezing Extends Expiry", "extends", value: $"{(prod.FreezingExtends ?? 0)}");
+            mb.AddTextInput($"Tags", "tags", value: prod.Tags, required: false);
+
+            await RespondWithModalAsync(mb.Build());
+        }
+    
     }
 }
