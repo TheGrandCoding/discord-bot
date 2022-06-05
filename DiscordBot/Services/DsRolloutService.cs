@@ -76,14 +76,31 @@ namespace DiscordBot.Services
 
             if(guild.CachedThreads.Count == 0)
             {
-                var archivedThreads = await guild.Channel.GetPublicArchivedThreadsAsync();
-                foreach (var th in archivedThreads)
-                    guild.CachedThreads[th.Id] = th;
+                IReadOnlyCollection<IThreadChannel> archivedThreads;
+                DateTimeOffset? before = null;
+                do
+                {
+                    archivedThreads = await guild.Channel.GetPublicArchivedThreadsAsync(before);
+                    foreach (var th in archivedThreads)
+                    {
+                        guild.CachedThreads[th.Id] = th;
+                        if (before == null || before > th.ArchiveTimestamp)
+                            before = th.ArchiveTimestamp;
+                    }
+                } while (archivedThreads.Count > 0);
             }
             if (guild.CachedThreads.TryGetValue(message.Id, out thread))
                 return thread;
 
-            thread = await guild.Channel.CreateThreadAsync(Program.Clamp(experiment.Title, 100), autoArchiveDuration: ThreadArchiveDuration.OneWeek, message: message);
+            try
+            {
+                thread = await guild.Channel.CreateThreadAsync(Program.Clamp(experiment.Title, 100), autoArchiveDuration: ThreadArchiveDuration.OneWeek, message: message);
+                guild.CachedThreads[message.Id] = thread;
+            } catch(Discord.Net.HttpException ex)
+            {
+                Error(ex, "getThreadFor");
+                Error($"Errored when trying to create a thread for {experiment.Id} {experiment.Title}");
+            }
             return thread;
         }
 
