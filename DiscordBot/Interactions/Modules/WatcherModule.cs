@@ -1,6 +1,8 @@
 ﻿using Discord;
 using Discord.Interactions;
+using DiscordBot.Services;
 using DiscordBot.Services.arr;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -42,6 +44,26 @@ namespace DiscordBot.Interactions.Modules
                 x.Embeds = new[] { builder.Build() };
                 x.Components = Service.GetComponents().Build();
             });
+        }
+    
+        [SlashCommand("timetrack", "Fetches time tracker information")]
+        public async Task Search(string code)
+        {
+            await RespondAsync("Searching...", ephemeral: true);
+            using var db = Program.Services.GetRequiredService<TimeTrackDb>();
+            var video = db.GetVideo(Context.User.Id, code);
+            if(video == null)
+            {
+                await ModifyOriginalResponseAsync(x => x.Content = $"Video of ID {code} does not exist in the database.");
+            } else
+            {
+                await ModifyOriginalResponseAsync(x =>
+                {
+                    var ts = TimeSpan.FromSeconds(video.WatchedTime);
+                    x.Content = $"Video {code} information:\r\nTime: {video.WatchedTime}s ({ts:hh:mm:ss})\r\n" +
+                    $"Last updated: {video.LastUpdated}";
+                });
+            }
         }
     }
 }
