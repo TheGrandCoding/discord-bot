@@ -349,6 +349,7 @@ namespace DiscordBot.Services
             Debug($"Doing guild {guild.Name} - {guild.Id}", "Catchup");
             foreach(var txt in guild.TextChannels)
             {
+                if (txt is IVoiceChannel) continue;
                 try
                 {
                     await Catchup(txt, _db_);

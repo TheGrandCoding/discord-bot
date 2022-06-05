@@ -46,7 +46,7 @@ namespace DiscordBot.Interactions.Modules
             });
         }
     
-        [SlashCommand("timetrack", "Fetches time tracker information")]
+        [SlashCommand("timetrack", "Fetches time information")]
         public async Task Search(string code)
         {
             await RespondAsync("Searching...", ephemeral: true);
@@ -60,7 +60,7 @@ namespace DiscordBot.Interactions.Modules
                 await ModifyOriginalResponseAsync(x =>
                 {
                     var ts = TimeSpan.FromSeconds(video.WatchedTime);
-                    x.Content = $"Video {code} information:\r\nTime: {video.WatchedTime}s ({ts:hh:mm:ss})\r\n" +
+                    x.Content = $"Video {code} information:\r\nTime: {video.WatchedTime}s ({ts:hh\\:mm\\:ss})\r\n" +
                     $"Last updated: {video.LastUpdated}";
                 });
             }

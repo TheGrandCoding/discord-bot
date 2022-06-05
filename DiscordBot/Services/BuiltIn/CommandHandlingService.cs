@@ -86,7 +86,8 @@ namespace DiscordBot.Services
 #endif
             await InteractionService.SyncCommandsAsync(x =>
             {
-                if (x.Name.GetValueOrDefault() == "watch")
+                var name = x.Name.GetValueOrDefault();
+                if (name == "watch" || name == "timetrack")
                     return new ulong[] { 420240046428258304, 769852222711791656 };
                 else
                     return new ulong[] { 420240046428258304 };
