@@ -16,6 +16,7 @@ namespace DiscordBot.MLAPI.Modules
         public Food(APIContext c) : base(c, "food")
         {
             Service = Program.Services.GetRequiredService<FoodService>();
+            InjectObjects.Add(new Classes.HTMLHelpers.Objects.PageLink("stylesheet", "text/css", "/_/css/food.css"));
         }
 
         public FoodService Service { get; set; }
@@ -399,13 +400,15 @@ namespace DiscordBot.MLAPI.Modules
                     var prod = Service.GetProduct(i.Key);
                     if (prod == null)
                         continue;
-                    ing.AddItem(new ListItem($"{i.Value}x ")
+                    var listItem = new ListItem($"{i.Value}x ")
                     {
                         Children =
                         {
                             getProductInfo(prod, new Classes.HTMLHelpers.Objects.Span())
                         }
-                    });
+                    };
+                    listItem.WithTag("data-id", prod.Id);
+                    ing.AddItem(listItem);
                 }
                 r.Children.Add(new TableData(null) { Children = { ing } });
 
