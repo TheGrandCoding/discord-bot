@@ -975,6 +975,7 @@ namespace DiscordBot.MLAPI.Modules
             }
             var jobj = new JObject();
             jobj["title"] = recipe.Title;
+            jobj["order"] = recipe.InOrder;
 
             var steps = new JArray();
             foreach(var step in recipe.Steps)
