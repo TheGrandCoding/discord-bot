@@ -400,17 +400,23 @@ namespace DiscordBot.MLAPI.Modules
                     var prod = Service.GetProduct(i.Key);
                     if (prod == null)
                         continue;
-                    var listItem = new ListItem($"{i.Value}x ")
-                    {
-                        Children =
-                        {
-                            getProductInfo(prod, new Classes.HTMLHelpers.Objects.Span())
-                        }
-                    };
+
+                    var listItem = new ListItem();
+                    var c = new Classes.HTMLHelpers.Objects.Span();
+                    if (i.Value.Amount > 1)
+                        c.Children.Add(new RawObject($"{i.Value.Amount}x "));
+                    var info = getProductInfo(prod, c);
+                    if(i.Value.Frozen)
+                        info.Children.Add(new Span(cls: "frozen").WithRawText(" (from Frozen)"));
+                    listItem.Children.Add(info);
                     listItem.WithTag("data-id", prod.Id);
                     ing.AddItem(listItem);
                 }
-                r.Children.Add(new TableData(null) { Children = { ing } });
+                var firstTd = new TableData(null);
+                if (!string.IsNullOrWhiteSpace(x.Title))
+                    firstTd.Children.Add(new StrongText(x.Title));
+                firstTd.Children.Add(ing);
+                r.Children.Add(firstTd);
 
                 var steps = x.InOrder ? (Classes.HTMLHelpers.DOMBase)new OrderedList() : (Classes.HTMLHelpers.DOMBase)new UnorderedList();
                 foreach(var s in x.Steps)
@@ -432,6 +438,7 @@ namespace DiscordBot.MLAPI.Modules
                         new Input("number", id: $"delay-{x.Id}") {
                             Style = "display: none"
                         }.WithTag("placeholder", "Offset (s)"),
+                        new Input("button", "Edit") {OnClick = $"editRecipe({x.Id});"},
                         new Input("button", "Delete") {OnClick = $"deleteRecipe({x.Id});"}
                     }
                 });
@@ -455,9 +462,9 @@ namespace DiscordBot.MLAPI.Modules
         }
         
         [Method("GET"), Path("/food/add-recipe")]
-        public void NewRecipe()
+        public void NewRecipe(int? modifyId = null)
         {
-            ReplyFile("new_recipe.html", 200);
+            ReplyFile("new_recipe.html", 200, new Replacements().Add("modifying", modifyId));
         }
         
         [Method("GET"), Path("/food/ongoing-recipe")]
@@ -879,10 +886,10 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("POST"), Path("/api/food/recipes")]
-        public void AddRecipe()
+        public void AddRecipe(int? overwrite = null)
         {
             var jobj = JObject.Parse(Context.Body);
-            var recipe = new SavedRecipe();
+            var recipe = new SavedRecipe(overwrite.GetValueOrDefault(-1));
             recipe.InOrder = jobj["order"].ToObject<bool>();
 
             if(!jobj.TryGetValue("ingredients", out var ingToken))
@@ -895,8 +902,10 @@ namespace DiscordBot.MLAPI.Modules
                 RespondRaw("Steps absent", 400);
                 return;
             }
+            var title = jobj.GetValue("title")?.ToObject<string>();
+            recipe.Title = string.IsNullOrWhiteSpace(title) ? null : title;
             var ingredients = ingToken as JArray;
-            foreach(var x in ingredients)
+            foreach (var x in ingredients)
             {
                 var ing = x as JObject;
                 var id = ing.GetValue("id")?.ToObject<string>();
@@ -912,7 +921,13 @@ namespace DiscordBot.MLAPI.Modules
                     RespondRaw("Units used is null", 400);
                     return;
                 }
-
+                var frozen = ing.GetValue("frozen")?.ToObject<bool?>();
+                if(!frozen.HasValue)
+                {
+                    RespondRaw("Frozen is null", 400);
+                    return;
+                }
+                    
                 var prod = Service.GetProduct(id);
                 if(prod == null)
                 {
@@ -920,7 +935,8 @@ namespace DiscordBot.MLAPI.Modules
                     return;
                 }
 
-                recipe.Ingredients.Add(id, units.Value);
+                var si = new SavedIngredient(units.Value, frozen.Value);
+                recipe.Ingredients.Add(id, si);
             }
 
             var steps = stepsA as JArray;
@@ -928,6 +944,11 @@ namespace DiscordBot.MLAPI.Modules
             {
                 var step = parseStep(x as JObject);
                 recipe.Steps.Add(step);
+            }
+
+            if(overwrite.HasValue)
+            {
+                Service.DeleteRecipe(recipe.Id);
             }
 
             Service.Recipes.Add(recipe);
@@ -941,6 +962,45 @@ namespace DiscordBot.MLAPI.Modules
         {
             Service.DeleteRecipe(id);
             RespondRaw("OK", 200);
+        }
+
+        [Method("GET"), Path("/api/food/recipe")]
+        public void GetRecipe(int id)
+        {
+            var recipe = Service.Recipes.FirstOrDefault(x => x.Id == id);
+            if(recipe == null)
+            {
+                RespondRaw("", 404);
+                return;
+            }
+            var jobj = new JObject();
+            jobj["title"] = recipe.Title;
+
+            var steps = new JArray();
+            foreach(var step in recipe.Steps)
+            {
+                var stepJ = new JObject();
+                stepJ["description"] = step.Description;
+                stepJ["duration"] = step.Duration;
+                stepJ["delay"] = step.Delay;
+                stepJ["order"] = step.InOrder;
+                steps.Add(stepJ);
+            }
+            jobj["steps"] = steps;
+
+
+            var ingredients = new JArray();
+            foreach(var ingPair in recipe.Ingredients)
+            {
+                var ingJ = new JObject();
+                ingJ["id"] = ingPair.Key;
+                ingJ["unitsUsed"] = ingPair.Value.Amount;
+                ingJ["frozen"] = ingPair.Value.Frozen;
+                ingredients.Add(ingJ);
+            }
+            jobj["ingredients"] = ingredients;
+
+            RespondJson(jobj);
         }
 
         [Method("PUT"), Path("/api/food/recipes")]

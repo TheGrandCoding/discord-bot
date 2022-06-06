@@ -210,6 +210,7 @@ namespace DiscordBot.Services
             Recipes = new ConcurrentBag<SavedRecipe>(sv.recipes ?? new List<SavedRecipe>());
 
         }
+
     }
 
     public class foodSave
@@ -379,23 +380,41 @@ namespace DiscordBot.Services
         public DateTime RemovedAt { get; set; }
     }
 
+    public class SavedIngredient
+    {
+        [JsonProperty("am")]
+        public int Amount { get; set; }
+        [JsonProperty("fr")]
+        public bool Frozen { get; set; }
+
+        public SavedIngredient(int amount, bool frozen)
+        {
+            Amount = amount;
+            Frozen = frozen;
+        }
+    }
+
     public class SavedRecipe
     {
         static int _id = 0;
-        public SavedRecipe()
+        public SavedRecipe(int id = -1)
         {
-            Id = System.Threading.Interlocked.Increment(ref _id);
+            Id = id == -1 ? System.Threading.Interlocked.Increment(ref _id) : id;
         }
         [JsonConstructor]
-        private SavedRecipe(int id)
+        private SavedRecipe(int id, string s_ = null)
         {
             Id = id;
             if (id > _id)
                 _id = id;
         }
 
+        [JsonProperty("title")]
+        public string Title { get; set; }
+
         public int Id { get; }
-        public Dictionary<string, int> Ingredients { get; set; } = new Dictionary<string, int>();
+        [JsonProperty("Ingredients", ItemConverterType = typeof(Classes.Converters.RecipeIngredientConverter))]
+        public Dictionary<string, SavedIngredient> Ingredients { get; set; } = new Dictionary<string, SavedIngredient>();
         [JsonProperty("steps", ItemTypeNameHandling = TypeNameHandling.All)]
         public List<SavedStep> Steps { get; set; } = new List<SavedStep>();
 
