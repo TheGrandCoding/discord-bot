@@ -79,7 +79,12 @@ namespace DiscordBot.Interactions.Components
             await RespondAsync("Done!", ephemeral: true);
             var message = (IUserMessage)await Context.Channel.GetMessageAsync(ulong.Parse(currentId));
             var embed = message.Embeds.First().ToEmbedBuilder();
-            embed.Description = modal.Duration;
+            var desc = embed.Description ?? "";
+            var splt = desc.Split('\n');
+            if (splt.Length <= 1)
+                embed.Description = modal.Duration;
+            else
+                embed.Description = splt[0] + "\n" + modal.Duration;
             await message.ModifyAsync(x => x.Embeds = new[] { embed.Build() });
         }
 
