@@ -22,13 +22,15 @@ namespace DiscordBot.Interactions.Modules
             await RespondAsync("Fetching information");
             var info = await Service.GetItemInfo(Service.GetApiKeyFromUrl(url), Service.GetItemIdFromUrl(url));
             EmbedBuilder builder ;
+            bool hasNext = false;
             if(info is WatcherService.JellyfinEpisodeItem ep)
             {
-                builder = Service.GetEmbed(url, $"{ep.SeriesName} S{ep.ParentIndexNumber:00}E{ep.IndexNumber:00}", progress);
+                builder = ep.ToEmbed(Service, Service.GetApiKeyFromUrl(url));
+                hasNext = true;
             }
             else if(info is WatcherService.JellyfinMovieItem movie)
             {
-                builder = Service.GetEmbed(url, $"{movie.Name} ({movie.ProductionYear})", progress);
+                builder = movie.ToEmbed(Service, Service.GetApiKeyFromUrl(url));
             } else
             {
                 await ModifyOriginalResponseAsync(x =>
@@ -37,12 +39,13 @@ namespace DiscordBot.Interactions.Modules
                 });
                 return;
             }
+            builder.Description = (builder.Description ?? "") + $"**{progress}**";
 
             await ModifyOriginalResponseAsync(x =>
             {
                 x.Content = null;
                 x.Embeds = new[] { builder.Build() };
-                x.Components = Service.GetComponents().Build();
+                x.Components = Service.GetComponents(hasNext).Build();
             });
         }
     

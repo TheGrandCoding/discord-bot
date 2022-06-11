@@ -22,7 +22,8 @@ namespace DiscordBot.Interactions.Components
             {
                 var e = Message.Embeds.First();
                 return e.Url;
-            } }
+            }
+        }
 
 
         [ComponentInteraction("watch:update")]
@@ -40,6 +41,32 @@ namespace DiscordBot.Interactions.Components
             await Service.MarkWatched(Service.GetApiKeyFromUrl(Url), Service.GetItemIdFromUrl(Url));
 
             await Message.DeleteAsync();
+            await ModifyOriginalResponseAsync(x => x.Content = "Done!");
+        }
+
+        [ComponentInteraction("watch:next")]
+        public async Task Next()
+        {
+            await RespondAsync($"Marking episode as complete..", ephemeral: true);
+            var apiKey = Service.GetApiKeyFromUrl(Url);
+            var episodeId = Service.GetItemIdFromUrl(Url);
+            
+            await Service.MarkWatched(apiKey, episodeId);
+            await ModifyOriginalResponseAsync(x => x.Content = "Completed. Updating message to next episode..");
+
+
+            var seriesId = Message.Embeds.First().Footer.Value.Text;
+
+            var nextUp = (await Service.GetNextUp(apiKey, seriesId)).First();
+            var ep = nextUp as WatcherService.JellyfinEpisodeItem;
+            var nextBuilder = nextUp.ToEmbed(Service, apiKey);
+            nextBuilder.Description = (nextBuilder.Description ?? "") + $"**Next Up**";
+            await Message.ModifyAsync(x =>
+            {
+                x.Embeds = new[] { nextBuilder.Build() };
+                x.Components = Service.GetComponents(true).Build();
+            });
+            await ModifyOriginalResponseAsync(x => x.Content = "Done!");
         }
     }
 

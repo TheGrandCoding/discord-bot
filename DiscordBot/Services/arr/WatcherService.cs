@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Discord;
 using Discord.Interactions;
 using DiscordBot.Classes;
+using DiscordBot.Utils;
 using JsonSubTypes;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
@@ -66,20 +67,13 @@ namespace DiscordBot.Services.arr
             return ls;
         }
 
-        public EmbedBuilder GetEmbed(string url, string title, string progress)
-        {
-            var builder = new EmbedBuilder();
-            builder.Url = url;
-            builder.Title = title;
-            builder.Description = $"{progress}";
-
-            return builder;
-        }
-        public ComponentBuilder GetComponents()
+        public ComponentBuilder GetComponents(bool hasNext)
         {
             var builder = new ComponentBuilder();
             builder.WithButton("Update", $"watch:update");
             builder.WithButton($"Complete", $"watch:complete");
+            if(hasNext)
+                builder.WithButton(customId: "watch:next", style: ButtonStyle.Success, emote: Emotes.FAST_FORWARD);
             return builder;
         }
 
@@ -110,12 +104,25 @@ namespace DiscordBot.Services.arr
             return uri.Query.Substring(uri.Query.IndexOf('=') + 1);
         }
 
-        public async Task<JellyfinItem> GetItemInfo(string authKey, string itemId)
+        public string GetItemDownloadUrl(string authKey, string itemId)
+        {
+            return $"{BaseUrl}/Items/{itemId}/Download?api_key={authKey}";
+        }
+
+        Task<HttpResponseMessage> request(HttpMethod method, string authKey, string uri)
         {
             var auth = getAuthHeader(authKey);
+            var request = new HttpRequestMessage(method, BaseUrl + uri
+                );
+            request.Headers.Add("X-Emby-Authorization", auth);
+            return HTTP.SendAsync(request);
+        }
+
+
+        public async Task<JellyfinItem> GetItemInfo(string authKey, string itemId)
+        {
             var user = await GetUserFromAuthKey(authKey);
-            var request = new HttpRequestMessage(HttpMethod.Get, BaseUrl + 
-                $"/Items?ids={itemId}" +
+            var response = await request(HttpMethod.Get, authKey, $"/Items?ids={itemId}" +
                 /*$"&SortBy=DatePlayed" +
                 $"&IncludeItemTypes=Movie,Series" +
                 $"&Limit=20" +
@@ -124,9 +131,7 @@ namespace DiscordBot.Services.arr
                 $"&EnableImages=false" +
                 $"&EnableTotalRecordCount=false" +
                 $"&Fields=Overview" +*/
-                $"&UserId={user["Id"]}");
-            request.Headers.Add("X-Emby-Authorization", auth);
-            var response = await HTTP.SendAsync(request);
+                $"&UserId={user.Id}");
             var content = await response.Content.ReadAsStringAsync();
             response.EnsureSuccessStatusCode();
             var obj = JObject.Parse(content);
@@ -134,30 +139,46 @@ namespace DiscordBot.Services.arr
             return arr[0].ToObject<JellyfinItem>();
         }
 
-        public async Task<JObject> GetUserFromAuthKey(string authKey)
+        private CacheDictionary<string, JellyfinUser> _userCache = new();
+        public async Task<JellyfinUser> GetUserFromAuthKey(string authKey)
         {
-            var auth = getAuthHeader(authKey);
-            var request = new HttpRequestMessage(HttpMethod.Get, BaseUrl + "/Users/Me");
-            request.Headers.Add("X-Emby-Authorization", auth);
-            var response = await HTTP.SendAsync(request);
+            if (_userCache.TryGetValue(authKey, out var j))
+                return j;
+            var response = await request(HttpMethod.Get, authKey, "/Users/Me");
             response.EnsureSuccessStatusCode();
 
             var content = await response.Content.ReadAsStringAsync();
-            return JObject.Parse(content);
+            j = JsonConvert.DeserializeObject<JellyfinUser>(content);
+            _userCache[authKey] = j;
+            return j;
         }
 
         public async Task MarkWatched(string authKey, string jellyId)
         {
-            var auth = getAuthHeader(authKey);
             var user = await GetUserFromAuthKey(authKey);
-            var id = user["Id"].ToObject<string>();
-            // 2022-05-10T16%3A35%3A29.128Z
+                                                   // 2022-05-10T16%3A35%3A29.128Z
             var played = DateTimeOffset.Now.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
-            var reqUrl = $"/Users/{id}/PlayedItems/{jellyId}?DatePlayed={played}";
-            var request = new HttpRequestMessage(HttpMethod.Post, BaseUrl + reqUrl);
-            request.Headers.Add("X-Emby-Authorization", auth);
-            var response = await HTTP.SendAsync(request);
+            var reqUrl = $"/Users/{user.Id}/PlayedItems/{jellyId}?DatePlayed={played}";
+
+            var response = await request(HttpMethod.Post, authKey, reqUrl);
+
             response.EnsureSuccessStatusCode();
+        }
+
+        public async Task<JellyfinItem[]> GetNextUp(string authKey, string seriesId = null)
+        {
+            var user = await GetUserFromAuthKey(authKey);
+            var uriB = new UrlBuilder("/Shows/NextUp");
+            uriB.Add("userId", user.Id);
+            if (seriesId != null)
+                uriB.Add("seriesId", seriesId);
+            var response = await request(HttpMethod.Get, authKey, uriB.ToString());
+            response.EnsureSuccessStatusCode();
+            var content = await response.Content.ReadAsStringAsync();
+            var jobj = JObject.Parse(content);
+            var items = jobj["Items"] as JArray;
+            return items.ToObject<JellyfinItem[]>();
+
         }
 
         public class Handler : AutocompleteHandler
@@ -182,7 +203,8 @@ namespace DiscordBot.Services.arr
         [JsonConverter(typeof(JsonSubtypes), "Type")]
         [JsonSubtypes.KnownSubType(typeof(JellyfinEpisodeItem), "Episode")]
         [JsonSubtypes.KnownSubType(typeof(JellyfinMovieItem), "Movie")]
-        public class JellyfinItem
+        [JsonSubtypes.KnownSubType(typeof(JellyfinSeriesItem), "Series")]
+        public abstract class JellyfinItem
         {
             public string Name { get; set; }
             public string ServerId { get; set; }
@@ -190,6 +212,8 @@ namespace DiscordBot.Services.arr
             public DateTime PremiereDate { get; set; }
 
             public int ProductionYear { get; set; }
+
+            public abstract EmbedBuilder ToEmbed(WatcherService service, string authKey);
         }
 
         public class JellyfinEpisodeItem : JellyfinItem
@@ -198,9 +222,49 @@ namespace DiscordBot.Services.arr
             public int ParentIndexNumber { get; set; }
             public string SeriesName { get; set; }
             public string SeriesId { get; set; }
+
+            public override EmbedBuilder ToEmbed(WatcherService service, string authKey)
+            {
+
+                var builder = new EmbedBuilder();
+                builder.Url = service.GetItemDownloadUrl(authKey, Id);
+                builder.Title = $"{SeriesName} S{ParentIndexNumber:00}E{IndexNumber:00}";
+                if (!string.IsNullOrWhiteSpace(Name))
+                    builder.Description = $"*{Name}*\n";
+                builder.Color = Color.Blue;
+                builder.WithFooter(SeriesId);
+
+                return builder;
+            }
         }
         public class JellyfinMovieItem : JellyfinItem
         {
+            public override EmbedBuilder ToEmbed(WatcherService service, string authKey)
+            {
+
+                var builder = new EmbedBuilder();
+                builder.Url = service.GetItemDownloadUrl(authKey, Id);
+                builder.Title = $"{Name} ({ProductionYear})";
+                builder.Color = Color.Gold;
+
+                return builder;
+            }
+        }
+        public class JellyfinSeriesItem : JellyfinItem
+        {
+            public override EmbedBuilder ToEmbed(WatcherService service, string authKey)
+            {
+                return null;
+            }
+        }
+
+        public class JellyfinUser
+        {
+            public string Id { get; set; }
+            public string Name { get; set; }
+
+            [JsonExtensionData]
+            public Dictionary<string, JToken> Excess { get; set; }
         }
     }
 }
