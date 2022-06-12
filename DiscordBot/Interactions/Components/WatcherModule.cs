@@ -57,7 +57,20 @@ namespace DiscordBot.Interactions.Components
 
             var seriesId = Message.Embeds.First().Footer.Value.Text;
 
-            var nextUp = (await Service.GetNextUp(apiKey, seriesId)).First();
+            var nextUp = (await Service.GetNextUp(apiKey, seriesId)).FirstOrDefault();
+
+            if(nextUp == null)
+            {
+                var e = Message.Embeds.First().ToEmbedBuilder();
+                await Message.ModifyAsync(x =>
+                {
+                    x.Embeds = new[] { e
+                        .WithDescription("Finished.\r\nNo next up episode.")
+                        .Build() };
+                });
+                return;
+            }
+
             var ep = nextUp as WatcherService.JellyfinEpisodeItem;
             var nextBuilder = nextUp.ToEmbed(Service, apiKey);
             nextBuilder.Description = (nextBuilder.Description ?? "") + $"**Next Up**";
