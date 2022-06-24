@@ -498,6 +498,22 @@ namespace DiscordBot.MLAPI.Modules
             ReplyFile("next.html", 200);
         }
 
+        [Method("GET"), Path("/food/menu")]
+        public void ViewCurrentMenu()
+        {
+            ReplyFile("current_menu.html", 200);
+        }
+
+        [Method("GET"), Path("/food/menu/new")]
+        public void ViewNewMenu()
+        {
+            ReplyFile("new_menu.html", 200);
+        }
+
+
+
+
+
         [Method("POST"), Path("/api/food/scanned")]
         [RequireApproval(false)]
         [RequireAuthentication(false)]
@@ -866,6 +882,22 @@ namespace DiscordBot.MLAPI.Modules
             RespondRaw("", 200);
         }
 
+        [Method("GET"), Path("/api/food/product")]
+        public void SearchProducts(string query)
+        {
+            IEnumerable<Product> products;
+            using (var db = Service.DB())
+            {
+                products = db.Products.Where(x => x.Id == query || x.Name.Contains(query, StringComparison.InvariantCultureIgnoreCase));
+            }
+            var jarray = new JArray();
+            foreach(var prod in products)
+            {
+                jarray.Add(prod.ToJson());
+            }
+            RespondJson(jarray);
+        }
+
         SavedStep parseStep(JObject obj)
         {
             var saved = new SavedStep();
@@ -1045,6 +1077,12 @@ namespace DiscordBot.MLAPI.Modules
             RespondRaw($"{working.Id}", 203);
         }
 
+
+        [Method("POST"), Path("/api/food/menus")]
+        public void AddMenu()
+        {
+
+        }
 
     }
 }

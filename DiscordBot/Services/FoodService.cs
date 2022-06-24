@@ -1,4 +1,6 @@
 ﻿using Discord;
+using DiscordBot.Utils;
+using JsonSubTypes;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
@@ -380,6 +382,143 @@ namespace DiscordBot.Services
         public DateTime RemovedAt { get; set; }
     }
 
+    #region Menu stuff
+
+    public class WorkingMenu
+    {
+        public WorkingMenu(string title)
+        {
+            Title = title;
+        }
+        public string Title { get; set; }
+        public List<WorkingMenuDay> Days { get; set; }
+    }
+    public class WorkingMenuDay
+    {
+        public WorkingMenuDay(string text)
+        {
+            Text = text;
+        }
+        public string Text { get; set; }
+        public Dictionary<string, List<InventoryItem>> Items { get; set; } = new();
+    }
+
+    public class SavedMenu
+    {
+        public string Title { get; set; }
+        public List<SavedMenuDay> Days { get; set; }
+
+        struct orderData
+        {
+            public SavedMenuItem Item { get; set; }
+            public string Group { get; set; }
+            public WorkingMenuDay Day { get; set; }
+        }
+
+        public WorkingMenu ToWorking(FoodService service, string inventoryId)
+        {
+            var menu = new WorkingMenu(Title);
+            var inventory = service.GetInventoryItems(inventoryId);
+
+            var items = new List<orderData>();
+            foreach(var day in Days)
+            {
+                var workingDay = new WorkingMenuDay(day.Text);
+                foreach(var keypair in day.Items)
+                {
+                    foreach(var item in keypair.Value)
+                    {
+                        var d = new orderData()
+                        {
+                            Item = item,
+                            Group = keypair.Key,
+                            Day = workingDay
+                        };
+                        items.Add(d);
+                    }
+                }
+                menu.Days.Add(workingDay);
+            }
+            items = items.OrderBy(x => x.Item.Priority).ToList();
+            foreach(var data in items)
+            {
+                var validItems = data.Item.CollectValid(inventory);
+
+                // Now select the best item to choose from
+                validItems = validItems.OrderBy(x => x.ExpiresAt).ToList();
+
+                var bestItem = validItems.FirstOrDefault();
+                if(bestItem != null)
+                {
+                    inventory.Remove(bestItem); // TODO: an item being on one day might not use it all - e.g. a pack of four?
+                    data.Day.Items.AddInner(data.Group, bestItem);
+                }
+            }
+
+            return menu;
+        }
+    }
+
+    public class SavedMenuDay
+    {
+        public string Text { get; set; }
+
+        public Dictionary<string, List<SavedMenuItem>> Items { get; set; }
+    }
+
+    [JsonConverter(typeof(JsonSubtypes), "Type")]
+    [JsonSubtypes.KnownSubType(typeof(SavedMenuIdItem), "Id")]
+    [JsonSubtypes.KnownSubType(typeof(SavedMenuTagItem), "Tag")]
+    public abstract class SavedMenuItem
+    {
+        public abstract string Type { get; }
+        public int Priority { get; set; } = 0;
+        public abstract List<InventoryItem> CollectValid(List<InventoryItem> items);
+    }
+
+    public class SavedMenuIdItem : SavedMenuItem
+    {
+        public SavedMenuIdItem()
+        {
+            Priority = 1;
+        }
+        public override string Type => "Id";
+
+        public List<string> Ids { get; set; }
+
+        public override List<InventoryItem> CollectValid(List<InventoryItem> items)
+        {
+            return items.Where(x => Ids.Contains(x.ProductId)).ToList();
+        }
+    }
+
+    public class SavedMenuTagItem : SavedMenuItem
+    {
+        public override string Type => "Tag";
+
+        public List<string> Tags { get; set; }
+
+        public override List<InventoryItem> CollectValid(List<InventoryItem> items)
+        {
+            var valid = new List<InventoryItem>();
+            foreach(var inv in items)
+            {
+                foreach(var t in inv.Product?.Tags?.Split(';'))
+                {
+                    if(Tags.Contains(t))
+                    {
+                        valid.Add(inv);
+                        continue;
+                    }
+                }
+            }
+            return valid;
+        }
+    }
+
+    #endregion
+
+    #region Recipe stuff
     public class SavedIngredient
     {
         [JsonProperty("am")]
@@ -856,4 +995,6 @@ namespace DiscordBot.Services
 
 
     }
+
+    #endregion
 }
