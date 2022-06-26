@@ -654,7 +654,9 @@ namespace DiscordBot.Services
             var valid = new List<InventoryItem>();
             foreach(var inv in items)
             {
-                foreach(var t in inv.Product?.Tags?.Split(';'))
+                if (string.IsNullOrWhiteSpace(inv.Product?.Tags ?? ""))
+                    continue;
+                foreach(var t in inv.Product?.Tags.Split(';'))
                 {
                     if(Tags.Contains(t))
                     {
