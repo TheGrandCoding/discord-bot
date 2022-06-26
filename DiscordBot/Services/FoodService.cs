@@ -656,10 +656,13 @@ namespace DiscordBot.Services
             {
                 if (string.IsNullOrWhiteSpace(inv.Product?.Tags ?? ""))
                     continue;
-                if(Tags.Contains(t))
+                foreach(var t in inv.Product?.Tags.Split(';'))
                 {
-                    valid.Add(inv);
-                    continue;
+                    if(Tags.Contains(t))
+                    {
+                        valid.Add(inv);
+                        continue;
+                    }
                 }
             }
             return valid;
