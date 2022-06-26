@@ -1,4 +1,5 @@
 ﻿using DiscordBot.Services;
+using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
@@ -38,6 +39,30 @@ namespace DiscordBot.Classes.Converters
                 {
                     writer.WriteValue(si.Amount);
                 }
+            }
+        }
+    }
+
+
+    public class InventoryItemConverter : JsonConverter
+    {
+        public override bool CanConvert(Type objectType)
+        {
+            return objectType == typeof(InventoryItem);
+        }
+
+        public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+        {
+            var sv = Program.Services.GetRequiredService<FoodService>();
+            int x = int.Parse((string)reader.Value);
+            return sv.GetInventoryItem(x);
+        }
+
+        public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
+        {
+            if(value is InventoryItem i)
+            {
+                writer.WriteValue($"{i.Id}");
             }
         }
     }

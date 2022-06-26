@@ -21,6 +21,7 @@ namespace DiscordBot.Classes.HTMLHelpers.Objects
             Type = type;
             if (value != null)
                 tagValues["value"] = value;
+            IsOpenOnly = true;
         }
 
         public override bool ReadOnly

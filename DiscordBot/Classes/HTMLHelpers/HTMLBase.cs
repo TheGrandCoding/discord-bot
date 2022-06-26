@@ -18,6 +18,8 @@ namespace DiscordBot.Classes.HTMLHelpers
         public string Id { get => get("id"); set => set("id", value); }
         public string Class { get => string.Join(' ', m_classes); set => m_classes = (value ?? "").Split(' ').ToList(); }
 
+        public bool IsShortTag { get; set; }
+        public bool IsOpenOnly { get; set; }
         public List<string> ClassList { get => m_classes; }
 
         private string _rawText;
@@ -57,6 +59,8 @@ namespace DiscordBot.Classes.HTMLHelpers
                 else if (!string.IsNullOrWhiteSpace(val))
                     sb.Append($" {key}=\"{val}\"");
             }
+            if (IsShortTag)
+                sb.Append("/");
             sb.Append(">");
             if (tab > -1)
                 sb.Append("\r\n");
@@ -94,6 +98,7 @@ namespace DiscordBot.Classes.HTMLHelpers
         public void Write(StringBuilder sb, int tab = -1)
         {
             WriteOpenTag(sb, tab);
+            if (IsOpenOnly) return;
             WriteContent(sb, tab == -1 ? -1 : tab + 1);
             foreach (var child in Children)
             {

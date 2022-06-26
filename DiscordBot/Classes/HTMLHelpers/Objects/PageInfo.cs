@@ -82,6 +82,7 @@ namespace DiscordBot.Classes.HTMLHelpers.Objects
             tagValues["rel"] = rel;
             tagValues["type"] = type;
             tagValues["href"] = href;
+            IsOpenOnly = true;
         }
     }
     public class Script : HTMLBase

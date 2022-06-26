@@ -30,8 +30,6 @@ namespace DiscordBot.Classes.HTMLHelpers.Objects
             return this;
         }
 
-        public Table WithRow(params string[] cells)
-            => WithRow(cells.Select(x => new RawObject(x)).ToArray());
         public Table WithRow(params object[] cells)
         {
             var ls = new List<HTMLBase>();
@@ -39,7 +37,10 @@ namespace DiscordBot.Classes.HTMLHelpers.Objects
             {
                 if (x is string y)
                     ls.Add(new RawObject(y));
-                ls.Add(x as HTMLBase);
+                else if (x is HTMLBase)
+                    ls.Add(x as HTMLBase);
+                else
+                    throw new ArgumentException($"{x.GetType().Name} cannot be used", nameof(cells));
             }
             return WithRow(ls.ToArray());
         }

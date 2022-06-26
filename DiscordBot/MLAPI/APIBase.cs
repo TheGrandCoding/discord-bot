@@ -127,8 +127,8 @@ namespace DiscordBot.MLAPI
             string injectedText = "";
             foreach (var x in InjectObjects)
                 injectedText += x.ToString();
-            injectedText += "<body><REPLACE id='sidebar'/>";
-            f = f.Replace("<body>", injectedText);
+            f = f.Replace("</head>", injectedText + "</head>");
+            f = f.Replace("<body>", "<body><REPLACE id='sidebar'/>");
             replace ??= new Replacements();
             string sN = Sidebar == SidebarType.None ? "" : Sidebar == SidebarType.Global ? "_sidebar.html" : "sidebar.html";
             string sC = "";

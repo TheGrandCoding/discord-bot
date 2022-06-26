@@ -1,4 +1,5 @@
 ﻿using Discord;
+using DiscordBot.Classes.Converters;
 using DiscordBot.Utils;
 using JsonSubTypes;
 using Microsoft.EntityFrameworkCore;
@@ -25,8 +26,14 @@ namespace DiscordBot.Services
 
         public ConcurrentDictionary<int, SavedMenu> Menus { get; set; } = new();
 
+        public WorkingMenu WorkingMenu { get; set; }
+
+
         public ConcurrentDictionary<int, WorkingRecipe> OngoingRecipes { get; set; } = new ConcurrentDictionary<int, WorkingRecipe>();
-        
+
+
+        public const string DefaultInventoryId = "default";
+
         public FoodDbContext DB()
         {
             return Program.Services.GetRequiredService<FoodDbContext>();
@@ -36,6 +43,11 @@ namespace DiscordBot.Services
         {
             using var db = DB();
             return db.GetProduct(id);
+        }
+        public Product[] GetAllProducts()
+        {
+            using var db = DB();
+            return db.Products.ToArray();
         }
         public InventoryItem GetInventoryItem(int id)
         {
@@ -196,6 +208,56 @@ namespace DiscordBot.Services
             await channel.SendMessageAsync(embeds: new[] { builder.Build() }, components: components?.Build() ?? null);
         }
 
+        EmbedBuilder toEmbed(WorkingMenuDay day, bool today) 
+        {
+            var builder = new EmbedBuilder();
+            builder.Title = today ? "Menu" : "Reminder";
+            builder.Description = day.Text ?? "Menu items";
+            builder.Color = today ? Color.Green : Color.Red;
+            foreach((var key, var items) in day.Items)
+            {
+                var v = new StringBuilder();
+                foreach(var item in items)
+                {
+                    v.AppendLine($"{(item.Product?.Name ?? item.ProductId)} {item.InitialExpiresAt:yyyy-MM-dd} {(item.Frozen ? "(**Frozen**)" : "")}");
+                }
+                if (items.Count == 0)
+                    v.Append("-");
+                builder.AddField(key, v, true);
+            }
+            return builder;
+        }
+
+
+        public void DoMenuChecks()
+        {
+            if (WorkingMenu == null) return;
+
+            var menuDays = new List<WorkingMenuDay>();
+            menuDays.AddRange(WorkingMenu.Days);
+
+            var daysSpent = (int)(DateTime.Now - WorkingMenu.StartDate).TotalDays;
+            if(daysSpent > 6)
+            {
+                var nextMenu = Menus[WorkingMenu.NextComingUp].ToWorking(this, DefaultInventoryId);
+                menuDays.AddRange(nextMenu.Days);
+                if(daysSpent > 7)
+                {
+                    WorkingMenu = nextMenu;
+                }
+            }
+            var today = menuDays[daysSpent];
+            var tomorrow = menuDays[daysSpent + 1];
+            var embeds = new List<Embed>();
+            embeds.Add(toEmbed(today, true).Build());
+            embeds.Add(toEmbed(tomorrow, false).Build());
+
+            var lc = getLogChannel().Result;
+            lc.SendMessageAsync(embeds: embeds.ToArray()).Wait();
+        }
+
+
+
         public override string GenerateSave()
         {
             var dict = new Dictionary<string, List<string>>(Manufacturers);
@@ -203,16 +265,33 @@ namespace DiscordBot.Services
             var sv = new foodSave()
             {
                 manufacturerPrefixes = dict,
-                recipes = recipList
+                recipes = recipList,
+                menus = Menus.Values.ToList(),
+                curMenu = WorkingMenu
             };
-            return Program.Serialise(sv);
+            return Program.Serialise(sv, conv: new InventoryItemConverter());
         }
+        
+        
+        
         public override void OnReady()
         {
-            var sv = Program.Deserialise<foodSave>(ReadSave());
+            var sv = Program.Deserialise<foodSave>(ReadSave(), new InventoryItemConverter());
             Manufacturers = new ConcurrentDictionary<string, List<string>>(sv.manufacturerPrefixes ?? new Dictionary<string, List<string>>());
             Recipes = new ConcurrentBag<SavedRecipe>(sv.recipes ?? new List<SavedRecipe>());
+            Menus = new ConcurrentDictionary<int, SavedMenu>();
+            foreach (var x in sv.menus)
+                Menus[x.Id] = x;
+            WorkingMenu = sv.curMenu;
+#if DEBUG
+            DoMenuChecks();
+#endif
 
+        }
+
+        public override void OnDailyTick()
+        {
+            DoMenuChecks();
         }
 
     }
@@ -223,6 +302,10 @@ namespace DiscordBot.Services
         public Dictionary<string, List<string>> manufacturerPrefixes { get; set; } = new Dictionary<string, List<string>>();
 
         public List<SavedRecipe> recipes { get; set; } = new List<SavedRecipe>();
+
+        public List<SavedMenu> menus { get; set; } = new();
+
+        public WorkingMenu curMenu { get; set; }
     }
 
     public class FoodDbContext : DbContext
@@ -372,6 +455,20 @@ namespace DiscordBot.Services
         public DateTime ExpiresAt => Frozen ? InitialExpiresAt.AddDays(Product?.FreezingExtends ?? 0) : InitialExpiresAt;
         [NotMapped]
         public bool HasExpired => ExpiresAt > DateTime.UtcNow;
+
+        public JObject ToJson()
+        {
+            var jobj = Product?.ToJson() ?? new JObject();
+            jobj["product_id"] = ProductId;
+            jobj["id"] = Id;
+            jobj["added"] = new DateTimeOffset(AddedAt).ToUnixTimeMilliseconds();
+            jobj["expires"] = new DateTimeOffset(ExpiresAt).ToUnixTimeMilliseconds();
+            if(Frozen)
+                jobj["true_expires"] = new DateTimeOffset(InitialExpiresAt).ToUnixTimeMilliseconds();
+            jobj["frozen"] = Frozen;
+
+            return jobj;
+        }
     }
     public class HistoricItem
     {
@@ -392,8 +489,27 @@ namespace DiscordBot.Services
         {
             Title = title;
         }
+
+        public DateTime StartDate { get; set; }
         public string Title { get; set; }
-        public List<WorkingMenuDay> Days { get; set; }
+        public List<WorkingMenuDay> Days { get; set; } = new();
+
+        public int FromMenu { get; set; }
+
+        public int NextComingUp { get; set; }
+
+        public string[] GetGroups()
+        {
+            var ls = new List<string>();
+            foreach(var x in Days)
+            {
+                foreach(var key in x.Items.Keys)
+                {
+                    if (key != "*" && ls.Contains(key) == false) ls.Add(key);
+                }
+            }
+            return ls.ToArray();
+        }
     }
     public class WorkingMenuDay
     {
@@ -410,6 +526,21 @@ namespace DiscordBot.Services
         public string Title { get; set; }
         public List<SavedMenuDay> Days { get; set; } = new List<SavedMenuDay>();
 
+        public int Id { get; set; }
+        private static int _id;
+
+        public SavedMenu()
+        {
+            Id = System.Threading.Interlocked.Increment(ref _id);
+        }
+        [JsonConstructor]
+        public SavedMenu( int id )
+        {
+            Id = id;
+            if (id > _id)
+                _id = Id;
+        }
+
         struct orderData
         {
             public SavedMenuItem Item { get; set; }
@@ -420,6 +551,9 @@ namespace DiscordBot.Services
         public WorkingMenu ToWorking(FoodService service, string inventoryId)
         {
             var menu = new WorkingMenu(Title);
+            menu.FromMenu = this.Id;
+            menu.NextComingUp = this.Id;
+            menu.StartDate = DateTime.Now;
             var inventory = service.GetInventoryItems(inventoryId);
 
             var items = new List<orderData>();

@@ -3,6 +3,7 @@ using DiscordBot.Classes.HTMLHelpers.Objects;
 using DiscordBot.Services;
 using DiscordBot.Utils;
 using Microsoft.Extensions.DependencyInjection;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
@@ -508,10 +509,115 @@ namespace DiscordBot.MLAPI.Modules
             ReplyFile("next.html", 200);
         }
 
+        [Method("GET"), Path("/food/products")]
+        public void ViewProducts()
+        {
+            var table = new Table()
+                .WithHeaderColumn("Id")
+                .WithHeaderColumn("Name")
+                .WithHeaderColumn("Manufactoror");
+            foreach(var prod in Service.GetAllProducts())
+            {
+                table.WithRow(new Anchor($"/food/new?code={prod.Id}&redirect=enter", prod.Id), prod.Name, Service.GetManufacturor(prod.Id) ?? "");
+            }
+            ReplyFile("products.html", 200, new Replacements().Add("table", table));
+        }
+
+        Classes.HTMLHelpers.HTMLBase getItemInfo(InventoryItem item)
+        {
+            var div = new Div(id: $"{item.Id}", "placed item draggable");
+            var manu = Service.GetManufacturor(item.ProductId);
+            if(manu != null)
+                div.Children.Add(new Span(cls: "manu") { RawText = manu });
+            div.Children.Add(new Span() { RawText = item.Product.Name });
+            div.WithTag("draggable", "true");
+            div.WithTag("ondragstart", "onDragStart(event);");
+            return div;
+        }
+
         [Method("GET"), Path("/food/menu")]
         public void ViewCurrentMenu()
         {
-            ReplyFile("current_menu.html", 200);
+            var table = new Table();
+            var replacements = new Replacements();
+
+            if(Service.WorkingMenu == null)
+            {
+                replacements.Add("title", "Selector");
+
+                table.WithHeaderColumn("Title");
+
+                foreach((var key, var value) in Service.Menus)
+                {
+                    table.WithRow(new Anchor("#", value.Title ?? $"{key}") { OnClick = $"selectMenu({key});" });
+                }
+            } else
+            {
+                table.WithHeaderColumn("Day");
+                var _groups = Service.WorkingMenu.GetGroups();
+                foreach(var group in _groups)
+                    table.WithHeaderColumn(group);
+
+                DateTime date = Service.WorkingMenu.StartDate;
+                int dayIndex = 0;
+                foreach(var day in Service.WorkingMenu.Days)
+                {
+                    var row = new TableRow(id: $"day-{dayIndex}");
+                    row.WithCell($"{date.DayOfWeek} {date.Day}{Program.GetDaySuffix(date.Day)}");
+
+                    if(day.Items.TryGetValue("*", out var ls))
+                    {
+                        TableData data = new TableData(null, cls: "shared") { ColSpan = $"{_groups.Length}" };
+                        data.WithTag("data-group", "*");
+                        data.WithTag("data-date", dayIndex.ToString());
+                        data.WithTag("ondragover", "onDragOver(event)");
+                        data.WithTag("ondrop", "onDrop(event)");
+                        foreach(var item in ls)
+                        {
+                            data.Children.Add(getItemInfo(item));
+                        }
+                        row.Children.Add(data);
+                    } else
+                    {
+                        foreach(var group in _groups)
+                        {
+                            TableData data = new TableData(null);
+                            data.WithTag("data-group", group);
+                            data.WithTag("data-date", dayIndex.ToString());
+                            data.WithTag("ondragover", "onDragOver(event)");
+                            data.WithTag("ondrop", "onDrop(event)");
+                            if(day.Text != null)
+                            {
+                                data.Children.Add(new StrongText(day.Text));
+                            }
+                            if (day.Items.TryGetValue(group, out ls))
+                            {
+                                foreach (var item in ls)
+                                {
+                                    data.Children.Add(getItemInfo(item));
+                                }
+                            } 
+                            row.Children.Add(data);
+                        }
+                    }
+
+
+                    var inp = new Input("checkbox")
+                    {
+                        Checked = day.Items.ContainsKey("*"),
+                        OnClick = "toggleShare(event);",
+                        Style = "float: right"
+                    };
+                    row.Children.Last().Children.Add(inp);
+                    table.Children.Add(row);
+                    date = date.AddDays(1);
+                    dayIndex++;
+                }
+
+                replacements.Add("title", Service.WorkingMenu.Title);
+            }
+
+            ReplyFile("menu.html", 200, replacements.Add("table", table.ToString(true)));
         }
 
         [Method("GET"), Path("/food/menu/new")]
@@ -879,6 +985,24 @@ namespace DiscordBot.MLAPI.Modules
             }
         }
 
+        [Method("POST"), Path("/api/food/query")]
+        public void SearchInventory(string query)
+        {
+            var items = new List<InventoryItem>();
+            using (var db = Service.DB())
+                items = db.Inventory.Where(x => x.InventoryId == FoodService.DefaultInventoryId).ToList();
+
+            var jarr = new JArray();
+            foreach (var inv in items)
+            {
+                if(inv.Id.ToString() == query || (inv.Product?.Name ?? "").Contains(query, StringComparison.InvariantCultureIgnoreCase) || (inv.Product?.Tags ?? "").Contains(query, StringComparison.InvariantCultureIgnoreCase))
+                {
+                    jarr.Add(inv.ToJson());
+                }
+            }
+            RespondJson(jarr);
+        }
+
         [Method("PATCH"), Path("/api/food/inventory")]
         public void EditInventory(int invId, bool frozen)
         {
@@ -1189,5 +1313,88 @@ namespace DiscordBot.MLAPI.Modules
             RespondRaw("{}", 200);
         }
 
+        [Method("POST"), Path("/api/food/menu")]
+        public void SelectMenu(int id)
+        {
+            if(Service.WorkingMenu != null)
+            {
+                RespondRaw("Cannot overwrite current menu", 400);
+                return;
+            }
+            if(!Service.Menus.TryGetValue(id, out var menu))
+            {
+                RespondRaw("Menu does not exist", 400);
+                return;
+            }
+            Service.WorkingMenu = menu.ToWorking(Service, FoodService.DefaultInventoryId);
+            Service.OnSave();
+            RespondRaw("Ok", 200);
+        }
+
+        struct moveData
+        {
+            public int ToDay;
+            public int FromDay;
+            public string ToGroup;
+            public string FromGroup;
+            public int Id;
+        }
+
+        [Method("POST"), Path("/api/food/menu/shared")]
+        public void MenuToggleShare(int day)
+        {
+            if (Service.WorkingMenu == null)
+            {
+                RespondRaw("No current menu", 400);
+                return;
+            }
+            var d = Service.WorkingMenu.Days.ElementAtOrDefault(day);
+            if(d.Items.TryGetValue("*", out var ls))
+            {
+                var groups = Service.WorkingMenu.GetGroups();
+                d.Items = new Dictionary<string, List<InventoryItem>>();
+                foreach (var g in groups)
+                    d.Items.Add(g, new List<InventoryItem>());
+            }
+            else
+            {
+                d.Items = new Dictionary<string, List<InventoryItem>>()
+                {
+                    {"*", new List<InventoryItem>()}
+                };
+            }
+            Service.OnSave();
+            RespondRaw("", 200);
+        }
+
+        [Method("POST"), Path("/api/food/menu/move")]
+        public void MoveMenuItem()
+        {
+            if(Service.WorkingMenu == null)
+            {
+                RespondRaw("No current menu", 400);
+                return;
+            }
+            var data = JsonConvert.DeserializeObject<moveData>(Context.Body);
+            InventoryItem item;
+            if (data.FromGroup != null)
+            {
+
+                var fromD = Service.WorkingMenu.Days[data.FromDay];
+                var fromG = fromD.Items[data.FromGroup];
+
+                item = fromG.FirstOrDefault(x => x.Id == data.Id);
+                fromG.Remove(item);
+            } else
+            {
+                item = Service.GetInventoryItem(data.Id);
+            }
+
+            var toD = Service.WorkingMenu.Days[data.ToDay];
+
+            toD.Items.AddInner(data.ToGroup, item);
+            Service.OnSave();
+            RespondRaw("OK");
+        }
     }
 }
