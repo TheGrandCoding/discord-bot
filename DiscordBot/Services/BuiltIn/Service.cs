@@ -252,6 +252,7 @@ namespace DiscordBot.Services
             sendFunction(ServiceState.Close);
         }
 
+        [Cron("4", "0")]
         public static void SendDailyTick()
         {
             doneFunctions.Remove(ServiceState.DailyTick);
@@ -259,8 +260,122 @@ namespace DiscordBot.Services
             sendFunction(ServiceState.DailyTick);
         }
 
+        struct schedueledJobs
+        {
+
+            public MethodInfo Method { get; set; }
+            public Service Service { get; set; }
+
+            public CronSchedule Schedule { get; set; }
+
+            public void Invoke(int hour, int minute)
+            {
+                var meth = Method;
+                var srv = Service;
+                Task.Run(() =>
+                {
+                    try
+                    {
+                        object[] arr;
+                        var param = meth.GetParameters();
+                        if(param.Length == 1)
+                        {
+                            if (param[0].ParameterType == typeof(int))
+                                arr = new object[] { hour };
+                        } else if(param.Length == 2)
+                        {
+                            if (param.All(x => x.ParameterType == typeof(int)))
+                                arr = new object[] { hour, minute };
+                        } else
+                        {
+                            arr = new object[] { };
+                        }
+
+
+                        if (meth.IsStatic)
+                        {
+                            meth.Invoke(null, arr);
+                        } else
+                        {
+                            meth.Invoke(srv, arr);
+                        }
+                    } catch(Exception ex)
+                    {
+                        Program.LogError(ex, "CronInvoke");
+                    }
+                });
+            }
+            
+            public DateTime Next { get; set; }
+        }
+
+        static void insertCron(LinkedList<schedueledJobs> queue, schedueledJobs newJob)
+        {
+            if(queue.Count == 0)
+            {
+                queue.AddFirst(newJob);
+                return;
+            }
+            LinkedListNode<schedueledJobs> node = queue.First;
+            do
+            {
+                if(node.Value.Next > newJob.Next)
+                {
+                    queue.AddBefore(node, newJob);
+                    return;
+                } else
+                {
+                    node = node.Next;
+                }
+            } while (node != null);
+            queue.AddLast(newJob);
+        }
+        static schedueledJobs pop(LinkedList<schedueledJobs> queue)
+        {
+            var x = queue.First;
+            queue.RemoveFirst();
+            return x.Value;
+        }
+
+        static void handleCronSearch(LinkedList<schedueledJobs> list, Type type, Service srv)
+        {
+            var methods = new List<MethodInfo>();
+            if (srv != null)
+                methods.AddRange(type.GetMethods());
+            methods.AddRange(type.GetMethods(BindingFlags.Static | BindingFlags.Public));
+
+            foreach (var method in methods)
+            {
+                var attr = method.GetCustomAttribute<CronAttribute>();
+                if (attr != null)
+                {
+                    var sch = new CronSchedule(attr.Hour, attr.Minute);
+                    insertCron(list, new schedueledJobs()
+                    {
+                        Method = method,
+                        Service = srv,
+                        Schedule = sch,
+                        Next = sch.GetNext()
+                    });
+                }
+            }
+        }
+
+        static LinkedList<schedueledJobs> fetchCrons()
+        {
+            var list = new LinkedList<schedueledJobs>();
+            foreach(var srv in zza_services)
+            {
+                var type = srv.GetType();
+                handleCronSearch(list, type, srv);
+            }
+            handleCronSearch(list, typeof(Service), null);
+            return list;
+        }
+
         static void thread()
         {
+            var jobs = fetchCrons();
             var token = Program.GetToken();
             var nfi = (NumberFormatInfo)CultureInfo.InvariantCulture.NumberFormat.Clone();
             nfi.NumberGroupSeparator = " ";
@@ -268,17 +383,20 @@ namespace DiscordBot.Services
             {
                 do
                 {
+                    var nextJob = pop(jobs);
+
                     var now = DateTime.Now;
-                    var then = new DateTime(now.Year, now.Month, now.Day, 4, 0, 0); // 4 am
-                    if (then <= now)
-                        then = then.AddDays(1);
+                    var then = nextJob.Next;
                     var diff = then - now;
                     var miliseconds = (int)Math.Floor(diff.TotalMilliseconds);
-                    if (miliseconds < 2500)
-                        miliseconds = 2500;
-                    Program.LogInfo($"Waiting for {miliseconds.ToString("#,0.00", nfi)}ms", "DailyTick");
-                    Task.Delay(miliseconds, token).Wait(token);
-                    SendDailyTick();
+                    if (miliseconds >= 500)
+                    {
+                        Program.LogInfo($"Waiting for {miliseconds.ToString("#,0.00", nfi)}ms until {then:hh:mm} for {nextJob.Method.Name}", "JobSchedule");
+                        Task.Delay(miliseconds, token).Wait(token);
+                    }
+                    nextJob.Invoke(then.Hour, then.Minute);
+                    nextJob.Next = nextJob.Schedule.GetNext(nextJob.Next);
+                    insertCron(jobs, nextJob);
                 } while (!token.IsCancellationRequested);
             } catch (OperationCanceledException)
             {
@@ -387,5 +505,77 @@ namespace DiscordBot.Services
         /// Service has failed
         /// </summary>
         Failed
+    }
+
+    public class CronValue
+    {
+        public CronValue(string text)
+        {
+            Text = text;
+        }
+        public string Text { get; set; }
+
+        public bool Matches(int value)
+        {
+            if (Text == "*") return true;
+            if (int.TryParse(Text, out var x))
+                return x == value;
+            if(Text.Contains('-'))
+            {
+                var sp = Text.Split('-');
+                var start = int.Parse(sp[0]);
+                var end = int.Parse(sp[1]);
+                return start >= value && value < end;
+            }
+            if(Text.Contains(','))
+            {
+                var sp = Text.Split(',');
+                return sp.Any(x => int.Parse(x) == value);
+            }
+            return false;
+        }
+    }
+
+    public class CronSchedule
+    {
+        public CronValue Hour { get; set; }
+        public CronValue Minute { get; set; }
+
+        public CronSchedule(string text)
+        {
+            var sp = text.Split(' ');
+            Hour = new CronValue(sp[0]);
+            Minute = new CronValue(sp[1]);
+        }
+        public CronSchedule(string hour, string minute)
+        {
+            Hour = new CronValue(hour);
+            Minute = new CronValue(minute);
+        }
+
+        public DateTime GetNext(DateTime? start = null)
+        {
+            var now = start ?? DateTime.Now;
+            int startday = now.DayOfYear;
+            now = new DateTime(now.Year, now.Month, now.Day, now.Hour, now.Minute, 0);
+            do
+            {
+                now = now.AddMinutes(1);
+                if (Hour.Matches(now.Hour) && Minute.Matches(now.Minute))
+                    return now;
+            } while ((now.DayOfYear - startday) < 2);
+            return now;
+        }
+    }
+
+    public class CronAttribute : Attribute
+    {
+        public string Hour { get; set; }
+        public string Minute { get; set; }
+        public CronAttribute(string hour = "*", string minute = "*")
+        {
+            Hour = hour;
+            Minute = minute;
+        }
     }
 }

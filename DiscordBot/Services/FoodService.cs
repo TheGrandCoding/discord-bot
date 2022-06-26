@@ -228,8 +228,8 @@ namespace DiscordBot.Services
             return builder;
         }
 
-
-        public void DoMenuChecks()
+        [Cron("9,21", "0")]
+        public void SendMenuNotifs(int hour)
         {
             if (WorkingMenu == null) return;
 
@@ -237,23 +237,38 @@ namespace DiscordBot.Services
             menuDays.AddRange(WorkingMenu.Days);
 
             var daysSpent = (int)(DateTime.Now - WorkingMenu.StartDate).TotalDays;
-            if(daysSpent > 6)
+            if (daysSpent > 6)
             {
                 var nextMenu = Menus[WorkingMenu.NextComingUp].ToWorking(this, DefaultInventoryId);
                 menuDays.AddRange(nextMenu.Days);
-                if(daysSpent > 7)
-                {
-                    WorkingMenu = nextMenu;
-                }
             }
-            var today = menuDays[daysSpent];
-            var tomorrow = menuDays[daysSpent + 1];
             var embeds = new List<Embed>();
-            embeds.Add(toEmbed(today, true).Build());
-            embeds.Add(toEmbed(tomorrow, false).Build());
+            if(hour < 12)
+            {
+                // morning reminder
+                var today = menuDays[daysSpent];
+                embeds.Add(toEmbed(today, true).Build());
+            } else
+            {
+                var tomorrow = menuDays[daysSpent + 1];
+                embeds.Add(toEmbed(tomorrow, false).Build());
+            }
 
             var lc = getLogChannel().Result;
             lc.SendMessageAsync(embeds: embeds.ToArray()).Wait();
+        }
+
+        public void DoMenuChecks()
+        {
+            if (WorkingMenu == null) return;
+
+
+            var daysSpent = Math.Round((DateTime.Now - WorkingMenu.StartDate).TotalDays);
+            if(daysSpent > 7)
+            {
+                var nextMenu = Menus[WorkingMenu.NextComingUp].ToWorking(this, DefaultInventoryId);
+                WorkingMenu = nextMenu;
+            }
         }
 
 
