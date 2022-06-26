@@ -7,6 +7,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -86,10 +88,41 @@ namespace DiscordBot.Interactions.Modules
             string path = Path.Combine(SavedService.SaveFolder, sv.SaveFile);
             await FollowupWithFileAsync(path, $"Save file for service {sv.Name}", ephemeral: true);
         }
+    
+        [SlashCommand("setsave", "Sets save for next restart")]
+        public async Task UploadServiceFile([Autocomplete(typeof(ListServiceAutocomplete))]string service, IAttachment attachment)
+        {
+            if (await Forbidden()) return;
+            if (string.IsNullOrWhiteSpace(service))
+            {
+                await RespondAsync(":x: You must specify a service name", ephemeral: true);
+                return;
+            }
+            var srv = Service.GetServices().FirstOrDefault(x => x.Name == service);
+            if (srv == null)
+            {
+                await RespondAsync(":x: That service does not exist", ephemeral: true);
+                return;
+            }
+            if(!(srv is SavedService save))
+            {
+                await RespondAsync($":x: That service does not accept save files.", ephemeral: true);
+                return;
+            }
+            await RespondAsync("Processing...", ephemeral: true);
+            using (WebClient wc = new WebClient())
+                wc.DownloadFile(new Uri(attachment.Url), save.FullPath + ".new");
+            await ModifyOriginalResponseAsync(x => x.Content = "New save has been downloaded.\r\n" +
+            "It should take effect next time the bot starts.");
+        }
+
     }
 
     public class ListServiceAutocomplete : AutocompleteHandler
     {
+        public ListServiceAutocomplete()
+        {
+        }
         public override async Task<AutocompletionResult> GenerateSuggestionsAsync(IInteractionContext context, IAutocompleteInteraction autocompleteInteraction, IParameterInfo parameter, IServiceProvider services)
         {
             var list = new List<AutocompleteResult>();

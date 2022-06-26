@@ -10,12 +10,14 @@ namespace DiscordBot.Services
         public static string SaveFolder => Path.Combine(Program.BASE_PATH, "Saves");
         public virtual string SaveFile => Name + ".json";
 
+        public string FullPath => Path.Combine(SaveFolder, SaveFile);
+
         public virtual string ReadSave(string defaultContent = "{}")
         {
             string s = null;
             try
             {
-                s = File.ReadAllText(Path.Combine(SaveFolder, SaveFile), Encoding.UTF8);
+                s = File.ReadAllText(FullPath, Encoding.UTF8);
             } catch { }
             if (s == "null")
                 s = null;
@@ -36,7 +38,7 @@ namespace DiscordBot.Services
                 return; // refuse to save dat.
             if (!Directory.Exists(SaveFolder))
                 Directory.CreateDirectory(SaveFolder);
-            File.WriteAllText(Path.Combine(SaveFolder, SaveFile), content);
+            File.WriteAllText(FullPath, content);
         }
     }
 }

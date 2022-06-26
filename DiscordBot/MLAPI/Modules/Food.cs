@@ -532,6 +532,7 @@ namespace DiscordBot.MLAPI.Modules
             div.Children.Add(new Span() { RawText = item.Product.Name });
             div.WithTag("draggable", "true");
             div.WithTag("ondragstart", "onDragStart(event);");
+            div.WithTag("onclick", "onItemClick(event);");
             return div;
         }
 
@@ -568,12 +569,15 @@ namespace DiscordBot.MLAPI.Modules
                     if(day.Items.TryGetValue("*", out var ls))
                     {
                         TableData data = new TableData(null, cls: "shared") { ColSpan = $"{_groups.Length}" };
+                        if (day.Text.TryGetValue("*", out var text))
+                            data.Children.Add(new StrongText(text));
                         data.WithTag("data-group", "*");
                         data.WithTag("data-date", dayIndex.ToString());
                         data.WithTag("ondragover", "onDragOver(event)");
                         data.WithTag("ondrop", "onDrop(event)");
                         foreach(var item in ls)
                         {
+                            if (item == null) continue;
                             data.Children.Add(getItemInfo(item));
                         }
                         row.Children.Add(data);
@@ -586,14 +590,13 @@ namespace DiscordBot.MLAPI.Modules
                             data.WithTag("data-date", dayIndex.ToString());
                             data.WithTag("ondragover", "onDragOver(event)");
                             data.WithTag("ondrop", "onDrop(event)");
-                            if(day.Text != null)
-                            {
-                                data.Children.Add(new StrongText(day.Text));
-                            }
+                            if (day.Text.TryGetValue(group, out var x))
+                                data.Children.Add(new StrongText(x));
                             if (day.Items.TryGetValue(group, out ls))
                             {
                                 foreach (var item in ls)
                                 {
+                                    if (item == null) continue;
                                     data.Children.Add(getItemInfo(item));
                                 }
                             } 
@@ -1243,7 +1246,7 @@ namespace DiscordBot.MLAPI.Modules
                 }
                 var menuDay = new SavedMenuDay();
                 if (day.TryGetValue("text", out var text))
-                    menuDay.Text = text.ToObject<string>();
+                    menuDay.Text = text.ToObject<Dictionary<string, string>>();
 
                 var dayItems = day["items"] as JObject;
                 var itemsError = _error.Child("items");
@@ -1394,6 +1397,20 @@ namespace DiscordBot.MLAPI.Modules
 
             toD.Items.AddInner(data.ToGroup, item);
             Service.OnSave();
+            RespondRaw("OK");
+        }
+    
+        [Method("DELETE"), Path("/api/food/menu/item")]
+        public void DeleteMenuItem(string group, int day, int id)
+        {
+            if (Service.WorkingMenu == null)
+            {
+                RespondRaw("No current menu", 400);
+                return;
+            }
+            var mDay = Service.WorkingMenu.Days[day];
+            var mGroup = mDay.Items[group];
+            mGroup.RemoveAll(x => x.Id == id);
             RespondRaw("OK");
         }
     }

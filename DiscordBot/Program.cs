@@ -166,8 +166,16 @@ Changed how permissions worked for bot.
 
         static void fetchServiceFiles(List<Service> services)
         {
+            // If any new files are present, load them
+            var folder = Path.Combine(BASE_PATH, "Saves");
+            var newFiles = Directory.GetFiles(folder, "*.new");
+            foreach (var file in newFiles)
+            {
+                Program.LogInfo($"Loading new save file {Path.GetFileName(file)}", "FetchService");
+                File.Move(file, file.Replace(".new", ""), true);
+            }
 #if !DEBUG
-            // Release shouldn't be downloading the files.. from itself
+            
             return;
 #endif
             List<Service> savedServices;

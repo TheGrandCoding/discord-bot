@@ -212,16 +212,17 @@ namespace DiscordBot.Services
         {
             var builder = new EmbedBuilder();
             builder.Title = today ? "Menu" : "Reminder";
-            builder.Description = day.Text ?? "Menu items";
             builder.Color = today ? Color.Green : Color.Red;
             foreach((var key, var items) in day.Items)
             {
                 var v = new StringBuilder();
+                if (day.Text.TryGetValue(key, out var t))
+                    v.AppendLine($"**{v}**");
                 foreach(var item in items)
                 {
                     v.AppendLine($"{(item.Product?.Name ?? item.ProductId)} {item.InitialExpiresAt:yyyy-MM-dd} {(item.Frozen ? "(**Frozen**)" : "")}");
                 }
-                if (items.Count == 0)
+                if (v.Length == 0)
                     v.Append("-");
                 builder.AddField(key, v, true);
             }
@@ -528,11 +529,11 @@ namespace DiscordBot.Services
     }
     public class WorkingMenuDay
     {
-        public WorkingMenuDay(string text)
+        public WorkingMenuDay(Dictionary<string, string> text)
         {
             Text = text;
         }
-        public string Text { get; set; }
+        public Dictionary<string, string> Text { get; set; }
         public Dictionary<string, List<InventoryItem>> Items { get; set; } = new();
     }
 
@@ -612,7 +613,7 @@ namespace DiscordBot.Services
 
     public class SavedMenuDay
     {
-        public string Text { get; set; }
+        public Dictionary<string, string> Text { get; set; }
 
         public Dictionary<string, List<SavedMenuItem>> Items { get; set; } = new();
     }

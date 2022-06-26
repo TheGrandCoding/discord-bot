@@ -53,6 +53,7 @@ namespace DiscordBot.Classes.Converters
 
         public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
         {
+            if (reader.Value == null) return null;
             var sv = Program.Services.GetRequiredService<FoodService>();
             int x = int.Parse((string)reader.Value);
             return sv.GetInventoryItem(x);
