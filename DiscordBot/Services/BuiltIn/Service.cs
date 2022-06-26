@@ -276,7 +276,7 @@ namespace DiscordBot.Services
                 {
                     try
                     {
-                        object[] arr;
+                        object[] arr = new object[] { };
                         var param = meth.GetParameters();
                         if(param.Length == 1)
                         {
@@ -286,9 +286,6 @@ namespace DiscordBot.Services
                         {
                             if (param.All(x => x.ParameterType == typeof(int)))
                                 arr = new object[] { hour, minute };
-                        } else
-                        {
-                            arr = new object[] { };
                         }
 
 
