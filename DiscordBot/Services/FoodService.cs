@@ -23,6 +23,8 @@ namespace DiscordBot.Services
         public ConcurrentDictionary<string, List<string>> Manufacturers { get; set; } = new ConcurrentDictionary<string, List<string>>();
         public ConcurrentBag<SavedRecipe> Recipes { get; set; } = new ConcurrentBag<SavedRecipe>();
 
+        public ConcurrentDictionary<int, SavedMenu> Menus { get; set; } = new();
+
         public ConcurrentDictionary<int, WorkingRecipe> OngoingRecipes { get; set; } = new ConcurrentDictionary<int, WorkingRecipe>();
         
         public FoodDbContext DB()
@@ -406,7 +408,7 @@ namespace DiscordBot.Services
     public class SavedMenu
     {
         public string Title { get; set; }
-        public List<SavedMenuDay> Days { get; set; }
+        public List<SavedMenuDay> Days { get; set; } = new List<SavedMenuDay>();
 
         struct orderData
         {
@@ -463,7 +465,7 @@ namespace DiscordBot.Services
     {
         public string Text { get; set; }
 
-        public Dictionary<string, List<SavedMenuItem>> Items { get; set; }
+        public Dictionary<string, List<SavedMenuItem>> Items { get; set; } = new();
     }
 
     [JsonConverter(typeof(JsonSubtypes), "Type")]

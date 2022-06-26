@@ -1,4 +1,5 @@
-﻿using DiscordBot.Classes.HTMLHelpers.Objects;
+﻿using DiscordBot.Classes;
+using DiscordBot.Classes.HTMLHelpers.Objects;
 using DiscordBot.Services;
 using DiscordBot.Utils;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,6 +21,15 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         public FoodService Service { get; set; }
+
+        Dictionary<string, Product> prodCache = new Dictionary<string, Product>();
+        Product getProductCached(string id)
+        {
+            if (prodCache.TryGetValue(id, out var p)) return p;
+            p = Service.GetProduct(id);
+            prodCache[id] = p;
+            return p;
+        }
 
         string formatProductId(string id)
         {
@@ -505,9 +515,11 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("GET"), Path("/food/menu/new")]
-        public void ViewNewMenu()
+        public void ViewNewMenu(int? overwrite = null)
         {
-            ReplyFile("new_menu.html", 200);
+            ReplyFile("new_menu.html", 200, 
+                new Replacements()
+                .Add("modify", overwrite.HasValue ? overwrite.Value.ToString() : ""));
         }
 
 
@@ -1081,7 +1093,100 @@ namespace DiscordBot.MLAPI.Modules
         [Method("POST"), Path("/api/food/menus")]
         public void AddMenu()
         {
+            var body = JObject.Parse(Context.Body);
+            var errorMaker = APIErrorResponse.InvalidFormBody();
+            var menu = new SavedMenu();
+            if (body.TryGetValue("title", out var title))
+                menu.Title = title.ToObject<string>();
 
+
+            var daysArray = body["days"] as JArray;
+            var dayError = errorMaker.Child("days");
+            if(daysArray == null)
+            {
+                RespondError(400, dayError.EndRequired());
+                return;
+            }
+
+            for(int dayI = 0; dayI < daysArray.Count; dayI++)
+            {
+                var _error = dayError.Child(dayI);
+                var day = daysArray[dayI] as JObject;
+                if(day == null)
+                {
+                    RespondError(400, _error.EndError("NOT_NULL", "This field must be an object"));
+                    return;
+                }
+                var menuDay = new SavedMenuDay();
+                if (day.TryGetValue("text", out var text))
+                    menuDay.Text = text.ToObject<string>();
+
+                var dayItems = day["items"] as JObject;
+                var itemsError = _error.Child("items");
+                if(dayItems == null)
+                {
+                    RespondError(400, itemsError.EndError("NOT_NULL", "This field must be an object"));
+                    return;
+                }
+
+                foreach(var keypair in dayItems)
+                {
+                    var kpError = itemsError.Child(keypair.Key);
+                    var value = keypair.Value as JArray;
+
+                    for(int itemI = 0; itemI < value.Count; itemI++)
+                    {
+                        var iError = kpError.Child(itemI);
+                        var item = value[itemI] as JObject;
+                        if(!item.TryGetValue("type", out var type))
+                        {
+                            RespondError(400, iError.Child("type").EndRequired());
+                            return;
+                        }
+                        if(!item.TryGetValue("value", out var itemValue))
+                        {
+                            RespondError(400, iError.Child("type").EndRequired());
+                            return;
+                        }
+
+                        SavedMenuItem menuItem = null;
+
+                        string typeValue = type.ToObject<string>();
+                        if(typeValue == "id")
+                        {
+                            var idmenuItem = new SavedMenuIdItem();
+                            idmenuItem.Ids = itemValue.ToObject<List<string>>();
+                            foreach(var id in idmenuItem.Ids)
+                            {
+                                if(getProductCached(id) == null)
+                                {
+                                    RespondError(400, iError.EndError("MISSING", $"No product by '{id}' exists"));
+                                    return;
+                                }
+                            }
+                            menuItem = idmenuItem;
+                        } else if(typeValue == "tag")
+                        {
+                            menuItem = new SavedMenuTagItem()
+                            {
+                                Tags = itemValue.ToObject<List<string>>()
+                            };
+                        } else
+                        {
+                            RespondError(400, iError.Child("type").EndChoices("id", "tag"));
+                            return;
+                        }
+
+                        menuDay.Items.AddInner(keypair.Key, menuItem);
+
+                    }
+                }
+
+                menu.Days.Add(menuDay);
+            }
+            Service.Menus[Service.Menus.Count] = menu;
+            Service.OnSave();
+            RespondRaw("{}", 200);
         }
 
     }
