@@ -86,7 +86,7 @@ namespace DiscordBot.Interactions.Modules
             }
             await RespondAsync($"Fetching save file `{sv.SaveFile}`...", ephemeral: true);
             string path = Path.Combine(SavedService.SaveFolder, sv.SaveFile);
-            await FollowupWithFileAsync(path, $"Save file for service {sv.Name}", ephemeral: true);
+            await FollowupWithFileAsync(path, sv.SaveFile, $"Save file for service {sv.Name}", ephemeral: true);
         }
     
         [SlashCommand("setsave", "Sets save for next restart")]

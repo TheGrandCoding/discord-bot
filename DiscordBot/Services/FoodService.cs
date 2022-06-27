@@ -609,6 +609,19 @@ namespace DiscordBot.Services
 
             return menu;
         }
+
+        public JObject ToJson()
+        {
+            var jobj = new JObject();
+            jobj["title"] = Title;
+            var jarr = new JArray();
+            foreach(var day in Days)
+            {
+                jarr.Add(day.ToJson());
+            }
+            jobj["days"] = jarr;
+            return jobj;
+        }
     }
 
     public class SavedMenuDay
@@ -616,6 +629,29 @@ namespace DiscordBot.Services
         public Dictionary<string, string> Text { get; set; }
 
         public Dictionary<string, List<SavedMenuItem>> Items { get; set; } = new();
+
+        public JObject ToJson()
+        {
+            var jobj = new JObject();
+
+            var text = new JObject();
+            foreach ((var k, var v) in Text)
+                text[k] = v;
+            jobj["text"] = text;
+
+            var items = new JObject();
+            foreach((var key, var val) in Items)
+            {
+                var arr = new JArray();
+                foreach (var item in val)
+                    arr.Add(item.ToJson());
+                items[key] = arr;
+            }
+            jobj["items"] = items;
+
+
+            return jobj;
+        }
     }
 
     [JsonConverter(typeof(JsonSubtypes), "Type")]
@@ -626,6 +662,8 @@ namespace DiscordBot.Services
         public abstract string Type { get; }
         public int Priority { get; set; } = 0;
         public abstract List<InventoryItem> CollectValid(List<InventoryItem> items);
+
+        public abstract JObject ToJson();
     }
 
     public class SavedMenuIdItem : SavedMenuItem
@@ -641,6 +679,14 @@ namespace DiscordBot.Services
         public override List<InventoryItem> CollectValid(List<InventoryItem> items)
         {
             return items.Where(x => Ids.Contains(x.ProductId)).ToList();
+        }
+
+        public override JObject ToJson()
+        {
+            var j = new JObject();
+            j["type"] = "id";
+            j["value"] = JArray.FromObject(Ids);
+            return j;
         }
     }
 
@@ -667,6 +713,14 @@ namespace DiscordBot.Services
                 }
             }
             return valid;
+        }
+
+        public override JObject ToJson()
+        {
+            var j = new JObject();
+            j["type"] = "tag";
+            j["value"] = JArray.FromObject(Tags);
+            return j;
         }
     }
 

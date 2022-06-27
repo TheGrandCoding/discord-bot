@@ -550,7 +550,10 @@ namespace DiscordBot.MLAPI.Modules
 
                 foreach((var key, var value) in Service.Menus)
                 {
-                    table.WithRow(new Anchor("#", value.Title ?? $"{key}") { OnClick = $"selectMenu({key});" });
+                    var div = new Div();
+                    div.Children.Add(new Anchor("#", value.Title ?? $"{key}") { OnClick = $"selectMenu({key});" });
+                    div.Children.Add(new Anchor($"/food/menu/new?overwrite={key}", " (Edit)"));
+                    table.WithRow(div);
                 }
             } else
             {
@@ -617,7 +620,7 @@ namespace DiscordBot.MLAPI.Modules
                     dayIndex++;
                 }
 
-                replacements.Add("title", Service.WorkingMenu.Title);
+                replacements.Add("title", new Anchor($"/food/menu/new?overwrite={Service.WorkingMenu.FromMenu}", Service.WorkingMenu.Title));
             }
 
             ReplyFile("menu.html", 200, replacements.Add("table", table.ToString(true)));
@@ -1024,10 +1027,10 @@ namespace DiscordBot.MLAPI.Modules
         [Method("GET"), Path("/api/food/product")]
         public void SearchProducts(string query)
         {
-            IEnumerable<Product> products;
+            List<Product> products;
             using (var db = Service.DB())
             {
-                products = db.Products.Where(x => x.Id == query || x.Name.Contains(query, StringComparison.InvariantCultureIgnoreCase));
+                products = db.Products.AsAsyncEnumerable().Where(x => x.Id == query || x.Name.Contains(query, StringComparison.InvariantCultureIgnoreCase)).ToListAsync().Result;
             }
             var jarray = new JArray();
             foreach(var prod in products)
@@ -1218,7 +1221,7 @@ namespace DiscordBot.MLAPI.Modules
 
 
         [Method("POST"), Path("/api/food/menus")]
-        public void AddMenu()
+        public void AddMenu(int? modify = null)
         {
             var body = JObject.Parse(Context.Body);
             var errorMaker = APIErrorResponse.InvalidFormBody();
@@ -1311,7 +1314,9 @@ namespace DiscordBot.MLAPI.Modules
 
                 menu.Days.Add(menuDay);
             }
-            Service.Menus[Service.Menus.Count] = menu;
+            if (modify.HasValue)
+                menu.Id = modify.Value;
+            Service.Menus[menu.Id] = menu;
             Service.OnSave();
             RespondRaw("{}", 200);
         }
@@ -1332,6 +1337,17 @@ namespace DiscordBot.MLAPI.Modules
             Service.WorkingMenu = menu.ToWorking(Service, FoodService.DefaultInventoryId);
             Service.OnSave();
             RespondRaw("Ok", 200);
+        }
+
+        [Method("GET"), Path("/api/food/menu")]
+        public void ApiGetMenu(int id)
+        {
+            if(!Service.Menus.TryGetValue(id, out var menu))
+            {
+                RespondRaw("null", 404);
+                return;
+            }
+            RespondJson(menu.ToJson());
         }
 
         struct moveData
