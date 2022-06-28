@@ -260,10 +260,15 @@ namespace DiscordBot.MLAPI.Modules
             links += new Anchor($"/food?full={full}&grouped={!grouped}", grouped ? "View non-grouped" : "View grouped information");
             links += "<br/>";
             links += new Anchor($"/food/calendar", "View as calandar");
+            links += " -- ";
+            links += new Anchor("/food/menu", "View current menu");
 
-            if (Context.User != null)
+            links += " -- ";
+            if (Context.User == null)
             {
-                links += " -- ";
+                links += new StrongText() { Children = { new Anchor("/login", "Login") } };
+            } else 
+            {
                 links += new Anchor("/food/scan", "Scan new item");
             }
 
@@ -536,63 +541,76 @@ namespace DiscordBot.MLAPI.Modules
             return div;
         }
 
-        [Method("GET"), Path("/food/menu")]
-        public void ViewCurrentMenu()
+        void viewMenuActual(bool edit)
         {
             var table = new Table();
             var replacements = new Replacements();
 
-            if(Service.WorkingMenu == null)
+            if (Service.WorkingMenu == null)
             {
                 replacements.Add("title", "Selector");
 
                 table.WithHeaderColumn("Title");
 
-                foreach((var key, var value) in Service.Menus)
+                if(edit)
                 {
-                    var div = new Div();
-                    div.Children.Add(new Anchor("#", value.Title ?? $"{key}") { OnClick = $"selectMenu({key});" });
-                    div.Children.Add(new Anchor($"/food/menu/new?overwrite={key}", " (Edit)"));
-                    table.WithRow(div);
+                    foreach ((var key, var value) in Service.Menus)
+                    {
+                        var div = new Div();
+                        div.Children.Add(new Anchor("#", value.Title ?? $"{key}") { OnClick = $"selectMenu({key});" });
+                        div.Children.Add(new Anchor($"/food/menu/new?overwrite={key}", " (Edit)"));
+                        table.WithRow(div);
+                    }
+                } else
+                {
+                    table.WithRow("No menu selected.");
                 }
-            } else
+            }
+            else
             {
                 table.WithHeaderColumn("Day");
                 var _groups = Service.WorkingMenu.GetGroups();
-                foreach(var group in _groups)
+                foreach (var group in _groups)
                     table.WithHeaderColumn(group);
 
                 DateTime date = Service.WorkingMenu.StartDate;
                 int dayIndex = 0;
-                foreach(var day in Service.WorkingMenu.Days)
+                foreach (var day in Service.WorkingMenu.Days)
                 {
                     var row = new TableRow(id: $"day-{dayIndex}");
                     row.WithCell($"{date.DayOfWeek} {date.Day}{Program.GetDaySuffix(date.Day)}");
 
-                    if(day.Items.TryGetValue("*", out var ls))
+                    if (day.Items.TryGetValue("*", out var ls))
                     {
                         TableData data = new TableData(null, cls: "shared") { ColSpan = $"{_groups.Length}" };
                         if (day.Text.TryGetValue("*", out var text))
                             data.Children.Add(new StrongText(text));
                         data.WithTag("data-group", "*");
                         data.WithTag("data-date", dayIndex.ToString());
-                        data.WithTag("ondragover", "onDragOver(event)");
-                        data.WithTag("ondrop", "onDrop(event)");
-                        foreach(var item in ls)
+                        if(edit)
+                        {
+                            data.WithTag("ondragover", "onDragOver(event)");
+                            data.WithTag("ondrop", "onDrop(event)");
+                        }
+                        foreach (var item in ls)
                         {
                             if (item == null) continue;
                             data.Children.Add(getItemInfo(item));
                         }
                         row.Children.Add(data);
-                    } else
+                    }
+                    else
                     {
-                        foreach(var group in _groups)
+                        foreach (var group in _groups)
                         {
                             TableData data = new TableData(null);
                             data.WithTag("data-group", group);
                             data.WithTag("data-date", dayIndex.ToString());
-                            data.WithTag("ondragover", "onDragOver(event)");
-                            data.WithTag("ondrop", "onDrop(event)");
+                            if(edit)
+                            {
+                                data.WithTag("ondragover", "onDragOver(event)");
+                                data.WithTag("ondrop", "onDrop(event)");
+                            }
                             if (day.Text.TryGetValue(group, out var x))
                                 data.Children.Add(new StrongText(x));
                             if (day.Items.TryGetValue(group, out ls))
@@ -602,7 +620,7 @@ namespace DiscordBot.MLAPI.Modules
                                     if (item == null) continue;
                                     data.Children.Add(getItemInfo(item));
                                 }
-                            } 
+                            }
                             row.Children.Add(data);
                         }
                     }
@@ -611,7 +629,7 @@ namespace DiscordBot.MLAPI.Modules
                     var inp = new Input("checkbox")
                     {
                         Checked = day.Items.ContainsKey("*"),
-                        OnClick = "toggleShare(event);",
+                        OnClick = edit ? "toggleShare(event);" : "",
                         Style = "float: right"
                     };
                     row.Children.Last().Children.Add(inp);
@@ -620,10 +638,31 @@ namespace DiscordBot.MLAPI.Modules
                     dayIndex++;
                 }
 
-                replacements.Add("title", new Anchor($"/food/menu/new?overwrite={Service.WorkingMenu.FromMenu}", Service.WorkingMenu.Title));
+                if(edit)
+                {
+                    replacements.Add("title", Service.WorkingMenu.Title);
+                } else
+                {
+                    replacements.Add("title", new Anchor($"/food/menu/new?overwrite={Service.WorkingMenu.FromMenu}", Service.WorkingMenu.Title));
+                }
             }
+            replacements.Add("edit", edit);
 
             ReplyFile("menu.html", 200, replacements.Add("table", table.ToString(true)));
+        }
+
+        [Method("GET"), Path("/food/menu")]
+        public void ViewCurrentMenu()
+        {
+            viewMenuActual(true);
+        }
+
+        [Method("GET"), Path("/food/menu/readonly")]
+        [RequireAuthentication(false)]
+        [RequireApproval(false)]
+        public void ViewCurrentMenuReadonly()
+        {
+            viewMenuActual(false);
         }
 
         [Method("GET"), Path("/food/menu/new")]

@@ -6,7 +6,7 @@ namespace DiscordBot.Classes.HTMLHelpers.Objects
 {
     public class StrongText : DOMBase
     {
-        public StrongText(string content, string id = null, string cls = null) : base("strong", id, cls)
+        public StrongText(string content = null, string id = null, string cls = null) : base("strong", id, cls)
         {
             RawText = content;
         }
