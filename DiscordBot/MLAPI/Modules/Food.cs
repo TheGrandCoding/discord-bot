@@ -528,16 +528,19 @@ namespace DiscordBot.MLAPI.Modules
             ReplyFile("products.html", 200, new Replacements().Add("table", table));
         }
 
-        Classes.HTMLHelpers.HTMLBase getItemInfo(InventoryItem item)
+        Classes.HTMLHelpers.HTMLBase getItemInfo(InventoryItem item, bool edit)
         {
             var div = new Div(id: $"{item.Id}", "placed item draggable");
             var manu = Service.GetManufacturor(item.ProductId);
             if(manu != null)
                 div.Children.Add(new Span(cls: "manu") { RawText = manu });
             div.Children.Add(new Span() { RawText = item.Product.Name });
-            div.WithTag("draggable", "true");
-            div.WithTag("ondragstart", "onDragStart(event);");
-            div.WithTag("onclick", "onItemClick(event);");
+            if(edit)
+            {
+                div.WithTag("draggable", "true");
+                div.WithTag("ondragstart", "onDragStart(event);");
+                div.WithTag("onclick", "onItemClick(event);");
+            }
             return div;
         }
 
@@ -595,7 +598,7 @@ namespace DiscordBot.MLAPI.Modules
                         foreach (var item in ls)
                         {
                             if (item == null) continue;
-                            data.Children.Add(getItemInfo(item));
+                            data.Children.Add(getItemInfo(item, edit));
                         }
                         row.Children.Add(data);
                     }
@@ -618,7 +621,7 @@ namespace DiscordBot.MLAPI.Modules
                                 foreach (var item in ls)
                                 {
                                     if (item == null) continue;
-                                    data.Children.Add(getItemInfo(item));
+                                    data.Children.Add(getItemInfo(item, edit));
                                 }
                             }
                             row.Children.Add(data);
@@ -629,7 +632,7 @@ namespace DiscordBot.MLAPI.Modules
                     var inp = new Input("checkbox")
                     {
                         Checked = day.Items.ContainsKey("*"),
-                        OnClick = edit ? "toggleShare(event);" : "",
+                        OnClick = edit ? "toggleShare(event);" : "return false",
                         Style = "float: right"
                     };
                     row.Children.Last().Children.Add(inp);
@@ -640,13 +643,13 @@ namespace DiscordBot.MLAPI.Modules
 
                 if(edit)
                 {
-                    replacements.Add("title", Service.WorkingMenu.Title);
+                    replacements.Add("title", new Anchor($"/food/menu/new?overwrite={Service.WorkingMenu.FromMenu}", Service.WorkingMenu.Title));
                 } else
                 {
-                    replacements.Add("title", new Anchor($"/food/menu/new?overwrite={Service.WorkingMenu.FromMenu}", Service.WorkingMenu.Title));
+                    replacements.Add("title", Service.WorkingMenu.Title);
                 }
             }
-            replacements.Add("edit", edit);
+            replacements.Add("edit", edit ? "true" : "");
 
             ReplyFile("menu.html", 200, replacements.Add("table", table.ToString(true)));
         }
