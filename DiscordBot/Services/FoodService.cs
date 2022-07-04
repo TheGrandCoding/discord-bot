@@ -238,7 +238,8 @@ namespace DiscordBot.Services
             menuDays.AddRange(WorkingMenu.Days);
 
             var daysSpent = (int)(DateTime.Now - WorkingMenu.StartDate).TotalDays;
-            if (daysSpent > 6)
+            Info($"Days spent in current meny: {daysSpent}");
+            if (daysSpent >= 6)
             {
                 var nextMenu = Menus[WorkingMenu.NextComingUp].ToWorking(this, DefaultInventoryId);
                 menuDays.AddRange(nextMenu.Days);
