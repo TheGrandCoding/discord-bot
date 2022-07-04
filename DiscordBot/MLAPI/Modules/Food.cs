@@ -576,11 +576,13 @@ namespace DiscordBot.MLAPI.Modules
                 foreach (var group in _groups)
                     table.WithHeaderColumn(group);
 
-                DateTime date = Service.WorkingMenu.StartDate;
                 int dayIndex = 0;
                 foreach (var day in Service.WorkingMenu.Days)
                 {
+                    var date = day.Date;
                     var row = new TableRow(id: $"day-{dayIndex}");
+                    if(date.Year == DateTime.UtcNow.Year && date.DayOfYear == DateTime.UtcNow.DayOfYear)
+                        row.ClassList.Add("today-row");
                     row.WithCell($"{date.DayOfWeek} {date.Day}{Program.GetDaySuffix(date.Day)}");
 
                     if (day.Items.TryGetValue("*", out var ls))
@@ -637,7 +639,6 @@ namespace DiscordBot.MLAPI.Modules
                     };
                     row.Children.Last().Children.Add(inp);
                     table.Children.Add(row);
-                    date = date.AddDays(1);
                     dayIndex++;
                 }
 

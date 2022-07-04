@@ -259,17 +259,43 @@ namespace DiscordBot.Services
             lc.SendMessageAsync(embeds: embeds.ToArray()).Wait();
         }
 
+        void addNextMenuDays()
+        {
+            var nextMenu = Menus[WorkingMenu.NextComingUp].ToWorking(this, DefaultInventoryId);
+            WorkingMenu.Title = nextMenu.Title;
+            WorkingMenu.FromMenu = nextMenu.FromMenu;
+            WorkingMenu.NextComingUp = nextMenu.NextComingUp;
+            WorkingMenu.Days.AddRange(nextMenu.Days);
+        }
+
         public void DoMenuChecks()
         {
             if (WorkingMenu == null) return;
 
-
-            var daysSpent = Math.Round((DateTime.Now - WorkingMenu.StartDate).TotalDays);
-            if(daysSpent > 7)
+            if(DateTime.Now.DayOfWeek == DayOfWeek.Sunday)
             {
-                var nextMenu = Menus[WorkingMenu.NextComingUp].ToWorking(this, DefaultInventoryId);
-                WorkingMenu = nextMenu;
+                addNextMenuDays();
+            } else if(DateTime.Now.DayOfWeek == DayOfWeek.Monday)
+            {
+                var date = DateTime.UtcNow.Date;
+                for (int i = 0; i < WorkingMenu.Days.Count; i++)
+                {
+                    var menuDay = WorkingMenu.Days[i];
+                    if(menuDay.Date < date)
+                    {
+                        WorkingMenu.Days.RemoveAt(i);
+                        i--;
+                    } else
+                    {
+                        break;
+                    }
+                }
+                if(WorkingMenu.Days.Count < 7)
+                {
+                    addNextMenuDays();
+                }
             }
+            OnSave();
         }
 
 
@@ -506,7 +532,13 @@ namespace DiscordBot.Services
             Title = title;
         }
 
-        public DateTime StartDate { get; set; }
+        public DateTime StartDate
+        {
+            get
+            {
+                return Days.FirstOrDefault()?.Date ?? DateTime.MinValue;
+            }
+        }
         public string Title { get; set; }
         public List<WorkingMenuDay> Days { get; set; } = new();
 
@@ -529,10 +561,12 @@ namespace DiscordBot.Services
     }
     public class WorkingMenuDay
     {
-        public WorkingMenuDay(Dictionary<string, string> text)
+        public WorkingMenuDay(DateTime date, Dictionary<string, string> text)
         {
             Text = text;
+            Date = date.Date;
         }
+        public DateTime Date { get; set; }
         public Dictionary<string, string> Text { get; set; }
         public Dictionary<string, List<InventoryItem>> Items { get; set; } = new();
     }
@@ -569,13 +603,14 @@ namespace DiscordBot.Services
             var menu = new WorkingMenu(Title);
             menu.FromMenu = this.Id;
             menu.NextComingUp = this.Id;
-            menu.StartDate = DateTime.Now;
             var inventory = service.GetInventoryItems(inventoryId);
 
             var items = new List<orderData>();
+            var date = DateTime.UtcNow.Date;
             foreach(var day in Days)
             {
-                var workingDay = new WorkingMenuDay(day.Text);
+                var workingDay = new WorkingMenuDay(date, day.Text);
+                date = date.AddDays(1);
                 foreach(var keypair in day.Items)
                 {
                     foreach(var item in keypair.Value)
