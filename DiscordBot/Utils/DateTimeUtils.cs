@@ -17,5 +17,9 @@ namespace DiscordBot.Utils
                 date = date.AddDays(1);
             return date;
         }
+        public static bool IsSameDay(this DateTime date, DateTime other)
+        {
+            return date.Year == other.Year && date.DayOfYear == other.DayOfYear;
+        }
     }
 }

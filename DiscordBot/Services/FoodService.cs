@@ -234,25 +234,36 @@ namespace DiscordBot.Services
         {
             if (WorkingMenu == null) return;
 
-            var menuDays = new List<WorkingMenuDay>();
-            menuDays.AddRange(WorkingMenu.Days);
 
-            var daysSpent = (int)(DateTime.Now - WorkingMenu.StartDate).TotalDays;
-            Info($"Days spent in current meny: {daysSpent}");
-            if (daysSpent >= 6)
-            {
-                var nextMenu = Menus[WorkingMenu.NextComingUp].ToWorking(this, DefaultInventoryId);
-                menuDays.AddRange(nextMenu.Days);
-            }
             var embeds = new List<Embed>();
+            var now = DateTime.UtcNow;
             if(hour < 12)
             {
                 // morning reminder
-                var today = menuDays[daysSpent];
+                var today = WorkingMenu.Days.FirstOrDefault(x => x.Date.IsSameDay(now));
                 embeds.Add(toEmbed(today, true).Build());
             } else
             {
-                var tomorrow = menuDays[daysSpent + 1];
+                now = now.AddDays(1);
+                WorkingMenuDay tomorrow;
+                tomorrow = WorkingMenu.Days.FirstOrDefault(x => x.Date.IsSameDay(now));
+                if (tomorrow == null)
+                {
+                    addNextMenuDays();
+                    tomorrow = WorkingMenu.Days.FirstOrDefault(x => x.Date.IsSameDay(now));
+                    if(tomorrow == null)
+                    {
+                        Error("Tomorrow was still null even after adding new menu days?");
+                        var sb = new StringBuilder();
+                        sb.Append($"Days are:\n");
+                        foreach(var x in WorkingMenu.Days)
+                        {
+                            sb.AppendLine($"- {x.Date}");
+                        }
+                        Error(sb.ToString());
+                        return;
+                    }
+                }
                 embeds.Add(toEmbed(tomorrow, false).Build());
             }
 
