@@ -1035,20 +1035,27 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("POST"), Path("/api/food/query")]
-        public void SearchInventory(string query)
+        public void SearchInventory(string query, string sort = null)
         {
             var items = new List<InventoryItem>();
             using (var db = Service.DB())
                 items = db.Inventory.Where(x => x.InventoryId == FoodService.DefaultInventoryId).ToList();
 
+            var selected = new List<InventoryItem>();
             var jarr = new JArray();
             foreach (var inv in items)
             {
                 if(inv.Id.ToString() == query || (inv.Product?.Name ?? "").Contains(query, StringComparison.InvariantCultureIgnoreCase) || (inv.Product?.Tags ?? "").Contains(query, StringComparison.InvariantCultureIgnoreCase))
                 {
-                    jarr.Add(inv.ToJson());
+                    selected.Add(inv);
                 }
             }
+            if(sort == "expires")
+            {
+                selected = selected.OrderBy(x => x.ExpiresAt).ToList();
+            }
+            foreach(var inv in selected)
+                jarr.Add(inv.ToJson());
             RespondJson(jarr);
         }
 
