@@ -273,7 +273,7 @@ namespace DiscordBot.Services
 
         void addNextMenuDays()
         {
-            var nextMenu = Menus[WorkingMenu.NextComingUp].ToWorking(this, DefaultInventoryId);
+            var nextMenu = Menus[WorkingMenu.NextComingUp].ToWorking(this, DefaultInventoryId, DateTime.UtcNow.NextDay(DayOfWeek.Monday).Date);
             WorkingMenu.Title = nextMenu.Title;
             WorkingMenu.FromMenu = nextMenu.FromMenu;
             WorkingMenu.NextComingUp = nextMenu.NextComingUp;
@@ -610,7 +610,7 @@ namespace DiscordBot.Services
             public WorkingMenuDay Day { get; set; }
         }
 
-        public WorkingMenu ToWorking(FoodService service, string inventoryId)
+        public WorkingMenu ToWorking(FoodService service, string inventoryId, DateTime? startdate)
         {
             var menu = new WorkingMenu(Title);
             menu.FromMenu = this.Id;
@@ -618,7 +618,7 @@ namespace DiscordBot.Services
             var inventory = service.GetInventoryItems(inventoryId);
 
             var items = new List<orderData>();
-            var date = DateTime.UtcNow.Date;
+            var date = startdate ?? DateTime.UtcNow.Date;
             foreach(var day in Days)
             {
                 var workingDay = new WorkingMenuDay(date, day.Text);

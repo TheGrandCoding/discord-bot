@@ -1377,7 +1377,7 @@ namespace DiscordBot.MLAPI.Modules
                 RespondRaw("Menu does not exist", 400);
                 return;
             }
-            Service.WorkingMenu = menu.ToWorking(Service, FoodService.DefaultInventoryId);
+            Service.WorkingMenu = menu.ToWorking(Service, FoodService.DefaultInventoryId, DateTime.UtcNow.NextDay(DayOfWeek.Monday).Date);
             Service.OnSave();
             RespondRaw("Ok", 200);
         }
