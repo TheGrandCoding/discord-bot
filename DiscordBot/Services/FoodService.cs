@@ -213,14 +213,23 @@ namespace DiscordBot.Services
             var builder = new EmbedBuilder();
             builder.Title = today ? "Menu" : "Reminder";
             builder.Color = today ? Color.Green : Color.Red;
-            foreach((var key, var items) in day.Items)
+
+            var keys = day.Items.Keys.ToList();
+            keys.AddRange(day.Text.Keys);
+            foreach(var key in keys.Distinct())
             {
                 var v = new StringBuilder();
                 if (day.Text.TryGetValue(key, out var t))
-                    v.AppendLine($"**{v}**");
-                foreach(var item in items)
+                    v.AppendLine($"**{t}**");
+                if(day.Items.TryGetValue(key, out var items))
                 {
-                    v.AppendLine($"{(item.Product?.Name ?? item.ProductId)} {item.InitialExpiresAt:yyyy-MM-dd} {(item.Frozen ? "(**Frozen**)" : "")}");
+                    foreach(var item in items)
+                    {
+                        var m = GetManufacturor(item.ProductId);
+                        if (!string.IsNullOrWhiteSpace(m))
+                            v.Append($"({m}) ");
+                        v.AppendLine($"{(item.Product?.Name ?? item.ProductId)} {item.InitialExpiresAt:yyyy-MM-dd} {(item.Frozen ? "(**Frozen**)" : "")}");
+                    }
                 }
                 if (v.Length == 0)
                     v.Append("-");
