@@ -58,7 +58,11 @@ namespace DiscordBot.Services
             } else
             {
                 var sv = Program.Deserialise<save>(s);
-                AverageUpdateTimes = sv.update;
+                AverageUpdateTimes = new Dictionary<string, List<DateTime>>();
+                foreach(var keypair in sv.update)
+                {
+                    AverageUpdateTimes[keypair.Key] = keypair.Value.TakeLast(10).ToList();
+                }
                 Entries = sv.entries;
                 Isolation = sv.isolation ?? new Dictionary<ulong, DateTime>();
             }
