@@ -208,7 +208,7 @@ namespace DiscordBot.Services
             await channel.SendMessageAsync(embeds: new[] { builder.Build() }, components: components?.Build() ?? null);
         }
 
-        EmbedBuilder toEmbed(WorkingMenuDay day, bool today) 
+        EmbedBuilder toEmbed(WorkingMenuDay day, bool today, out bool anyFrozen) 
         {
             var builder = new EmbedBuilder();
             builder.Title = today ? "Menu" : "Reminder";
@@ -216,6 +216,7 @@ namespace DiscordBot.Services
 
             var keys = day.Items.Keys.ToList();
             keys.AddRange(day.Text.Keys);
+            anyFrozen = false;
             foreach(var key in keys.Distinct())
             {
                 var v = new StringBuilder();
@@ -229,6 +230,8 @@ namespace DiscordBot.Services
                         if (!string.IsNullOrWhiteSpace(m))
                             v.Append($"({m}) ");
                         v.AppendLine($"{(item.Product?.Name ?? item.ProductId)} {item.InitialExpiresAt:yyyy-MM-dd} {(item.Frozen ? "(**Frozen**)" : "")}");
+                        if (item.Frozen)
+                            anyFrozen = true;
                     }
                 }
                 if (v.Length == 0)
@@ -246,11 +249,12 @@ namespace DiscordBot.Services
 
             var embeds = new List<Embed>();
             var now = DateTime.UtcNow;
+            var mention = false;
             if(hour < 12)
             {
                 // morning reminder
                 var today = WorkingMenu.Days.FirstOrDefault(x => x.Date.IsSameDay(now));
-                embeds.Add(toEmbed(today, true).Build());
+                embeds.Add(toEmbed(today, true, out mention).Build());
             } else
             {
                 now = now.AddDays(1);
@@ -273,11 +277,11 @@ namespace DiscordBot.Services
                         return;
                     }
                 }
-                embeds.Add(toEmbed(tomorrow, false).Build());
+                embeds.Add(toEmbed(tomorrow, false, out mention).Build());
             }
 
             var lc = getLogChannel().Result;
-            lc.SendMessageAsync(embeds: embeds.ToArray()).Wait();
+            lc.SendMessageAsync(text: (mention ? "@everyone" : null), embeds: embeds.ToArray()).Wait();
         }
 
         void addNextMenuDays()
