@@ -226,10 +226,7 @@ namespace DiscordBot.Services
                 {
                     foreach(var item in items)
                     {
-                        var m = GetManufacturor(item.ProductId);
-                        if (!string.IsNullOrWhiteSpace(m))
-                            v.Append($"({m}) ");
-                        v.AppendLine($"{(item.Product?.Name ?? item.ProductId)} {item.InitialExpiresAt:yyyy-MM-dd} {(item.Frozen ? "(**Frozen**)" : "")}");
+                        v.AppendLine(item.Describe(this));
                         if (item.Frozen)
                             anyFrozen = true;
                     }
@@ -293,13 +290,41 @@ namespace DiscordBot.Services
             WorkingMenu.Days.AddRange(nextMenu.Days);
         }
 
+        void doSundayChecks()
+        {
+            addNextMenuDays();
+            using var db = DB();
+            var inventory = db.GetInventory(DefaultInventoryId);
+            var itemsInMenu = WorkingMenu.GetItemsUsed();
+            var alreadyUsed = inventory.RemoveAll(x => itemsInMenu.Any(y => x.Id == y.Id));
+
+            var embed = new EmbedBuilder();
+            embed.Title = "Needs Freezing";
+            embed.Color = Color.Blue;
+            var nextSunday = DateTime.UtcNow.Date.AddDays(7);
+            var sb = new StringBuilder();
+            foreach(var remain in inventory)
+            {
+                if(remain.ExpiresAt < nextSunday)
+                {
+                    sb.AppendLine(remain.Describe());
+                }
+            }
+            if(sb.Length > 0)
+            {
+                embed.Description = sb.ToString();
+                var lc = getLogChannel().Result;
+                lc.SendMessageAsync(text: "@everyone", embed: embed.Build()).Wait();
+            }
+        }
+
         public void DoMenuChecks()
         {
             if (WorkingMenu == null) return;
 
             if(DateTime.Now.DayOfWeek == DayOfWeek.Sunday)
             {
-                addNextMenuDays();
+                doSundayChecks();
             } else if(DateTime.Now.DayOfWeek == DayOfWeek.Monday)
             {
                 var date = DateTime.UtcNow.Date;
@@ -523,6 +548,16 @@ namespace DiscordBot.Services
         [NotMapped]
         public bool HasExpired => ExpiresAt > DateTime.UtcNow;
 
+        public string Describe(FoodService serv = null)
+        {
+            serv ??= Program.Services.GetRequiredService<FoodService>();
+            var v = new StringBuilder();
+            var m = serv.GetManufacturor(ProductId);
+            if (!string.IsNullOrWhiteSpace(m))
+                v.Append($"({m}) ");
+            v.Append($"{(Product?.Name ?? ProductId)} {InitialExpiresAt:yyyy-MM-dd} {(Frozen ? "(**Frozen**)" : "")}");
+            return v.ToString();
+        }
         public JObject ToJson()
         {
             var jobj = Product?.ToJson() ?? new JObject();
@@ -567,6 +602,14 @@ namespace DiscordBot.Services
         public string Title { get; set; }
         public List<WorkingMenuDay> Days { get; set; } = new();
 
+        public List<InventoryItem> GetItemsUsed()
+        {
+            var ls = new List<InventoryItem>();
+            foreach (var day in Days)
+                ls.AddRange(day.GetItemsUsed());
+            return ls.DistinctBy(x => x.Id).ToList();
+        }
+
         public int FromMenu { get; set; }
 
         public int NextComingUp { get; set; }
@@ -594,6 +637,17 @@ namespace DiscordBot.Services
         public DateTime Date { get; set; }
         public Dictionary<string, string> Text { get; set; }
         public Dictionary<string, List<InventoryItem>> Items { get; set; } = new();
+
+        public List<InventoryItem> GetItemsUsed()
+        {
+            var ls = new List<InventoryItem>();
+            foreach(var keypair in Items)
+            {
+                foreach (var i in keypair.Value)
+                    ls.Add(i);
+            }
+            return ls.DistinctBy(x => x.Id).ToList();
+        }
     }
 
     public class SavedMenu
