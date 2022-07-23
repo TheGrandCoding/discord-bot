@@ -295,6 +295,7 @@ namespace DiscordBot.Services
             addNextMenuDays();
             using var db = DB();
             var inventory = db.GetInventory(DefaultInventoryId);
+            var usedOnDate = WorkingMenu.GetItemsUsed();
 
             var nextDate = DateTime.UtcNow.Date.AddDays(8);
             var embed = new EmbedBuilder();
@@ -306,10 +307,10 @@ namespace DiscordBot.Services
                 var assumeUsedOn = usedOnDate.GetValueOrDefault(item.Id, nextDate);
                 if(item.ExpiresAt < assumeUsedOn) 
                 {
-                    sb.AppendLine(remain.Describe());
+                    sb.AppendLine(item.Describe());
                 }
             }
-            
+
             if(sb.Length > 0)
             {
                 embed.Description = sb.ToString();
@@ -602,16 +603,16 @@ namespace DiscordBot.Services
         public string Title { get; set; }
         public List<WorkingMenuDay> Days { get; set; } = new();
 
-        public List<InventoryItem> GetItemsUsed()
+        public Dictionary<int, DateTime> GetItemsUsed()
         {
-            var d = new Dictionary<InventoryItem, DateTime>();
+            var d = new Dictionary<int, DateTime>();
             foreach (var day in Days) {
                 var items = day.GetItemsUsed();
                 foreach(var item in items) 
                 {
-                    if(!d.Keys.Any(x => x.Id == item.Id)) 
+                    if(!d.ContainsKey(item.Id)) 
                     {
-                        d[item] = day.Date;
+                        d[item.Id] = day.Date;
                     }
                 }
             }
