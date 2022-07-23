@@ -295,21 +295,21 @@ namespace DiscordBot.Services
             addNextMenuDays();
             using var db = DB();
             var inventory = db.GetInventory(DefaultInventoryId);
-            var itemsInMenu = WorkingMenu.GetItemsUsed();
-            var alreadyUsed = inventory.RemoveAll(x => itemsInMenu.Any(y => x.Id == y.Id));
 
+            var nextDate = DateTime.UtcNow.Date.AddDays(8);
             var embed = new EmbedBuilder();
             embed.Title = "Needs Freezing";
             embed.Color = Color.Blue;
-            var nextSunday = DateTime.UtcNow.Date.AddDays(7);
             var sb = new StringBuilder();
-            foreach(var remain in inventory)
+            foreach(var item in inventory) 
             {
-                if(remain.ExpiresAt < nextSunday)
+                var assumeUsedOn = usedOnDate.GetValueOrDefault(item.Id, nextDate);
+                if(item.ExpiresAt < assumeUsedOn) 
                 {
                     sb.AppendLine(remain.Describe());
                 }
             }
+            
             if(sb.Length > 0)
             {
                 embed.Description = sb.ToString();
@@ -604,10 +604,18 @@ namespace DiscordBot.Services
 
         public List<InventoryItem> GetItemsUsed()
         {
-            var ls = new List<InventoryItem>();
-            foreach (var day in Days)
-                ls.AddRange(day.GetItemsUsed());
-            return ls.DistinctBy(x => x.Id).ToList();
+            var d = new Dictionary<InventoryItem, DateTime>();
+            foreach (var day in Days) {
+                var items = day.GetItemsUsed();
+                foreach(var item in items) 
+                {
+                    if(!d.Keys.Any(x => x.Id == item.Id)) 
+                    {
+                        d[item] = day.Date;
+                    }
+                }
+            }
+            return d;
         }
 
         public int FromMenu { get; set; }
