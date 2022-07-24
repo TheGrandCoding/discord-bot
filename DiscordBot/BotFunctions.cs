@@ -492,5 +492,29 @@ namespace DiscordBot
             isNullable = IsNullable(type, out var nl);
             return GetTypeName(nl ?? type, specifyEnum);
         }
+    
+        
+        public static async Task LogDiscord(IMessageChannel channel, string message)
+        {
+            if(message.Length < 2000)
+            {
+                await channel.SendMessageAsync(message, allowedMentions: AllowedMentions.None);
+            } else if(message.Length < 4000)
+            {
+                await channel.SendMessageAsync(embed: new EmbedBuilder().WithDescription(message).Build());
+            } else
+            {
+                var path = Path.Combine(Path.GetTempPath(), "log.txt");
+                await File.WriteAllTextAsync(path, message);
+                await channel.SendFileAsync(path);
+            }
+        }
+        public static async Task LogOwner(string message)
+        {
+            await LogDiscord(await Program.AppInfo.Owner.CreateDMChannelAsync(), message);
+        }
+        public static Task LogOwner(StringBuilder builder)
+            => LogOwner($"```\r\n{builder}\r\n```");
+    
     }
 }
