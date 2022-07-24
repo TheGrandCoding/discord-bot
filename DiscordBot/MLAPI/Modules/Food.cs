@@ -240,7 +240,7 @@ namespace DiscordBot.MLAPI.Modules
                         hr.WithHeader("");
                     table.Children.Add(hr);
 
-                    foreach (var item in Items)
+                    foreach (var item in Items.OrderBy(x => x.ExpiresAt))
                     {
                         var row = getRow(item, full);
                         if (!string.IsNullOrWhiteSpace(item.Product.Tags))
