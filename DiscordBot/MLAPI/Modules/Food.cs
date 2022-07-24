@@ -1526,6 +1526,7 @@ namespace DiscordBot.MLAPI.Modules
             var mDay = Service.WorkingMenu.Days[day];
             var mGroup = mDay.Items[group];
             mGroup.RemoveAll(x => x.Id == id);
+            Service.OnSave();
             RespondRaw("OK");
         }
     }
