@@ -36,45 +36,74 @@ namespace DiscordBot.Commands.Modules
                 input = input.Substring(0, input.Length - "```".Length);
             }
             input = input.Trim();
-
-            if (input.Contains("return") == false)
-            {
-                var lastLine = input.LastIndexOfAny(new char[] { '\n', '\r' });
-                input = input.Insert(lastLine + 1, "return ");
-            }
             if (!input.EndsWith(";"))
                 input += ";";
 
-            var startIndex = EvalCommand.sourceCode.IndexOf("{0}");
-            var front = sourceCode.Substring(0, startIndex);
+            var inputLines = input.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries).ToList();
+            var hasReturn = false;
+            var usingStatements = new List<string>();
+            for(int i = 0; i < inputLines.Count; i++)
+            {
+                var line = inputLines[i];
+                if(line.Contains("return "))
+                {
+                    hasReturn = true;
+                }
+                if(line.StartsWith("using "))
+                {
+                    usingStatements.Add(line);
+                    inputLines.RemoveAt(i);
+                    i--;
+                }
+
+            }
+
+            if (!hasReturn)
+            {
+                inputLines[inputLines.Count - 1] = "return " + inputLines[inputLines.Count - 1];
+            }
+
+            var executingText = EvalCommand.sourceCode.Replace("{0}", String.Join('\n', usingStatements));
+
+
+            var startIndex = executingText.IndexOf("{1}");
+            var front = executingText.Substring(0, startIndex);
             var indent = front.Substring(front.LastIndexOfAny(new char[] { '\n', '\r' }));
             var lines = front.Count(x => x == '\n');
-            var userLines = input.Count(x => x == '\n');
-            string code = front + input + EvalCommand.sourceCode.Substring(startIndex + 3);
+            var userLines = inputLines.Count;
+            executingText = executingText.Replace("{1}", String.Join('\n', inputLines));
 
             
             var ns = Assembly.Load("netstandard, Version=2.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51");
 
             var references = new List<MetadataReference>()
-            {
+            /*{
                 MetadataReference.CreateFromFile(ns.Location), //netstandard
                 MetadataReference.CreateFromFile(typeof(Object).Assembly.Location), //mscorlib
                 MetadataReference.CreateFromFile(typeof(Action).Assembly.Location), //System.Runtime
                 MetadataReference.CreateFromFile(typeof(EvalCommand).Assembly.Location), // this assembly
                 MetadataReference.CreateFromFile(typeof(Discord.IDiscordClient).Assembly.Location),
-            };
+            }*/;
 
-            foreach (AssemblyName names in Assembly.GetExecutingAssembly().GetReferencedAssemblies())
+            var assem = AppDomain.CurrentDomain.GetAssemblies();
+
+            foreach (var ass in assem)
             {
-                var ass = Assembly.Load(names);
-                var data = MetadataReference.CreateFromFile(ass.Location);
-                references.Add(data);
+                if (ass.IsDynamic) continue;
+                try
+                {
+                    var data = MetadataReference.CreateFromFile(ass.Location);
+                    references.Add(data);
+                } catch(Exception e)
+                {
+                    Program.LogError(e, "EvalCmd");
+                }
             }
 
 
             var comp = CSharpCompilation.Create(
                 assemblyName: Path.GetRandomFileName(),
-                syntaxTrees: new[] { CSharpSyntaxTree.ParseText(code) },
+                syntaxTrees: new[] { CSharpSyntaxTree.ParseText(executingText) },
                 references: references,
                 options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
             );
@@ -93,7 +122,7 @@ namespace DiscordBot.Commands.Modules
                         var ls = diagnostic.Location.GetLineSpan().StartLinePosition;
                         embed.AddField($"{diagnostic.Id} L{(ls.Line - lines)}#{ls.Character}", Program.Clamp(diagnostic.GetMessage(), 256));
                     }
-                    var display = getErrorDislpay(code, indent.Length, lines, userLines, failures);
+                    var display = getErrorDislpay(executingText, indent.Length, lines, userLines, failures);
                     await sendAsFile(display, embed.Build(), "cs");
                     return;
                 }
@@ -301,6 +330,7 @@ using System.IO;
 using System.Threading.Tasks;
 using Discord;
 using Discord.Commands;
+{0}
 
 namespace DiscordBot.EvaluateCommand 
 {
@@ -308,7 +338,7 @@ namespace DiscordBot.EvaluateCommand
     {
         public static async Task<object> Execute(ICommandContext Context) 
         {
-{0}
+{1}
             return Task.CompletedTask;
         }
     }
