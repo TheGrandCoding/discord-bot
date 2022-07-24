@@ -295,21 +295,27 @@ namespace DiscordBot.Services
             addNextMenuDays();
             using var db = DB();
             var inventory = db.GetInventory(DefaultInventoryId);
-            var itemsInMenu = WorkingMenu.GetItemsUsed();
-            var alreadyUsed = inventory.RemoveAll(x => itemsInMenu.Any(y => x.Id == y.Id));
+            var usedOnDate = WorkingMenu.GetItemsUsed();
 
+            var nextDate = DateTime.UtcNow.Date.AddDays(8);
             var embed = new EmbedBuilder();
             embed.Title = "Needs Freezing";
             embed.Color = Color.Blue;
-            var nextSunday = DateTime.UtcNow.Date.AddDays(7);
             var sb = new StringBuilder();
-            foreach(var remain in inventory)
+            foreach(var item in inventory) 
             {
-                if(remain.ExpiresAt < nextSunday)
+                if (item.Frozen) continue;
+                if(item.Product != null)
                 {
-                    sb.AppendLine(remain.Describe());
+                    if (!item.Product.FreezingExtends.HasValue) continue; // can't be frozen
+                }
+                var assumeUsedOn = usedOnDate.GetValueOrDefault(item.Id, nextDate);
+                if(item.ExpiresAt < assumeUsedOn) 
+                {
+                    sb.AppendLine(item.Describe(this));
                 }
             }
+
             if(sb.Length > 0)
             {
                 embed.Description = sb.ToString();
@@ -602,12 +608,20 @@ namespace DiscordBot.Services
         public string Title { get; set; }
         public List<WorkingMenuDay> Days { get; set; } = new();
 
-        public List<InventoryItem> GetItemsUsed()
+        public Dictionary<int, DateTime> GetItemsUsed()
         {
-            var ls = new List<InventoryItem>();
-            foreach (var day in Days)
-                ls.AddRange(day.GetItemsUsed());
-            return ls.DistinctBy(x => x.Id).ToList();
+            var d = new Dictionary<int, DateTime>();
+            foreach (var day in Days) {
+                var items = day.GetItemsUsed();
+                foreach(var item in items) 
+                {
+                    if(!d.ContainsKey(item.Id)) 
+                    {
+                        d[item.Id] = day.Date;
+                    }
+                }
+            }
+            return d;
         }
 
         public int FromMenu { get; set; }
@@ -643,8 +657,9 @@ namespace DiscordBot.Services
             var ls = new List<InventoryItem>();
             foreach(var keypair in Items)
             {
-                foreach (var i in keypair.Value)
-                    ls.Add(i);
+                foreach (var i in keypair.Value ?? new List<InventoryItem>())
+                    if(i != null)
+                        ls.Add(i);
             }
             return ls.DistinctBy(x => x.Id).ToList();
         }
@@ -679,47 +694,69 @@ namespace DiscordBot.Services
 
         public WorkingMenu ToWorking(FoodService service, string inventoryId, DateTime? startdate)
         {
-            var menu = new WorkingMenu(Title);
-            menu.FromMenu = this.Id;
-            menu.NextComingUp = this.Id;
-            var inventory = service.GetInventoryItems(inventoryId);
+            var log = new StringBuilder();
 
-            var items = new List<orderData>();
-            var date = startdate ?? DateTime.UtcNow.Date;
-            foreach(var day in Days)
+            log.AppendLine("== Starting menu conversion ==");
+            var menu = new WorkingMenu(Title);
+            try
             {
-                var workingDay = new WorkingMenuDay(date, day.Text);
-                date = date.AddDays(1);
-                foreach(var keypair in day.Items)
+                menu.FromMenu = this.Id;
+                menu.NextComingUp = this.Id;
+                var inventory = service.GetInventoryItems(inventoryId);
+                log.AppendLine($"- Fetched {inventory.Count} items from the inventory {inventoryId}");
+                log.AppendLine("");
+
+                var items = new List<orderData>();
+                var date = startdate ?? DateTime.UtcNow.Date;
+                foreach(var day in Days)
                 {
-                    foreach(var item in keypair.Value)
+                    var workingDay = new WorkingMenuDay(date, day.Text);
+                    date = date.AddDays(1);
+                    log.AppendLine($"= Day: {date}");
+                    foreach(var keypair in day.Items)
                     {
-                        var d = new orderData()
+                        log.AppendLine($"  {keypair.Key}: ");
+                        foreach(var item in keypair.Value)
                         {
-                            Item = item,
-                            Group = keypair.Key,
-                            Day = workingDay
-                        };
-                        items.Add(d);
+                            log.AppendLine($"   - {item.Type}");
+                            var d = new orderData()
+                            {
+                                Item = item,
+                                Group = keypair.Key,
+                                Day = workingDay
+                            };
+                            items.Add(d);
+                        }
+                    }
+                    menu.Days.Add(workingDay);
+                }
+                items = items.OrderBy(x => x.Item.Priority).ToList();
+                log.AppendLine($"");
+                log.AppendLine($"Fulfilling: ");
+                foreach(var data in items)
+                {
+                    log.AppendLine($"{data.Day.Date} {data.Group} {data.Item.Type}: ");
+                    var validItems = data.Item.CollectValid(inventory);
+                    foreach(var item in validItems)
+                        log.AppendLine($"  - {item.Id} {item.Product.Name} {item.ExpiresAt} {item.Frozen}");
+
+                    // Now select the best item to choose from
+                    validItems = validItems.OrderBy(x => x.ExpiresAt).ToList();
+
+                    var bestItem = validItems.FirstOrDefault();
+                    log.AppendLine($"Selected: {(bestItem?.Id.ToString() ?? "null")}");
+                    if (bestItem != null)
+                    {
+                        inventory.Remove(bestItem); // TODO: an item being on one day might not use it all - e.g. a pack of four?
+                        data.Day.Items.AddInner(data.Group, bestItem);
                     }
                 }
-                menu.Days.Add(workingDay);
-            }
-            items = items.OrderBy(x => x.Item.Priority).ToList();
-            foreach(var data in items)
+            } 
+            finally
             {
-                var validItems = data.Item.CollectValid(inventory);
-
-                // Now select the best item to choose from
-                validItems = validItems.OrderBy(x => x.ExpiresAt).ToList();
-
-                var bestItem = validItems.FirstOrDefault();
-                if(bestItem != null)
-                {
-                    inventory.Remove(bestItem); // TODO: an item being on one day might not use it all - e.g. a pack of four?
-                    data.Day.Items.AddInner(data.Group, bestItem);
-                }
+                Program.LogOwner(log);
             }
+
 
             return menu;
         }
