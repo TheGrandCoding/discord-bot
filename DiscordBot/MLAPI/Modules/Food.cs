@@ -1,4 +1,5 @@
 ﻿using DiscordBot.Classes;
+using DiscordBot.Classes.HTMLHelpers;
 using DiscordBot.Classes.HTMLHelpers.Objects;
 using DiscordBot.Services;
 using DiscordBot.Utils;
@@ -184,10 +185,97 @@ namespace DiscordBot.MLAPI.Modules
             return table.ToString(true);
         }
 
+
+        class ItemGroups
+        {
+            public ItemGroups(IEnumerable<string> path)
+            {
+                OwnPath = path.ToArray();
+            }
+            public string[] OwnPath { get; set; }
+            public Dictionary<string, ItemGroups> Groups = new();
+            public List<InventoryItem> Items = new();
+
+            public void Add(InventoryItem item, List<string> tags)
+            {
+                if (tags.Count == 0)
+                {
+                    Items.Add(item);
+                }
+                else
+                {
+                    var next = tags.First();
+                    tags.RemoveAt(0);
+                    ItemGroups child;
+                    if (!Groups.TryGetValue(next, out child))
+                    {
+                        child = new ItemGroups(OwnPath.Append(next));
+                        Groups[next] = child;
+                    }
+                    child.Add(item, tags);
+                }
+            }
+
+            public HTMLBase ToHTML(bool full, bool actionColumn, Func<InventoryItem, bool, TableRow> getRow)
+            {
+                string groupName = string.Join('/', OwnPath);
+                var div = new Div();
+                if(OwnPath.Length > 0)
+                {
+                    div.Children.Add(new Header(OwnPath.Length).WithRawText(String.Join('/', OwnPath)));
+                }
+                if(Items.Count > 0)
+                {
+                    var table = new Table();
+                    var hr = new TableRow();
+                    if (full)
+                    {
+                        hr.WithHeader("Inv. Id");
+                        hr.WithHeader("Product ID");
+                    }
+                    hr.WithHeader("Item");
+                    hr.WithHeader("Added");
+                    hr.WithHeader("Expires");
+                    if (actionColumn)
+                        hr.WithHeader("");
+                    table.Children.Add(hr);
+
+                    foreach (var item in Items)
+                    {
+                        var row = getRow(item, full);
+                        if (!string.IsNullOrWhiteSpace(item.Product.Tags))
+                        {
+                            var c = item.Product.Tags.Split(';')
+                                .Where(cn => cn != groupName)
+                                .ToList();
+                            if (c.Count > 0)
+                            {
+                                var nameCell = row.Children[full ? 2 : 0] as TableData;
+                                var warnSpan = new Span(cls: "product-warn");
+                                warnSpan.Children.Add(new Break());
+                                warnSpan.Children.Add(new RawObject($"(!) This item is also listed in other categories: {string.Join(", ", c)}"));
+                                nameCell.Children.Add(warnSpan);
+                            }
+                        }
+                        table.Children.Add(row);
+                    }
+                    div.Children.Add(table);
+                }
+                if(Groups.Count > 0)
+                {
+                    foreach((var key, var value) in Groups)
+                    {
+                        div.Children.Add(value.ToHTML(full, actionColumn, getRow));
+                    }
+                }
+                return div;
+            }
+        }
+
         string getGroupedInfo(bool full)
         {
             var inv = Service.GetInventoryItems("default");
-            var grouped = new Dictionary<string, List<InventoryItem>>();
+            var grouped = new ItemGroups(new string[] {});
 
             foreach(var item in inv)
             {
@@ -195,54 +283,14 @@ namespace DiscordBot.MLAPI.Modules
                     continue;
                 foreach(var tag in item.Product.Tags.Split(';'))
                 {
-                    grouped.AddInner(tag, item);
+                    grouped.Add(item, tag.Split(' ', '/').ToList());
                 }
             }
 
-            var table = new Table();
-            var hr = new TableRow();
-            if (full)
-            {
-                hr.WithHeader("Inv. Id");
-                hr.WithHeader("Product ID");
-            }
-            hr.WithHeader("Item");
-            hr.WithHeader("Added");
-            hr.WithHeader("Expires");
-            if (Context.User != null)
-                hr.WithHeader("");
-            table.Children.Add(hr);
 
-            foreach((var groupName, var ls) in grouped)
-            {
-                table.Children.Add(new TableRow()
-                {
-                    Children =
-                    {
-                        new TableHeader(groupName) {ColSpan = hr.Children.Count.ToString()}
-                    }
-                });
-                foreach(var item in ls.OrderBy(x => x.ExpiresAt))
-                {
-                    var row = getRow(item, full);
-                    if(!string.IsNullOrWhiteSpace(item.Product.Tags))
-                    {
-                        var c = item.Product.Tags.Split(';')
-                            .Where(cn => cn != groupName)
-                            .ToList();
-                        if(c.Count > 0)
-                        {
-                            var nameCell = row.Children[full ? 2 : 0] as TableData;
-                            var warnSpan = new Span(cls: "product-warn");
-                            warnSpan.Children.Add(new Break());
-                            warnSpan.Children.Add(new RawObject($"(!) This item is also listed in other categories: {string.Join(", ", c)}"));
-                            nameCell.Children.Add(warnSpan);
-                        }
-                    }
-                    table.Children.Add(row);
-                }
-            }
-            return table;
+
+
+            return grouped.ToHTML(full, Context.User != null, getRow);
         }
 
         [Method("GET"), Path("/food")]
