@@ -1501,7 +1501,7 @@ namespace DiscordBot.MLAPI.Modules
                 var fromD = Service.WorkingMenu.Days[data.FromDay];
                 var fromG = fromD.Items[data.FromGroup];
 
-                item = fromG.FirstOrDefault(x => x.Id == data.Id);
+                item = fromG.FirstOrDefault(x => x?.Id == data.Id);
                 fromG.Remove(item);
             } else
             {

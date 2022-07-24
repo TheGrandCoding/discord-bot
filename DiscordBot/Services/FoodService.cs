@@ -381,6 +381,13 @@ namespace DiscordBot.Services
             foreach (var x in sv.menus)
                 Menus[x.Id] = x;
             WorkingMenu = sv.curMenu;
+            foreach(var day in WorkingMenu.Days)
+            {
+                foreach((var key, var ls) in day.Items)
+                {
+                    ls.RemoveAll(x => x == null);
+                }
+            }
 #if DEBUG
             DoMenuChecks();
 #endif
