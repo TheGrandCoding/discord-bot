@@ -304,10 +304,11 @@ namespace DiscordBot.Services
             var sb = new StringBuilder();
             foreach(var item in inventory) 
             {
+                if (item.Frozen) continue;
                 var assumeUsedOn = usedOnDate.GetValueOrDefault(item.Id, nextDate);
                 if(item.ExpiresAt < assumeUsedOn) 
                 {
-                    sb.AppendLine(item.Describe());
+                    sb.AppendLine(item.Describe(this));
                 }
             }
 
@@ -652,8 +653,9 @@ namespace DiscordBot.Services
             var ls = new List<InventoryItem>();
             foreach(var keypair in Items)
             {
-                foreach (var i in keypair.Value)
-                    ls.Add(i);
+                foreach (var i in keypair.Value ?? new List<InventoryItem>())
+                    if(i != null)
+                        ls.Add(i);
             }
             return ls.DistinctBy(x => x.Id).ToList();
         }
