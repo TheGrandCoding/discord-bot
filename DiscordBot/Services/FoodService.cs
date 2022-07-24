@@ -564,7 +564,7 @@ namespace DiscordBot.Services
             v.Append($"{(Product?.Name ?? ProductId)} {InitialExpiresAt:yyyy-MM-dd} {(Frozen ? "(**Frozen**)" : "")}");
             return v.ToString();
         }
-        public JObject ToJson()
+        public JObject ToJson(bool withManufacturer = false, FoodService srv = null)
         {
             var jobj = Product?.ToJson() ?? new JObject();
             jobj["product_id"] = ProductId;
@@ -574,7 +574,12 @@ namespace DiscordBot.Services
             if(Frozen)
                 jobj["true_expires"] = new DateTimeOffset(InitialExpiresAt).ToUnixTimeMilliseconds();
             jobj["frozen"] = Frozen;
-
+            if(withManufacturer)
+            {
+                srv ??= Program.Services.GetRequiredService<FoodService>();
+                var m = srv.GetManufacturor(ProductId);
+                jobj["manu"] = m;
+            }
             return jobj;
         }
     }

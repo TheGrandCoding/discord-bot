@@ -579,6 +579,7 @@ namespace DiscordBot.MLAPI.Modules
         Classes.HTMLHelpers.HTMLBase getItemInfo(InventoryItem item, bool edit)
         {
             var div = new Div(id: $"{item.Id}", "placed item draggable");
+            div.WithTag("title", $"Id: {item.Id}; Product: {item.ProductId}");
             var manu = Service.GetManufacturor(item.ProductId);
             if(manu != null)
                 div.Children.Add(new Span(cls: "manu") { RawText = manu });
@@ -1103,7 +1104,7 @@ namespace DiscordBot.MLAPI.Modules
                 selected = selected.OrderBy(x => x.ExpiresAt).ToList();
             }
             foreach(var inv in selected)
-                jarr.Add(inv.ToJson());
+                jarr.Add(inv.ToJson(true, Service));
             RespondJson(jarr);
         }
 
