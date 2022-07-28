@@ -530,6 +530,8 @@ namespace DiscordBot.Services
         public int? FreezingExtends { get; set; }
         public string Tags { get; set; }
 
+        public int Uses { get; set; }
+
         public List<InventoryItem> InventoryItems { get; set; }
 
         public JObject ToJson()
@@ -556,6 +558,8 @@ namespace DiscordBot.Services
         public DateTime InitialExpiresAt { get; set; }
         public bool Frozen { get; set; }
 
+        public int RemainingUses { get; set; }
+
         [NotMapped]
         public DateTime ExpiresAt => Frozen ? InitialExpiresAt.AddDays(Product?.FreezingExtends ?? 0) : InitialExpiresAt;
         [NotMapped]
@@ -578,6 +582,8 @@ namespace DiscordBot.Services
             jobj["id"] = Id;
             jobj["added"] = new DateTimeOffset(AddedAt).ToUnixTimeMilliseconds();
             jobj["expires"] = new DateTimeOffset(ExpiresAt).ToUnixTimeMilliseconds();
+            jobj["max_uses"] = Product?.Uses ?? 1;
+            jobj["uses"] = RemainingUses;
             if(Frozen)
                 jobj["true_expires"] = new DateTimeOffset(InitialExpiresAt).ToUnixTimeMilliseconds();
             jobj["frozen"] = Frozen;
