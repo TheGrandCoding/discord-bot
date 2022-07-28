@@ -47,7 +47,7 @@ namespace DiscordBot.MLAPI.Modules
             return id;
         }
 
-        Classes.HTMLHelpers.DOMBase getProductInfo(Product product, Classes.HTMLHelpers.DOMBase container = null)
+        Classes.HTMLHelpers.DOMBase getProductInfo(Product product, int usedUp, Classes.HTMLHelpers.DOMBase container = null)
         {
             container ??= new TableData(null);
 
@@ -57,7 +57,9 @@ namespace DiscordBot.MLAPI.Modules
             {
                 container.Children.Add(new Span(cls: "badge") { RawText = retailerName });
             }
-            container.Children.Add(new Span(cls: "product-name") { RawText = product.Name });
+            int amount = product.Uses - usedUp;
+            container.Children.Add(new Span(cls: "product-name") { RawText = (amount > 1 ? $"{amount}x " : "") + product.Name });
+            
 
             return container;
         }
@@ -134,7 +136,7 @@ namespace DiscordBot.MLAPI.Modules
             if (item.Product == null)
                 row.WithCell("n/a");
             else
-                row.Children.Add(getProductInfo(item.Product));
+                row.Children.Add(getProductInfo(item.Product, item.TimesUsed));
             row.WithCell($"{item.AddedAt:yyyy-MM-dd}");
             row.Children.Add(getExpirationInfo(item, full));
             var diff = item.ExpiresAt - DateTime.UtcNow;
@@ -425,7 +427,7 @@ namespace DiscordBot.MLAPI.Modules
 
                 ReplyFile("new_inventory.html", 200, new Replacements()
                     .Add("prodId", formatProductId(code))
-                    .Add("prodName", getProductInfo(item))
+                    .Add("prodName", getProductInfo(item, 0))
                     .Add("redirect", redirect)
                     .Add("existing", tableStr));
             }
@@ -469,7 +471,7 @@ namespace DiscordBot.MLAPI.Modules
                     var c = new Classes.HTMLHelpers.Objects.Span();
                     if (i.Value.Amount > 1)
                         c.Children.Add(new RawObject($"{i.Value.Amount}x "));
-                    var info = getProductInfo(prod, c);
+                    var info = getProductInfo(prod, 0, c);
                     if(i.Value.Frozen)
                         info.Children.Add(new Span(cls: "frozen").WithRawText(" (from Frozen)"));
                     listItem.Children.Add(info);
@@ -576,11 +578,17 @@ namespace DiscordBot.MLAPI.Modules
             ReplyFile("products.html", 200, new Replacements().Add("table", table));
         }
 
-        Classes.HTMLHelpers.HTMLBase getItemInfo(InventoryItem item, bool edit)
+        int itemN = 0;
+        Classes.HTMLHelpers.HTMLBase getItemInfo(WorkingMenuItem menuitem, bool edit)
         {
-            var div = new Div(id: $"{item.Id}", "placed item draggable");
+            var item = menuitem.Item;
+            var div = new Div(id: $"{item.Id}-{itemN++}", "placed item draggable");
             div.WithTag("title", $"Id: {item.Id}; Product: {item.ProductId}");
+            div.WithTag("data-uses", menuitem.Uses.ToString());
+            div.WithTag("data-id", item.Id.ToString());
             var manu = Service.GetManufacturor(item.ProductId);
+            if (menuitem.Uses > 1)
+                div.Children.Add(new Span(cls: "uses").WithRawText($"{menuitem.Uses}x "));
             if(manu != null)
                 div.Children.Add(new Span(cls: "manu") { RawText = manu });
             div.Children.Add(new Span() { RawText = item.Product.Name });
@@ -648,7 +656,7 @@ namespace DiscordBot.MLAPI.Modules
                         }
                         foreach (var item in ls)
                         {
-                            if (item == null) continue;
+                            if (item == null || item.Item == null) continue;
                             data.Children.Add(getItemInfo(item, edit));
                         }
                         row.Children.Add(data);
@@ -671,7 +679,7 @@ namespace DiscordBot.MLAPI.Modules
                             {
                                 foreach (var item in ls)
                                 {
-                                    if (item == null) continue;
+                                    if (item == null || item.Item == null) continue;
                                     data.Children.Add(getItemInfo(item, edit));
                                 }
                             }
@@ -1025,33 +1033,39 @@ namespace DiscordBot.MLAPI.Modules
 
 
         [Method("POST"), Path("/api/food/products")]
-        public void NewProduct(string redirect, string productId, string productName, int extends)
+        public void NewProduct(string redirect, string productId, string productName, int extends, int uses)
         {
+            var _error = APIErrorResponse.InvalidFormBody();
             if(redirect != "enter" && redirect != "scan")
             {
-                RespondRaw("", 400);
+                RespondError(_error.Child("redirect").EndChoices("enter", "scan").Build(), 400);
                 return;
             }
             productId = productId.Replace(" ", "");
             if(string.IsNullOrWhiteSpace(productId) || productId.Length > 13)
             {
-                RespondRaw("Product ID or length invalid", 400);
+                RespondError(_error.Child("productId").EndError("INVALID", "Null, empty, whitespace or longer than 13 characters").Build(), 400);
                 return;
             }
             if(string.IsNullOrWhiteSpace(productName) || productName.Length > 1024)
             {
-                RespondRaw("Product name or length invalid", 400);
+                RespondError(_error.Child("productName").EndError("INVALID", "Null, empty, whitespace or longer than 1024 characters").Build(), 400);
                 return;
             }
             if(extends < 0 || extends > 180)
             {
-                RespondRaw("Product extend expiration invalid", 400);
+                RespondError(_error.Child("extends").EndRange(0, 180), 400);
+                return;
+            }
+            if(uses < 1)
+            {
+                RespondError(_error.Child("uses").EndRange(1, int.MaxValue), 400);
                 return;
             }
             int? e = null;
             if (extends > 0)
                 e = extends;
-            var p = Service.AddProduct(productId, productName, "", e, "");
+            var p = Service.AddProduct(productId, productName, "", e, uses, "");
             RespondRaw(LoadRedirectFile($"/food/new?code={productId}&redirect={redirect}"), System.Net.HttpStatusCode.Found);
         }
         [Method("POST"),   Path("/api/food/inventory")]
@@ -1068,7 +1082,7 @@ namespace DiscordBot.MLAPI.Modules
                                     int.Parse(split[1]),
                                     int.Parse(split[2]), 0, 0, 0, DateTimeKind.Utc);
 
-            Service.AddInventoryItem(productId, "default", date, frozen == "on");
+            Service.AddInventoryItem(productId, FoodService.DefaultInventoryId, date, frozen == "on");
             RespondRaw(LoadRedirectFile($"/food/{redirect}"), System.Net.HttpStatusCode.Found);
         }
         [Method("DELETE"), Path("/api/food/inventory")]
@@ -1132,6 +1146,13 @@ namespace DiscordBot.MLAPI.Modules
                 products = db.Products.AsAsyncEnumerable().Where(x => x.Id == query || x.Name.Contains(query, StringComparison.InvariantCultureIgnoreCase)).ToListAsync().Result;
             }
             var jarray = new JArray();
+
+            if(products.Count == 0)
+            {
+                RespondRaw("[]", 400);
+                return;
+            }
+
             foreach(var prod in products)
             {
                 jarray.Add(prod.ToJson());
@@ -1333,7 +1354,7 @@ namespace DiscordBot.MLAPI.Modules
             var dayError = errorMaker.Child("days");
             if(daysArray == null)
             {
-                RespondError(400, dayError.EndRequired());
+                RespondError(dayError.EndRequired(), 400);
                 return;
             }
 
@@ -1343,7 +1364,7 @@ namespace DiscordBot.MLAPI.Modules
                 var day = daysArray[dayI] as JObject;
                 if(day == null)
                 {
-                    RespondError(400, _error.EndError("NOT_NULL", "This field must be an object"));
+                    RespondError(_error.EndError("NOT_NULL", "This field must be an object"), 400);
                     return;
                 }
                 var menuDay = new SavedMenuDay();
@@ -1354,7 +1375,7 @@ namespace DiscordBot.MLAPI.Modules
                 var itemsError = _error.Child("items");
                 if(dayItems == null)
                 {
-                    RespondError(400, itemsError.EndError("NOT_NULL", "This field must be an object"));
+                    RespondError(itemsError.EndError("NOT_NULL", "This field must be an object"), 400);
                     return;
                 }
 
@@ -1369,12 +1390,17 @@ namespace DiscordBot.MLAPI.Modules
                         var item = value[itemI] as JObject;
                         if(!item.TryGetValue("type", out var type))
                         {
-                            RespondError(400, iError.Child("type").EndRequired());
+                            RespondError(iError.Child("type").EndRequired());
                             return;
                         }
                         if(!item.TryGetValue("value", out var itemValue))
                         {
-                            RespondError(400, iError.Child("type").EndRequired());
+                            RespondError(iError.Child("type").EndRequired());
+                            return;
+                        }
+                        if(!item.TryGetValue("uses", out var itemUses))
+                        {
+                            RespondError(iError.Child("uses").EndRequired());
                             return;
                         }
 
@@ -1389,7 +1415,7 @@ namespace DiscordBot.MLAPI.Modules
                             {
                                 if(getProductCached(id) == null)
                                 {
-                                    RespondError(400, iError.EndError("MISSING", $"No product by '{id}' exists"));
+                                    RespondError(iError.EndError("MISSING", $"No product by '{id}' exists"), 400);
                                     return;
                                 }
                             }
@@ -1402,9 +1428,10 @@ namespace DiscordBot.MLAPI.Modules
                             };
                         } else
                         {
-                            RespondError(400, iError.Child("type").EndChoices("id", "tag"));
+                            RespondError(iError.Child("type").EndChoices("id", "tag"), 400);
                             return;
                         }
+                        menuItem.AmountUsed = itemUses.ToObject<int>();
 
                         menuDay.Items.AddInner(keypair.Key, menuItem);
 
@@ -1456,6 +1483,7 @@ namespace DiscordBot.MLAPI.Modules
             public string ToGroup;
             public string FromGroup;
             public int Id;
+            public int? Uses;
         }
 
         [Method("POST"), Path("/api/food/menu/shared")]
@@ -1470,15 +1498,15 @@ namespace DiscordBot.MLAPI.Modules
             if(d.Items.TryGetValue("*", out var ls))
             {
                 var groups = Service.WorkingMenu.GetGroups();
-                d.Items = new Dictionary<string, List<InventoryItem>>();
+                d.Items = new Dictionary<string, List<WorkingMenuItem>>();
                 foreach (var g in groups)
-                    d.Items.Add(g, new List<InventoryItem>());
+                    d.Items.Add(g, new List<WorkingMenuItem>());
             }
             else
             {
-                d.Items = new Dictionary<string, List<InventoryItem>>()
+                d.Items = new Dictionary<string, List<WorkingMenuItem>>()
                 {
-                    {"*", new List<InventoryItem>()}
+                    {"*", new List<WorkingMenuItem>()}
                 };
             }
             Service.OnSave();
@@ -1494,18 +1522,23 @@ namespace DiscordBot.MLAPI.Modules
                 return;
             }
             var data = JsonConvert.DeserializeObject<moveData>(Context.Body);
-            InventoryItem item;
+            WorkingMenuItem item;
             if (data.FromGroup != null)
             {
 
                 var fromD = Service.WorkingMenu.Days[data.FromDay];
                 var fromG = fromD.Items[data.FromGroup];
 
-                item = fromG.FirstOrDefault(x => x?.Id == data.Id);
+                item = fromG.FirstOrDefault(x => x?.Item?.Id == data.Id);
                 fromG.Remove(item);
             } else
             {
-                item = Service.GetInventoryItem(data.Id);
+                var invItem = Service.GetInventoryItem(data.Id);
+                item = new WorkingMenuItem()
+                {
+                    Item = invItem,
+                    Uses = data.Uses.GetValueOrDefault(1)
+                };
             }
 
             var toD = Service.WorkingMenu.Days[data.ToDay];
@@ -1525,9 +1558,36 @@ namespace DiscordBot.MLAPI.Modules
             }
             var mDay = Service.WorkingMenu.Days[day];
             var mGroup = mDay.Items[group];
-            mGroup.RemoveAll(x => x.Id == id);
+            mGroup.RemoveAll(x => x?.Item?.Id == id);
             Service.OnSave();
             RespondRaw("OK");
         }
+
+        [Method("PATCH"), Path("/api/food/menu/item")]
+        public void EditMenuItem(string group, int day, int id, int uses)
+        {
+            if (Service.WorkingMenu == null)
+            {
+                RespondRaw("No current menu", 400);
+                return;
+            }
+            if(uses < 1)
+            {
+                RespondError(APIErrorResponse.InvalidQueryParams().Child("uses").EndError("INVALID", "Cannot be below 1"));
+                return;
+            }
+            var mDay = Service.WorkingMenu.Days[day];
+            var mGroup = mDay.Items[group];
+            var item = mGroup.FirstOrDefault(x => x?.Item?.Id == id);
+            if(item == null) 
+            {
+                RespondError(APIErrorResponse.InvalidQueryParams().Child("item").EndError("NOT FOUND", "No item found at the day, group and ID specified."));
+                return;
+            }
+            item.Uses = uses;
+            Service.OnSave();
+            RespondRaw("OK");
+        }
+
     }
 }

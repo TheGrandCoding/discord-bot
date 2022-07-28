@@ -33,6 +33,10 @@ namespace DiscordBot.Classes
         {
             return new APIErrorResponse("", "Invalid Form Body");
         }
+        public static APIErrorResponse InvalidQueryParams()
+        {
+            return new APIErrorResponse("", "Invalid Query Paramaters");
+        }
 
         public APIErrorResponse EndError(string code, string message)
         {
@@ -41,6 +45,9 @@ namespace DiscordBot.Classes
         }
         public APIErrorResponse EndRequired() => EndError("REQUIRED", "This field is required");
         public APIErrorResponse EndChoices(params string[] possibleV) => EndError("CHOICES", "Value must be one of '" + string.Join("', '", possibleV) + "'");
+
+        public APIErrorResponse EndRange(int v1, int v2) => EndError("RANGE", $"Value must be between {v1} and {v2}");
+        
         private string _parentKey;
         public APIErrorResponse Child(string key)
         {

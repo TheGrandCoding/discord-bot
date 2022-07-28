@@ -54,12 +54,12 @@ namespace DiscordBot.Services
             using var db = DB();
             return db.GetInventoryItem(id);
         }
-        public Product AddProduct(string id, string name, string url, int? extends, string tags)
+        public Product AddProduct(string id, string name, string url, int? extends, int uses, string tags)
         {
             Product prod;
             using (var db = DB())
             {
-                prod = db.AddProduct(id, name, url, extends, tags);
+                prod = db.AddProduct(id, name, url, extends, uses, tags);
             }
             var channel = getLogChannel().Result;
             var embed = new EmbedBuilder();
@@ -72,6 +72,8 @@ namespace DiscordBot.Services
             sb.AppendLine($"*{id}*");
             if(extends.HasValue)
                 sb.AppendLine($"+{extends}");
+            if (uses > 1)
+                sb.AppendLine($"{uses} uses");
             if (!string.IsNullOrWhiteSpace(tags))
                 sb.AppendLine(tags);
             if (!string.IsNullOrWhiteSpace(url))
@@ -100,23 +102,48 @@ namespace DiscordBot.Services
             using var db = DB();
             return db.GetHistoricItems();
         }
-        public bool DeleteInventoryItem(int id)
+        
+        public bool AddUsesInventoryItem(int id, int uses)
         {
             using var db = DB();
-            var item = GetInventoryItem(id);
-            if (item == null)
-                return false;
-            db.Inventory.Remove(item);
-            var his = new HistoricItem()
+            var item = db.GetInventoryItem(id);
+            if (item == null) return false;
+            item.TimesUsed += uses;
+            if(item.TimesUsed >= item.Product.Uses)
             {
-                ProductId = item.ProductId,
-                InventoryId = item.Id,
-                AddedAt = item.AddedAt,
-                RemovedAt = DateTime.Now.ToUniversalTime(),
-            };
-            db.PreviousInventory.Add(his);
-            db.SaveChanges();
-            return true;
+                return DeleteInventoryItem(id, db);
+            } else
+            {
+                db.Inventory.Update(item);
+                db.SaveChanges();
+                return true;
+            }
+        }
+        public bool DeleteInventoryItem(int id, FoodDbContext db = null)
+        {
+            bool hadDb = db == null;
+            db ??= DB();
+            try
+            {
+                var item = GetInventoryItem(id);
+                if (item == null)
+                    return false;
+                db.Inventory.Remove(item);
+                var his = new HistoricItem()
+                {
+                    ProductId = item.ProductId,
+                    InventoryId = item.Id,
+                    AddedAt = item.AddedAt,
+                    RemovedAt = DateTime.Now.ToUniversalTime(),
+                };
+                db.PreviousInventory.Add(his);
+                db.SaveChanges();
+                return true;
+            }
+            finally
+            {
+                if (!hadDb) db?.Dispose();
+            }
         }
         public string GetManufacturor(string id)
         {
@@ -227,7 +254,7 @@ namespace DiscordBot.Services
                     foreach(var item in items)
                     {
                         v.AppendLine(item.Describe(this));
-                        if (item.Frozen)
+                        if (item.Item.Frozen)
                             anyFrozen = true;
                     }
                 }
@@ -252,6 +279,22 @@ namespace DiscordBot.Services
                 // morning reminder
                 var today = WorkingMenu.Days.FirstOrDefault(x => x.Date.IsSameDay(now));
                 embeds.Add(toEmbed(today, true, out mention).Build());
+
+                // set uses on yesterday's stuff
+                var yes = now.AddDays(-1);
+                var yesterday = WorkingMenu.Days.FirstOrDefault(x => x.Date.IsSameDay(yes));
+                if(yesterday != null)
+                {
+                    foreach((var group, var itemsLs) in yesterday.Items)
+                    {
+                        foreach(var item in itemsLs)
+                        {
+                            if (item == null || item.Item == null) continue;
+
+                            this.AddUsesInventoryItem(item.Item.Id, item.Uses);
+                        }
+                    }
+                }
             } else
             {
                 now = now.AddDays(1);
@@ -385,7 +428,7 @@ namespace DiscordBot.Services
             {
                 foreach((var key, var ls) in day.Items)
                 {
-                    ls.RemoveAll(x => x == null);
+                    ls.RemoveAll(x => x == null || x.Item == null);
                 }
             }
 #if DEBUG
@@ -437,14 +480,15 @@ namespace DiscordBot.Services
                 .Where(x => x.ExpiresAt >= start && x.ExpiresAt < end)
                 .ToArray();
         }
-        public Product AddProduct(string id, string name, string url, int? extends, string tags)
+        public Product AddProduct(string id, string name, string url, int? extends, int uses, string tags)
         {
             var prod = new Product() {
                 Id = id,
                 Name = name,
                 Url = url,
                 FreezingExtends = extends,
-                Tags = tags
+                Tags = tags,
+                Uses = uses
             };
             var x = Products.Add(prod);
             SaveChanges();
@@ -459,7 +503,8 @@ namespace DiscordBot.Services
                 InventoryId = inventoryId,
                 AddedAt = DateTime.UtcNow,
                 InitialExpiresAt = expires,
-                Frozen = frozen
+                Frozen = frozen,
+                TimesUsed = 0
             };
             var x = Inventory.Add(inv);
             SaveChanges();
@@ -504,6 +549,9 @@ namespace DiscordBot.Services
             modelBuilder.Entity<Product>()
                 .Navigation(x => x.InventoryItems)
                 .AutoInclude();
+            modelBuilder.Entity<Product>()
+                .Property(x => x.Uses)
+                .HasDefaultValue(1);
 
             modelBuilder.Entity<InventoryItem>()
                 .HasKey(x => x.Id);
@@ -558,7 +606,7 @@ namespace DiscordBot.Services
         public DateTime InitialExpiresAt { get; set; }
         public bool Frozen { get; set; }
 
-        public int RemainingUses { get; set; }
+        public int TimesUsed { get; set; }
 
         [NotMapped]
         public DateTime ExpiresAt => Frozen ? InitialExpiresAt.AddDays(Product?.FreezingExtends ?? 0) : InitialExpiresAt;
@@ -583,7 +631,7 @@ namespace DiscordBot.Services
             jobj["added"] = new DateTimeOffset(AddedAt).ToUnixTimeMilliseconds();
             jobj["expires"] = new DateTimeOffset(ExpiresAt).ToUnixTimeMilliseconds();
             jobj["max_uses"] = Product?.Uses ?? 1;
-            jobj["uses"] = RemainingUses;
+            jobj["times_used"] = TimesUsed;
             if(Frozen)
                 jobj["true_expires"] = new DateTimeOffset(InitialExpiresAt).ToUnixTimeMilliseconds();
             jobj["frozen"] = Frozen;
@@ -668,18 +716,32 @@ namespace DiscordBot.Services
         }
         public DateTime Date { get; set; }
         public Dictionary<string, string> Text { get; set; }
-        public Dictionary<string, List<InventoryItem>> Items { get; set; } = new();
+        public Dictionary<string, List<WorkingMenuItem>> Items { get; set; } = new();
 
         public List<InventoryItem> GetItemsUsed()
         {
             var ls = new List<InventoryItem>();
             foreach(var keypair in Items)
             {
-                foreach (var i in keypair.Value ?? new List<InventoryItem>())
-                    if(i != null)
-                        ls.Add(i);
+                foreach (var i in keypair.Value ?? new List<WorkingMenuItem>())
+                    if(i != null && i.Item != null)
+                        ls.Add(i.Item);
             }
             return ls.DistinctBy(x => x.Id).ToList();
+        }
+    }
+
+    public class WorkingMenuItem
+    {
+        public InventoryItem Item { get; set; }
+        public int Uses { get; set; }
+
+        public string Describe(FoodService foodService)
+        {
+            var s = Item?.Describe(foodService) ?? "(null)";
+            if (Uses > 1)
+                return $"{Uses}x {s}";
+            return s;
         }
     }
 
@@ -766,7 +828,12 @@ namespace DiscordBot.Services
                     if (bestItem != null)
                     {
                         inventory.Remove(bestItem); // TODO: an item being on one day might not use it all - e.g. a pack of four?
-                        data.Day.Items.AddInner(data.Group, bestItem);
+                        var working = new WorkingMenuItem()
+                        {
+                            Item = bestItem,
+                            Uses = data.Item.AmountUsed
+                        };
+                        data.Day.Items.AddInner(data.Group, working);
                     }
                 }
             } 
@@ -830,6 +897,8 @@ namespace DiscordBot.Services
     {
         public abstract string Type { get; }
         public int Priority { get; set; } = 0;
+
+        public int AmountUsed { get; set; } = 1;
         public abstract List<InventoryItem> CollectValid(List<InventoryItem> items);
 
         public abstract JObject ToJson();
@@ -855,6 +924,7 @@ namespace DiscordBot.Services
             var j = new JObject();
             j["type"] = "id";
             j["value"] = JArray.FromObject(Ids);
+            j["uses"] = this.AmountUsed;
             return j;
         }
     }
@@ -889,6 +959,7 @@ namespace DiscordBot.Services
             var j = new JObject();
             j["type"] = "tag";
             j["value"] = JArray.FromObject(Tags);
+            j["uses"] = this.AmountUsed;
             return j;
         }
     }

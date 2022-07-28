@@ -30,6 +30,7 @@ namespace DiscordBot.Interactions.Modules
             mb.AddTextInput("Product Id", "product_id", value: prodId, minLength: 4, maxLength: 16, required: true);
             mb.AddTextInput("Name", "name", value: prod.Name);
             mb.AddTextInput($"Days Freezing Extends Expiry", "extends", value: $"{(prod.FreezingExtends ?? 0)}");
+            mb.AddTextInput("Available uses", "uses", value: $"{prod.Uses}");
             mb.AddTextInput($"Tags", "tags", value: prod.Tags, required: false);
 
             await RespondWithModalAsync(mb.Build());
@@ -49,6 +50,7 @@ namespace DiscordBot.Interactions.Modules
             mb.WithTitle("Edit Inventory Item");
             mb.AddTextInput("Expires At", "expires", placeholder: "yyyy-MM-dd", 
                 maxLength: 10, required: true, value: $"{inv.InitialExpiresAt:yyyy-MM-dd}");
+            mb.AddTextInput("Times used", "used", value: $"{inv.TimesUsed}");
             mb.AddTextInput("Frozen", "frozen", placeholder: "true/false", minLength: 4, maxLength: 5, required: true, value: $"{inv.Frozen}");
 
             await RespondWithModalAsync(mb.Build());
@@ -100,6 +102,9 @@ namespace DiscordBot.Interactions.Modules
         [ModalTextInput("extends")]
         public string Extends { get; set; }
 
+        [ModalTextInput("uses")]
+        public string Uses { get; set; }
+
         [ModalTextInput("tags")]
         public string Tags { get; set; }
     }
@@ -110,6 +115,10 @@ namespace DiscordBot.Interactions.Modules
 
         [ModalTextInput("expires", placeholder: "yyyy-MM-dd", maxLength: 10)]
         public string ExpiresAt { get; set; }
+
+        [ModalTextInput("used")]
+        public string TimesUsed { get; set; }
+
 
         [ModalTextInput("frozen", placeholder: "true/false", maxLength: 5, minLength: 4)]
         public string Frozen { get; set; }

@@ -25,6 +25,13 @@ namespace DiscordBot.Interactions.Components
                 await Context.Interaction.FollowupAsync($"No product exists by that ID", ephemeral: true);
                 return;
             }
+            int maxUses = 1;
+            if(!int.TryParse(modal.Uses, out maxUses))
+            {
+                await Context.Interaction.FollowupAsync(":x: Uses was not a valid integer.", ephemeral: true);
+                return;
+            }
+
             int? extends = null;
             if (string.IsNullOrWhiteSpace(modal.Extends))
                 extends = null;
@@ -40,7 +47,7 @@ namespace DiscordBot.Interactions.Components
 
             if (prod.Id != modal.ProductId)
             {
-                var newProd = db.AddProduct(modal.ProductId, modal.Name, "", extends, modal.Tags);
+                var newProd = db.AddProduct(modal.ProductId, modal.Name, "", extends, maxUses, modal.Tags);
 
                 var inv = db.Inventory
                     .AsAsyncEnumerable()
@@ -70,6 +77,7 @@ namespace DiscordBot.Interactions.Components
             } else
             {
                 prod.Name = modal.Name;
+                prod.Uses = maxUses;
                 prod.FreezingExtends = extends;
                 prod.Tags = modal.Tags;
                 db.Products.Update(prod);
@@ -94,11 +102,17 @@ namespace DiscordBot.Interactions.Components
                 await RespondAsync($"Frozen is not in a valid format.", ephemeral: true);
                 return;
             }
+            if(!int.TryParse(modal.TimesUsed, out int used))
+            {
+                await RespondAsync("Times used was not in a valid format.", ephemeral: true);
+                return;
+            }
             await DeferAsync(ephemeral: true);
             using var db = Service.DB();
             var inv = db.GetInventoryItem(int.Parse(currentId));
             inv.InitialExpiresAt = expires;
             inv.Frozen = frozen;
+            inv.TimesUsed = used;
             db.Inventory.Update(inv);
             db.SaveChanges();
             await FollowupAsync($"Updated.", ephemeral: true);
@@ -147,6 +161,7 @@ namespace DiscordBot.Interactions.Components
             mb.AddTextInput("Product Id", "product_id", value: prodId, minLength: 4, maxLength: 16, required: true);
             mb.AddTextInput("Name", "name", value: prod.Name);
             mb.AddTextInput($"Days Freezing Extends Expiry", "extends", value: $"{(prod.FreezingExtends ?? 0)}");
+            mb.AddTextInput("Available uses", "uses", value: $"{prod.Uses}");
             mb.AddTextInput($"Tags", "tags", value: prod.Tags, required: false);
 
             await RespondWithModalAsync(mb.Build());
