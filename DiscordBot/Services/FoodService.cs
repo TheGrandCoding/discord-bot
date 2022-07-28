@@ -238,7 +238,7 @@ namespace DiscordBot.Services
             return builder;
         }
 
-        [Cron("9,21", "0")]
+        [Cron("6,18", "0")]
         public void SendMenuNotifs(int hour)
         {
             if (WorkingMenu == null) return;
