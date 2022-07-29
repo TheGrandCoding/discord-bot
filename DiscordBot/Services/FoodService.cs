@@ -103,7 +103,7 @@ namespace DiscordBot.Services
             return db.GetHistoricItems();
         }
         
-        public bool AddUsesInventoryItem(int id, int uses)
+        public bool AddUsesInventoryItem(int id, int uses, DateTime backdateTo)
         {
             using var db = DB();
             var item = db.GetInventoryItem(id);
@@ -111,7 +111,7 @@ namespace DiscordBot.Services
             item.TimesUsed += uses;
             if(item.TimesUsed >= item.Product.Uses)
             {
-                return DeleteInventoryItem(id, db);
+                return DeleteInventoryItem(id, backdateTo, db);
             } else
             {
                 db.Inventory.Update(item);
@@ -119,13 +119,13 @@ namespace DiscordBot.Services
                 return true;
             }
         }
-        public bool DeleteInventoryItem(int id, FoodDbContext db = null)
+        public bool DeleteInventoryItem(int id, DateTime? deletedOn = null, FoodDbContext db = null)
         {
-            bool hadDb = db == null;
+            bool hadDb = db != null;
             db ??= DB();
             try
             {
-                var item = GetInventoryItem(id);
+                var item = db.GetInventoryItem(id);
                 if (item == null)
                     return false;
                 db.Inventory.Remove(item);
@@ -134,7 +134,7 @@ namespace DiscordBot.Services
                     ProductId = item.ProductId,
                     InventoryId = item.Id,
                     AddedAt = item.AddedAt,
-                    RemovedAt = DateTime.Now.ToUniversalTime(),
+                    RemovedAt = deletedOn ?? DateTime.UtcNow,
                 };
                 db.PreviousInventory.Add(his);
                 db.SaveChanges();
@@ -265,6 +265,31 @@ namespace DiscordBot.Services
             return builder;
         }
 
+        public EmbedBuilder getYesterdayUsedItems()
+        {
+            var yes = DateTime.UtcNow.AddDays(-1);
+            var yesterday = WorkingMenu.Days.FirstOrDefault(x => x.Date.IsSameDay(yes));
+            if (yesterday != null)
+            {
+                var usesEmbed = new EmbedBuilder();
+                usesEmbed.Title = "Confirm Uses";
+                usesEmbed.Description = "Please confirm that the following items were used yesterday.";
+                foreach ((var group, var itemsLs) in yesterday.Items)
+                {
+                    foreach (var item in itemsLs)
+                    {
+                        if (item == null || item.Item == null) continue;
+
+                        usesEmbed.AddField(item.Item.Id.ToString(), $"{item.Uses}x {item.Item.Describe(this)}");
+                    }
+
+                }
+
+                return usesEmbed;
+            }
+            return null;
+        }
+
         [Cron("6,18", "0")]
         public void SendMenuNotifs(int hour)
         {
@@ -272,6 +297,7 @@ namespace DiscordBot.Services
 
 
             var embeds = new List<Embed>();
+            MessageComponent components = null;
             var now = DateTime.UtcNow;
             var mention = false;
             if(hour < 12)
@@ -281,20 +307,17 @@ namespace DiscordBot.Services
                 embeds.Add(toEmbed(today, true, out mention).Build());
 
                 // set uses on yesterday's stuff
-                var yes = now.AddDays(-1);
-                var yesterday = WorkingMenu.Days.FirstOrDefault(x => x.Date.IsSameDay(yes));
-                if(yesterday != null)
+                var yesE = getYesterdayUsedItems();
+                if(yesE != null)
                 {
-                    foreach((var group, var itemsLs) in yesterday.Items)
-                    {
-                        foreach(var item in itemsLs)
-                        {
-                            if (item == null || item.Item == null) continue;
+                    embeds.Add(yesE.Build());
 
-                            this.AddUsesInventoryItem(item.Item.Id, item.Uses);
-                        }
-                    }
+                    components = new ComponentBuilder()
+                        .WithButton("Confirm", "food:uses:confirm", ButtonStyle.Success)
+                        .WithButton("Refresh", "food:uses:refresh", ButtonStyle.Secondary)
+                        .Build();
                 }
+                
             } else
             {
                 now = now.AddDays(1);
@@ -321,7 +344,7 @@ namespace DiscordBot.Services
             }
 
             var lc = getLogChannel().Result;
-            lc.SendMessageAsync(text: (mention ? "@everyone" : null), embeds: embeds.ToArray()).Wait();
+            lc.SendMessageAsync(text: (mention ? "@everyone" : null), embeds: embeds.ToArray(), components: components).Wait();
         }
 
         void addNextMenuDays()
@@ -432,7 +455,6 @@ namespace DiscordBot.Services
                 }
             }
 #if DEBUG
-            DoMenuChecks();
 #endif
 
         }

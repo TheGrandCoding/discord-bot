@@ -166,6 +166,55 @@ namespace DiscordBot.Interactions.Components
 
             await RespondWithModalAsync(mb.Build());
         }
-    
+
+        [ComponentInteraction("food:uses:*")]
+        public async Task FoodUsesButton(string kind)
+        {
+            if (Context.Interaction is not SocketMessageComponent comp)
+            {
+                await RespondAsync(":x: Internal error.", ephemeral: true);
+                return;
+            }
+            var allEmbeds = comp.Message.Embeds.ToList();
+            var data = allEmbeds.FirstOrDefault(x => x.Title.StartsWith("Confirm"));
+            if (data == null)
+            {
+                await RespondAsync(":x: Could not find embed?", ephemeral: true);
+                return;
+            }
+            if (kind == "refresh")
+            {
+                allEmbeds.Remove(data);
+                var yesE = Service.getYesterdayUsedItems().Build();
+                if(yesE != null)
+                {
+                    allEmbeds.Add(yesE);
+                }
+                else
+                {
+                    allEmbeds.Add(new EmbedBuilder().WithDescription("No yesterday items could be found.").Build());
+                }
+                await RespondAsync("Updated.", ephemeral: true);
+                await comp.Message.ModifyAsync(x => x.Embeds = allEmbeds.ToArray());
+                return;
+            }
+
+            foreach(var field in data.Fields)
+            {
+                var item = Service.GetInventoryItem(int.Parse(field.Name));
+                if (item == null) continue; // already removed
+
+                
+                var uses = int.Parse(field.Value.Substring(0, field.Value.IndexOf('x')));
+
+                if(!Service.AddUsesInventoryItem(int.Parse(field.Name), uses, comp.Message.CreatedAt.UtcDateTime.AddDays(-1)))
+                {
+                    await RespondAsync($":x: Could not increase {field.Name}: {field.Value}", ephemeral: true);
+                }
+            }
+
+            await RespondAsync("Increased uses of all items.", ephemeral: true);
+            await comp.Message.DeleteAsync();
+        }
     }
 }
