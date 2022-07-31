@@ -447,11 +447,14 @@ namespace DiscordBot.Services
             foreach (var x in sv.menus)
                 Menus[x.Id] = x;
             WorkingMenu = sv.curMenu;
-            foreach(var day in WorkingMenu.Days)
+            if(WorkingMenu != null)
             {
-                foreach((var key, var ls) in day.Items)
+                foreach (var day in WorkingMenu.Days)
                 {
-                    ls.RemoveAll(x => x == null || x.Item == null);
+                    foreach ((var key, var ls) in day.Items)
+                    {
+                        ls.RemoveAll(x => x == null || x.Item == null);
+                    }
                 }
             }
 #if DEBUG

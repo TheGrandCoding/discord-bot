@@ -469,6 +469,18 @@ Changed how permissions worked for bot.
                     new MariaDbServerVersion(new Version(10, 3, 25)));
 #endif
             }, ServiceLifetime.Transient);
+
+            coll.AddDbContext<HoursDbContext>(options =>
+            {
+#if WINDOWS
+                options.UseSqlServer(getDbString("hours"));
+                options.EnableSensitiveDataLogging();
+#else
+                options.UseMySql(getDbString("hours"), 
+                    new MariaDbServerVersion(new Version(10, 3, 25)));
+#endif
+            }, ServiceLifetime.Transient);
+
             var yClient = new Google.Apis.YouTube.v3.YouTubeService(new Google.Apis.Services.BaseClientService.Initializer()
             {
                 ApiKey = Program.Configuration["tokens:youtubeApi"],
