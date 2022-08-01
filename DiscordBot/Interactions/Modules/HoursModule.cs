@@ -24,6 +24,7 @@ namespace DiscordBot.Interactions.Modules
             [Summary("startTime", "A hh:mm start time")]string startTime,
             [Summary("endTime", "A hh:mm end time")] string endTime,
             [Summary("regular", "The regular hourly rate")]double regular,
+            [Summary("break", "The length of the regular break, in hours")]double breakTime,
             [Summary("overtime", "The overtime rate, if different")] double? overtime = null
             )
         {
@@ -42,7 +43,7 @@ namespace DiscordBot.Interactions.Modules
                 return;
             }
             using var db = Service.DB();
-            await db.AddSetting(id, Context.User.Id, startdate, enddate, startTime, endTime, regular, overtime ?? regular);
+            await db.AddSetting(id, Context.User.Id, startdate, enddate, startTime, endTime, breakTime, regular, overtime ?? regular);
             await db.SaveChangesAsync();
             await RespondAsync("Done!", ephemeral: true);
         }
@@ -84,9 +85,10 @@ namespace DiscordBot.Interactions.Modules
             var embed = Context.Interaction.Message.Embeds.First();
             var regular = double.Parse(embed.Fields.First(x => x.Name == "Regular").Value as string);
             var overtime = double.Parse(embed.Fields.First(x => x.Name == "Overtime").Value as string);
+            var breakT = double.Parse(embed.Fields.First(x => x.Name == "Break").Value as string);
 
             using var db = Service.DB();
-            await db.AddEntry(embed.Footer.Value.Text, Context.User.Id, regular, overtime, Context.Interaction.Message.CreatedAt.UtcDateTime.Date);
+            await db.AddEntry(embed.Footer.Value.Text, Context.User.Id, regular, overtime, breakT, Context.Interaction.Message.CreatedAt.UtcDateTime.Date);
             await db.SaveChangesAsync();
             await RespondAsync($"Added!", ephemeral: true);
             await Context.Interaction.Message.DeleteAsync();
@@ -112,6 +114,8 @@ namespace DiscordBot.Interactions.Modules
             overtime.Value = modal.OvertimeHours;
             var reg = builder.Fields.First(x => x.Name == "Regular");
             reg.Value = modal.RegularHours;
+            var br = builder.Fields.First(x => x.Name == "Break");
+            br.Value = modal.BreakHours;
             await Context.Interaction.UpdateAsync(x => x.Embeds = new[] { builder.Build() });
         }
 
@@ -126,6 +130,9 @@ namespace DiscordBot.Interactions.Modules
 
         [ModalTextInput("overtime", placeholder: "1.0")]
         public double OvertimeHours { get; set; }
+
+        [ModalTextInput("break", placeholder: "1.0")]
+        public double BreakHours { get; set; }
 
     }
 }

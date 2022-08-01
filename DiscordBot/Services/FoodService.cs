@@ -305,19 +305,6 @@ namespace DiscordBot.Services
                 // morning reminder
                 var today = WorkingMenu.Days.FirstOrDefault(x => x.Date.IsSameDay(now));
                 embeds.Add(toEmbed(today, true, out mention).Build());
-
-                // set uses on yesterday's stuff
-                var yesE = getYesterdayUsedItems();
-                if(yesE != null)
-                {
-                    embeds.Add(yesE.Build());
-
-                    components = new ComponentBuilder()
-                        .WithButton("Confirm", "food:uses:confirm", ButtonStyle.Success)
-                        .WithButton("Refresh", "food:uses:refresh", ButtonStyle.Secondary)
-                        .Build();
-                }
-                
             } else
             {
                 now = now.AddDays(1);
@@ -390,15 +377,27 @@ namespace DiscordBot.Services
             }
         }
 
-        public void DoMenuChecks()
+        public async void DoMenuChecks()
         {
             if (WorkingMenu == null) return;
+            // set uses on yesterday's stuff
+            var yesE = getYesterdayUsedItems();
+            if (yesE != null)
+            {
+                var lc = await getLogChannel();
+                var components = new ComponentBuilder()
+                    .WithButton("Confirm", "food:uses:confirm", ButtonStyle.Success)
+                    .WithButton("Refresh", "food:uses:refresh", ButtonStyle.Secondary)
+                    .Build();
+                await lc.SendMessageAsync(embed: yesE.Build(), components: components);
+            }
 
-            if(DateTime.Now.DayOfWeek == DayOfWeek.Sunday)
+            if (DateTime.Now.DayOfWeek == DayOfWeek.Sunday)
             {
                 doSundayChecks();
             } else if(DateTime.Now.DayOfWeek == DayOfWeek.Monday)
             {
+
                 var date = DateTime.UtcNow.Date;
                 for (int i = 0; i < WorkingMenu.Days.Count; i++)
                 {

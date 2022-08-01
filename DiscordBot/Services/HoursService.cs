@@ -82,7 +82,8 @@ namespace DiscordBot.Services
             }
             // user has went online after they're expected to finish, just see how long..
 
-            var normalHours = (endTime - startTime).TotalHours;
+            var breakHours = currentSetting.ExpectedBreak;
+            var normalHours = (endTime - startTime).TotalHours - breakHours;
 
             double overtime;
 
@@ -102,6 +103,7 @@ namespace DiscordBot.Services
             embed.Description = $"Please verify the followng hours for today";
             embed.AddField("Regular", $"{normalHours:0.0}", true);
             embed.AddField("Overtime", $"{overtime:0.0}", true);
+            embed.AddField("Break", $"{breakHours:0.0}", true);
             embed.WithFooter(currentSetting.Id);
 
             var components = new ComponentBuilder();
@@ -133,7 +135,11 @@ namespace DiscordBot.Services
         public DbSet<HoursSettings> Settings { get; set; }
         public DbSet<HoursEntry> Entries { get; set; }
 
-        public async Task AddSetting(string settingId, ulong id, DateTime startDate, DateTime endDate, string startTime, string endTime, double rate, double overtimeRate)
+        public async Task AddSetting(string settingId, ulong id, 
+            DateTime startDate, DateTime endDate, 
+            string startTime, string endTime, 
+            double breakTime,
+            double rate, double overtimeRate)
         {
             var _id = unchecked((long)id);
             var s = new HoursSettings()
@@ -144,12 +150,13 @@ namespace DiscordBot.Services
                 EndDate = endDate,
                 ExpectedStartTime = startTime,
                 ExpectedEndTime = endTime,
+                ExpectedBreak = breakTime,
                 NormalRate = rate,
                 OvertimeRate = overtimeRate
             };
             await Settings.AddAsync(s);
         }
-        public async Task AddEntry(string settingId, ulong id, double hours, double overtime, DateTime? date = null)
+        public async Task AddEntry(string settingId, ulong id, double hours, double overtime, double? breakTime = null, DateTime? date = null)
         {
             var entry = new HoursEntry()
             {
@@ -157,6 +164,7 @@ namespace DiscordBot.Services
                 SettingId = settingId,
                 NormalHours = hours,
                 OvertimeHours = overtime,
+                BreakHours = breakTime.GetValueOrDefault(1),
                 UserId = unchecked((long)id)
             };
             await Entries.AddAsync(entry);
@@ -238,6 +246,8 @@ namespace DiscordBot.Services
         public string ExpectedStartTime { get; set; }
         public string ExpectedEndTime { get; set; }
 
+        public double ExpectedBreak { get; set; }
+
         public double NormalRate { get; set; }
         public double OvertimeRate { get; set; }
 
@@ -272,6 +282,7 @@ namespace DiscordBot.Services
 
         public double NormalHours { get; set; }
         public double OvertimeHours { get; set; }
+        public double BreakHours { get; set; }
 
     }
 
