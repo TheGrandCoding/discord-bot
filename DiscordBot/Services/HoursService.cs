@@ -1,5 +1,6 @@
 ﻿using Discord;
 using Discord.WebSocket;
+using DiscordBot.Utils;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
@@ -59,13 +60,26 @@ namespace DiscordBot.Services
 
         async Task processUser(SocketUser user)
         {
-            IReadOnlyCollection<HoursSettings> settings;
+            var now = DateTime.Now;
+            var nowDate = now.Date;
+
+            HoursSettings currentSetting = null;
+
             using (var db = DB())
+            {
+                IReadOnlyCollection<HoursSettings> settings;
                 settings = db.GetSettings(user.Id);
 
-            var now = DateTime.Now;
-            var currentSetting = settings.FirstOrDefault(x => now >= x.StartDate && now < x.EndDate);
-            if (currentSetting == null) return;
+                currentSetting = settings.FirstOrDefault(x => now >= x.StartDate && now < x.EndDate);
+                if (currentSetting == null) return;
+
+                var todayEntry = db.GetEntries(user.Id, currentSetting.Id, nowDate.AddSeconds(-10), nowDate.ToLastSecond());
+                if(todayEntry != null)
+                {
+                    Info($"{user.Id} already has a DB entry today.");
+                    return;
+                }
+            }
 
             var startTime = now.Date.Add(getSpan(currentSetting.ExpectedStartTime));
             var endTime = now.Date.Add(getSpan(currentSetting.ExpectedEndTime));
