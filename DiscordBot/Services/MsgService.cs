@@ -352,19 +352,30 @@ namespace DiscordBot.Services
 #endif
         }
 
+        static Dictionary<ulong, DateTime> _presCache = new();
         private async Task Client_PresenceUpdated(SocketUser arg1, SocketPresence arg2, SocketPresence arg3)
         {
             if(arg2.Status != arg3.Status)
             {
-                using var db = DB();
-                var state = new StatusLog()
+                bool process = true;
+                var now = DateTime.Now;
+                if (_presCache.TryGetValue(arg1.Id, out var time))
                 {
-                    Author = arg1.Id,
-                    ChangedAt = DateTime.UtcNow,
-                    Status = arg3.Status.ToString()
-                };
-                await db.Status.AddAsync(state);
-                await db.SaveChangesAsync();
+                    process = (now - time).TotalSeconds > 5;
+                }
+                _presCache[arg1.Id] = now;
+                if(process)
+                {
+                    using var db = DB();
+                    var state = new StatusLog()
+                    {
+                        Author = arg1.Id,
+                        ChangedAt = DateTime.UtcNow,
+                        Status = arg3.Status.ToString()
+                    };
+                    await db.Status.AddAsync(state);
+                    await db.SaveChangesAsync();
+                }
             }
         }
 
