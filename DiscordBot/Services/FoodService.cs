@@ -284,6 +284,7 @@ namespace DiscordBot.Services
                     }
 
                 }
+                if (usesEmbed.Fields.Count == 0) return null;
 
                 return usesEmbed;
             }

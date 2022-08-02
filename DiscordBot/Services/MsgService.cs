@@ -30,6 +30,7 @@ namespace DiscordBot.Services
         public DbSet<MsgModel> Messages { get; set; }
         public DbSet<NameTimestamps> Names { get; set; }
         public DbSet<MsgContent> Contents { get; set; }
+        public DbSet<StatusLog> Status { get; set; }
 
         protected override void OnConfiguring(DbContextOptionsBuilder options)
         {
@@ -54,9 +55,39 @@ namespace DiscordBot.Services
             modelBuilder.Entity<MsgContent>()
                 .Property(x => x.Id)
                 .UseIdentityColumn();
+            modelBuilder.Entity<StatusLog>()
+                .HasKey(x => new { x.AuthorId, x.ChangedAt });
         }
     }
 
+    public class StatusLog
+    {
+        public long AuthorId { get; set; }
+
+        [NotMapped]
+        public ulong Author
+        {
+            get
+            {
+                unchecked
+                {
+                    return (ulong)AuthorId;
+                }
+            }
+
+            set
+            {
+                unchecked
+                {
+                    AuthorId = (long)value;
+                }
+            }
+        }
+
+        public DateTime ChangedAt { get; set; }
+
+        public string Status { get; set; }
+    }
     public class MsgContent
     {
         public long Id { get; set; }
@@ -308,6 +339,7 @@ namespace DiscordBot.Services
         public override void OnReady()
         {
 #if !DEBUG
+            Program.Client.PresenceUpdated += Client_PresenceUpdated;
             Program.Client.MessageReceived += Client_MessageReceived;
             Program.Client.MessageUpdated += Client_MessageUpdated;
             Program.Client.ChannelUpdated += Client_ChannelUpdated;
@@ -318,6 +350,22 @@ namespace DiscordBot.Services
 #if DEBUG
             Catchup().Wait();
 #endif
+        }
+
+        private async Task Client_PresenceUpdated(SocketUser arg1, SocketPresence arg2, SocketPresence arg3)
+        {
+            if(arg2.Status != arg3.Status)
+            {
+                using var db = DB();
+                var state = new StatusLog()
+                {
+                    Author = arg1.Id,
+                    ChangedAt = DateTime.UtcNow,
+                    Status = arg3.Status.ToString()
+                };
+                await db.Status.AddAsync(state);
+                await db.SaveChangesAsync();
+            }
         }
 
         public static LogContext DB()
@@ -548,25 +596,31 @@ namespace DiscordBot.Services
                 dispose = true;
                 _db_ = DB();
             }
-            _db_.Contents.Add(content);
-            _db_.SaveChanges();
-            var msg = new MsgModel(umsg);
-            msg.ContentId = content.Id;
-            _db_.Messages.Add(msg);
-            await _db_.SaveChangesAsync();
-            Console.ForegroundColor = ConsoleColor.Black;
-            Console.BackgroundColor = ConsoleColor.White;
-            Console.WriteLine($"{getWhere(umsg)}: {arg.Author.Username}: {arg.Content}");
-            Console.ForegroundColor = ConsoleColor.White;
-            Console.BackgroundColor = ConsoleColor.Black;
-            Info($"Starting attachment handle for {arg.Id} on thread {Thread.CurrentThread.Name} | {Thread.CurrentThread.ManagedThreadId}");
-            foreach(var attch in umsg.Attachments)
+            try
             {
-                HandleAttachment(attch, guildChannel.Guild, umsg.Id);
+                _db_.Contents.Add(content);
+                _db_.SaveChanges();
+                var msg = new MsgModel(umsg);
+                msg.ContentId = content.Id;
+                _db_.Messages.Add(msg);
+                await _db_.SaveChangesAsync();
+                Console.ForegroundColor = ConsoleColor.Black;
+                Console.BackgroundColor = ConsoleColor.White;
+                Console.WriteLine($"{getWhere(umsg)}: {arg.Author.Username}: {arg.Content}");
+                Console.ForegroundColor = ConsoleColor.White;
+                Console.BackgroundColor = ConsoleColor.Black;
+                Info($"Starting attachment handle for {arg.Id} on thread {Thread.CurrentThread.Name} | {Thread.CurrentThread.ManagedThreadId}");
+                foreach(var attch in umsg.Attachments)
+                {
+                    HandleAttachment(attch, guildChannel.Guild, umsg.Id);
+                }
+                Info($"Ended attachment handle for {arg.Id} on thread {Thread.CurrentThread.Name} | {Thread.CurrentThread.ManagedThreadId}");
             }
-            Info($"Ended attachment handle for {arg.Id} on thread {Thread.CurrentThread.Name} | {Thread.CurrentThread.ManagedThreadId}");
-            if (dispose)
-                _db_.Dispose();
+            finally
+            {
+                if (dispose)
+                    _db_.Dispose();
+            }
         }
 
         private async Task Client_MessageUpdated(Cacheable<IMessage, ulong> arg1, SocketMessage arg2, ISocketMessageChannel arg3)
