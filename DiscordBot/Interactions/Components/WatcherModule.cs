@@ -38,7 +38,8 @@ namespace DiscordBot.Interactions.Components
         public async Task Delete()
         {
             await RespondAsync($"Marking that as complete...", ephemeral: true);
-            await Service.MarkWatched(Service.GetApiKeyFromUrl(Url), Service.GetItemIdFromUrl(Url));
+            var auth = await WatcherService.JellyfinAuth.Parse(Url, Context.User.Id, Service);
+            await Service.MarkWatched(Service.GetItemIdFromUrl(Url), auth);
 
             await Message.DeleteAsync();
             await ModifyOriginalResponseAsync(x => x.Content = "Done!");
@@ -48,20 +49,29 @@ namespace DiscordBot.Interactions.Components
         public async Task Next()
         {
             await RespondAsync($"Marking episode as complete..", ephemeral: true);
-            var apiKey = Service.GetApiKeyFromUrl(Url);
             var episodeId = Service.GetItemIdFromUrl(Url);
-            
-            await Service.MarkWatched(apiKey, episodeId);
+
+            var auth = await WatcherService.JellyfinAuth.Parse(Url, Context.User.Id, Service);
+            await Service.MarkWatched(episodeId, auth);
             await ModifyOriginalResponseAsync(x => x.Content = "Completed. Updating message to next episode..");
 
 
-            var seriesId = Message.Embeds.First().Footer.Value.Text;
+            var em = Message.Embeds.First();
+            var parentId = em.Footer.Value.Text;
 
-            var nextUp = (await Service.GetNextUp(apiKey, seriesId)).FirstOrDefault();
+            WatcherService.JellyfinItem nextUp = null;
+            if(em.Color == Color.Red)
+            { // playlist
+                nextUp = await Service.GetItemInfo(parentId, auth);
+            } else
+            { // episode in series
+                nextUp = (await Service.GetNextUp(auth, parentId)).FirstOrDefault();
+            }
 
-            if(nextUp == null)
+
+            if (nextUp == null)
             {
-                var e = Message.Embeds.First().ToEmbedBuilder();
+                var e = em.ToEmbedBuilder();
                 await Message.ModifyAsync(x =>
                 {
                     x.Embeds = new[] { e
@@ -71,8 +81,7 @@ namespace DiscordBot.Interactions.Components
                 return;
             }
 
-            var ep = nextUp as WatcherService.JellyfinEpisodeItem;
-            var nextBuilder = nextUp.ToEmbed(Service, apiKey);
+            var nextBuilder = await nextUp.ToEmbed(Service, auth);
             nextBuilder.Description = (nextBuilder.Description ?? "") + $"**Next Up**";
             await Message.ModifyAsync(x =>
             {

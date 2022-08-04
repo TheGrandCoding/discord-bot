@@ -348,7 +348,7 @@ namespace DiscordBot.Services
 #endif
 
 #if DEBUG
-            Catchup().Wait();
+            //Catchup().Wait();
 #endif
         }
 
