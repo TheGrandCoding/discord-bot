@@ -1080,9 +1080,9 @@ namespace DiscordBot.Services
             }
         }
 
-        string tostr(int? minutes)
+        string tostr(int? seconds)
         {
-            var ts = TimeSpan.FromMinutes(minutes.GetValueOrDefault(0));
+            var ts = TimeSpan.FromSeconds(seconds.GetValueOrDefault(0));
             var sb = new StringBuilder();
             if (ts.Hours > 0)
                 sb.Append($"{ts.Hours}h");
