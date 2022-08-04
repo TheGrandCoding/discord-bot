@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml;
 using Discord;
 using Discord.Interactions;
 using DiscordBot.Classes;
@@ -147,7 +149,6 @@ namespace DiscordBot.Services.arr
             return items.ToObject<JellyfinItem[]>();
         }
 
-
         public async Task<JellyfinItem> GetItemInfo(string itemId, JellyfinAuth auth)
         {
             var response = await request(HttpMethod.Get, auth.AuthKey, $"/Users/{auth.UserId}/Items/{itemId}"
@@ -206,6 +207,22 @@ namespace DiscordBot.Services.arr
 
         }
 
+        public async Task SetWatchedTime(string itemId, ulong ticks, string playSessionId, JellyfinAuth auth)
+        {
+            var response = await request(HttpMethod.Post, auth.AuthKey, $"/Users/{auth.UserId}/PlayingItems/{itemId}/Progress" +
+                $"?positionTicks={ticks}" + (playSessionId == null ? "" : $"&playSessionId={playSessionId}"));
+        }
+
+        public async Task<JellyfinSession> GetFirstCapableSession(JellyfinAuth auth)
+        {
+            var resp = await request(HttpMethod.Get, auth.AuthKey, $"/Sessions?controllableByUser={auth.UserId}");
+            var cont = await resp.Content.ReadAsStringAsync();
+            var sessions = Program.Deserialise<JellyfinSession[]>(cont);
+            return sessions.Where(x => x.IsActive && x.PlayableMediaTypes.Length > 0).FirstOrDefault();
+        }
+
+
+
         public class Handler : AutocompleteHandler
         {
             public override async Task<AutocompletionResult> GenerateSuggestionsAsync(IInteractionContext context, IAutocompleteInteraction autocompleteInteraction, IParameterInfo parameter, IServiceProvider services)
@@ -232,7 +249,7 @@ namespace DiscordBot.Services.arr
                 AuthKey = key;
                 UserId = id;
             }
-            public string AuthKey { get; }
+            public string AuthKey { get; set; }
             public string UserId { get; }
 
             public static async Task<JellyfinAuth> Parse(string token, ulong executingId, WatcherService service)
@@ -317,12 +334,13 @@ namespace DiscordBot.Services.arr
             public int ChildCount { get; set; }
             public JellyfinPlaylistUserData UserData { get; set; }
 
+            private JellyfinItem[] items = null;
             public override async Task<EmbedBuilder> ToEmbed(WatcherService service, JellyfinAuth auth)
             {
                 var builder = new EmbedBuilder();
                 builder.Color = Color.Red;
                 builder.WithFooter(Id);
-                var items = await service.GetPlaylistItems(Id, auth);
+                items ??= await service.GetPlaylistItems(Id, auth);
 
                 JellyfinItem firstNonPlayed = null;
                 foreach(var item in items)
@@ -351,6 +369,65 @@ namespace DiscordBot.Services.arr
                 }
 
                 return builder;
+            }
+
+            public async Task<FileAttachment> ToPlaylistFile(WatcherService service, JellyfinAuth auth, bool skipWatched = true)
+            {
+                var fileName = $"playlist.xspf";
+                var path = Path.Combine(Path.GetTempPath(), fileName);
+                items ??= await service.GetPlaylistItems(Id, auth);
+
+                using (var xmlWriter = XmlWriter.Create(path, new XmlWriterSettings()
+                {
+                    Indent = true,
+                    Async = true
+                }))
+                {
+                    await xmlWriter.WriteStartDocumentAsync();
+
+                    await xmlWriter.WriteStartElementAsync(null, "playlist", null);
+                    await xmlWriter.WriteAttributeStringAsync(null, "version", null, "1");
+
+                    await xmlWriter.WriteStartElementAsync(null, "trackList", null);
+
+                    foreach(var item in items)
+                    {
+
+                        string title;
+                        JellyfinPlaylistUserData data = null;
+                        if(item is JellyfinEpisodeItem ep)
+                        {
+                            data = ep.UserData;
+                            title = $"{ep.SeriesName}: S{ep.ParentIndexNumber:00}E{ep.IndexNumber:00} {ep.Name}";
+                        } else if (item is JellyfinMovieItem mv)
+                        {
+                            data = mv.UserData; 
+                            title = $"{item.Name} ({item.ProductionYear:0000})";
+                        }
+                        else
+                        {
+                            title = $"{item.Name}";
+                        }
+                        if(data != null)
+                        {
+                            if (skipWatched && data.Played.GetValueOrDefault(false)) continue;
+
+                        }
+                        await xmlWriter.WriteStartElementAsync(null, "track", null);
+
+                        await xmlWriter.WriteElementStringAsync(null, "title", null, title);
+                        await xmlWriter.WriteElementStringAsync(null, "location", null, service.GetItemDownloadUrl(auth.AuthKey, item.Id));
+
+                        await xmlWriter.WriteEndElementAsync(); // track
+                    }
+
+
+                    await xmlWriter.WriteEndElementAsync(); // trackList
+                    await xmlWriter.WriteEndElementAsync(); // playlist
+
+                    await xmlWriter.FlushAsync();
+                }
+                return new FileAttachment(path, fileName, $"Playlist for {Name}");
             }
         }
 
@@ -384,6 +461,28 @@ namespace DiscordBot.Services.arr
 
             [JsonExtensionData]
             public Dictionary<string, JToken> Excess { get; set; }
+        }
+
+        public class JellyfinSession
+        {
+            public string Id { get; set; }
+            public string[] PlayableMediaTypes { get; set; }
+
+            public bool IsActive { get; set; }
+        }
+
+        public class JellyfinKey
+        {
+            public int Id { get; set; }
+            public string AccessToken { get; set; }
+
+            public string DeviceId { get; set; }
+
+            public string UserId { get; set; }
+
+            public bool IsActive { get; set; }
+
+            public string UserName { get; set; }
         }
     }
 }

@@ -2,6 +2,7 @@
 using Discord.Interactions;
 using Discord.WebSocket;
 using DiscordBot.Services.arr;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -81,12 +82,19 @@ namespace DiscordBot.Interactions.Components
                 return;
             }
 
+            FileAttachment? fa = null;
+            if(nextUp is WatcherService.JellyfinPlaylist pl)
+            {
+                fa = await pl.ToPlaylistFile(Service, auth, true);
+            }
+
             var nextBuilder = await nextUp.ToEmbed(Service, auth);
             nextBuilder.Description = (nextBuilder.Description ?? "") + $"**Next Up**";
             await Message.ModifyAsync(x =>
             {
                 x.Embeds = new[] { nextBuilder.Build() };
                 x.Components = Service.GetComponents(true).Build();
+                x.Attachments = fa == null ? null : new List<FileAttachment>() { fa.Value };
             });
             await ModifyOriginalResponseAsync(x => x.Content = "Done!");
         }
@@ -107,6 +115,24 @@ namespace DiscordBot.Interactions.Components
                 embed.Description = modal.Duration;
             else
                 embed.Description = splt[0] + "\n" + modal.Duration;
+
+            if(modal.Duration.Contains(':'))
+            {
+                var ts = TimeSpan.ParseExact(modal.Duration, new[] { @"mm\:ss", @"hh\:mm\:ss" }, System.Globalization.CultureInfo.InvariantCulture);
+                var ticks = (ulong)(ts.TotalMilliseconds * 10_000);
+                var srv = Program.Services.GetRequiredService<WatcherService>();
+                var itemId = srv.GetItemIdFromUrl(embed.Url);
+                var auth = await WatcherService.JellyfinAuth.Parse(embed.Url, Context.User.Id, srv);
+                string playSessionId = null;
+                if (auth.AuthKey == srv.JellyfinApiKey)
+                { // need to get an API key with a session thing
+                    var sessions = await srv.GetFirstCapableSession(auth);
+                    playSessionId = sessions.Id;
+                }
+                
+                await srv.SetWatchedTime(itemId, ticks, playSessionId, auth);
+            }
+
             await message.ModifyAsync(x => x.Embeds = new[] { embed.Build() });
         }
 

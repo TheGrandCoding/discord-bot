@@ -37,8 +37,9 @@ namespace DiscordBot.Interactions.Modules
             {
                 info = await Service.GetItemInfo(url, auth);
             }
-            EmbedBuilder builder ;
+            EmbedBuilder builder;
             bool hasNext = false;
+            FileAttachment? fa = null;
             if(info is WatcherService.JellyfinEpisodeItem ep)
             {
                 builder = await ep.ToEmbed(Service, auth);
@@ -46,6 +47,7 @@ namespace DiscordBot.Interactions.Modules
             } else if(info is WatcherService.JellyfinPlaylist pl)
             {
                 builder = await pl.ToEmbed(Service, auth);
+                fa = await pl.ToPlaylistFile(Service, auth);
                 hasNext = true;
                 progress = null;
             }
@@ -68,6 +70,7 @@ namespace DiscordBot.Interactions.Modules
                 x.Content = null;
                 x.Embeds = new[] { builder.Build() };
                 x.Components = Service.GetComponents(hasNext).Build();
+                x.Attachments = fa == null ? null : new List<FileAttachment>() { fa.Value };
             });
         }
     
