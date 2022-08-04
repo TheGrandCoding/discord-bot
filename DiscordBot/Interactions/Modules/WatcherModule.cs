@@ -20,17 +20,38 @@ namespace DiscordBot.Interactions.Modules
         public async Task Watch(string url, string progress)
         {
             await RespondAsync("Fetching information");
-            var info = await Service.GetItemInfo(Service.GetApiKeyFromUrl(url), Service.GetItemIdFromUrl(url));
+            WatcherService.JellyfinItem info;
+            var auth = await WatcherService.JellyfinAuth.Parse(url, Context.User.Id, Service);
+            if(string.IsNullOrWhiteSpace(auth.UserId))
+            {
+                await ModifyOriginalResponseAsync(x =>
+                {
+                    x.Content = $":x: Jellyfin User Id could not be parsed or fetched from your input.";
+                });
+                return;
+            }
+            if(url.Contains("/Download"))
+            {
+                info = await Service.GetItemInfo(Service.GetItemIdFromUrl(url), auth);
+            } else
+            {
+                info = await Service.GetItemInfo(url, auth);
+            }
             EmbedBuilder builder ;
             bool hasNext = false;
             if(info is WatcherService.JellyfinEpisodeItem ep)
             {
-                builder = ep.ToEmbed(Service, Service.GetApiKeyFromUrl(url));
+                builder = await ep.ToEmbed(Service, auth);
                 hasNext = true;
+            } else if(info is WatcherService.JellyfinPlaylist pl)
+            {
+                builder = await pl.ToEmbed(Service, auth);
+                hasNext = true;
+                progress = null;
             }
             else if(info is WatcherService.JellyfinMovieItem movie)
             {
-                builder = movie.ToEmbed(Service, Service.GetApiKeyFromUrl(url));
+                builder = await movie.ToEmbed(Service, auth);
             } else
             {
                 await ModifyOriginalResponseAsync(x =>
@@ -39,7 +60,8 @@ namespace DiscordBot.Interactions.Modules
                 });
                 return;
             }
-            builder.Description = (builder.Description ?? "") + $"**{progress}**";
+            if(progress != null)
+                builder.Description = (builder.Description ?? "") + $"**{progress}**";
 
             await ModifyOriginalResponseAsync(x =>
             {

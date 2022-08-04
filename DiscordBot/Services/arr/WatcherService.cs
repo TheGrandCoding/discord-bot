@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
@@ -15,12 +16,14 @@ using Newtonsoft.Json.Linq;
 
 namespace DiscordBot.Services.arr
 {
-    public class WatcherService : Service
+    public class WatcherService : SavedService
     {
         public Sonarr.SonarrWebhooksService SonarrWebhooksService { get; set; }
         public Radarr.RadarrWebhookService RadarrWebhookService { get; set; }
 
         public string BaseUrl { get; set; }
+        public string JellyfinApiKey { get; set; }
+        public ConcurrentDictionary<ulong, string> UserIds { get; set; } = new();
         public BotHttpClient HTTP
         {
             get
@@ -30,9 +33,25 @@ namespace DiscordBot.Services.arr
             }
         }
 
+        class _save
+        {
+            public Dictionary<ulong, string> users { get; set; } = new();
+        }
+
         public override void OnReady()
         {
-            BaseUrl = Program.Configuration["urls:jellyfin"];
+            JellyfinApiKey = EnsureConfiguration("tokens:jellyfin");
+            BaseUrl = EnsureConfiguration("urls:jellyfin");
+            var sv = Program.Deserialise<_save>(ReadSave());
+            UserIds = new ConcurrentDictionary<ulong, string>(sv.users ?? new Dictionary<ulong, string>());
+        }
+
+        public override string GenerateSave()
+        {
+            var sv = new _save();
+            sv.users = new Dictionary<ulong, string>(UserIds);
+
+            return Program.Serialise(sv);
         }
 
         async Task<List<AutocompleteResult>> sonarrSuggest(string showName)
@@ -77,7 +96,7 @@ namespace DiscordBot.Services.arr
             return builder;
         }
 
-        string getAuthHeader(string authToken)
+        /*string getAuthHeader(string authToken)
         {
             var dict = new Dictionary<string, string>();
             dict["MediaBrowser Client"] = "MLAPI";
@@ -93,7 +112,7 @@ namespace DiscordBot.Services.arr
             }
             s.Remove(s.Length - 3, 2);
             return s.ToString();
-        }
+        }*/
 
         public string GetItemIdFromUrl(string url)
             => new Uri(url).AbsolutePath.Split('/')[2];
@@ -111,18 +130,27 @@ namespace DiscordBot.Services.arr
 
         Task<HttpResponseMessage> request(HttpMethod method, string authKey, string uri)
         {
-            var auth = getAuthHeader(authKey);
+            //var auth = getAuthHeader(authKey);
             var request = new HttpRequestMessage(method, BaseUrl + uri
                 );
-            request.Headers.Add("X-Emby-Authorization", auth);
+            request.Headers.Add("X-Emby-Token", authKey);
             return HTTP.SendAsync(request);
         }
 
-
-        public async Task<JellyfinItem> GetItemInfo(string authKey, string itemId)
+        public async Task<JellyfinItem[]> GetPlaylistItems(string playlistId, JellyfinAuth auth)
         {
-            var user = await GetUserFromAuthKey(authKey);
-            var response = await request(HttpMethod.Get, authKey, $"/Items?ids={itemId}" +
+            var response = await request(HttpMethod.Get, auth.AuthKey, $"/Playlists/{playlistId}/Items?userId={auth.UserId}");
+            var content = await response.Content.ReadAsStringAsync();
+            response.EnsureSuccessStatusCode();
+            var jobj = JObject.Parse(content);
+            var items = jobj["Items"] as JArray;
+            return items.ToObject<JellyfinItem[]>();
+        }
+
+
+        public async Task<JellyfinItem> GetItemInfo(string itemId, JellyfinAuth auth)
+        {
+            var response = await request(HttpMethod.Get, auth.AuthKey, $"/Users/{auth.UserId}/Items/{itemId}"
                 /*$"&SortBy=DatePlayed" +
                 $"&IncludeItemTypes=Movie,Series" +
                 $"&Limit=20" +
@@ -131,17 +159,16 @@ namespace DiscordBot.Services.arr
                 $"&EnableImages=false" +
                 $"&EnableTotalRecordCount=false" +
                 $"&Fields=Overview" +*/
-                $"&UserId={user.Id}");
+                );
             var content = await response.Content.ReadAsStringAsync();
             response.EnsureSuccessStatusCode();
-            var obj = JObject.Parse(content);
-            var arr = obj["Items"] as JArray;
-            return arr[0].ToObject<JellyfinItem>();
+            return Program.Deserialise<JellyfinItem>(content);
         }
 
         private CacheDictionary<string, JellyfinUser> _userCache = new();
         public async Task<JellyfinUser> GetUserFromAuthKey(string authKey)
         {
+            if (authKey == JellyfinApiKey) return null;
             if (_userCache.TryGetValue(authKey, out var j))
                 return j;
             var response = await request(HttpMethod.Get, authKey, "/Users/Me");
@@ -153,26 +180,24 @@ namespace DiscordBot.Services.arr
             return j;
         }
 
-        public async Task MarkWatched(string authKey, string jellyId)
+        public async Task MarkWatched(string jellyId, JellyfinAuth auth)
         {
-            var user = await GetUserFromAuthKey(authKey);
                                                    // 2022-05-10T16%3A35%3A29.128Z
             var played = DateTimeOffset.Now.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
-            var reqUrl = $"/Users/{user.Id}/PlayedItems/{jellyId}?DatePlayed={played}";
+            var reqUrl = $"/Users/{auth.UserId}/PlayedItems/{jellyId}?DatePlayed={played}";
 
-            var response = await request(HttpMethod.Post, authKey, reqUrl);
+            var response = await request(HttpMethod.Post, auth.AuthKey, reqUrl);
 
             response.EnsureSuccessStatusCode();
         }
 
-        public async Task<JellyfinItem[]> GetNextUp(string authKey, string seriesId = null)
+        public async Task<JellyfinItem[]> GetNextUp(JellyfinAuth auth, string seriesId = null)
         {
-            var user = await GetUserFromAuthKey(authKey);
             var uriB = new UrlBuilder("/Shows/NextUp");
-            uriB.Add("userId", user.Id);
+            uriB.Add("userId", auth.UserId);
             if (seriesId != null)
                 uriB.Add("seriesId", seriesId);
-            var response = await request(HttpMethod.Get, authKey, uriB.ToString());
+            var response = await request(HttpMethod.Get, auth.AuthKey, uriB.ToString());
             response.EnsureSuccessStatusCode();
             var content = await response.Content.ReadAsStringAsync();
             var jobj = JObject.Parse(content);
@@ -200,20 +225,56 @@ namespace DiscordBot.Services.arr
             }
         }
 
+        public class JellyfinAuth
+        {
+            private JellyfinAuth(string key, string id)
+            {
+                AuthKey = key;
+                UserId = id;
+            }
+            public string AuthKey { get; }
+            public string UserId { get; }
+
+            public static async Task<JellyfinAuth> Parse(string token, ulong executingId, WatcherService service)
+            {
+                string authKey;
+                if(token.Contains("/Download"))
+                {
+                    authKey = service.GetApiKeyFromUrl(token);
+                } else
+                {
+                    authKey = service.JellyfinApiKey;
+                }
+                if(!service.UserIds.TryGetValue(executingId, out var userId))
+                {
+                    var usr = await service.GetUserFromAuthKey(authKey);
+                    if (usr != null)
+                    {
+                        userId = usr.Id;
+                        service.UserIds[executingId] = userId;
+                        service.OnSave();
+                    }
+                }
+                return new JellyfinAuth(authKey, userId);
+
+            }
+        }
+
         [JsonConverter(typeof(JsonSubtypes), "Type")]
         [JsonSubtypes.KnownSubType(typeof(JellyfinEpisodeItem), "Episode")]
         [JsonSubtypes.KnownSubType(typeof(JellyfinMovieItem), "Movie")]
         [JsonSubtypes.KnownSubType(typeof(JellyfinSeriesItem), "Series")]
+        [JsonSubtypes.KnownSubType(typeof(JellyfinPlaylist), "Playlist")]
         public abstract class JellyfinItem
         {
             public string Name { get; set; }
             public string ServerId { get; set; }
             public string Id { get ; set; }
-            public DateTime PremiereDate { get; set; }
+            public DateTime? PremiereDate { get; set; }
 
             public int ProductionYear { get; set; }
 
-            public abstract EmbedBuilder ToEmbed(WatcherService service, string authKey);
+            public abstract Task<EmbedBuilder> ToEmbed(WatcherService service, JellyfinAuth auth);
         }
 
         public class JellyfinEpisodeItem : JellyfinItem
@@ -223,11 +284,13 @@ namespace DiscordBot.Services.arr
             public string SeriesName { get; set; }
             public string SeriesId { get; set; }
 
-            public override EmbedBuilder ToEmbed(WatcherService service, string authKey)
+            public JellyfinPlaylistUserData UserData { get; set; }
+
+            public override async Task<EmbedBuilder> ToEmbed(WatcherService service, JellyfinAuth auth)
             {
 
                 var builder = new EmbedBuilder();
-                builder.Url = service.GetItemDownloadUrl(authKey, Id);
+                builder.Url = service.GetItemDownloadUrl(auth.AuthKey, Id);
                 builder.Title = $"{SeriesName} S{ParentIndexNumber:00}E{IndexNumber:00}";
                 if (!string.IsNullOrWhiteSpace(Name))
                     builder.Description = $"*{Name}*\n";
@@ -237,13 +300,69 @@ namespace DiscordBot.Services.arr
                 return builder;
             }
         }
+
+        public class JellyfinPlaylistUserData
+        {
+            public double? PlayedPercentage { get; set; }
+            public int? UnplayedItemCount { get; set; }
+            public ulong? PlaybackPositionTicks { get; set; }
+            public int? PlayCount { get; set; }
+            public bool? IsFavourite { get; set; }
+            public bool? Played { get; set; }
+            public string Key { get; set; }
+        }
+
+        public class JellyfinPlaylist : JellyfinItem
+        {
+            public int ChildCount { get; set; }
+            public JellyfinPlaylistUserData UserData { get; set; }
+
+            public override async Task<EmbedBuilder> ToEmbed(WatcherService service, JellyfinAuth auth)
+            {
+                var builder = new EmbedBuilder();
+                builder.Color = Color.Red;
+                builder.WithFooter(Id);
+                var items = await service.GetPlaylistItems(Id, auth);
+
+                JellyfinItem firstNonPlayed = null;
+                foreach(var item in items)
+                {
+                    if (item is JellyfinEpisodeItem ep && !ep.UserData.Played.GetValueOrDefault(false))
+                    {
+                        firstNonPlayed = ep;
+                        break;
+                    }
+                    else if (item is JellyfinMovieItem mv && !mv.UserData.Played.GetValueOrDefault(false))
+                    {
+                        firstNonPlayed = mv;
+                        break;
+                    }
+                }
+                if(firstNonPlayed == null)
+                {
+                    builder.Title = this.Name;
+                    builder.Description = "No unplayed items\r\n";
+                } else
+                {
+                    var itemEmbed = await firstNonPlayed.ToEmbed(service, auth);
+                    builder.Url = itemEmbed.Url;
+                    builder.Title = itemEmbed.Title;
+                    builder.Description = itemEmbed.Description + $"\r\nPlaylist *{Name}*; {UserData.PlayedPercentage.GetValueOrDefault(0):00}%\r\n";
+                }
+
+                return builder;
+            }
+        }
+
         public class JellyfinMovieItem : JellyfinItem
         {
-            public override EmbedBuilder ToEmbed(WatcherService service, string authKey)
+            public JellyfinPlaylistUserData UserData { get; set; }
+
+            public override async Task<EmbedBuilder> ToEmbed(WatcherService service, JellyfinAuth auth)
             {
 
                 var builder = new EmbedBuilder();
-                builder.Url = service.GetItemDownloadUrl(authKey, Id);
+                builder.Url = service.GetItemDownloadUrl(auth.AuthKey, Id);
                 builder.Title = $"{Name} ({ProductionYear})";
                 builder.Color = Color.Gold;
 
@@ -252,7 +371,7 @@ namespace DiscordBot.Services.arr
         }
         public class JellyfinSeriesItem : JellyfinItem
         {
-            public override EmbedBuilder ToEmbed(WatcherService service, string authKey)
+            public override Task<EmbedBuilder> ToEmbed(WatcherService service, JellyfinAuth auth)
             {
                 return null;
             }

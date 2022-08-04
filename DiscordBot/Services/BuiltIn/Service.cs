@@ -412,12 +412,10 @@ namespace DiscordBot.Services
         }
         protected void Debug(string message, string source = null) => Program.LogDebug(message, Name + (source == null ? "" : ":" + source));
 
-        protected void EnsureConfiguration(string configKey)
+        protected string EnsureConfiguration(string configKey)
         {
-            if(string.IsNullOrWhiteSpace(Program.Configuration[configKey]))
-            {
-                throw new Exception($"Missing configuration value '{configKey}' for {Name}");
-            }
+            var s = Program.Configuration[configKey];
+            return s ?? throw new ArgumentNullException(nameof(configKey), $"Missing configuration value '{configKey}' for {Name}");
         }
 
         static Type[] getReliedOnServices(Service x)
