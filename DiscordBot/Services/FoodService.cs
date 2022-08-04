@@ -1080,7 +1080,22 @@ namespace DiscordBot.Services
             }
         }
 
+        string tostr(int? minutes)
+        {
+            var ts = TimeSpan.FromMinutes(minutes.GetValueOrDefault(0));
+            var sb = new StringBuilder();
+            if (ts.Hours > 0)
+                sb.Append($"{ts.Hours}h");
+            if (ts.Minutes > 0)
+                sb.Append($"{ts.Minutes}m");
+            if (ts.Seconds > 0)
+                sb.Append($"{ts.Seconds}s");
 
+            if (sb.Length == 0)
+                sb.Append("0");
+
+            return sb.ToString();
+        }
 
         public Classes.HTMLHelpers.Objects.ListItem GetListItem()
         {
@@ -1090,9 +1105,9 @@ namespace DiscordBot.Services
             if(Children == null || Children.Count == 0)
             {
                 if (Duration.GetValueOrDefault(0) > 0)
-                    li.Children.Add(new Classes.HTMLHelpers.Objects.Span() { RawText = $", for {Duration}" });
+                    li.Children.Add(new Classes.HTMLHelpers.Objects.Span() { RawText = $", for {tostr(Duration)}" });
                 if (Delay.GetValueOrDefault(0) > 0)
-                    li.Children.Add(new Classes.HTMLHelpers.Objects.Span() { RawText = $", after {Delay}" });
+                    li.Children.Add(new Classes.HTMLHelpers.Objects.Span() { RawText = $", after {tostr(Delay)}" });
             } else
             {
 
