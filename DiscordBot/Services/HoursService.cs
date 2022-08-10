@@ -199,29 +199,10 @@ namespace DiscordBot.Services
             else
                 entries = Entries.Where(x => x.UserId == _id).ToArray();
 
-            var sb = new StringBuilder();
-            sb.AppendLine($"Searching for entries for {id} :: {settingId}");
-            if (after.HasValue)
-                sb.AppendLine($"After: {after.Value:s}");
-            if (before.HasValue)
-                sb.AppendLine($"Before: {before.Value:s}");
-            sb.AppendLine($"--- {entries.Length} entires ---");
-            foreach(var e in entries)
-            {
-                bool isAfter = e.Date >= after.Value;
-                bool isBefore = e.Date < before.Value;
-                sb.AppendLine($"{e.Date:s} {e.NormalHours} {e.OvertimeHours} {e.BreakHours} (after: {isAfter}) (before: {isBefore})");
-            }
-
-
             if(after.HasValue)
                 entries = entries.Where(x => x.Date >= after.Value).ToArray();
             if(before.HasValue)
                 entries = entries.Where(x => x.Date < before.Value).ToArray();
-
-            sb.AppendLine($"======");
-            sb.AppendLine($"Selected: {entries.Length}");
-            Program.LogOwner(sb).Wait();
 
             return entries;
         }
