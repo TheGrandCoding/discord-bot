@@ -514,7 +514,7 @@ namespace DiscordBot
             await LogDiscord(await Program.AppInfo.Owner.CreateDMChannelAsync(), message);
         }
         public static Task LogOwner(StringBuilder builder)
-            => LogOwner($"```\r\n{builder}\r\n```");
+            => LogOwner(builder.Length > 4000 ? builder.ToString() : $"```\r\n{builder}\r\n```");
     
     }
 }
