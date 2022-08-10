@@ -74,7 +74,7 @@ namespace DiscordBot.Services
                 if (currentSetting == null) return;
 
                 var todayEntry = db.GetEntries(user.Id, currentSetting.Id, nowDate.AddSeconds(-10), nowDate.ToLastSecond());
-                if(todayEntry != null)
+                if(todayEntry != null && todayEntry.Count > 0)
                 {
                     Info($"{user.Id} already has a DB entry today.");
                     return;
