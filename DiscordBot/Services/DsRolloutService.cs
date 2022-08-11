@@ -749,7 +749,9 @@ namespace DiscordBot.Services
         IDRange         = 2404720969,
         MemberCount     = 2918402255,
         HubType         = 4148745523,
-        ID              = 3013771838
+        ID              = 3013771838,
+        VanityURL       = 188952590,
+        RangeByHash     = 2294888943
     }
 
     public abstract class Filter
@@ -770,6 +772,10 @@ namespace DiscordBot.Services
                 return HubTypeFilter.Create(x);
             else if (type == FilterType.ID)
                 return IDListFilter.Create(x);
+            else if (type == FilterType.VanityURL)
+                throw new NotImplementedException($"VanityURL filter is not implemented");
+            else if (type == FilterType.RangeByHash)
+                return RangeByHashFilter.Create(x);
             throw new ArgumentException($"Unknown filter type: {type}");
         }
 
@@ -1028,6 +1034,38 @@ namespace DiscordBot.Services
             if (other.HubType.Any(y => HubType.Contains(y) == false))
                 return new Change($"HubType added", ".", ".");
             return new List<Change>();
+        }
+    }
+
+    public class RangeByHashFilter : Filter
+    {
+        public override FilterType Type => FilterType.RangeByHash;
+
+        public int[] FirstPair { get; set; }
+        public int[] SecondPair { get; set; }
+
+        public new static Filter Create(JToken x)
+        {
+            var rbh = new RangeByHashFilter();
+            rbh.FirstPair = x[1][0].ToObject<int[]>();
+            rbh.SecondPair = x[1][1].ToObject<int[]>();
+            return rbh;
+        }
+
+        public override List<Change> GetChanges(Filter filter)
+        {
+            if (!(filter is RangeByHashFilter other)) return new List<Change>();
+            var ls = new List<Change>();
+            if (FirstPair[0] != other.FirstPair[0] || FirstPair[1] != other.FirstPair[1])
+                ls.Add(new Change("FirstPair", String.Join(",", FirstPair), String.Join(",", other.FirstPair)));
+            if (SecondPair[0] != other.SecondPair[0] || SecondPair[1] != other.SecondPair[1])
+                ls.Add(new Change("SecondPair", String.Join(",", SecondPair), String.Join(",", other.SecondPair)));
+            return ls;
+        }
+
+        public override string ToString()
+        {
+            return $"Hash [{string.Join(",", FirstPair)}] and [{string.Join(",", SecondPair)}]";
         }
     }
     public class BucketOverride
