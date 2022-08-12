@@ -77,7 +77,7 @@ namespace DiscordBot.Services
             if(guild.CachedThreads.Count == 0)
             {
                 IReadOnlyCollection<IThreadChannel> archivedThreads;
-                DateTimeOffset? before = null;
+                DateTimeOffset? before = DateTimeOffset.UtcNow;
                 do
                 {
                     archivedThreads = await guild.Channel.GetPublicArchivedThreadsAsync(before);

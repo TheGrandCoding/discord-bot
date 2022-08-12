@@ -816,6 +816,8 @@ namespace DiscordBot.Classes
 
         public DateTimeOffset CreatedAt => ((ISnowflakeEntity)Channel).CreatedAt;
 
+        public ThreadArchiveDuration DefaultArchiveDuration => ((ITextChannel)Channel).DefaultArchiveDuration;
+
         public Task DeleteMessagesAsync(IEnumerable<IMessage> messages, RequestOptions options = null)
         {
             return ((ITextChannel)Channel).DeleteMessagesAsync(messages, options);

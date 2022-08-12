@@ -30,6 +30,9 @@ namespace DiscordBot.Classes
         public IReadOnlyCollection<Overwrite> PermissionOverwrites => throw new NotImplementedException();
         public string Name => throw new NotImplementedException();
         public DateTimeOffset CreatedAt => throw new NotImplementedException();
+
+        public ThreadArchiveDuration DefaultArchiveDuration => throw new NotImplementedException();
+
         public Task AddPermissionOverwriteAsync(IRole role, OverwritePermissions permissions, RequestOptions options = null)
         {
             throw new NotImplementedException();
