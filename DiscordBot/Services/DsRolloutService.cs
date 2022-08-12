@@ -429,15 +429,15 @@ namespace DiscordBot.Services
             return builder;
         }
 
-        public string GetTreatment(SocketGuild guild)
-            => GetTreatment(guild.Id, guild.MemberCount, guild.Features);
+        public string GetTreatment(SocketGuild guild, StringBuilder log)
+            => GetTreatment(guild.Id, guild.MemberCount, guild.Features, log);
 
-        public string GetTreatment(ulong serverId)
-            => GetTreatment(serverId, null, null);
+        public string GetTreatment(ulong serverId, StringBuilder log)
+            => GetTreatment(serverId, null, null, log);
     
-        public string GetTreatment(ulong serverId, int? memberCount, GuildFeatures features)
+        public string GetTreatment(ulong serverId, int? memberCount, GuildFeatures features, StringBuilder log)
         {
-            var id = Rollout.GetTreatmentId(Id, serverId, memberCount, features);
+            var id = Rollout.GetTreatmentId(Id, serverId, memberCount, features, log);
             if (!id.HasValue)
                 return null;
             if (id == -1)
@@ -506,27 +506,38 @@ namespace DiscordBot.Services
             //=> (Populations ?? new List<Population>()).Sum(x => x.Count);
 
 
-        public int? GetTreatmentId(string expId, ulong serverId, int? memberCount, GuildFeatures features)
+        public int? GetTreatmentId(string expId, ulong serverId, int? memberCount, GuildFeatures features, StringBuilder log)
         {
+            log.AppendLine($"Hashing `{expId}:{serverId}`:");
             var bytes = Encoding.ASCII.GetBytes($"{expId}:{serverId}");
             using var algo = Murmur.MurmurHash.Create32();
             var hash = algo.ComputeHash(bytes);
 
 
             var intHash = BitConverter.ToUInt32(hash);
+            log.AppendLine($"= Raw int: {intHash}");
             var value = intHash % 10_000;
+            log.AppendLine($"= Actual: **{value}**");
             var highestFilters = int.MinValue;
             Population highest = null;
+            log.AppendLine($"Looking into {Populations.Count} groups");
+            int i = 0;
             foreach(var group in Populations)
             {
-                var pop = group.GetPopulation(value, serverId, memberCount, features);
+                log.AppendLine($"Group {i++}:");
+                var pop = group.GetPopulation(value, serverId, memberCount, features, log);
+                
                 if(pop != null)
                 {
+                    log.AppendLine($"-- In pop {pop.Bucket}");
                     if(group.Filters.Count > highestFilters)
                     {
                         highestFilters = group.Filters.Count;
                         highest = pop;
                     }
+                } else
+                {
+                    log.AppendLine($"-- Not in pop.");
                 }
             }
             return highest?.Bucket ?? -1;
@@ -658,8 +669,9 @@ namespace DiscordBot.Services
         [JsonProperty("f", ItemTypeNameHandling = TypeNameHandling.All)]
         public List<Filter> Filters { get; set; } = new List<Filter>();
 
-        public Population GetPopulation(uint value, ulong serverId, int? memberCount, GuildFeatures features)
+        public Population GetPopulation(uint value, ulong serverId, int? memberCount, GuildFeatures features, StringBuilder log)
         {
+            var failsFilters = new List<string>();
             if (Filters != null)
             {
                 foreach (var f in Filters)
@@ -667,24 +679,50 @@ namespace DiscordBot.Services
                     if (f is IDRangeFilter id)
                     {
                         if (serverId < id.Start || serverId > id.End)
-                            return null; // doesn't meet filter
+                        {
+                            failsFilters.Add($"Does not meet ID range filter: {id.Start} -> {id.End}");
+                        }
                     }
                     else if (f is MemberCountFilter mf)
                     {
                         if (!memberCount.HasValue)
-                            return null;
+                        {
+                            failsFilters.Add("Could not fetch member count, there is a filter on that.");
+                            continue;
+                        }
                         if (memberCount.Value < mf.Start || memberCount.Value > mf.End)
-                            return null;
+                        {
+                            failsFilters.Add($"Member count out of range: {mf.Start} -> {mf.End}");
+                        }
                     }
                     else if (f is FeatureFilter ff)
                     {
                         if (features == null)
-                            return null;
+                        {
+                            failsFilters.Add("Could not fetch features, there is a filter on that.");
+                            continue;
+                        }
+                        var any = false;
                         foreach (var k in ff.Features)
-                            if (!features.HasFeature(k))
-                                return null;
+                        {
+                            if (features.HasFeature(k))
+                            {
+                                any = true;
+                                break;
+                            }
+                        }
+                        failsFilters.Add($"Server has none of the following features: [{string.Join(", ", ff.Features)}]");
+                    } else if(f is RangeByHashFilter rbh)
+                    {
+                        failsFilters.Add($"Could not computer range by hash filter.");
                     }
                 }
+            }
+            if(failsFilters.Count > 0)
+            {
+                foreach (var x in failsFilters)
+                    log.AppendLine($"- {x}");
+                return null;
             }
             foreach (var x in Populations)
                 if (x.InPopulation(value))
@@ -1041,14 +1079,14 @@ namespace DiscordBot.Services
     {
         public override FilterType Type => FilterType.RangeByHash;
 
-        public int[] FirstPair { get; set; }
-        public int[] SecondPair { get; set; }
+        public ulong[] FirstPair { get; set; }
+        public ulong[] SecondPair { get; set; }
 
         public new static Filter Create(JToken x)
         {
             var rbh = new RangeByHashFilter();
-            rbh.FirstPair = x[1][0].ToObject<int[]>();
-            rbh.SecondPair = x[1][1].ToObject<int[]>();
+            rbh.FirstPair = x[1][0].ToObject<ulong[]>();
+            rbh.SecondPair = x[1][1].ToObject<ulong[]>();
             return rbh;
         }
 
@@ -1065,7 +1103,7 @@ namespace DiscordBot.Services
 
         public override string ToString()
         {
-            return $"Hash [{string.Join(",", FirstPair)}] and [{string.Join(",", SecondPair)}]";
+            return $"Server ID is in range by hash key {SecondPair[0]} with target {SecondPair[1]} ([{string.Join(",", FirstPair)}]; [{string.Join(",", SecondPair)}])";
         }
     }
     public class BucketOverride

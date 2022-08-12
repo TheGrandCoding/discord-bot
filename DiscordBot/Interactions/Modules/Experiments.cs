@@ -75,20 +75,21 @@ namespace DiscordBot.Interactions.Modules
             }
             var guild = Program.Client.GetGuild(id);
             string treatment;
+            StringBuilder log = new StringBuilder();
             if(guild == null)
             {
-                treatment = exp.GetTreatment(id, null, null);
+                treatment = exp.GetTreatment(id, null, null, log);
             } else
             {
-                treatment = exp.GetTreatment(guild);
+                treatment = exp.GetTreatment(guild, log);
             }
 
             if(treatment == null)
             {
-                await RespondAsync("Server is ineligible for this experiment due to filters.");
+                await RespondAsync($"Server is ineligible for this experiment due to filters.\r\n\r\n```\r\n{log}\r\n```");
             } else
             {
-                await RespondAsync("Server is in " + treatment);
+                await RespondAsync($"Server is in {treatment}\r\n\r\n```\r\n{log}\r\n```");
             }
 
         }
