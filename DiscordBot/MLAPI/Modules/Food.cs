@@ -320,6 +320,8 @@ namespace DiscordBot.MLAPI.Modules
             } else 
             {
                 links += new Anchor("/food/scan", "Scan new item");
+                links += " -- ";
+                links += new Anchor("/food/recipes", "View recipes");
             }
 
             ReplyFile("base.html", 200, new Replacements()
@@ -443,6 +445,18 @@ namespace DiscordBot.MLAPI.Modules
             ReplyFile("calendar.html", 200);
         }
         
+        HTMLBase getShortDesc(SavedRecipe recipe)
+        {
+            if (!string.IsNullOrWhiteSpace(recipe.Title)) return new StrongText(recipe.Title);
+            return new StrongText(recipe.Id.ToString());
+        }
+        HTMLBase getShortDesc(int recipeId)
+        {
+            var recipe = Service.Recipes.FirstOrDefault(x => x.Id == recipeId);
+            if (recipe == null) return new StrongText($"<{recipeId}>");
+            return getShortDesc(recipe);
+        }
+
         [Method("GET"), Path("/food/recipes")]
         public void ViewRecipes()
         {
@@ -456,7 +470,7 @@ namespace DiscordBot.MLAPI.Modules
                         .WithHeader("Actions")
                 }
             };
-            foreach(var x in Service.Recipes)
+            foreach(var x in Service.Recipes.OrderBy(x => x.Kind).ThenBy(x => x.Id))
             {
                 var r = new TableRow();
 
@@ -479,8 +493,21 @@ namespace DiscordBot.MLAPI.Modules
                     ing.AddItem(listItem);
                 }
                 var firstTd = new TableData(null);
+                firstTd.Children.Add(new StrongText($"{x.Id}: "));
+
                 if (!string.IsNullOrWhiteSpace(x.Title))
                     firstTd.Children.Add(new StrongText(x.Title));
+
+                if(x.Children.Count > 0)
+                {
+                    firstTd.Children.Add(new Span().WithRawText(", uses: "));
+                    foreach((var id, _) in x.Children)
+                    {
+                        firstTd.Children.Add(getShortDesc(id));
+                        firstTd.Children.Add(new Span().WithRawText(", "));
+                    }
+                }
+
                 firstTd.Children.Add(ing);
                 r.Children.Add(firstTd);
 
@@ -1185,53 +1212,73 @@ namespace DiscordBot.MLAPI.Modules
             var jobj = JObject.Parse(Context.Body);
             var recipe = new SavedRecipe(overwrite.GetValueOrDefault(-1));
             recipe.InOrder = jobj["order"].ToObject<bool>();
+            var _err = APIErrorResponse.InvalidFormBody();
 
             if(!jobj.TryGetValue("ingredients", out var ingToken))
             {
-                RespondRaw("Ingredients absent", 400);
+                RespondError(_err.Child("ingredients").EndRequired());
                 return;
             }
             if(!jobj.TryGetValue("steps", out var stepsA))
             {
-                RespondRaw("Steps absent", 400);
+                RespondError(_err.Child("steps").EndRequired());
                 return;
+            }
+            if(jobj.TryGetValue("children", out var child))
+            {
+                recipe.Children = new Dictionary<int, int>();
+                int _ind = 0;
+                foreach (var c in (child as JArray))
+                {
+                    var o = c as JObject;
+                    recipe.Children[o["id"].ToObject<int>()] = o["offset"].ToObject<int>();
+                }
+            } else
+            {
+                recipe.Children = null;
             }
             var title = jobj.GetValue("title")?.ToObject<string>();
             recipe.Title = string.IsNullOrWhiteSpace(title) ? null : title;
             var ingredients = ingToken as JArray;
+            var _ing = _err.Child("ingredients");
+            int _index = 0;
             foreach (var x in ingredients)
             {
+                var err = _ing.Child(_index++);
+
                 var ing = x as JObject;
                 var id = ing.GetValue("id")?.ToObject<string>();
                 id = (id ?? "").Replace(" ", "");
                 if(string.IsNullOrWhiteSpace(id))
                 {
-                    RespondRaw("Ingredient ID is null", 400);
+                    RespondError(err.Child("id").EndRequired());
                     return;
                 }
                 var units = ing.GetValue("unitsUsed")?.ToObject<int?>();
                 if(!units.HasValue)
                 {
-                    RespondRaw("Units used is null", 400);
+                    RespondError(err.Child("unitsUsed").EndRequired());
                     return;
                 }
                 var frozen = ing.GetValue("frozen")?.ToObject<bool?>();
                 if(!frozen.HasValue)
                 {
-                    RespondRaw("Frozen is null", 400);
+                    RespondError(err.Child("frozen").EndRequired());
                     return;
                 }
                     
                 var prod = Service.GetProduct(id);
                 if(prod == null)
                 {
-                    RespondRaw($"No product exists with ID '{id}'", 400);
+                    RespondError(err.Child("id").EndError("MISSING", "No product by that ID exists"));
                     return;
                 }
 
                 var si = new SavedIngredient(units.Value, frozen.Value);
                 recipe.Ingredients.Add(id, si);
             }
+
+
 
             var steps = stepsA as JArray;
             foreach(var x in steps)
@@ -1240,7 +1287,28 @@ namespace DiscordBot.MLAPI.Modules
                 recipe.Steps.Add(step);
             }
 
-            if(overwrite.HasValue)
+            if (recipe.Children.Count > 0)
+            {
+                if (recipe.Steps.Count > 0)
+                {
+                    RespondError(_err.EndError("CONFLICT", "Cannot have children and steps specified"));
+                    return;
+                }
+                if(recipe.Ingredients.Count > 0)
+                {
+                    RespondError(_err.EndError("CONFLICT", "Cannot have children and ingredients specified"));
+                    return;
+                }
+            }
+            if(string.IsNullOrWhiteSpace(recipe.Title))
+            {
+                if(recipe.Ingredients.Count == 0)
+                {
+                    RespondError(_err["title"].EndRequired("Title or ingredients must be given"));
+                    return;
+                }
+            }
+            if (overwrite.HasValue)
             {
                 Service.DeleteRecipe(recipe.Id);
             }
@@ -1270,6 +1338,19 @@ namespace DiscordBot.MLAPI.Modules
             var jobj = new JObject();
             jobj["title"] = recipe.Title;
             jobj["order"] = recipe.InOrder;
+
+            if(recipe.Children != null)
+            {
+                var ch = new JArray();
+                foreach (var child in recipe.Children)
+                {
+                    var jo = new JObject();
+                    jo["id"] = child.Key;
+                    jo["offset"] = child.Value;
+                    ch.Add(jo);
+                }
+                jobj["children"] = ch;
+            }
 
             var steps = new JArray();
             foreach(var step in recipe.Steps)
@@ -1316,26 +1397,11 @@ namespace DiscordBot.MLAPI.Modules
             WorkingRecipe working;
             if(recipes.Count == 1)
             {
-                working = recipes[0].ToWorking();
+                working = Service.ToWorkingRecipe(recipes.First(), dict);
             } else
             {
-                working = new WorkingRecipe(recipes.ToArray());
-                var combined = new WorkingMultiStep(null, "Combined Root", false);
-                foreach (var x in recipes)
-                    combined.WithChild(x.ToChild());
-                combined.SetIdealTimeDiff(TimeSpan.Zero, null);
-
-                foreach(var step in combined.Children)
-                {
-                    var offset = dict.GetValueOrDefault(step.Recipe.Id, 0);
-                    if(offset != 0)
-                        step.OffsetIdealTimeDiff(TimeSpan.FromSeconds(offset));
-                }
-
-                var flattened = combined.Flatten();
-                working.WithSteps(flattened);
+                working = Service.ToWorkingRecipe(recipes, dict);
             }
-            Service.OngoingRecipes.TryAdd(working.Id, working);
             RespondRaw($"{working.Id}", 203);
         }
 

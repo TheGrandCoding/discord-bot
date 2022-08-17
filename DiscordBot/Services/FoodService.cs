@@ -24,6 +24,7 @@ namespace DiscordBot.Services
         public ConcurrentDictionary<string, List<string>> Manufacturers { get; set; } = new ConcurrentDictionary<string, List<string>>();
         public ConcurrentBag<SavedRecipe> Recipes { get; set; } = new ConcurrentBag<SavedRecipe>();
 
+
         public ConcurrentDictionary<int, SavedMenu> Menus { get; set; } = new();
 
         public WorkingMenu WorkingMenu { get; set; }
@@ -167,6 +168,49 @@ namespace DiscordBot.Services
             else
                 Manufacturers[name] = new List<string>() { idPrefix };
             OnSave();
+        }
+
+        public WorkingRecipe ToWorkingRecipe(List<SavedRecipe> recipes, Dictionary<int, int> offsetDict, string title = null)
+        {
+            WorkingRecipe working;
+            if (recipes.Count == 1)
+            {
+                working = recipes[0].ToWorking();
+            }
+            else
+            {
+                working = new WorkingRecipe(recipes.ToArray());
+                var combined = new WorkingMultiStep(null, title ?? "Combined Root", false);
+                foreach (var x in recipes)
+                    combined.WithChild(x.ToChild());
+                combined.SetIdealTimeDiff(TimeSpan.Zero, null);
+
+                foreach (var step in combined.Children)
+                {
+                    var offset = offsetDict.GetValueOrDefault(step.Recipe.Id, 0);
+                    if (offset != 0)
+                        step.OffsetIdealTimeDiff(TimeSpan.FromSeconds(offset));
+                }
+
+                var flattened = combined.Flatten();
+                working.WithSteps(flattened);
+            }
+            OngoingRecipes.TryAdd(working.Id, working);
+            return working;
+        }
+        public WorkingRecipe ToWorkingRecipe(SavedRecipe recipe, Dictionary<int, int> offsetDict)
+        {
+            if(recipe.Children != null && recipe.Children.Count > 0)
+            {
+                var children = recipe.Children.Select(keypair =>
+                {
+                    return Recipes.FirstOrDefault(x => x.Id == keypair.Key);
+                }).ToList();
+                return ToWorkingRecipe(children, recipe.Children, recipe.Title);
+            } else
+            {
+                return ToWorkingRecipe(new List<SavedRecipe> { recipe }, offsetDict, recipe.Title);
+            }
         }
 
         public void DeleteRecipe(int id)
@@ -1030,9 +1074,18 @@ namespace DiscordBot.Services
         [JsonProperty("steps", ItemTypeNameHandling = TypeNameHandling.All)]
         public List<SavedStep> Steps { get; set; } = new List<SavedStep>();
 
+        [JsonProperty("children")]
+        public Dictionary<int, int> Children { get; set; } = new();
+
         [JsonProperty("order")]
         [DefaultValue(false)]
         public bool InOrder { get; set; }
+
+        public int Kind { get
+            {
+                if (Children != null && Children.Count > 0) return 0;
+                return 1;
+            } }
 
         public WorkingMultiStep ToChild()
         {
@@ -1051,6 +1104,7 @@ namespace DiscordBot.Services
                 .WithSteps(multi.Flatten());
         }
     }
+
 
     public class SavedStep
     {

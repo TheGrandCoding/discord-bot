@@ -43,7 +43,7 @@ namespace DiscordBot.Classes
             Errors.Add(new APIErrorResponse(code, message));
             return Build();
         }
-        public APIErrorResponse EndRequired() => EndError("REQUIRED", "This field is required");
+        public APIErrorResponse EndRequired(string customText = null) => EndError("REQUIRED", "This field is required" + (customText == null ? "" : (": " + customText)));
         public APIErrorResponse EndChoices(params string[] possibleV) => EndError("CHOICES", "Value must be one of '" + string.Join("', '", possibleV) + "'");
 
         public APIErrorResponse EndRange(int v1, int v2) => EndError("RANGE", $"Value must be between {v1} and {v2}");
@@ -57,6 +57,11 @@ namespace DiscordBot.Classes
             return c;
         }
         public APIErrorResponse Child(int key) => Child(key.ToString());
+
+        public APIErrorResponse this[int i] => Child(i);
+        public APIErrorResponse this[string key] => Child(key);
+
+
         public APIErrorResponse Build()
         {
             if(_parent != null)
