@@ -1394,13 +1394,41 @@ namespace DiscordBot.MLAPI.Modules
                 RespondRaw("No recipes selected", 400);
                 return;
             }
-            WorkingRecipe working;
-            if(recipes.Count == 1)
+
+            var confirmedRecipes = new List<SavedRecipe>();
+            while(recipes.Count > 0)
             {
-                working = Service.ToWorkingRecipe(recipes.First(), dict);
+                for(int i = 0; i < recipes.Count; i++)
+                {
+                    var recipe = recipes[i];
+                    recipes.RemoveAt(i);
+                    i--;
+                    if(recipe.Children != null && recipe.Children.Count > 0)
+                    {
+                        foreach(var keypair in recipe.Children)
+                        {
+                            if (dict.ContainsKey(keypair.Key)) continue;
+                            var r = Service.Recipes.FirstOrDefault(x => x.Id == keypair.Key);
+                            if(r != null)
+                            {
+                                dict[keypair.Key] = keypair.Value;
+                                recipes.Add(r);
+                            }
+                        }
+                    } else
+                    {
+                        confirmedRecipes.Add(recipe);
+                    }
+                }
+            }
+
+            WorkingRecipe working;
+            if(confirmedRecipes.Count == 1)
+            {
+                working = Service.ToWorkingRecipe(confirmedRecipes.First(), dict);
             } else
             {
-                working = Service.ToWorkingRecipe(recipes, dict);
+                working = Service.ToWorkingRecipe(confirmedRecipes, dict);
             }
             RespondRaw($"{working.Id}", 203);
         }
