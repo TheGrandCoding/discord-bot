@@ -67,10 +67,10 @@ namespace DiscordBot.Interactions.Modules
 
             await ModifyOriginalResponseAsync(x =>
             {
-                x.Content = null;
+                x.Content = Optional<string>.Unspecified;
                 x.Embeds = new[] { builder.Build() };
                 x.Components = Service.GetComponents(hasNext).Build();
-                x.Attachments = fa == null ? null : new List<FileAttachment>() { fa.Value };
+                x.Attachments = fa == null ? Optional<IEnumerable<FileAttachment>>.Unspecified : new List<FileAttachment>() { fa.Value };
             });
         }
     
