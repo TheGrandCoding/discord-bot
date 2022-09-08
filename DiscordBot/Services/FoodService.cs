@@ -15,6 +15,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace DiscordBot.Services
@@ -31,6 +32,8 @@ namespace DiscordBot.Services
 
 
         public ConcurrentDictionary<int, WorkingRecipe> OngoingRecipes { get; set; } = new ConcurrentDictionary<int, WorkingRecipe>();
+
+        public ConcurrentDictionary<ulong, CancellationTokenSource> NotifyCancels { get; set; } = new();
 
 
         public const string DefaultInventoryId = "default";
@@ -318,11 +321,19 @@ namespace DiscordBot.Services
                 var usesEmbed = new EmbedBuilder();
                 usesEmbed.Title = "Confirm Uses";
                 usesEmbed.Description = "Please confirm that the following items were used yesterday.";
+                using var db = DB();
                 foreach ((var group, var itemsLs) in yesterday.Items)
                 {
                     foreach (var item in itemsLs)
                     {
                         if (item == null || item.Item == null) continue;
+
+                        var confirmExists = db.GetInventoryItem(item.Item.Id);
+                        if(confirmExists == null)
+                        {
+                            Info($"Skipping {item.Item.Describe(this)} because it does not exist in the inventory.");
+                            continue;
+                        }
 
                         usesEmbed.AddField(item.Item.Id.ToString(), $"{item.Uses}x {item.Item.Describe(this)}");
                     }
@@ -373,10 +384,27 @@ namespace DiscordBot.Services
                     }
                 }
                 embeds.Add(toEmbed(tomorrow, false, out mention).Build());
+                if(mention) // there's frozen stuff
+                {
+                    components = new ComponentBuilder().WithButton("Defrosted", "food:notify:defrost", ButtonStyle.Danger).Build();
+                }
             }
 
             var lc = getLogChannel().Result;
-            lc.SendMessageAsync(text: (mention ? "@everyone" : null), embeds: embeds.ToArray(), components: components).Wait();
+            var msg = lc.SendMessageAsync(text: (mention ? "@everyone" : null), embeds: embeds.ToArray(), components: components).Result;
+            if(mention && components != null)
+            {
+                var src = new CancellationTokenSource();
+                NotifyCancels[msg.Id] = src;
+                Task.Run(async () =>
+                {
+                    while(!src.Token.IsCancellationRequested)
+                    {
+                        await Task.Delay(Time.Ms.Minute * 5, src.Token);
+                        await lc.SendMessageAsync("Defrost. @everyone");
+                    }
+                });
+            }
         }
 
         void addNextMenuDays()

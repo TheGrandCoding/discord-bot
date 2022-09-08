@@ -86,6 +86,7 @@ namespace DiscordBot.Interactions.Components
             await Context.Interaction.FollowupAsync($"Product information has been updated.", ephemeral: true);
         }
     
+
         [ModalInteraction("food:inv:*")]
         public async Task EditInventoryItem(string currentId, Modules.FoodInventoryModal modal)
         {
@@ -143,6 +144,35 @@ namespace DiscordBot.Interactions.Components
             } else
             {
                 await RespondAsync(":x: Could not remove item", ephemeral: true);
+            }
+        }
+
+        [ComponentInteraction("food:notify:derost")]
+        public async Task HandledDefrost()
+        {
+            if(Context.Interaction is SocketMessageComponent comp)
+            {
+                if (Service.NotifyCancels.Remove(comp.Message.Id, out var src))
+                {
+                    src.Cancel();
+                    await RespondAsync("Done, cleaning up.", ephemeral: true);
+                    var messages = await Context.Channel.GetMessagesAsync(comp.Message.Id, Direction.After).FlattenAsync();
+                    var bulk = new List<ulong>();
+                    foreach (var after in messages)
+                    {
+                        if (after.Content.StartsWith("Defrost"))
+                            bulk.Add(after.Id);
+                    }
+                    if (Context.Channel is ITextChannel txt)
+                    {
+                        await txt.DeleteMessagesAsync(bulk, new RequestOptions() { AuditLogReason = "Rem defrost notifs"});
+                    } else
+                    {
+                        foreach (var id in bulk)
+                            await Context.Channel.DeleteMessageAsync(id, new RequestOptions() { AuditLogReason = "Rem defrost notif" });
+                    }
+                    await ModifyOriginalResponseAsync(x => x.Content = "Done.");
+                }
             }
         }
     
