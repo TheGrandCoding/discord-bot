@@ -57,7 +57,7 @@ namespace DiscordBot.Interactions.Modules
                             continue;
                     }
                     var diff = DateTime.Now - msg.CreatedAt;
-                    if (bulkDelete.Count < 100 && diff.TotalDays < 14) // two weeks 
+                    if (diff.TotalDays < 14) // two weeks 
                         bulkDelete.Add(msg);
                     else
                         manualDelete.Add(msg);
@@ -69,15 +69,18 @@ namespace DiscordBot.Interactions.Modules
                     response = await sendOrModify(response, $"Found {bulkDelete.Count + manualDelete.Count} messages to delete");
             } while (done < count);
             response = await sendOrModify(response, $"Removing {bulkDelete.Count + manualDelete.Count} messages");
-            if (bulkDelete.Count > 0)
+            if(Context.Channel is ITextChannel txt)
             {
-                if(Context.Channel is ITextChannel txt)
+                while (bulkDelete.Count > 0)
                 {
-                    await bulkDelete.BulkDeleteAndTrackAsync(txt, $"bPurged by {Context.User.Mention}");
-                } else
-                { // can't bulk delete in other types of text channels, it seems
-                    manualDelete.AddRange(bulkDelete);
+                    var round = bulkDelete.Take(100);
+                    bulkDelete = bulkDelete.Skip(100).ToList();
+                    await round.BulkDeleteAndTrackAsync(txt, $"bPurged by {Context.User.Mention}");
                 }
+            } else
+            {
+                // can't bulk delete in other types of text channels, it seems
+                manualDelete.AddRange(bulkDelete);
             }
             foreach(var msg in manualDelete)
             {
