@@ -81,9 +81,14 @@ namespace DiscordBot.Interactions.Modules
         }
 
         [SlashCommand("upto", "Purges messages up to the provided ID")]
-        public async Task PurgeUntil(ulong message,
+        public async Task PurgeUntil(string messageId,
             SocketGuildUser user = null)
         {
+            if(!ulong.TryParse(messageId, out var message))
+            {
+                await RespondAsync(":x: Invalid message ID.");
+                return;
+            }
             await DeferAsync();
             await _purge(user, async (IMessage last, int done) =>
             {
