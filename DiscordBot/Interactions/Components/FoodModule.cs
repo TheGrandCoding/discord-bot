@@ -147,7 +147,7 @@ namespace DiscordBot.Interactions.Components
             }
         }
 
-        [ComponentInteraction("food:notify:derost")]
+        [ComponentInteraction("food:notify:defrost")]
         public async Task HandledDefrost()
         {
             if(Context.Interaction is SocketMessageComponent comp)
