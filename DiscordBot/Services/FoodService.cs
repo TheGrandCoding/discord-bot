@@ -368,7 +368,7 @@ namespace DiscordBot.Services
                 tomorrow = WorkingMenu.Days.FirstOrDefault(x => x.Date.IsSameDay(now));
                 if (tomorrow == null)
                 {
-                    attemptFullfill();
+                    attemptFullfill(false);
                     tomorrow = WorkingMenu.Days.FirstOrDefault(x => x.Date.IsSameDay(now));
                     if(tomorrow == null)
                     {
@@ -407,15 +407,15 @@ namespace DiscordBot.Services
             }
         }
 
-        void attemptFullfill()
+        void attemptFullfill(bool forceLog)
         {
             Menus.TryGetValue(WorkingMenu.NextComingUp, out var savedMenu);
-            savedMenu.Fulfill(this, DefaultInventoryId, DateTime.UtcNow.NextDay(DayOfWeek.Monday).Date, true);
+            savedMenu.Fulfill(this, DefaultInventoryId, DateTime.UtcNow.NextDay(DayOfWeek.Monday).Date, forceLog);
         }
 
         void doFreezerChecks()
         {
-            attemptFullfill();
+            attemptFullfill(DateTime.UtcNow.DayOfWeek == DayOfWeek.Sunday);
             using var db = DB();
             var inventory = db.GetInventory(DefaultInventoryId);
             var usedOnDate = WorkingMenu.GetItemsUsed();
