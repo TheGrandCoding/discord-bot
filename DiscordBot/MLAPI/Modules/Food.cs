@@ -147,12 +147,13 @@ namespace DiscordBot.MLAPI.Modules
 
             if (Context.User != null)
             {
+                bool shouldUse = (item.Product?.Uses ?? 0) - item.TimesUsed > 1;
                 row.Children.Add(new TableData(null)
                 {
                     Children = {
-                            new Input("button", "Delete", cls: "danger")
+                            new Input("button", shouldUse ? "Use" : "Delete", cls: "danger")
                             {
-                                OnClick = $"removeInvItem({item.Id});"
+                                OnClick = $"removeInvItem({item.Id}, {(shouldUse ? "true" : "false")});"
                             },
                             new Input("button", item.Frozen ? "Unfreeze" : "Freeze", cls: "freeze")
                             {
@@ -1112,10 +1113,16 @@ namespace DiscordBot.MLAPI.Modules
             Service.AddInventoryItem(productId, FoodService.DefaultInventoryId, date, frozen == "on");
             RespondRaw(LoadRedirectFile($"/food/{redirect}"), System.Net.HttpStatusCode.Found);
         }
+
         [Method("DELETE"), Path("/api/food/inventory")]
-        public void DeleteInventory(int invId)
+        public void DeleteInventoryUses(int invId, int? uses = null)
         {
-            if(Service.DeleteInventoryItem(invId))
+            if(!uses.HasValue)
+            {
+                RespondError(APIErrorResponse.InvalidQueryParams().Child("uses").EndRequired());
+                return;
+            }
+            if(Service.AddUsesInventoryItem(invId, uses.Value, DateTime.UtcNow))
             {
                 RespondRaw("", 200);
             } else
@@ -1554,7 +1561,7 @@ namespace DiscordBot.MLAPI.Modules
                 RespondRaw("Menu does not exist", 400);
                 return;
             }
-            Service.WorkingMenu = menu.ToWorking(Service, FoodService.DefaultInventoryId, DateTime.UtcNow.NextDay(DayOfWeek.Monday).Date);
+            menu.Fulfill(Service, FoodService.DefaultInventoryId, DateTime.UtcNow.NextDay(DayOfWeek.Monday).Date, true);
             Service.OnSave();
             RespondRaw("Ok", 200);
         }

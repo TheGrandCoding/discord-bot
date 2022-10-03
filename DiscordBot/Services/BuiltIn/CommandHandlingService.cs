@@ -37,6 +37,36 @@ namespace DiscordBot.Services
             // if it qualifies as a command.
             _discord.MessageReceived += MessageReceivedAsync;
             _discord.Ready += _discord_Ready;
+            // These need to be registered here otherwise 
+            // the bot starts acting on interactions multiple times,
+            // because the Ready event fires again when the bot reconnects after a disconnect.
+            Func<SocketMessageComponent, Task> handleMsgComponent = async (interaction) => {
+                if (Program.ignoringCommands) return;
+                var ctx = new SocketInteractionContext<SocketMessageComponent>(Program.Client, interaction);
+                var r = await InteractionService.ExecuteCommandAsync(ctx, Program.Services);
+                Program.LogInfo($"{r.IsSuccess} {r.Error} {r.ErrorReason}", "CmdMessageCmp");
+            };
+
+            Program.Client.AutocompleteExecuted += async (interaction) =>
+            {
+                if (Program.ignoringCommands) return;
+                var ctx = new SocketInteractionContext<SocketAutocompleteInteraction>(Program.Client, interaction);
+                await InteractionService.ExecuteCommandAsync(ctx, Program.Services);
+            };
+            Program.Client.ButtonExecuted += handleMsgComponent;
+            Program.Client.SelectMenuExecuted += handleMsgComponent;
+            Program.Client.SlashCommandExecuted += async (interaction) =>
+            {
+                if (Program.ignoringCommands) return;
+                var ctx = new SocketInteractionContext<SocketSlashCommand>(Program.Client, interaction);
+                await InteractionService.ExecuteCommandAsync(ctx, Program.Services);
+            };
+            Program.Client.ModalSubmitted += async (modal) =>
+            {
+                if (Program.ignoringCommands) return;
+                var ctx = new SocketInteractionContext<SocketModal>(Program.Client, modal);
+                await InteractionService.ExecuteCommandAsync(ctx, Program.Services);
+            };
         }
 
         async Task registerCommands()
@@ -100,33 +130,6 @@ namespace DiscordBot.Services
             //    await registerCommands();
             await syncCommands();
 
-            Func<SocketMessageComponent, Task> handleMsgComponent = async (interaction) => {
-                if (Program.ignoringCommands) return;
-                var ctx = new SocketInteractionContext<SocketMessageComponent>(Program.Client, interaction);
-                var r = await InteractionService.ExecuteCommandAsync(ctx, Program.Services);
-                Program.LogInfo($"{r.IsSuccess} {r.Error} {r.ErrorReason}", "CmdMessageCmp");
-            };
-
-            Program.Client.AutocompleteExecuted += async (interaction) =>
-            {
-                if (Program.ignoringCommands) return;
-                var ctx = new SocketInteractionContext<SocketAutocompleteInteraction>(Program.Client, interaction);
-                await InteractionService.ExecuteCommandAsync(ctx, Program.Services);
-            };
-            Program.Client.ButtonExecuted += handleMsgComponent;
-            Program.Client.SelectMenuExecuted += handleMsgComponent;
-            Program.Client.SlashCommandExecuted += async (interaction) =>
-            {
-                if (Program.ignoringCommands) return;
-                var ctx = new SocketInteractionContext<SocketSlashCommand>(Program.Client, interaction);
-                await InteractionService.ExecuteCommandAsync(ctx, Program.Services);
-            };
-            Program.Client.ModalSubmitted += async (modal) =>
-            {
-                if (Program.ignoringCommands) return;
-                var ctx = new SocketInteractionContext<SocketModal>(Program.Client, modal);
-                await InteractionService.ExecuteCommandAsync(ctx, Program.Services);
-            };
 
             //Program.Client.InteractionCreated += executeInteraction;
         }

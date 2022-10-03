@@ -90,11 +90,13 @@ namespace DiscordBot.Interactions.Components
 
             var nextBuilder = await nextUp.ToEmbed(Service, auth);
             nextBuilder.Description = (nextBuilder.Description ?? "") + $"**Next Up**";
+            var attLs = new List<FileAttachment>();
+            if(fa.HasValue) attLs.Add(fa.Value);
             await Message.ModifyAsync(x =>
             {
                 x.Embeds = new[] { nextBuilder.Build() };
                 x.Components = Service.GetComponents(true).Build();
-                x.Attachments = fa == null ? null : new List<FileAttachment>() { fa.Value };
+                x.Attachments = attLs;
             });
             await ModifyOriginalResponseAsync(x => x.Content = "Done!");
         }

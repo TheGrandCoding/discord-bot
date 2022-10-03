@@ -168,6 +168,11 @@ namespace DiscordBot.RESTAPI.Functions.HTML
             ReplyFile("_whitelist.html", HttpStatusCode.OK);
         }
     
+        [Method("GET"), Path("/dfa")]
+        public void DFA()
+        {
+            ReplyFile("dfa.html", 200);
+        }
     
     }
 }

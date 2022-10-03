@@ -86,15 +86,6 @@ namespace DiscordBot.Websockets
             Send(packet);
         }
 
-        string _ip = null;
-        public string IP
-        {
-            get
-            {
-                _ip ??= Context.Headers["X-Forwarded-For"] ?? Context.UserEndPoint.Address.ToString();
-                return _ip;
-            }
-        }
 
         protected void Send(Packet<TTPacketId> obj)
         {
