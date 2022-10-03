@@ -833,6 +833,7 @@ namespace DiscordBot.Services
             items = items.OrderBy(x => x.Item.Priority).ToList();
             log.AppendLine($"");
             log.AppendLine($"Fulfilling: ");
+            var itemUses = new Dictionary<int, int>();
             foreach (var data in items)
             {
                 log.AppendLine($"{data.Day.Date} {data.Group} {data.Item.Type}: ");
@@ -840,8 +841,6 @@ namespace DiscordBot.Services
                 foreach (var item in validItems)
                     log.AppendLine($"  - {item.Id} {item.Product.Name} {item.ExpiresAt} {item.Frozen}");
 
-                // Now select the best item to choose from
-                validItems = validItems.OrderBy(x => x.ExpiresAt).ToList();
 
                 validItems = validItems.Where(item =>
                 { // filter items that are too few to be used
@@ -851,20 +850,40 @@ namespace DiscordBot.Services
                     return true;
                 }).ToList();
 
+                validItems = validItems.OrderBy((item) =>
+                {   // prioritise:
+                    // (0) items that will expire on or before this date.
+                    // then
+                    // (1) items that haven't been used this week.
+                    // then
+                    // (2) items that haven't been used in the last day.
+                    if(item.ExpiresAt < data.Day.Date || item.ExpiresAt.IsSameDay(data.Day.Date))
+                    {
+                        return 0;
+                    }
+                    if(!itemUses.ContainsKey(item.Id))
+                    {
+                        return 1;
+                    } else
+                    { // item has been used to some degree.
+                        return 2;
+                    }
+                }).ThenBy(x => x.ExpiresAt).ToList();
+
                 var bestItem = validItems.FirstOrDefault();
                 log.AppendLine($"Selected: {(bestItem?.Id.ToString() ?? "null")}");
                 if (bestItem != null)
                 {
-                    bestItem.TimesUsed += data.Item.AmountUsed;
-                    if(bestItem.TimesUsed >= bestItem.Product?.Uses)
+                    var used = itemUses.GetValueOrDefault(bestItem.Id, bestItem.TimesUsed);
+                    used += data.Item.AmountUsed;
+                    if(used >= (bestItem.Product?.Uses ?? 1))
                     {
-                        log.AppendLine(" > Item used.");
-                        service.DeleteInventoryItem(bestItem.Id, db: db);
+                        log.AppendLine(" > Item will be used.");
                         inventory.Remove(bestItem);
                     } else
                     {
-                        log.AppendLine($" > Item uses: {bestItem.TimesUsed}");
-                        db.Inventory.Update(bestItem);
+                        log.AppendLine($" > Item will uses: {used}");
+                        itemUses[bestItem.Id] = used;
                     }
 
                     var working = new WorkingMenuItem()
