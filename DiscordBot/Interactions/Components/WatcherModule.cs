@@ -118,7 +118,7 @@ namespace DiscordBot.Interactions.Components
 
             if(modal.Duration.Contains(':'))
             {
-                var ts = TimeSpan.ParseExact(modal.Duration, new[] { @"mm\:ss", @"hh\:mm\:ss" }, System.Globalization.CultureInfo.InvariantCulture);
+                var ts = TimeSpan.ParseExact(modal.Duration, new[] { @"mm\:ss", @"h\:mm\:ss" }, System.Globalization.CultureInfo.InvariantCulture);
                 var ticks = (ulong)(ts.TotalMilliseconds * 10_000);
                 var srv = Program.Services.GetRequiredService<WatcherService>();
                 var itemId = srv.GetItemIdFromUrl(embed.Url);
