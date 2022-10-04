@@ -1,4 +1,5 @@
-﻿using Discord;
+﻿#if CORONA_SERVICE
+using Discord;
 using Discord.Commands;
 using Discord.Rest;
 using Discord.WebSocket;
@@ -121,3 +122,4 @@ namespace DiscordBot.Commands.Modules
         }
     }
 }
+#endif

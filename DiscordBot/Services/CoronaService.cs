@@ -1,4 +1,5 @@
-﻿using Discord;
+﻿#if CORONA_SERVICE
+using Discord;
 using Discord.WebSocket;
 using DiscordBot.Classes;
 using DiscordBot.Classes.CoronAPI;
@@ -381,3 +382,4 @@ namespace DiscordBot.Services
         public string Code { get; set; }
     }
 }
+#endif
