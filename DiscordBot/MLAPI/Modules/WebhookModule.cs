@@ -7,6 +7,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Text;
 
@@ -80,5 +81,30 @@ namespace DiscordBot.MLAPI.Modules
 
             RespondRaw("OK");
         }
+    
+        
+        [Method("POST"), Path("webhooks/gh-flask")]
+        [RequireAuthentication(false)]
+        [RequireApproval(false)]
+#if !DEBUG
+        [RequireGithubSignatureValid("webhooks:gh-flask")]
+#endif
+        public void GitHubFlask()
+        {
+            RespondRaw("Restarting");
+            var psi = new ProcessStartInfo("sudo");
+            psi.Arguments = "systemctl restart flaskr";
+            var x = Process.Start(psi);
+            x.ErrorDataReceived += (sender, e) =>
+            {
+                Program.LogError(e.Data, "RestartGh");
+            };
+            x.OutputDataReceived += (sender, e) =>
+            {
+                Program.LogInfo(e.Data, "RestartGh");
+            };
+            x.WaitForExit();
+        }
+    
     }
 }
