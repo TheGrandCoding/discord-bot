@@ -91,19 +91,31 @@ namespace DiscordBot.MLAPI.Modules
 #endif
         public void GitHubFlask()
         {
-            RespondRaw("Restarting");
-            var psi = new ProcessStartInfo("sudo");
-            psi.Arguments = "systemctl restart flaskr";
-            var x = Process.Start(psi);
-            x.ErrorDataReceived += (sender, e) =>
+            var jobj = JObject.Parse(Context.Body);
+            if(!jobj.TryGetValue("ref", out var refT))
             {
-                Program.LogError(e.Data, "RestartGh");
-            };
-            x.OutputDataReceived += (sender, e) =>
+                RespondRaw("No 'ref' value?", 400);
+                return;
+            }
+            if(refT.ToObject<string>() == "refs/head/main")
             {
-                Program.LogInfo(e.Data, "RestartGh");
-            };
-            x.WaitForExit();
+                RespondRaw("Restarting", 200);
+                var psi = new ProcessStartInfo("sudo");
+                psi.Arguments = "systemctl restart flaskr";
+                var x = Process.Start(psi);
+                x.ErrorDataReceived += (sender, e) =>
+                {
+                    Program.LogError(e.Data, "RestartGh");
+                };
+                x.OutputDataReceived += (sender, e) =>
+                {
+                    Program.LogInfo(e.Data, "RestartGh");
+                };
+                x.WaitForExit();
+            } else
+            {
+                RespondRaw($"Not restarting for ref '{refT.ToObject<string>()}'", 200);
+            }
         }
     
     }
