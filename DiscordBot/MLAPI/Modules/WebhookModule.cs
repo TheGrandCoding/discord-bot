@@ -97,7 +97,7 @@ namespace DiscordBot.MLAPI.Modules
                 RespondRaw("No 'ref' value?", 400);
                 return;
             }
-            if(refT.ToObject<string>() == "refs/head/main")
+            if(refT.ToObject<string>() == "refs/heads/main")
             {
                 RespondRaw("Restarting", 200);
                 var psi = new ProcessStartInfo("sudo");
