@@ -129,7 +129,10 @@ namespace DiscordBot.Services
                 foreach (var srv in zza_services)
                 {
                     if (srv.HasFailed)
+                    {
+                        Program.LogInfo($"Skipping {state} for {srv.Name} due because it is marked Failed.", "Service");
                         continue;
+                    }
                     if (!srv.IsEnabled)
                     {
                         srv.State = ServiceState.Disabled;
@@ -154,6 +157,7 @@ namespace DiscordBot.Services
                                     Exception ex = findTrueException(exception);
                                     MarkFailed(srv, $"{state}", ex);
                                     Program.LogError(ex, srv.Name);
+                                    srv.State = ServiceState.Failed;
                                     if (srv.IsCritical)
                                         throw ex;
                                 }
