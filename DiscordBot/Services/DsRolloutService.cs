@@ -16,7 +16,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using DiscordBot.Utils;
+using static DiscordBot.Utils.JsonUtils;
 
 namespace DiscordBot.Services
 {
