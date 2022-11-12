@@ -16,6 +16,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using DiscordBot.Utils;
 
 namespace DiscordBot.Services
 {
@@ -139,6 +140,11 @@ namespace DiscordBot.Services
         {
             HasRecentlySynced.Value = true;
             var fromAPIExperiments = await GetCurrentExperiments();
+            if(fromAPIExperiments.Count <= 1)
+            {
+                Warning($"Only {fromAPIExperiments.Count} experiments from API, refusing to evaluate.");
+                return;
+            }
 
             var updatedExperiments = new List<Experiment>();
 
@@ -317,14 +323,16 @@ namespace DiscordBot.Services
         [JsonProperty("rollout")]
         public Rollout Rollout { get; set; }
 
+        
+
         public static Experiment Create(JObject obj)
         {
             var experiment = new Experiment();
             var data = obj["data"];
-            experiment.Id = data["id"].ToObject<string>();
-            experiment.Type = data["type"].ToObject<string>();
-            experiment.Title = data["title"].ToObject<string>();
-            var description = data["description"].ToObject<string[]>();
+            experiment.Id = data.GetOrDefault<string>("id");
+            experiment.Type = data.GetOrDefault<string>("type");
+            experiment.Title = data.GetOrDefault<string>("title");
+            var description = data.GetOrDefault<string[]>("description", new string[0]);
             experiment.Treatments = new Dictionary<int, string>();
             foreach(var d in description)
             {
@@ -333,8 +341,8 @@ namespace DiscordBot.Services
                 else
                     experiment.Treatments[-1] = d;
             }
-            experiment.Buckets = data["buckets"].ToObject<List<int>>();
-            experiment.Hash = data["hash"].ToObject<ulong>();
+            experiment.Buckets = data.GetOrDefault<List<int>>("buckets", new List<int>());
+            experiment.Hash = data.GetOrDefault<ulong>("hash");
             experiment.LastChanged = DateTime.Now;
 
             var rollouts = obj["rollout"] as JArray;
@@ -546,19 +554,24 @@ namespace DiscordBot.Services
         public static Rollout Create(JArray array)
         {
             var rl = new Rollout();
-            rl.Hash = array[0].ToObject<ulong>();
+            rl.Hash = array.AtOrDefault<ulong>(0);
             // [1] is null
-            rl.Unknown = array[2].ToObject<int>();
+            rl.Unknown = array.AtOrDefault<int>(2);
 
             var populations = array[3];
-            rl.Populations = populations
-                .Select(x => PopulationGroups.Create(x))
-                .ToList();
+            if(populations != null)
+            {
+                rl.Populations = populations
+                    .Select(x => PopulationGroups.Create(x))
+                    .ToList();
+            }
 
             var overrides = array[4];
-
-            rl.Overrides = overrides.Select(x => BucketOverride.Create(x))
-                .ToList();
+            if(overrides != null)
+            {
+                rl.Overrides = overrides.Select(x => BucketOverride.Create(x))
+                    .ToList();
+            }
 
             return rl;
         }
