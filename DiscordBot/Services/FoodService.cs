@@ -695,19 +695,19 @@ namespace DiscordBot.Services
     public class InventoryItem
     {
         public int Id { get; set; }
-        public string InventoryId { get; set; }
+        public virtual string InventoryId { get; set; }
 
         [ForeignKey("ProductId")]
-        public Product Product { get; set; }
-        public string ProductId { get; set; }
+        public virtual Product Product { get; set; }
+        public virtual string ProductId { get; set; }
 
-        public DateTime AddedAt { get; set; }
+        public virtual DateTime AddedAt { get; set; }
 
         [Column("ExpiresAt")]
-        public DateTime InitialExpiresAt { get; set; }
-        public bool Frozen { get; set; }
+        public virtual DateTime InitialExpiresAt { get; set; }
+        public virtual bool Frozen { get; set; }
 
-        public int TimesUsed { get; set; }
+        public virtual int TimesUsed { get; set; }
 
         [NotMapped]
         public DateTime ExpiresAt => Frozen ? InitialExpiresAt.AddDays(Product?.FreezingExtends ?? 0) : InitialExpiresAt;

@@ -95,10 +95,18 @@ Changed how permissions worked for bot.
     "⢮⢯⢰⢱⢲⢳⢴⢵⢶⢷⢸⢹⢺⢻⢼⢽⢾⢿⣀⣁⣂⣃⣄⣅⣆⣇⣈⣉⣊⣋⣌⣍⣎⣏⣐⣑⣒⣓⣔⣕⣖⣗⣘⣙⣚⣛⣜⣝⣞⣟⣠⣡⣢⣣⣤⣥⣦⣧⣨⣩⣪⣫⣬⣭⣮⣯⣰⣱⣲⣳⣴⣵⣶⣷⣸⣹⣺⣻⣼⣽⣾⣿")
                 _braille.Add(chr);
             endToken = new CancellationTokenSource();
+            bool hasAttemptedCancel = false;
             Console.CancelKeyPress += (object sender, ConsoleCancelEventArgs e) =>
             {
-                e.Cancel = true; // we'll handle this in our own time
                 Console.WriteLine("[Console:CancelKeyPress]");
+                if(hasAttemptedCancel)
+                {
+                    Console.WriteLine("Force closing because you tried it twice.");
+                    Environment.Exit(1);
+                    return;
+                }
+                hasAttemptedCancel = true;
+                e.Cancel = true; // we'll handle this in our own time
                 Program.Close(0);
             };
             AppDomain.CurrentDomain.ProcessExit += (object sender, EventArgs e) => 

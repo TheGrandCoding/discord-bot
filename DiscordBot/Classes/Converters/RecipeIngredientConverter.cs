@@ -43,6 +43,36 @@ namespace DiscordBot.Classes.Converters
         }
     }
 
+    public class LazyInventoryItem : InventoryItem
+    {
+        public LazyInventoryItem(int id)
+        {
+            Id = id;
+            Program.LogDebug($"Init with {Id}", "LazyInvItem");
+        }
+        private InventoryItem _item;
+
+        private InventoryItem Item { get
+            {
+                if(_item == null)
+                {
+                    Program.LogDebug($"Fetch with {Id}", "LazyInvItem");
+                    var srv = Program.Services.GetRequiredService<FoodService>();
+                    _item = srv.GetInventoryItem(Id);
+                }
+                return _item;
+            } }
+
+        public override string InventoryId => Item.InventoryId;
+        public override Product Product => Item.Product;
+        public override string ProductId => Item.ProductId;
+        public override DateTime AddedAt => Item.AddedAt;
+        public override DateTime InitialExpiresAt => Item.InitialExpiresAt;
+        public override bool Frozen => Item.Frozen;
+        public override int TimesUsed => Item.TimesUsed;
+
+    }
+
 
     public class InventoryItemConverter : JsonConverter
     {
@@ -54,9 +84,8 @@ namespace DiscordBot.Classes.Converters
         public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
         {
             if (reader.Value == null) return null;
-            var sv = Program.Services.GetRequiredService<FoodService>();
             int x = int.Parse((string)reader.Value);
-            return sv.GetInventoryItem(x);
+            return new LazyInventoryItem(x);
         }
 
         public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
@@ -64,6 +93,9 @@ namespace DiscordBot.Classes.Converters
             if(value is InventoryItem i)
             {
                 writer.WriteValue($"{i.Id}");
+            } else if(value is Lazy<InventoryItem> li)
+            {
+                var v = li.Value;
             }
         }
     }
