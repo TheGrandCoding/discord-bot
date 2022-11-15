@@ -90,10 +90,10 @@ namespace DiscordBot.Services
             channel.SendMessageAsync(embed: embed.Build(), components: components.Build()).Wait();
             return prod;
         }
-        public InventoryItem AddInventoryItem(string productId, string inventryId, DateTime expires, bool frozen)
+        public InventoryItem AddInventoryItem(string productId, string inventryId, DateTime expires, bool frozen, int? itemId = null)
         {
             using var db = DB();
-            return db.AddInventoryItem(productId, inventryId, expires, frozen);
+            return db.AddInventoryItem(productId, inventryId, expires, frozen, itemId);
         }
         public List<InventoryItem> GetInventoryItems(string id)
         {
@@ -105,6 +105,20 @@ namespace DiscordBot.Services
         {
             using var db = DB();
             return db.GetHistoricItems();
+        }
+
+        public HistoricItem GetHistoricItem(int? histId = null, int? invId = null)
+        {
+            if (histId == null && invId == null)
+                throw new ArgumentNullException($"One of {nameof(histId)} and {nameof(invId)} must be present");
+            using var db = DB();
+            return db.GetHistoricItem(histId, invId);
+        }
+
+        public void RemoveHistoricItem(int id)
+        {
+            using var db = DB();
+            db.RemoveHistoricItem(id);
         }
         
         public bool AddUsesInventoryItem(int id, int uses, DateTime backdateTo)
@@ -566,7 +580,7 @@ namespace DiscordBot.Services
             return x.Entity;
         }
 
-        public InventoryItem AddInventoryItem(string productId, string inventoryId, DateTime expires, bool frozen)
+        public InventoryItem AddInventoryItem(string productId, string inventoryId, DateTime expires, bool frozen, int? itemId = null)
         {
             var inv = new InventoryItem()
             {
@@ -577,6 +591,8 @@ namespace DiscordBot.Services
                 Frozen = frozen,
                 TimesUsed = 0
             };
+            if (itemId.HasValue)
+                inv.Id = itemId.Value;
             var x = Inventory.Add(inv);
             SaveChanges();
             return x.Entity;
@@ -594,6 +610,20 @@ namespace DiscordBot.Services
             return PreviousInventory
                 .AsQueryable()
                 .ToList();
+        }
+
+        public HistoricItem GetHistoricItem(int? histId, int? invId)
+        {
+            if(histId.HasValue)
+                return PreviousInventory.FirstOrDefault(x => x.Id == histId.Value);
+            return PreviousInventory.FirstOrDefault(x => x.InventoryId == invId.Value);
+        }
+        public void RemoveHistoricItem(int histId)
+        {
+            var f = PreviousInventory.Find(histId);
+            if (f == null) return;
+            PreviousInventory.Remove(f);
+            SaveChanges();
         }
 
         protected override void OnConfiguring(DbContextOptionsBuilder options)

@@ -56,6 +56,27 @@ namespace DiscordBot.Interactions.Modules
             await RespondWithModalAsync(mb.Build());
         }
 
+        [SlashCommand("undo", "Undoes a deletion")]
+        public async Task UndoDeleteItem(int invItem, 
+            [Summary(description: "yyyy-MM-dd")]string expiresAt)
+        {
+            if(!DateTime.TryParse(expiresAt, out var expires))
+            {
+                await RespondAsync(":x: Could not parse expires-at", ephemeral: true);
+                return;
+            }
+            await RespondAsync("Fetching item from DB..", ephemeral: true);
+            var historic = Service.GetHistoricItem(invId: invItem);
+            if(historic == null)
+            {
+                await ModifyOriginalResponseAsync(x => x.Content = ":x: Could not find historic item in database");
+                return;
+            }
+            var added = Service.AddInventoryItem(historic.ProductId, FoodService.DefaultInventoryId, expires, false, invItem);
+            Service.RemoveHistoricItem(historic.Id);
+            await ModifyOriginalResponseAsync(x => x.Content = $"Re-added previously removed item.");
+        }
+
         [SlashCommand("purge", "Removes all products")]
         public async Task PurgeProducts()
         {
