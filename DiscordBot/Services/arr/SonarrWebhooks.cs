@@ -291,46 +291,56 @@ namespace DiscordBot.Services.Sonarr
 
         void loop(object param)
         {
-            if (!(param is CancellationToken token))
-                return;
-            while (!token.IsCancellationRequested)
+            try
             {
-                try
+                if (!(param is CancellationToken token))
+                    return;
+                while (!token.IsCancellationRequested)
                 {
-                    Lock.WaitOne();
-                    var rem = new List<int>();
-                    foreach (var keypair in Episodes)
+                    try
                     {
-                        var value = keypair.Value;
-                        var diff = DateTime.Now - value.Last;
-                        if (diff.TotalMinutes >= 60)
+                        Lock.WaitOne();
+                        var rem = new List<int>();
+                        foreach (var keypair in Episodes)
                         {
-                            rem.Add(keypair.Key);
-                            Trakt.CollectNew(keypair.Value).Wait(token);
+                            var value = keypair.Value;
+                            var diff = DateTime.Now - value.Last;
+                            if (diff.TotalMinutes >= 60)
+                            {
+                                rem.Add(keypair.Key);
+                                Trakt.CollectNew(keypair.Value).Wait(token);
+                            }
                         }
+                        foreach (var x in rem)
+                            Episodes.Remove(x);
                     }
-                    foreach (var x in rem)
-                        Episodes.Remove(x);
-                } finally
-                {
-                    Lock.Release();
-                }
-                try
-                {
+                    finally
+                    {
+                        Lock.Release();
+                    }
+                    try
+                    {
 #if DEBUG
-                    Task.Delay(Time.Ms.Minute * 2, token)
+                        Task.Delay(Time.Ms.Minute * 2, token)
 #else
                     Task.Delay(Time.Ms.Minute * 15, token)
 #endif
                         .Wait();
+                    }
+                    catch (Exception ex)
+                    {
+                        Error(ex);
+                        return;
+                    }
                 }
-                catch (Exception ex)
-                {
-                    Error(ex);
-                    return;
-                }
+            } catch(TaskCanceledException e)
+            {
+                Error(e);
+            } finally
+            {
+                Debug("Exited loop");
             }
-            Debug("Exited loop");
+
         }
 
         public void SendError(Exception ex)
