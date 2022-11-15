@@ -78,6 +78,11 @@ namespace DiscordBot.Classes.Converters
                 Program.LogDebug($"Null check: {Id} {(Item is null)}", "LazyInvItem");
                 return Item is null;
             }
+            if(obj is InventoryItem item)
+            {
+                if (Item is null) return false;
+                return Item.Equals(item);
+            }
             return base.Equals(obj);
         }
     }
