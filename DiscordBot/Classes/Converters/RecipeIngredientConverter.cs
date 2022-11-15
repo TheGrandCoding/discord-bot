@@ -71,6 +71,15 @@ namespace DiscordBot.Classes.Converters
         public override bool Frozen => Item?.Frozen ?? false;
         public override int TimesUsed => Item?.TimesUsed ?? -1;
 
+        public override bool Equals(object obj)
+        {
+            if(obj is null)
+            {
+                Program.LogDebug($"Null check: {Id} {(Item is null)}", "LazyInvItem");
+                return Item is null;
+            }
+            return base.Equals(obj);
+        }
     }
 
 
