@@ -63,13 +63,13 @@ namespace DiscordBot.Classes.Converters
                 return _item;
             } }
 
-        public override string InventoryId => Item.InventoryId;
-        public override Product Product => Item.Product;
-        public override string ProductId => Item.ProductId;
-        public override DateTime AddedAt => Item.AddedAt;
-        public override DateTime InitialExpiresAt => Item.InitialExpiresAt;
-        public override bool Frozen => Item.Frozen;
-        public override int TimesUsed => Item.TimesUsed;
+        public override string InventoryId => Item?.InventoryId;
+        public override Product Product => Item?.Product;
+        public override string ProductId => Item?.ProductId;
+        public override DateTime AddedAt => Item?.AddedAt ?? DateTime.MinValue;
+        public override DateTime InitialExpiresAt => Item?.InitialExpiresAt ?? DateTime.MinValue;
+        public override bool Frozen => Item?.Frozen ?? false;
+        public override int TimesUsed => Item?.TimesUsed ?? -1;
 
     }
 
@@ -78,7 +78,7 @@ namespace DiscordBot.Classes.Converters
     {
         public override bool CanConvert(Type objectType)
         {
-            return objectType == typeof(InventoryItem);
+            return objectType == typeof(InventoryItem) || objectType == typeof(LazyInventoryItem);
         }
 
         public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
