@@ -707,7 +707,7 @@ namespace DiscordBot.MLAPI.Modules
                             {
                                 foreach (var item in ls)
                                 {
-                                    if (item == null || item.Item == null) continue;
+                                    if (item == null || item.Item == null || item.Item?.InventoryId == null) continue;
                                     data.Children.Add(getItemInfo(item, edit));
                                 }
                             }

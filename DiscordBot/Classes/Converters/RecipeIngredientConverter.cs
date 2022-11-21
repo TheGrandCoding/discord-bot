@@ -71,11 +71,29 @@ namespace DiscordBot.Classes.Converters
         public override bool Frozen => Item?.Frozen ?? false;
         public override int TimesUsed => Item?.TimesUsed ?? -1;
 
+        public static bool operator ==(LazyInventoryItem left, object o)
+        {
+            if(o is null)
+            {
+                Program.LogDebug($"Null check: {left?.Id} {(left?.Item is null)}", "LazyInvItem==");
+                if (left is null) return true;
+                return left.Item is null;
+            }
+            if(o is InventoryItem item)
+            {
+                if (left?.Item is null) return false;
+                return left?.Item?.Equals(item) ?? false;
+            }
+            return false;
+        }
+        public static bool operator !=(LazyInventoryItem left, object o)
+            => !(left == o);
+
         public override bool Equals(object obj)
         {
             if(obj is null)
             {
-                Program.LogDebug($"Null check: {Id} {(Item is null)}", "LazyInvItem");
+                Program.LogDebug($"Null check: {Id} {(Item is null)}", "LazyInvItemEQ");
                 return Item is null;
             }
             if(obj is InventoryItem item)
