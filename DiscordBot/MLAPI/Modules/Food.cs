@@ -445,11 +445,22 @@ namespace DiscordBot.MLAPI.Modules
             InjectObjects = new List<Classes.HTMLHelpers.HTMLBase>();
             ReplyFile("calendar.html", 200);
         }
-        
+
+        static CacheDictionary<string, Product> productCache = new();
         HTMLBase getShortDesc(SavedRecipe recipe)
         {
             if (!string.IsNullOrWhiteSpace(recipe.Title)) return new StrongText(recipe.Title);
-            return new StrongText(recipe.Id.ToString());
+            Product product = null;
+            if(recipe.Ingredients.Count == 1)
+            {
+                var prodKey = recipe.Ingredients.Keys.First();
+                if(!productCache.TryGetValue(prodKey, out product))
+                {
+                    product = Service.GetProduct(prodKey);
+                    productCache[prodKey] = product;
+                }
+            }
+            return new StrongText(product?.Name ?? recipe.Id.ToString());
         }
         HTMLBase getShortDesc(int recipeId)
         {
