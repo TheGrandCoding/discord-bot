@@ -632,7 +632,7 @@ namespace DiscordBot.MLAPI.Modules
                 div.Children.Add(new Span(cls: "manu") { RawText = manu });
             if(item.Frozen)
             {
-                div.Children.Add(new Img("/_/snowflake.png")
+                div.Children.Add(new Img("/_/img/snowflake.png")
                 {
                     Style = "width: 32px; vertical-align: middle"
                 });
