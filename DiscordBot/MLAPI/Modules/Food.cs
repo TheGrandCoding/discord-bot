@@ -114,7 +114,7 @@ namespace DiscordBot.MLAPI.Modules
                 {
                     Children =
                     {
-                        new Img("/_/img/snowflake.png") {Style = "width: 32px;"},
+                        new Img("/_/img/snowflake.png") {Style = "width: 32px; vertical-align: middle"},
                         new Span() { RawText = text }
                     }
                 };
@@ -630,6 +630,13 @@ namespace DiscordBot.MLAPI.Modules
                 div.Children.Add(new Span(cls: "uses").WithRawText($"{menuitem.Uses}x "));
             if(manu != null)
                 div.Children.Add(new Span(cls: "manu") { RawText = manu });
+            if(item.Frozen)
+            {
+                div.Children.Add(new Img("/_/snowflake.png")
+                {
+                    Style = "width: 32px; vertical-align: middle"
+                });
+            }
             div.Children.Add(new Span() { RawText = item.Product.Name });
             if(edit)
             {
