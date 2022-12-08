@@ -165,6 +165,7 @@ namespace DiscordBot.Services
         }
         public string GetManufacturor(string id)
         {
+            if(id == null) return null;
             foreach ((var key, var ls) in Manufacturers)
             {
                 foreach (var x in ls)
