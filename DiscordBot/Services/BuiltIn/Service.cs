@@ -302,7 +302,10 @@ namespace DiscordBot.Services
                         }
                     } catch(Exception ex)
                     {
-                        Program.LogError(ex, "CronInvoke");
+                        if(srv != null)
+                        {
+                            srv.ErrorToOwner(ex, "Cron-" + meth.Name);
+                        }
                     }
                 });
             }
