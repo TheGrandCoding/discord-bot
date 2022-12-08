@@ -57,10 +57,7 @@ namespace DiscordBot.Services
     
         public static byte[] GetRandomKey()
         {
-            var rnd = new RNGCryptoServiceProvider();
-            var b = new byte[16];
-            rnd.GetNonZeroBytes(b);
-            return b;
+            return RandomNumberGenerator.GetBytes(16);
         }
 
         protected abstract string KeyLocation { get; }

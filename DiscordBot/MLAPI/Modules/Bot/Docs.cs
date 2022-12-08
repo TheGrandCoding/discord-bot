@@ -149,7 +149,7 @@ namespace DiscordBot.MLAPI.Modules
         public static string escapeForUrl(string text)
             => text == null
             ? null
-            : Uri.EscapeUriString(text.ToLower()
+            : Uri.EscapeDataString(text.ToLower()
                 .Replace("/", "-")
                 .Replace(" ", "-")
                 .Replace(".", "_"));
@@ -589,7 +589,7 @@ namespace DiscordBot.MLAPI.Modules
                         anchor.Children.Add(new RawObject("{"));
                         var spn = new Span()
                         {
-                            RawText = Uri.EscapeUriString(prm.Name),
+                            RawText = Uri.EscapeDataString(prm.Name),
                             Style = "color: yellow"
                         };
                         anchor.Children.Add(spn);

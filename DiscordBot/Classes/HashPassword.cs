@@ -16,9 +16,7 @@ namespace DiscordBot.Classes
 
         public static string HashPassword(string password)
         {
-            var cryptoProvider = new RNGCryptoServiceProvider();
-            byte[] salt = new byte[SaltByteSize];
-            cryptoProvider.GetBytes(salt);
+            byte[] salt = RandomNumberGenerator.GetBytes(SaltByteSize);
 
             var hash = GetPbkdf2Bytes(password, salt, Pbkdf2Iterations, HashByteSize);
             return Pbkdf2Iterations + ":" +

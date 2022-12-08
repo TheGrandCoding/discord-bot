@@ -76,7 +76,7 @@ namespace DiscordBot.Services
         {
             var sv = ReadSave("[]");
             Tracking = Program.Deserialise<List<TorrentInfo>>(sv, new BotUserConverter());
-            Sync = Client.GetSyncClient().Result;
+            Sync = Client.GetSyncClient();
             Sync.TorrentUpdated += Sync_TorrentUpdated;
             Sync.TorrentRemoved += Sync_TorrentRemoved;
             Sync.StartSync();

@@ -168,7 +168,7 @@ namespace qBitApi
             return await ApiClient.GetSync(rid).ConfigureAwait(false);
         }
 
-        public async Task<SyncClient> GetSyncClient()
+        public SyncClient GetSyncClient()
         {
             if(SyncClient == null)
             {
