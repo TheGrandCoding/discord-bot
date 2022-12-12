@@ -584,6 +584,12 @@ namespace DiscordBot.MLAPI.Modules
             }
         }
 
+        [Method("GET"), Path("test-recipe")]
+        public void ViewTestRecipe()
+        {
+            ReplyFile("new_ongoing.html", 200);
+        }
+
         [Method("GET"), Path("/food/ongoing-any")]
         public void ViewFirstOngoing()
         {
