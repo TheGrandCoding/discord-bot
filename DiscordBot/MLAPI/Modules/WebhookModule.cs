@@ -117,6 +117,42 @@ namespace DiscordBot.MLAPI.Modules
                 RespondRaw($"Not restarting for ref '{refT.ToObject<string>()}'", 200);
             }
         }
-    
+
+        [Method("POST"), Path("webhooks/gh-mlapibot")]
+        [RequireAuthentication(false)]
+        [RequireApproval(false)]
+#if !DEBUG
+        [RequireGithubSignatureValid("webhooks:gh-mlapibot")]
+#endif
+        public void GitHubMlapibot()
+        {
+            var jobj = JObject.Parse(Context.Body);
+            if (!jobj.TryGetValue("ref", out var refT))
+            {
+                RespondRaw("No 'ref' value?", 400);
+                return;
+            }
+            if (refT.ToObject<string>() == "refs/heads/main")
+            {
+                RespondRaw("Restarting", 200);
+                var psi = new ProcessStartInfo("sudo");
+                psi.Arguments = "systemctl restart mlapibot";
+                var x = Process.Start(psi);
+                x.ErrorDataReceived += (sender, e) =>
+                {
+                    Program.LogError(e.Data, "RestartMB");
+                };
+                x.OutputDataReceived += (sender, e) =>
+                {
+                    Program.LogInfo(e.Data, "RestartMB");
+                };
+                x.WaitForExit();
+            }
+            else
+            {
+                RespondRaw($"Not restarting for ref '{refT.ToObject<string>()}'", 200);
+            }
+        }
+
     }
 }
