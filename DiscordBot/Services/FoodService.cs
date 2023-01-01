@@ -361,7 +361,7 @@ namespace DiscordBot.Services
             return null;
         }
 
-        [Cron("6,18", "0")]
+        [Cron("6,12", "0")]
         public void SendMenuNotifs(int hour)
         {
             if (WorkingMenu == null) return;
@@ -409,14 +409,30 @@ namespace DiscordBot.Services
             var msg = lc.SendMessageAsync(text: (mention ? "@everyone" : null), embeds: embeds.ToArray(), components: components).Result;
             if(mention && components != null)
             {
-                var src = new CancellationTokenSource();
+                var src = CancellationTokenSource.CreateLinkedTokenSource(Program.GetToken());
                 NotifyCancels[msg.Id] = src;
                 Task.Run(async () =>
                 {
-                    while(!src.Token.IsCancellationRequested)
+                    try
                     {
-                        await Task.Delay(Time.Ms.Minute * 5, src.Token);
-                        await lc.SendMessageAsync("Defrost. @everyone");
+                        while (!src.Token.IsCancellationRequested)
+                        {
+                            var now = DateTime.Now;
+                            DateTime next;
+                            if (now.Hour < 18)
+                            {
+                                next = new DateTime(now.Year, now.Month, now.Day, now.Hour + 1, 0, 0);
+                            }
+                            else
+                            {
+                                next = now.AddMinutes(5);
+                            }
+                            await Task.Delay(next - now, src.Token);
+                            await lc.SendMessageAsync("Defrost. @everyone");
+                        }
+                    } finally
+                    {
+                        Info("Exiting Notify loop");
                     }
                 });
             }
