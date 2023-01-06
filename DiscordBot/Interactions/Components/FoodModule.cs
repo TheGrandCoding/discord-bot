@@ -171,6 +171,8 @@ namespace DiscordBot.Interactions.Components
                         foreach (var id in bulk)
                             await Context.Channel.DeleteMessageAsync(id, new RequestOptions() { AuditLogReason = "Rem defrost notif" });
                     }
+                    
+                    await comp.Message.DeleteAsync();
                     await ModifyOriginalResponseAsync(x => x.Content = "Done.");
                 }
             }
