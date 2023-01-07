@@ -20,6 +20,7 @@ namespace DiscordBot.Services
             if (Server != null)
                 return;
             Server = new WebSocketServer(System.Net.IPAddress.Any, 4650);
+            Server.AllowForwardedRequest = true;
             // Server.AddWebSocketService<Chat>("/Chat"); // add a '/Feedback' for the Pi-Hole at Marj's?
 #if INCLUDE_CHESS
             Server.AddWebSocketService<ChessConnection>("/chess");
