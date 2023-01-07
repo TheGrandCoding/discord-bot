@@ -11,13 +11,13 @@ using System.Text.RegularExpressions;
 
 namespace DiscordBot.MLAPI
 {
-#if LINUX
+/*#if LINUX
     [RequireServerName("ml-api." + Handler.LocalAPIDomain, OR = "domain")]
     [RequireServerName("mlapi.cheale14.com", OR = "domain")]
     [RequireServerName("mlapi.cheale14.com:8887", OR = "domain")]
 #else
     [RequireServerName("localhost")]
-#endif
+#endif*/
     public class APIBase
     {
         public APIBase(APIContext context, string path)
