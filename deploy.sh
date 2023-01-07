@@ -1,7 +1,7 @@
 echo Deploying to $1
 echo Using token [$2]
 
-cd DiscordBot/bin/Release/net6.0/linux-arm
+cd DiscordBot/bin/Release/net6.0/linux-x64
 git init
 echo "*.*" >> .gitignore
 echo "!.gitignore" >> .gitignore
