@@ -18,6 +18,7 @@ namespace DiscordBot.MLAPI
 #else
     [RequireServerName("localhost")]
 #endif*/
+    [RequireServerName(null)]
     public class APIBase
     {
         public APIBase(APIContext context, string path)
