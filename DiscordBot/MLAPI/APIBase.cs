@@ -14,6 +14,7 @@ namespace DiscordBot.MLAPI
 #if LINUX
     [RequireServerName("ml-api." + Handler.LocalAPIDomain, OR = "domain")]
     [RequireServerName("mlapi.cheale14.com", OR = "domain")]
+    [RequireServerName("mlapi.cheale14.com:8887", OR = "domain")]
 #else
     [RequireServerName("localhost")]
 #endif
