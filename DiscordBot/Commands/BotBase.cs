@@ -94,7 +94,7 @@ namespace DiscordBot.Commands
                 );
             if (result == null)
                 return null;
-            return result == "true";
+            return result == "botbase:true";
         }
 
         public static Dictionary<ulong, selectHold> selectButton = new Dictionary<ulong, selectHold>();
@@ -168,6 +168,7 @@ namespace DiscordBot.Commands
         [Discord.Interactions.ComponentInteraction("botbase:*")]
         public async Task Select()
         {
+            Program.LogInfo($"Selected for {Context.Interaction.Message.Id} was {Context.Interaction.Data.CustomId}", "BotBaseHandler");
             if (!BotBase.selectButton.TryGetValue(Context.Interaction.Message.Id, out var hold))
                 return;
             if (Context.User.Id != hold.id)
