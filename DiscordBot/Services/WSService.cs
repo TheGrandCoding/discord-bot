@@ -41,7 +41,7 @@ namespace DiscordBot.Services
             Server.AddWebSocketService<MasterlistWS>("/masterlist");
             Server.AddWebSocketService<FoodWS>("/food");
             Server.AddWebSocketService<FoodScanWS>("/food-scan");
-            //Server.Log.Level = LogLevel.Trace;
+            Server.Log.Level = WebSocketSharp.LogLevel.Trace;
             Server.Log.Output = (x, y) =>
             {
                 var msg = new LogMessage((LogSeverity)x.Level, x.Caller.ToString(), $"{x.Message}\r\n=> {y}");
