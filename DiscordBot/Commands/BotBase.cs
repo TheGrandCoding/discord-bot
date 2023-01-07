@@ -79,7 +79,7 @@ namespace DiscordBot.Commands
             var builder = new ComponentBuilder();
             for(int i = 0; i < options.Count(); i++)
             {
-                builder.WithButton(ButtonBuilder.CreatePrimaryButton(options.ElementAt(i), i.ToString()));
+                builder.WithButton(ButtonBuilder.CreatePrimaryButton(options.ElementAt(i), $"botbase:{i}"));
             }
             var customId = await SelectButtonAsync(builder, text, embed, deleteWhenDone, timeout).ConfigureAwait(false);
             return options.ElementAt(int.Parse(customId));
@@ -88,8 +88,8 @@ namespace DiscordBot.Commands
         public async Task<bool?> ConfirmAsync(string question = null, Embed embed = null, bool deleteWhenDone = false, TimeSpan? timeout = null, AllowedMentions allowedMentions = null)
         {
             var result = await SelectButtonAsync(new ComponentBuilder()
-                .WithButton(ButtonBuilder.CreateDangerButton("Yes", "true"))
-                .WithButton(ButtonBuilder.CreatePrimaryButton("No", "false")),
+                .WithButton(ButtonBuilder.CreateDangerButton("Yes", "botbase:true"))
+                .WithButton(ButtonBuilder.CreatePrimaryButton("No", "botbase:false")),
                 question, embed, deleteWhenDone, timeout, allowedMentions
                 );
             if (result == null)
