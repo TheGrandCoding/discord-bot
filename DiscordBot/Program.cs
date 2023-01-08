@@ -68,9 +68,9 @@ Changed how permissions worked for bot.
         public const string BASE_PATH = @"D:\Bot\";
 #else
 #if DEBUG
-        public const string BASE_PATH = @"/mnt/storage/bot/DebugData/";
+        public const string BASE_PATH = @"/bot/DebugData/";
 #else
-        public const string BASE_PATH = @"/mnt/storage/bot/Data/";
+        public const string BASE_PATH = @"/bot/Data/";
 #endif
 #endif
 
