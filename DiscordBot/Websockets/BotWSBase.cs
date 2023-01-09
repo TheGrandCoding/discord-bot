@@ -36,7 +36,7 @@ namespace DiscordBot.Websockets
         {
             get
             {
-                _ip ??= Context.Headers["X-Forwarded-For"] ?? Context.UserEndPoint.Address.ToString();
+                _ip ??= Program.GetIP(Context.Headers["X-Fowarded-For"], Context.UserEndPoint.Address);
                 return _ip;
             }
         }

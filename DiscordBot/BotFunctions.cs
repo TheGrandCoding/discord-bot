@@ -516,5 +516,14 @@ namespace DiscordBot
         public static Task LogOwner(StringBuilder builder)
             => LogOwner(builder.Length > 4000 ? builder.ToString() : $"```\r\n{builder}\r\n```");
     
+
+        public static string GetIP(string forwardedHeader, IPAddress addr)
+        {
+            if (string.IsNullOrWhiteSpace(forwardedHeader)) return addr.ToString();
+            var comma = forwardedHeader.IndexOf(',');
+            if (comma > -1)
+                return forwardedHeader.Substring(0, comma);
+            return forwardedHeader;
+        }
     }
 }
