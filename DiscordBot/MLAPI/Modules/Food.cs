@@ -797,7 +797,7 @@ namespace DiscordBot.MLAPI.Modules
         {
             if(token != Program.Configuration["tokens:foodnotify"])
             {
-                RespondRaw("", System.Net.HttpStatusCode.Unauthorized);
+                RespondRaw($"Token '{token}' is not authorised", System.Net.HttpStatusCode.Unauthorized);
                 return;
             }
             bool any = false;
