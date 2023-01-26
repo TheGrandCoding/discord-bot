@@ -1228,6 +1228,9 @@ namespace DiscordBot.Services
         [JsonProperty("title")]
         public string Title { get; set; }
 
+        [JsonProperty("catalyst")]
+        public string Catalyst { get; set; }
+
         public int Id { get; }
         [JsonProperty("Ingredients", ItemConverterType = typeof(Classes.Converters.RecipeIngredientConverter))]
         public Dictionary<string, SavedIngredient> Ingredients { get; set; } = new Dictionary<string, SavedIngredient>();
@@ -1338,364 +1341,189 @@ namespace DiscordBot.Services
         }
     }
 
+    public class WorkingRecipeGroup
+    {
+        public WorkingRecipeGroup(string catalyst)
+        {
+            Catalyst = catalyst;
+            Recipes = new();
+        }
+        public static WorkingRecipeGroup FromSaved(params SavedRecipe[] init)
+        {
+            var cat = init.Select(x => x.Catalyst).Distinct().ToArray();
+            if (cat.Length != 1) throw new ArgumentException($"{nameof(init)} must be only one catalyst");
+            var wg = new WorkingRecipeGroup(cat[0]);
+            foreach(var recipe in init)
+            {
+                var working = WorkingRecipe.FromSaved(recipe);
+                wg.Recipes.Add(working);
+            }
+            return wg;
+        }
+        public string Catalyst { get; set; }
+        public List<WorkingRecipe> Recipes { get; private set; }
+        public WorkingRecipeStep[] SimpleSteps { get; private set; }
+        public int DelayTime { get; private set; }
+
+        public bool? Muted { get; set; }
+        public bool Alarm { get; set; }
+
+        public int? CompletedAt { get; set; }
+
+        private int _sumLength(bool original)
+        {
+            var longest = 0;
+            foreach (var recipe in Recipes)
+            {
+                int length = 0;
+                if (original)
+                {
+                    length = recipe.SumOriginalLength();
+                }
+                else
+                {
+                    length = recipe.SumRemainLength();
+                }
+                if (length > longest)
+                    longest = length;
+            }
+            return longest;
+        }
+        public int SumOriginalLength() => _sumLength(true);
+        public int SumRemainLength() => _sumLength(false);
+    
+
+        public void FlattenForEnd(int targetEnd)
+        { // e.g. targetEnd is 200 seconds
+            var simpleSteps = new List<WorkingRecipeStep>();
+            int? lastTime = null;
+            foreach(var recipe in Recipes)
+            {
+                var delay = targetEnd - recipe.SumRemainLength();
+                foreach(var step in recipe.Steps)
+                {
+                    step.TentativeStartTime = delay;
+                    simpleSteps.OrderedInsert(step, (other, inserting) => other.TentativeStartTime < inserting.TentativeStartTime);
+                
+                    if(step.State != WorkingState.Complete)
+                    {
+                        delay += step.Remaining;
+                    }
+
+                    lastTime = step.TentativeStartTime + step.Remaining;
+                }
+            }
+
+            if(simpleSteps.Last().Duration > 0)
+            {
+                var dishUp = new WorkingRecipeStep("Dish up", 0);
+                dishUp.TentativeStartTime = lastTime ?? 0;
+                simpleSteps.Insert(simpleSteps.Count, dishUp);
+            }
+            this.DelayTime = this.SimpleSteps.First().TentativeStartTime ?? 0;
+            this.SimpleSteps = simpleSteps.ToArray();
+
+            int? nextStart = null;
+            foreach(var step in SimpleSteps)
+            {
+                if(nextStart.HasValue)
+                {
+                    step.Duration = nextStart.Value - (step.TentativeStartTime ?? 0);
+                    step.Remaining = step.Duration;
+                }
+                nextStart = step.TentativeStartTime ?? 0;
+            }
+        }
+    }
+
+    public enum WorkingState
+    {
+        Pending,
+        Ongoing,
+        Complete
+    }
+
     public class WorkingRecipe
     {
-        static int _id = 1;
-        public WorkingRecipe(SavedRecipe[] from)
+        public static WorkingRecipe FromSaved(SavedRecipe recipe)
         {
-            Id = System.Threading.Interlocked.Increment(ref _id);
-            From = from;
-        }
-        public int Id { get; }
-
-        public bool Started => Index > 0;
-
-        public SavedRecipe[] From { get; }
-        public DateTime? EstimatedEndAt
-        {
-            get
+            var wr = new WorkingRecipe(recipe.Catalyst);
+            foreach(var step in recipe.Steps)
             {
-                DateTime maxEnds = DateTime.Now;
-                foreach(var s in Steps)
-                {
-                    var ends = s.StartedAt.GetValueOrDefault(s.EstimatedStartTime) + TimeSpan.FromSeconds(s.FullLength);
-                    if(ends > maxEnds)
-                    {
-                        maxEnds = ends;
-                    }
-                }
-                return maxEnds;
+                wr.WithStep(step.Description, (step.Duration + step.Delay) ?? 0);
             }
+            return wr;
         }
-
-        public WorkingSimpleStep[] Steps { get; set; }
-
-        public WorkingRecipe WithSteps(List<WorkingSimpleStep> flat)
+        public WorkingRecipe(string cat)
         {
-            flat = flat.OrderBy(x => x.IdealTimeDiff).ToList();
-            WorkingSimpleStep collate = null;
-            for (int i = 0; i < flat.Count; i++)
-            {
-                if (collate == null)
-                {
-                    collate = flat[i];
-                    continue;
-                }
-                var next = flat[i];
-                var diff = Math.Abs((collate.IdealTimeDiff - next.IdealTimeDiff).TotalSeconds);
-                if (diff < 1)
-                { // they're close enough to merge together
-                    collate.Description += " & " + next.Description;
-                    flat.RemoveAt(i);
-                    i--;
-                } else
-                {
-                    collate = next;
-                }
-            }
-            Steps = flat.ToArray();
+            Catalyst = cat;
+            Steps = new List<WorkingRecipeStep>();
+            Current = 0;
+        }
+        public WorkingRecipe WithStep(string text, int duration = 0)
+        {
+            var s = new WorkingRecipeStep(text, duration);
+            Steps.Add(s);
             return this;
         }
 
-        public void UpdateEstimatedTimes()
+        public List<WorkingRecipeStep> Steps { get; set; }
+        public int Current { get; set; }
+        public string Catalyst { get; set; }
+
+        public WorkingRecipeStep WorkingOn { get
+            {
+                if (this.Current >= this.Steps.Count) return null;
+                return this.Steps[this.Current];
+            } }
+        public WorkingRecipeStep NextUp { get
+            {
+                var n = Current + 1;
+                if (n >= Steps.Count) return null;
+                return Steps[n];
+            } }
+
+        private int _sumLength(bool original)
         {
-            var startedAt = Steps.First().StartedAt.GetValueOrDefault(DateTime.Now);
-            TimeSpan lastDiff = TimeSpan.Zero;
+            var s = 0;
             foreach(var step in Steps)
             {
-                var diff = step.IdealTimeDiff - lastDiff;
-                lastDiff = step.IdealTimeDiff;
-                if(step.StartedAt.HasValue)
+                if(original)
                 {
-                    step.EstimatedStartTime = step.StartedAt.Value;
-                    startedAt = step.StartedAt.Value;
+                    s += step.Duration;
                 } else
                 {
-                    step.EstimatedStartTime = startedAt + diff;
-                    startedAt = step.EstimatedStartTime;
+                    s += step.Remaining;
                 }
             }
+            return s;
         }
+        public int SumOriginalLength() => _sumLength(true);
+        public int SumRemainLength() => _sumLength(false);
 
-        public int Index { get; set; }
-        public WorkingSimpleStep Previous => Steps.ElementAtOrDefault(Index - 1);
-        public WorkingSimpleStep OnScreenNow => Steps.ElementAtOrDefault(Index);
-        public WorkingSimpleStep Next => Steps.ElementAtOrDefault(Index + 1);
     }
 
-    public abstract class WorkingStepBase
+    public class WorkingRecipeStep
     {
-        public SavedRecipe Recipe { get; set; }
-        public WorkingStepBase(SavedRecipe recipe)
+        public WorkingRecipeStep(string text, int duration)
         {
-            Recipe = recipe;
+            Text = text;
+            Duration = duration;
+            Remaining = duration;
+            State = WorkingState.Pending;
+                
         }
-        public virtual string Description { get; set; }
-        public virtual int Duration { get; protected set; }
+        public string Text { get; }
+        public int Duration { get; set; }
+        public int Remaining { get; set; }
+        public WorkingState State { get; set; }
+        public ulong? StartedAt { get; set; }
+        public int? TentativeStartTime { get; set; }
 
-        public virtual int Delay { get; protected set; }
-
-        public TimeSpan IdealTimeDiff { get; set; }
-        public abstract TimeSpan SetIdealTimeDiff(TimeSpan startDiff, TimeSpan? targetEnd);
-        public abstract void OffsetIdealTimeDiff(TimeSpan offset);
-
-        public virtual DateTime? StartedAt { get; internal set; }
-
-        public virtual DateTime? EndsAt
+        public void Tick(int elapsed)
         {
-            get
-            {
-                if (StartedAt.HasValue)
-                    return StartedAt.Value.AddSeconds(FullLength);
-                return null;
-            }
+            Remaining -= elapsed;
         }
-
-        public virtual int FullLength
-        {
-            get
-            {
-                int length = Duration + Delay;
-                if (StartedAt.HasValue)
-                {
-                    var done = (DateTime.Now - StartedAt.Value).TotalSeconds;
-                    return Math.Min(0, (int)Math.Round(length - done));
-                }
-                else if (IsFinished)
-                {
-                    return 0;
-                }
-                else
-                {
-                    return length;
-                }
-            }
-        }
-
-        public virtual DateTime? ActuallyEndedAt { get; private set; }
-
-        public virtual bool IsFinished { get
-            {
-                return ActuallyEndedAt.HasValue;
-            }  set
-            {
-                if (value)
-                    ActuallyEndedAt = DateTime.Now;
-                else
-                    ActuallyEndedAt = null;
-            }
-        }
-
-        public WorkingMultiStep Parent { get; set; }
-
-        public string dbg { get
-            {
-                return "  " + (Parent?.dbg ?? "");
-            } }
-        public string dbg_text { get
-            {
-                if (Parent == null)
-                    return Description;
-                return Parent.dbg_text + " " + Description;
-            } }
-
-        public DateTime EstimatedStartTime { get; set; }
-
-        public abstract void MarkStarted();
-        public abstract void MarkDone();
-
-        public abstract string GetDebuggerDisplay();
-
-        public virtual JObject ToShortJson()
-        {
-            var jobj = new JObject();
-            jobj["description"] = Description;
-            jobj["at"] = new DateTimeOffset(EstimatedStartTime).ToUnixTimeMilliseconds().ToString();
-            return jobj;
-        }
-        public virtual JObject ToFullJson()
-        {
-            var jobj = ToShortJson();
-            jobj["diff"] = (int)IdealTimeDiff.TotalSeconds;
-            jobj["duration"] = Duration + Delay;
-            return jobj;
-        }
-    }
-
-    [DebuggerDisplay("{" + nameof(GetDebuggerDisplay) + "(),nq}")]
-    public class WorkingSimpleStep : WorkingStepBase
-    {
-        public WorkingSimpleStep(SavedRecipe recipe, string desc, int dur, int del) : base(recipe)
-        {
-            Description = desc;
-            Duration = dur;
-            Delay = del;
-            StartedAt = null;
-        }
-
-        public override void MarkStarted()
-        {
-            Program.LogInfo($"{dbg}{dbg_text} Started: {Duration}-{Delay}", "SimpleStep");
-            StartedAt = DateTime.Now;
-        }
-
-        public override string GetDebuggerDisplay()
-        {
-            return $"{Description} for {Duration}s taking {Delay}s";
-        }
-
-        public override void MarkDone()
-        {
-            Program.LogInfo($"{dbg}{dbg_text} Done: {Duration}-{Delay}", "SimpleStep");
-            IsFinished = true;
-        }
-
-        public override TimeSpan SetIdealTimeDiff(TimeSpan startDiff, TimeSpan? targetEnd)
-        {
-            IdealTimeDiff = startDiff;
-            return startDiff + TimeSpan.FromSeconds(FullLength);
-        }
-
-        public override void OffsetIdealTimeDiff(TimeSpan offset)
-        {
-            IdealTimeDiff = IdealTimeDiff.Add(offset);
-        }
-    }
-
-    [DebuggerDisplay("{" + nameof(GetDebuggerDisplay) + "(),nq}")]
-    public class WorkingMultiStep : WorkingStepBase
-    {
-        public string Title { get; set; }
-        public List<WorkingStepBase> Children { get; private set; } = new List<WorkingStepBase>();
-        public int Step { get; set; }
-
-        public bool InOrder { get; set; }
-
-        public WorkingStepBase Previous => Children.ElementAtOrDefault(Step - 1);
-        public WorkingStepBase Current => Children.ElementAtOrDefault(Step);
-
-        public WorkingStepBase Next { get
-            {
-                if (Current is WorkingMultiStep && !Current.IsFinished)
-                    return Current;
-                return Children.ElementAtOrDefault(Step + 1);
-            } }
-
-        public List<WorkingSimpleStep> Flatten()
-        {
-            var ls = new List<WorkingSimpleStep>();
-            foreach(var x in Children)
-            {
-                if (x is WorkingSimpleStep s)
-                    ls.Add(s);
-                else if (x is WorkingMultiStep m)
-                    ls.AddRange(m.Flatten());
-            }
-            return ls;
-        }
-
-        public WorkingMultiStep(SavedRecipe recipe, string title, bool inOrder) : base(recipe)
-        {
-            InOrder = inOrder;
-            Title = title;
-            Children = new List<WorkingStepBase>();
-            Step = 0;
-        }
-        public WorkingMultiStep WithChild(WorkingStepBase c)
-        {
-            c.Parent = this;
-            Children.Add(c);
-            return this;
-        }
-        public override TimeSpan SetIdealTimeDiff(TimeSpan startDiff, TimeSpan? targetEnd)
-        {
-            Sort();
-            int length = 0;
-            if (InOrder)
-            {
-                foreach (var step in Children)
-                {
-                    step.SetIdealTimeDiff(startDiff + TimeSpan.FromSeconds(length), targetEnd);
-                    length += step.FullLength;
-                }
-                return startDiff + TimeSpan.FromSeconds(length);
-            }
-            else
-            {
-                targetEnd ??= TimeSpan.FromSeconds(Children.First().FullLength);
-                foreach (var step in Children)
-                {
-                    if(targetEnd.HasValue)
-                    {
-                        var diff = targetEnd.Value - startDiff;
-                        length = (int)Math.Max(0, diff.TotalSeconds - step.FullLength);
-                    }
-                    step.SetIdealTimeDiff(startDiff + TimeSpan.FromSeconds(length), targetEnd);
-                }
-                return startDiff;//+ TimeSpan.FromSeconds(maxLength);
-            }
-        }
-
-        public override void OffsetIdealTimeDiff(TimeSpan offset)
-        {
-            foreach (var x in Children)
-                x.OffsetIdealTimeDiff(offset);
-        }
-
-        public void Sort()
-        {
-            if (!InOrder) 
-                Children = Children.OrderByDescending(x => x.FullLength).ToList();
-            foreach (var x in Children)
-            {
-                if (x is WorkingMultiStep m)
-                    m.Sort();
-            }
-        }
-
-        public override string Description => Current.Description;
-        public override int Delay => Current.Delay;
-        public override DateTime? ActuallyEndedAt => Current?.ActuallyEndedAt;
-        public override int Duration => Current.Duration;
-        public override DateTime? StartedAt => Current?.StartedAt;
-        public override DateTime? EndsAt => Current?.EndsAt;
-        public override bool IsFinished => Step == Children.Count;
-
-        public override int FullLength { get
-            {
-                if (IsFinished) return 0;
-                if(InOrder)
-                {
-                    return Children.Sum(x => x.FullLength);
-                } else
-                {
-                    return Children.OrderByDescending(x => x.FullLength).FirstOrDefault()?.FullLength ?? 0;
-                }
-            } }
-
-        public override string GetDebuggerDisplay()
-        {
-            return $"[{Step}/{Children.Count}|{FullLength}] {(Current?.GetDebuggerDisplay() ?? "non")}";
-        }
-
-        public override void MarkStarted()
-        {
-            Program.LogInfo($"{dbg}{dbg_text} Started: {Current.Description} | {Step}/{Children.Count}", "MultiStep");
-            Current.MarkStarted();
-            Previous?.MarkDone();
-            if (Current is WorkingSimpleStep s)
-                Step++;
-            else if (Current is WorkingMultiStep m)
-                if (m.IsFinished)
-                    Step++;
-            Program.LogInfo($"{dbg}{dbg_text} Step now: {Step}/{Children.Count}", "MultiStep");
-        }
-        public override void MarkDone()
-        {
-            Program.LogInfo($"{dbg}{dbg_text} Done:?? {Step}", "MultiStep");
-        }
-
-
     }
 
     #endregion

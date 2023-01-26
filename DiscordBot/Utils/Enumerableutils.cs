@@ -31,5 +31,17 @@ namespace DiscordBot.Utils
         {
             return ToJson<TValue>(dict, (x => JToken.FromObject(x)));
         }
+
+        public static void OrderedInsert<TValue>(this List<TValue> list, TValue value, Func<TValue, TValue, bool> isBefore)
+        {
+            for(int i = 0; i < list.Count; i++)
+            {
+                if(isBefore(list[i], value))
+                {
+                    list.Insert(i, value);
+                    break;
+                }
+            }
+        }
     }
 }
