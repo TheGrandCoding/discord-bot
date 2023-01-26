@@ -66,12 +66,33 @@ namespace DiscordBot.Services.Sonarr
             th.Start(Program.GetToken());
             OnDownload += SonarrWebhooksService_OnDownload;
             OnGrab += SonarrWebhooksService_OnGrab;
+            OnEpisodeFileDelete += SonarrWebhooksService_OnEpisodeFileDelete;
 #if DEBUG
             OnTest += (object sender, OnTestSonarrEvent e) =>
             {
                 Episodes[e.Series.Id] = new Episodes(e.Series, e.Episodes);
             };
 #endif
+        }
+
+        private void SonarrWebhooksService_OnEpisodeFileDelete(object sender, OnEpisodeFileDeleteSonarrEvent e)
+        {
+            Task.Run(async () =>
+            {
+                try
+                {
+                    foreach (var channel in Channels)
+                    {
+                        if (channel.Channel is NullTextChannel)
+                            continue;
+                        var check = await ShouldSendInChannel(e.Series.Id, channel);
+                        if (check == false)
+                            continue;
+                        await channel.Channel.SendMessageAsync($"Removed episode file for {e.Series.Title}, S{e.Episodes[0].SeasonNumber:00}E{e.Episodes[0].EpisodeNumber:00}; {e.DeleteReason}");
+                    }
+                }
+                catch { }
+            });
         }
 
         #region Sonarr API
@@ -352,6 +373,7 @@ namespace DiscordBot.Services.Sonarr
         public event EventHandler<OnTestSonarrEvent> OnTest;
         public event EventHandler<OnGrabSonarrEvent> OnGrab;
         public event EventHandler<OnDownloadSonarrEvent> OnDownload;
+        public event EventHandler<OnEpisodeFileDeleteSonarrEvent> OnEpisodeFileDelete;
 
         public void Handle(SonarrEvent type)
         {
@@ -370,6 +392,9 @@ namespace DiscordBot.Services.Sonarr
                 }
                 else if (type is OnDownloadSonarrEvent d)
                     OnDownload?.Invoke(this, d);
+                else if (type is OnEpisodeFileDeleteSonarrEvent ep)
+                    OnEpisodeFileDelete?.Invoke(this, ep);
+
             } finally
             {
                 Lock.Release();
@@ -481,6 +506,7 @@ namespace DiscordBot.Services.Sonarr
     [JsonConverter(typeof(JsonSubtypes), "EventType")]
     [JsonSubtypes.KnownSubType(typeof(OnGrabSonarrEvent), "Grab")]
     [JsonSubtypes.KnownSubType(typeof(OnDownloadSonarrEvent), "Download")]
+    [JsonSubtypes.KnownSubType(typeof(OnEpisodeFileDeleteSonarrEvent), "EpisodeFileDelete")]
     [JsonSubtypes.KnownSubType(typeof(OnTestSonarrEvent), "Test")]
     public abstract class SonarrEvent
     {
@@ -508,6 +534,12 @@ namespace DiscordBot.Services.Sonarr
 
     public class OnTestSonarrEvent : EpisodesSonarrEvent
     {
+    }
+
+    public class OnEpisodeFileDeleteSonarrEvent : EpisodesSonarrEvent
+    {
+        public SonarrEpisodeFile EpisodeFile { get; set; }
+        public string DeleteReason { get; set; }
     }
 
     #endregion
