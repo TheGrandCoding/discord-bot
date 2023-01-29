@@ -22,11 +22,7 @@ namespace DiscordBot.Services.Sonarr
     {
         public List<SaveChannel> Channels { get; set; }
 
-#if DEBUG
-        const string apiUrl = "http://192.168.1.3:8989/api";
-#else
-        const string apiUrl = "http://localhost:8989/api";
-#endif
+        const string apiUrl = "https://sonarr.cheale14.com/api";
 
         public Semaphore Lock = new Semaphore(1, 1);
         public BotHttpClient HTTP { get; private set; }

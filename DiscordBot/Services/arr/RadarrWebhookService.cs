@@ -22,11 +22,7 @@ namespace DiscordBot.Services.Radarr
         public List<SaveChannel> Channels { get; set; }
 
 
-#if DEBUG
-        const string apiUrl = "http://192.168.1.3:7878/api/v3";
-#else
-        const string apiUrl = "http://localhost:7878/api/v3";
-#endif
+        const string apiUrl = "https://radarr.cheale14.com/api/v3";
         public Semaphore Lock = new Semaphore(1, 1);
         public BotHttpClient HTTP { get; private set; }
         public TraktService Trakt { get; private set; }
