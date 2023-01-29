@@ -14,6 +14,7 @@ namespace DiscordBot.Classes
 {
     public class BotHttpClient
     {
+        public static bool ForceDebug { get; set; } = false;
         private HttpClient http;
         protected static SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
         public BotHttpClient(HttpClient client, string source = null, bool debug = false, 
@@ -132,7 +133,7 @@ namespace DiscordBot.Classes
             if (!Directory.Exists(LogFolder))
                 Directory.CreateDirectory(LogFolder);
             var path = Path.Combine(LogFolder, fName);
-            if(_debug)
+            if(_debug || ForceDebug)
             {
                 File.WriteAllText(path, await full(message));
             }
@@ -147,7 +148,7 @@ namespace DiscordBot.Classes
                 sw.Stop();
                 _lastSent = DateTimeOffset.Now;
                 Program.LogInfo($"{str(message)} {sw.ElapsedMilliseconds}ms", source);
-                if(_debug)
+                if(_debug || ForceDebug)
                 {
                     string contents = "\r\n==============================\r\n";
                     contents += await full(response);

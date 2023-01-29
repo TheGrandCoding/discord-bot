@@ -130,6 +130,14 @@ namespace DiscordBot.Commands.Modules
                 .Build());
         }
     
+        [Command("dhttp")]
+        [Summary("Toggles whether HTTP requests to be logged")]
+        [RequireOwner]
+        public async Task HttpDebug()
+        {
+            BotHttpClient.ForceDebug = !BotHttpClient.ForceDebug;
+            await ReplyAsync($"HTTP forced debug is {(BotHttpClient.ForceDebug ? "enabled" : "disabled")}");
+        }
 
         [Command("name")]
         [Summary("Views your own override name")]
