@@ -11,7 +11,7 @@ namespace DiscordBot.Websockets
 {
     public class FoodWS : BotWSBase
     {
-        public WorkingRecipe Recipe { get; private set; }
+        public WorkingRecipeCollection Recipe { get; private set; }
         public FoodService FoodService { get; private set; }
         protected override void OnClose(CloseEventArgs e)
         {
@@ -30,50 +30,22 @@ namespace DiscordBot.Websockets
             SendJson(jobj);
         }
 
-        void SendSteps()
+        void SendRecipe()
         {
-            if(Recipe.OnScreenNow == null)
-            {
-                sendDone();
-            } else
-            {
-                var packet = new JObject();
-                packet["started"] = Recipe.Started;
-                if (Recipe.EstimatedEndAt.HasValue)
-                {
-                    packet["end"] = new DateTimeOffset(Recipe.EstimatedEndAt.Value).ToUnixTimeMilliseconds();
-                }
-                packet["current"] = Recipe.OnScreenNow.ToShortJson();
-                packet["next"] = Recipe.Next?.ToShortJson() ?? null;
-
-                var jar = new JArray();
-                foreach (var step in Recipe.Steps)
-                    jar.Add(step.ToFullJson());
-                packet["steps"] = jar;
-                SendJson(packet);
-            }
+            var packet = new JObject();
+            var json = Recipe.ToJson();
+            packet["recipe"] = json;
+            SendJson(packet);
         }
 
         protected override void OnMessage(MessageEventArgs e)
         {
             var jobj = JObject.Parse(e.Data);
             Debug(jobj.ToString(), "OnMessage");
-            var data = jobj["data"].ToObject<string>();
-            if(data == "next")
+            if(jobj.TryGetValue("done", out _))
             {
-                Recipe.OnScreenNow.MarkStarted();
-                Recipe.Previous?.MarkDone();
-                Recipe.Index++;
-                if (Recipe.OnScreenNow == null)
-                {
-                    FoodService.OngoingRecipes.Remove(Recipe.Id, out _);
-                }
-                Recipe.UpdateEstimatedTimes();
-                foreach (var x in Sessions.Sessions)
-                {
-                    if (x is FoodWS f)
-                        f.SendSteps();
-                }
+                FoodService.OngoingRecipes.TryRemove(Recipe.Id, out _);
+                this.Context.WebSocket.Close(CloseStatusCode.Normal, "Done");
             }
         }
 
@@ -97,12 +69,7 @@ namespace DiscordBot.Websockets
             }
             Recipe = v;
 
-            if(Recipe.OnScreenNow == null)
-            {
-                throw new ArgumentNullException("Recipe on screen was null??");
-            }
-            Recipe.UpdateEstimatedTimes();
-            SendSteps();
+            SendRecipe();
         }
     }
 }

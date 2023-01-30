@@ -531,7 +531,20 @@ namespace DiscordBot.MLAPI.Modules
                     else if (steps is UnorderedList ul)
                         ul.AddItem(s.GetListItem());
                 }
-                r.Children.Add(new TableData(null) { Children = { steps } });
+                var stepData = new TableData(null);
+                if(!string.IsNullOrWhiteSpace(x.Catalyst))
+                {
+                    var fName = x.Catalyst.Replace(' ', '_');
+                    foreach (var c in System.IO.Path.GetInvalidFileNameChars())
+                        fName = fName.Replace(c, '_');
+                    var img = new Img($"/_/img/cat_{fName}.png", cls: "catalyst")
+                        .WithTag("title", x.Catalyst)
+                        .WithTag("alt", x.Catalyst);
+                    stepData.Children.Add(img);
+                }
+
+                stepData.Children.Add(steps);
+                r.Children.Add(stepData);
 
                 r.Children.Add(new TableData(null)
                 {
@@ -580,7 +593,7 @@ namespace DiscordBot.MLAPI.Modules
                 RespondRaw(LoadRedirectFile("/food/recipes"), System.Net.HttpStatusCode.Found);
             } else
             {
-                ReplyFile("view_ongoing.html", 200, new Replacements().Add("id", id));
+                ReplyFile("new_ongoing.html", 200, new Replacements().Add("id", id));
             }
         }
 
@@ -1268,6 +1281,14 @@ namespace DiscordBot.MLAPI.Modules
             {
                 recipe.Children = null;
             }
+            if(jobj.TryGetValue("catalyst", out var cat))
+            {
+                recipe.Catalyst = cat.ToObject<string>();
+            } else
+            {
+                RespondError(_err.Child("catalyst").EndRequired());
+                return;
+            }
             var title = jobj.GetValue("title")?.ToObject<string>();
             recipe.Title = string.IsNullOrWhiteSpace(title) ? null : title;
             var ingredients = ingToken as JArray;
@@ -1368,6 +1389,7 @@ namespace DiscordBot.MLAPI.Modules
             }
             var jobj = new JObject();
             jobj["title"] = recipe.Title;
+            jobj["catalyst"] = recipe.Catalyst;
             jobj["order"] = recipe.InOrder;
 
             if(recipe.Children != null)
@@ -1453,7 +1475,7 @@ namespace DiscordBot.MLAPI.Modules
                 }
             }
 
-            WorkingRecipe working;
+            WorkingRecipeCollection working;
             if(confirmedRecipes.Count == 1)
             {
                 working = Service.ToWorkingRecipe(confirmedRecipes.First(), dict);

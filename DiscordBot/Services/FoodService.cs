@@ -22,8 +22,8 @@ namespace DiscordBot.Services
 {
     public class FoodService : SavedService
     {
-        public ConcurrentDictionary<string, List<string>> Manufacturers { get; set; } = new ConcurrentDictionary<string, List<string>>();
-        public ConcurrentBag<SavedRecipe> Recipes { get; set; } = new ConcurrentBag<SavedRecipe>();
+        public ConcurrentDictionary<string, List<string>> Manufacturers { get; set; } = new();
+        public ConcurrentBag<SavedRecipe> Recipes { get; set; } = new();
 
 
         public ConcurrentDictionary<int, SavedMenu> Menus { get; set; } = new();
@@ -31,7 +31,7 @@ namespace DiscordBot.Services
         public WorkingMenu WorkingMenu { get; set; }
 
 
-        public ConcurrentDictionary<int, WorkingRecipe> OngoingRecipes { get; set; } = new ConcurrentDictionary<int, WorkingRecipe>();
+        public ConcurrentDictionary<int, WorkingRecipeCollection> OngoingRecipes { get; set; } = new();
 
         public ConcurrentDictionary<ulong, CancellationTokenSource> NotifyCancels { get; set; } = new();
 
@@ -188,35 +188,13 @@ namespace DiscordBot.Services
             OnSave();
         }
 
-        public WorkingRecipe ToWorkingRecipe(List<SavedRecipe> recipes, Dictionary<int, int> offsetDict, string title = null)
+        public WorkingRecipeCollection ToWorkingRecipe(List<SavedRecipe> recipes, Dictionary<int, int> offsetDict, string title = null)
         {
-            WorkingRecipe working;
-            if (recipes.Count == 1)
-            {
-                working = recipes[0].ToWorking();
-            }
-            else
-            {
-                working = new WorkingRecipe(recipes.ToArray());
-                var combined = new WorkingMultiStep(null, title ?? "Combined Root", false);
-                foreach (var x in recipes)
-                    combined.WithChild(x.ToChild());
-                combined.SetIdealTimeDiff(TimeSpan.Zero, null);
-
-                foreach (var step in combined.Children)
-                {
-                    var offset = offsetDict.GetValueOrDefault(step.Recipe.Id, 0);
-                    if (offset != 0)
-                        step.OffsetIdealTimeDiff(TimeSpan.FromSeconds(offset));
-                }
-
-                var flattened = combined.Flatten();
-                working.WithSteps(flattened);
-            }
+            WorkingRecipeCollection working = WorkingRecipeCollection.FromSaved(recipes.ToArray());
             OngoingRecipes.TryAdd(working.Id, working);
             return working;
         }
-        public WorkingRecipe ToWorkingRecipe(SavedRecipe recipe, Dictionary<int, int> offsetDict)
+        public WorkingRecipeCollection ToWorkingRecipe(SavedRecipe recipe, Dictionary<int, int> offsetDict)
         {
             if(recipe.Children != null && recipe.Children.Count > 0)
             {
@@ -1249,23 +1227,6 @@ namespace DiscordBot.Services
                 if (Children != null && Children.Count > 0) return 0;
                 return 1;
             } }
-
-        public WorkingMultiStep ToChild()
-        {
-            var multi = new WorkingMultiStep(this, $"Root {Id}", InOrder);
-            foreach (var x in Steps.Select(x => x.ToWorking(multi)))
-                multi.WithChild(x);
-            return multi;
-        }
-
-        public WorkingRecipe ToWorking()
-        {
-            var multi = ToChild();
-            multi.SetIdealTimeDiff(TimeSpan.Zero, null);
-
-            return new WorkingRecipe(new[] { this })
-                .WithSteps(multi.Flatten());
-        }
     }
 
 
@@ -1282,20 +1243,6 @@ namespace DiscordBot.Services
         [JsonProperty("order", NullValueHandling = NullValueHandling.Ignore)]
         [DefaultValue(true)]
         public bool? InOrder { get; set; }
-
-        public WorkingStepBase ToWorking(WorkingMultiStep parent)
-        {
-            if(Children != null && Children.Count > 0)
-            {
-                var multi = new WorkingMultiStep(parent.Recipe, Description, InOrder.GetValueOrDefault(true));
-                foreach (var x in Children)
-                    multi.WithChild(x.ToWorking(multi));
-                return multi;
-            } else
-            {
-                return new WorkingSimpleStep(parent.Recipe, Description, Duration ?? 0, Delay ?? 0);
-            }
-        }
 
         string tostr(int? seconds)
         {
@@ -1338,6 +1285,44 @@ namespace DiscordBot.Services
                 li.Children.Add(inner);
             }
             return li;
+        }
+    }
+
+    public class WorkingRecipeCollection
+    {
+        private static int _id = 1;
+        public int Id { get; set; }
+        public List<WorkingRecipeGroup> RecipeGroups { get; set; } = new();
+
+        public DateTimeOffset EstimatedEndAt { get
+            {
+                var remain = RecipeGroups.Select(x => x.SumRemainLength()).Max();
+                return DateTimeOffset.Now.AddSeconds(remain);
+            } }
+
+        public static WorkingRecipeCollection FromSaved(params SavedRecipe[] init)
+        {
+            var col = new WorkingRecipeCollection();
+            col.Id = System.Threading.Interlocked.Increment(ref _id);
+            var grouped = init.GroupBy(x => x.Catalyst);
+            foreach(var grouping in grouped)
+            {
+                var recipe = WorkingRecipeGroup.FromSaved(grouping.ToArray());
+                col.RecipeGroups.Add(recipe);
+            }
+            return col;
+        }
+
+        public JObject ToJson()
+        {
+            var jobj = new JObject();
+
+            foreach(var group in RecipeGroups)
+            {
+                jobj[group.Catalyst] = group.ToJson();
+            }
+
+            return jobj;
         }
     }
 
@@ -1392,7 +1377,6 @@ namespace DiscordBot.Services
         public int SumOriginalLength() => _sumLength(true);
         public int SumRemainLength() => _sumLength(false);
     
-
         public void FlattenForEnd(int targetEnd)
         { // e.g. targetEnd is 200 seconds
             var simpleSteps = new List<WorkingRecipeStep>();
@@ -1434,6 +1418,19 @@ namespace DiscordBot.Services
                 nextStart = step.TentativeStartTime ?? 0;
             }
         }
+   
+        
+        public JObject ToJson()
+        {
+            var jobj = new JObject();
+
+            jobj["catalyst"] = Catalyst;
+            jobj["recipes"] = new JArray(Recipes.Select(x => x.ToJson()).ToArray());
+            jobj["delayTime"] = DelayTime;
+
+            return jobj;
+        }
+    
     }
 
     public enum WorkingState
@@ -1501,6 +1498,14 @@ namespace DiscordBot.Services
         public int SumOriginalLength() => _sumLength(true);
         public int SumRemainLength() => _sumLength(false);
 
+        public JObject ToJson()
+        {
+            var jobj = new JObject();
+            jobj["catalyst"] = Catalyst;
+            jobj["current"] = Current;
+            jobj["steps"] = new JArray(Steps.Select(x => x.ToJson()).ToArray());
+            return jobj;
+        }
     }
 
     public class WorkingRecipeStep
@@ -1524,6 +1529,23 @@ namespace DiscordBot.Services
         {
             Remaining -= elapsed;
         }
+    
+        public JObject ToJson()
+        {
+            var jobj = new JObject();
+
+            jobj["text"] = Text;
+            jobj["duration"] = Duration;
+            jobj["remain"] = Remaining;
+            jobj["state"] = State.ToString();
+            if(StartedAt.HasValue)
+                jobj["startedAt"] = StartedAt.Value.ToString(); // due to int limit
+            if(TentativeStartTime.HasValue)
+                jobj["tentativeStart"] = TentativeStartTime;
+
+            return jobj;
+        }
+    
     }
 
     #endregion
