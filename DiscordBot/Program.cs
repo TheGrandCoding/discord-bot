@@ -134,7 +134,6 @@ Changed how permissions worked for bot.
             Prefix = Configuration["prefix"][0];
         }
 
-#if WINDOWS
         static HttpResponseMessage fetchAuthedRequest(string url, string passwd)
         {
             var client = Services.GetRequiredService<BotHttpClient>();
@@ -144,6 +143,7 @@ Changed how permissions worked for bot.
             request.Headers.Authorization = authValue;
             return client.SendAsync(request).Result;
         }
+#if WINDOWS
         static void fetchFile(string fName)
         {
             var remote = Configuration["urls:download"];
