@@ -135,17 +135,21 @@ Changed how permissions worked for bot.
         }
 
 #if WINDOWS
-        static void fetchFile(string fName)
+        static HttpResponseMessage fetchAuthedRequest(string url, string passwd)
         {
             var client = Services.GetRequiredService<BotHttpClient>();
+            var request = new HttpRequestMessage(HttpMethod.Get, url);
+            var authValue = new AuthenticationHeaderValue("Basic",
+                Convert.ToBase64String(Encoding.UTF8.GetBytes($"bot:{passwd}")));
+            request.Headers.Authorization = authValue;
+            return client.SendAsync(request).Result;
+        }
+        static void fetchFile(string fName)
+        {
             var remote = Configuration["urls:download"];
             var authPwd = Configuration["tokens:download"];
             var fullRemote = string.Format(remote, fName);
-            var request = new HttpRequestMessage(HttpMethod.Get, fullRemote);
-            var authValue = new AuthenticationHeaderValue("Basic", 
-                Convert.ToBase64String(Encoding.UTF8.GetBytes($"bot:{authPwd}")));
-            request.Headers.Authorization = authValue;
-            var response = client.SendAsync(request).Result;
+            var response = fetchAuthedRequest(fullRemote, authPwd);
             var text = response.Content.ReadAsStringAsync().Result;
             if(!response.IsSuccessStatusCode)
             {
@@ -174,6 +178,26 @@ Changed how permissions worked for bot.
 
         static void fetchServiceFiles(List<Service> services)
         {
+            var client = Services.GetRequiredService<BotHttpClient>();
+            bool success = false;
+            try
+            {
+                var remote = Configuration["urls:download"];
+                var authPwd = Configuration["tokens:download"];
+                var response = fetchAuthedRequest(string.Format(remote, ""), authPwd);
+                success = response.IsSuccessStatusCode;
+                Program.LogWarning($"{response.StatusCode} {response.ReasonPhrase}", "fetchService");
+            } catch (Exception ex)
+            {
+                Program.LogError(ex, "fetchService");
+                success = false;
+            }
+            if(!success)
+            {
+                Program.LogWarning("Skipping fetching service files as it is not set up.", "fetchService");
+                return;
+            }
+
             // If any new files are present, load them
             var folder = Path.Combine(BASE_PATH, "Saves");
             var newFiles = Directory.GetFiles(folder, "*.new");
