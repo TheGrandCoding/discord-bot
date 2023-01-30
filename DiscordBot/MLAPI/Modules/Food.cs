@@ -560,7 +560,7 @@ namespace DiscordBot.MLAPI.Modules
                 var stepData = new TableData(null);
                 var catImgs = new List<Img>();
                 var catalysts = getCatalysts(x.Id);
-                foreach(var cat in catalysts)
+                foreach(var cat in catalysts.Distinct())
                 {
                     var img = getCatalystImg(cat);
                     stepData.Children.Add(img);
