@@ -469,6 +469,32 @@ namespace DiscordBot.MLAPI.Modules
             return getShortDesc(recipe);
         }
 
+        Img getCatalystImg(string catalyst)
+        {
+            var fName = catalyst.Replace(' ', '_');
+            foreach (var c in System.IO.Path.GetInvalidFileNameChars())
+                fName = fName.Replace(c, '_');
+            return new Img($"/_/img/cat_{fName}.png", cls: "catalyst")
+                .WithTag("title", catalyst)
+                .WithTag("alt", catalyst) as Img;
+        }
+
+        List<string> getCatalysts(int recipeId)
+        {
+            var recipe = Service.Recipes.FirstOrDefault(x => x.Id == recipeId);
+            var ls = new List<string>();
+            if (recipe == null) return ls;
+            if (recipe.Catalyst != null) ls.Add(recipe.Catalyst);
+            if(recipe.Children != null)
+            {
+                foreach(var id in recipe.Children.Keys)
+                {
+                    ls.AddRange(getCatalysts(id));
+                }
+            }
+            return ls;
+        }
+
         [Method("GET"), Path("/food/recipes")]
         public void ViewRecipes()
         {
@@ -532,16 +558,14 @@ namespace DiscordBot.MLAPI.Modules
                         ul.AddItem(s.GetListItem());
                 }
                 var stepData = new TableData(null);
-                if(!string.IsNullOrWhiteSpace(x.Catalyst))
+                var catImgs = new List<Img>();
+                var catalysts = getCatalysts(x.Id);
+                foreach(var cat in catalysts)
                 {
-                    var fName = x.Catalyst.Replace(' ', '_');
-                    foreach (var c in System.IO.Path.GetInvalidFileNameChars())
-                        fName = fName.Replace(c, '_');
-                    var img = new Img($"/_/img/cat_{fName}.png", cls: "catalyst")
-                        .WithTag("title", x.Catalyst)
-                        .WithTag("alt", x.Catalyst);
+                    var img = getCatalystImg(cat);
                     stepData.Children.Add(img);
                 }
+
 
                 stepData.Children.Add(steps);
                 r.Children.Add(stepData);
