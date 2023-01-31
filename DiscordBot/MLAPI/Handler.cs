@@ -271,7 +271,7 @@ namespace DiscordBot.MLAPI
                     }
                     if(context.Headers.TryGetValue("Origin", out var origin))
                     {
-                        if (origin != LocalAPIUrl && context.Path.StartsWith("/api/tracker"))
+                        if (origin != LocalAPIUrl && (context.Path.StartsWith("/api/tracker") || context.Path.StartsWith("/ocr")))
                         {
                             foreach (string key in req.Request.Headers.Keys)
                             {
