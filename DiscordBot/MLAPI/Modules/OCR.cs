@@ -18,11 +18,15 @@ namespace DiscordBot.MLAPI.Modules
         
         }
 
+#if DEBUG
         const string pypath = @"D:\_GitHub\mlapibot\run.py";
+#else
+        const string pypath = @"~/bot/mlapibot/run.py";
+#endif
         private string run_cmd(string cmd, string args)
         {
             ProcessStartInfo start = new ProcessStartInfo();
-            start.FileName = "python.exe";
+            start.FileName = "python";
             start.Arguments = string.Format("\"{0}\" \"{1}\"", cmd, args);
             start.UseShellExecute = false;
             start.RedirectStandardOutput = true;
