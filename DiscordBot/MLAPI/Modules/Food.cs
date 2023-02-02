@@ -1305,10 +1305,9 @@ namespace DiscordBot.MLAPI.Modules
             {
                 recipe.Children = null;
             }
-            if(jobj.TryGetValue("catalyst", out var cat))
-            {
-                recipe.Catalyst = cat.ToObject<string>();
-            } else
+            var catalyst = jobj.GetValue("catalyst")?.ToObject<string>();
+            recipe.Catalyst = string.IsNullOrWhiteSpace(catalyst) ? null : catalyst;
+            if(recipe.Catalyst == null)
             {
                 RespondError(_err.Child("catalyst").EndRequired());
                 return;
@@ -1353,7 +1352,6 @@ namespace DiscordBot.MLAPI.Modules
                 var si = new SavedIngredient(units.Value, frozen.Value);
                 recipe.Ingredients.Add(id, si);
             }
-
 
 
             var steps = stepsA as JArray;

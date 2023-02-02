@@ -34,14 +34,15 @@ namespace DiscordBot.Utils
 
         public static void OrderedInsert<TValue>(this List<TValue> list, TValue value, Func<TValue, TValue, bool> isBefore)
         {
-            for(int i = 0; i < list.Count; i++)
+            int index = 0;
+            foreach(var item in list)
             {
-                if(isBefore(list[i], value))
-                {
-                    list.Insert(i, value);
+                if (isBefore(item, value))
+                    index++;
+                else
                     break;
-                }
             }
+            list.Insert(index, value);
         }
     }
 }

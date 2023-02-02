@@ -35,6 +35,8 @@ namespace DiscordBot.Websockets
             var packet = new JObject();
             var json = Recipe.ToJson();
             packet["recipe"] = json;
+            if(Recipe.StartedAt.HasValue)
+                packet["startedAt"] = Recipe.StartedAt.Value;
             SendJson(packet);
         }
 
@@ -46,7 +48,59 @@ namespace DiscordBot.Websockets
             {
                 FoodService.OngoingRecipes.TryRemove(Recipe.Id, out _);
                 this.Context.WebSocket.Close(CloseStatusCode.Normal, "Done");
+            } else if(jobj.TryGetValue("data", out var dataT) && dataT is JObject data)
+            {
+                if(data.TryGetValue("mute", out var catalystT))
+                {
+                    var catalyst = catalystT.ToObject<string>();
+                    var cat = Recipe.RecipeGroups.FirstOrDefault(x => x.Catalyst == catalyst);
+                    if(cat != null)
+                    {
+                        cat.Muted = true;
+                    }
+                } else if (data.TryGetValue("advance", out var payloadT) && payloadT is JObject payload)
+                {
+                    var catalyst = payload["id"].ToObject<string>();
+                    var started = payload["started"].ToObject<ulong>();
+                    var time = payload["time"].ToObject<ulong>();
+                    if (!Recipe.StartedAt.HasValue)
+                        Recipe.StartedAt = started;
+                    var cat = Recipe.RecipeGroups.FirstOrDefault(x => x.Catalyst == catalyst);
+                    if(cat != null)
+                    {
+                        cat.Muted = null;
+                        cat.Alarm = false;
+                        cat.AdvancedAt = time;
+                        cat.StartedAt = started;
+
+                        for(int i = 0; i < cat.SimpleSteps.Count; i++)
+                        {
+                            var step = cat.SimpleSteps[i];
+                            if (step.State == WorkingState.Complete) continue;
+                            if(step.State == WorkingState.Pending)
+                            {
+                                step.State = WorkingState.Ongoing;
+                                break;
+                            }
+                            if(step.State == WorkingState.Ongoing)
+                            {
+                                step.State = WorkingState.Complete;
+                                var next = cat.SimpleSteps.ElementAtOrDefault(i + 1);
+                                if(next != null)
+                                {
+                                    next.State = WorkingState.Ongoing;
+                                    Info($"Moving to {next.Text} in {step.Duration}");
+                                    if (next.Duration > 0) break;
+                                } else
+                                {
+                                    Info($"Finished group with final {step.Text}");
+                                }
+                            }
+                        }
+                    }
+                }
             }
+            SendToAllOthers(jobj);
         }
 
         protected override void OnOpen()
@@ -68,6 +122,7 @@ namespace DiscordBot.Websockets
                 return;
             }
             Recipe = v;
+            Recipe.Initialise();
 
             SendRecipe();
         }

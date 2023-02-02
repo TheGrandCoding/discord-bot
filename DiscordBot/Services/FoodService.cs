@@ -190,7 +190,7 @@ namespace DiscordBot.Services
 
         public WorkingRecipeCollection ToWorkingRecipe(List<SavedRecipe> recipes, Dictionary<int, int> offsetDict, string title = null)
         {
-            WorkingRecipeCollection working = WorkingRecipeCollection.FromSaved(recipes.ToArray());
+            WorkingRecipeCollection working = WorkingRecipeCollection.FromSaved(offsetDict, recipes.ToArray());
             OngoingRecipes.TryAdd(working.Id, working);
             return working;
         }
@@ -1294,23 +1294,52 @@ namespace DiscordBot.Services
         public int Id { get; set; }
         public List<WorkingRecipeGroup> RecipeGroups { get; set; } = new();
 
+        public Dictionary<int, int> Offsets { get; set; }
+
         public DateTimeOffset EstimatedEndAt { get
             {
                 var remain = RecipeGroups.Select(x => x.SumRemainLength()).Max();
                 return DateTimeOffset.Now.AddSeconds(remain);
             } }
 
-        public static WorkingRecipeCollection FromSaved(params SavedRecipe[] init)
+        public static WorkingRecipeCollection FromSaved(Dictionary<int, int> offsets, params SavedRecipe[] init)
         {
             var col = new WorkingRecipeCollection();
+            col.Offsets = offsets;
             col.Id = System.Threading.Interlocked.Increment(ref _id);
             var grouped = init.GroupBy(x => x.Catalyst);
-            foreach(var grouping in grouped)
+            foreach (var grouping in grouped)
             {
                 var recipe = WorkingRecipeGroup.FromSaved(grouping.ToArray());
                 col.RecipeGroups.Add(recipe);
             }
             return col;
+        }
+
+        public ulong? StartedAt { get; set; }
+
+        private bool _init = false;
+        public void Initialise()
+        {
+            if (_init) return;
+            _init = true;
+
+            var smallestOffset = 0;
+            foreach((var key, var value) in Offsets)
+            {
+                if(value < smallestOffset)
+                    smallestOffset = value;
+            }
+            var longest = 0;
+            foreach (var group in RecipeGroups)
+            {
+                var length = group.SumRemainLength();
+                if(length > longest) longest = length;
+            }
+            foreach(var group in RecipeGroups)
+            {
+                group.FlattenForEnd(longest + (smallestOffset * -1), Offsets);
+            }
         }
 
         public JObject ToJson()
@@ -1347,13 +1376,16 @@ namespace DiscordBot.Services
         }
         public string Catalyst { get; set; }
         public List<WorkingRecipe> Recipes { get; private set; }
-        public WorkingRecipeStep[] SimpleSteps { get; private set; }
+        public List<WorkingRecipeStep> SimpleSteps { get; private set; }
         public int DelayTime { get; private set; }
 
         public bool? Muted { get; set; }
         public bool Alarm { get; set; }
 
         public int? CompletedAt { get; set; }
+
+        public ulong? StartedAt { get; set; }
+        public ulong? AdvancedAt { get; set; }
 
         private int _sumLength(bool original)
         {
@@ -1377,13 +1409,13 @@ namespace DiscordBot.Services
         public int SumOriginalLength() => _sumLength(true);
         public int SumRemainLength() => _sumLength(false);
     
-        public void FlattenForEnd(int targetEnd)
+        public void FlattenForEnd(int targetEnd, Dictionary<int, int> offsets)
         { // e.g. targetEnd is 200 seconds
             var simpleSteps = new List<WorkingRecipeStep>();
             int? lastTime = null;
             foreach(var recipe in Recipes)
             {
-                var delay = targetEnd - recipe.SumRemainLength();
+                var delay = (targetEnd + offsets.GetValueOrDefault(recipe.RecipeId, 0)) - recipe.SumRemainLength();
                 foreach(var step in recipe.Steps)
                 {
                     step.TentativeStartTime = delay;
@@ -1404,18 +1436,37 @@ namespace DiscordBot.Services
                 dishUp.TentativeStartTime = lastTime ?? 0;
                 simpleSteps.Insert(simpleSteps.Count, dishUp);
             }
-            this.DelayTime = this.SimpleSteps.First().TentativeStartTime ?? 0;
-            this.SimpleSteps = simpleSteps.ToArray();
+            this.DelayTime = simpleSteps.First().TentativeStartTime ?? 0;
+            this.SimpleSteps = simpleSteps.ToList();
 
             int? nextStart = null;
-            foreach(var step in SimpleSteps)
+            for(int i = this.SimpleSteps.Count - 1; i >= 0; i--)
             {
+                var step = this.SimpleSteps[i];
                 if(nextStart.HasValue)
                 {
-                    step.Duration = nextStart.Value - (step.TentativeStartTime ?? 0);
+                    step.Duration = nextStart.Value - step.TentativeStartTime.Value;
                     step.Remaining = step.Duration;
                 }
-                nextStart = step.TentativeStartTime ?? 0;
+                nextStart = step.TentativeStartTime.Value;
+            }
+            // go through and merge steps that start at the same time.
+            int idx = 0;
+            while(idx < (this.SimpleSteps.Count - 1))
+            {
+                var current = this.SimpleSteps[idx];
+                var next = this.SimpleSteps[idx + 1];
+                if(current.TentativeStartTime == next.TentativeStartTime)
+                {
+                    current.Text += " & " + next.Text;
+                    current.Duration += next.Duration;
+                    current.Remaining += next.Remaining;
+                    this.SimpleSteps.RemoveAt(idx + 1);
+                } else
+                {
+                    idx++;
+                }
+
             }
         }
    
@@ -1423,11 +1474,36 @@ namespace DiscordBot.Services
         public JObject ToJson()
         {
             var jobj = new JObject();
+            int modify = 0;
+            if(AdvancedAt.HasValue)
+            {
+                var now = (ulong)DateTimeOffset.Now.ToUnixTimeMilliseconds();
+                var diff = now - AdvancedAt.Value; // how long the current step has been going on for.
+                modify = (int)(diff / 1000) * -1;
+            }
+
 
             jobj["catalyst"] = Catalyst;
-            jobj["recipes"] = new JArray(Recipes.Select(x => x.ToJson()).ToArray());
             jobj["delayTime"] = DelayTime;
+            if (Muted.HasValue) jobj["muted"] = Muted.Value;
+            jobj["alarm"] = Alarm;
+            //if(SimpleSteps == null)
+            //    jobj["recipes"] = new JArray(Recipes.Select(x => x.ToJson(modify)).ToArray());
+            //else
 
+            var jarr = new JArray();
+            if(this.SimpleSteps != null)
+            {
+                foreach(var step in this.SimpleSteps)
+                {
+                    if(step.State == WorkingState.Ongoing)
+                        jarr.Add(step.ToJson(modify));
+                    else
+                        jarr.Add(step.ToJson(0));
+                }
+            }
+            jobj["steps"] = jarr;
+            if (CompletedAt.HasValue) jobj["completedAt"] = CompletedAt.Value;
             return jobj;
         }
     
@@ -1445,6 +1521,7 @@ namespace DiscordBot.Services
         public static WorkingRecipe FromSaved(SavedRecipe recipe)
         {
             var wr = new WorkingRecipe(recipe.Catalyst);
+            wr.RecipeId = recipe.Id;
             foreach(var step in recipe.Steps)
             {
                 wr.WithStep(step.Description, (step.Duration + step.Delay) ?? 0);
@@ -1464,6 +1541,7 @@ namespace DiscordBot.Services
             return this;
         }
 
+        public int RecipeId { get; set; } = 0;
         public List<WorkingRecipeStep> Steps { get; set; }
         public int Current { get; set; }
         public string Catalyst { get; set; }
@@ -1498,16 +1576,17 @@ namespace DiscordBot.Services
         public int SumOriginalLength() => _sumLength(true);
         public int SumRemainLength() => _sumLength(false);
 
-        public JObject ToJson()
+        public JObject ToJson(int modifyRemainBy)
         {
             var jobj = new JObject();
             jobj["catalyst"] = Catalyst;
             jobj["current"] = Current;
-            jobj["steps"] = new JArray(Steps.Select(x => x.ToJson()).ToArray());
+            jobj["steps"] = new JArray(Steps.Select(x => x.ToJson(modifyRemainBy)).ToArray());
             return jobj;
         }
     }
 
+    [DebuggerDisplay($"{{{nameof(GetDebuggerDisplay)}(),nq}}")]
     public class WorkingRecipeStep
     {
         public WorkingRecipeStep(string text, int duration)
@@ -1518,7 +1597,7 @@ namespace DiscordBot.Services
             State = WorkingState.Pending;
                 
         }
-        public string Text { get; }
+        public string Text { get; set; }
         public int Duration { get; set; }
         public int Remaining { get; set; }
         public WorkingState State { get; set; }
@@ -1530,13 +1609,13 @@ namespace DiscordBot.Services
             Remaining -= elapsed;
         }
     
-        public JObject ToJson()
+        public JObject ToJson(int modifyRemaining)
         {
             var jobj = new JObject();
 
             jobj["text"] = Text;
             jobj["duration"] = Duration;
-            jobj["remain"] = Remaining;
+            jobj["remain"] = Remaining + modifyRemaining;
             jobj["state"] = State.ToString();
             if(StartedAt.HasValue)
                 jobj["startedAt"] = StartedAt.Value.ToString(); // due to int limit
@@ -1545,7 +1624,11 @@ namespace DiscordBot.Services
 
             return jobj;
         }
-    
+
+        private string GetDebuggerDisplay()
+        {
+            return $"({Remaining}/{Duration}) {TentativeStartTime} - {Text}";
+        }
     }
 
     #endregion

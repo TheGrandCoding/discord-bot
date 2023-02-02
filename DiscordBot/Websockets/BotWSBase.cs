@@ -1,5 +1,7 @@
 ﻿using DiscordBot.Classes;
 using DiscordBot.MLAPI;
+using DiscordBot.Services;
+using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
@@ -86,6 +88,23 @@ namespace DiscordBot.Websockets
             Debug(str, "WS >>");
 #endif
             base.Send(str);
+        }
+
+        public void SendToAllOthers(JToken json)
+        {
+            if(!WSService.Server.WebSocketServices.TryGetServiceHost("/food", out var host))
+            {
+                Warn($"Unable to get host to broadcast");
+                return;
+            }
+            foreach(var session in host.Sessions.Sessions)
+            {
+                if(session.ID != this.ID)
+                {
+                    if (session is BotWSBase botws) botws.SendJson(json);
+                    else Warn($"Unable to send to {session.GetType().FullName}", "SendToAllOthers");
+                }
+            }
         }
     }
 
