@@ -1307,11 +1307,6 @@ namespace DiscordBot.MLAPI.Modules
             }
             var catalyst = jobj.GetValue("catalyst")?.ToObject<string>();
             recipe.Catalyst = string.IsNullOrWhiteSpace(catalyst) ? null : catalyst;
-            if(recipe.Catalyst == null)
-            {
-                RespondError(_err.Child("catalyst").EndRequired());
-                return;
-            }
             var title = jobj.GetValue("title")?.ToObject<string>();
             recipe.Title = string.IsNullOrWhiteSpace(title) ? null : title;
             var ingredients = ingToken as JArray;
@@ -1382,6 +1377,13 @@ namespace DiscordBot.MLAPI.Modules
                     return;
                 }
             }
+            if (recipe.Catalyst == null && recipe.Children.Count == 0)
+            {
+                RespondError(_err.Child("catalyst").EndRequired("Catalyst or child recipes is required"));
+                return;
+            }
+
+
             if (overwrite.HasValue)
             {
                 Service.DeleteRecipe(recipe.Id);
