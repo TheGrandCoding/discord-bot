@@ -41,4 +41,24 @@ namespace DiscordBot.Services
             File.WriteAllText(FullPath, content);
         }
     }
+
+    public abstract class SavedClassService<T> : SavedService where T : class
+    {
+        public T Data { get; protected set; }
+        public T ReadSave(params Newtonsoft.Json.JsonConverter[] conv)
+        {
+            var sv = base.ReadSave(typeof(IEnumerable<>).IsAssignableFrom(typeof(T)) ? "[]" : "{}");
+            return Program.Deserialise<T>(sv, conv);
+        }
+        public override void OnReady()
+        {
+            base.OnReady();
+            Data = ReadSave();
+        }
+        public override string GenerateSave()
+        {
+            return Program.Serialise(Data);
+        }
+    }
+
 }
