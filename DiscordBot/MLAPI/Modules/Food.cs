@@ -729,7 +729,13 @@ namespace DiscordBot.MLAPI.Modules
                     var row = new TableRow(id: $"day-{dayIndex}");
                     if(date.Year == DateTime.UtcNow.Year && date.DayOfYear == DateTime.UtcNow.DayOfYear)
                         row.ClassList.Add("today-row");
-                    row.WithCell($"{date.DayOfWeek} {date.Day}{Program.GetDaySuffix(date.Day)}");
+
+                    var dayTd = new TableData($"{date.DayOfWeek} {date.Day}{Program.GetDaySuffix(date.Day)}");
+                    var maninp = new Input("checkbox") { OnClick = $"togglemanual(event);" };
+                    if (day.ManualOverride) maninp.WithTag("checked", null);
+                    dayTd.Children.Add(maninp);
+
+                    row.Children.Add(dayTd);
 
                     if (day.Items.TryGetValue("*", out var ls))
                     {
@@ -1680,6 +1686,7 @@ namespace DiscordBot.MLAPI.Modules
                     {"*", new List<WorkingMenuItem>()}
                 };
             }
+            d.ManualOverride = true;
             Service.OnSave();
             RespondRaw("", 200);
         }
@@ -1713,8 +1720,18 @@ namespace DiscordBot.MLAPI.Modules
             }
 
             var toD = Service.WorkingMenu.Days[data.ToDay];
+            toD.ManualOverride = true;
 
             toD.Items.AddInner(data.ToGroup, item);
+            Service.OnSave();
+            RespondRaw("OK");
+        }
+
+        [Method("PATCH"), Path("/api/food/menu/manual")]
+        public void SetMenuDayManual(int day, bool manual)
+        {
+            var d = Service.WorkingMenu.Days[day];
+            d.ManualOverride = manual;
             Service.OnSave();
             RespondRaw("OK");
         }

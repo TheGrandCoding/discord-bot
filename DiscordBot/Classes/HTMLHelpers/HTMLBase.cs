@@ -35,8 +35,8 @@ namespace DiscordBot.Classes.HTMLHelpers
         public HTMLBase(string tag, string id, string cls)
         {
             Tag = tag;
-            tagValues["class"] = null;
-            Id = id;
+            if(id != null)
+                Id = id;
             Class = cls;
             Children = new List<HTMLBase>();
         }
@@ -54,10 +54,9 @@ namespace DiscordBot.Classes.HTMLHelpers
             {
                 var key = keypair.Key;
                 var val = keypair.Value;
-                if (val == "")
-                    sb.Append(" " + key);
-                else if (!string.IsNullOrWhiteSpace(val))
-                    sb.Append($" {key}=\"{val}\"");
+                sb.Append(" " + key);
+                if (!string.IsNullOrWhiteSpace(val))
+                    sb.Append($"=\"{val}\"");
             }
             if (IsShortTag)
                 sb.Append("/");
