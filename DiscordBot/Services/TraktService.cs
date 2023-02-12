@@ -16,7 +16,7 @@ using System.Threading.Tasks;
 
 namespace DiscordBot.Services
 {
-    public class TraktService : EncryptedService
+    public class TraktService : EncryptedService, BuiltIn.IRegisterable
     {
         public Dictionary<ulong, TraktUserSave> Users { get; set; } = new Dictionary<ulong, TraktUserSave>();
         public Dictionary<int, string> CachedShowNetworks { get; set; } = new Dictionary<int, string>();
@@ -338,6 +338,34 @@ namespace DiscordBot.Services
                     Error(ex, userId.ToString());
                     await Program.SendLogMessageAsync($"TraktService Send() error:\r\n```\r\n{ex}\r\n```");
                 }
+            }
+        }
+
+        public async Task<string> RegisterAsync(IMessageChannel channel, IUser user)
+        {
+            if (!(channel is ITextChannel txt))
+            {
+                return ":x: Channel must be a server text channel";
+            }
+            if (!Users.TryGetValue(user.Id, out var save))
+            {
+                return $":information_source: You must first authorize Trakt via the following link:\r\n<{OAuthUri}>";
+            }
+            save.Channel = txt;
+            OnSave();
+            return $"Success!\r\nThis channel will now receive messages every day for episodes airing that day.";
+        }
+
+        public Task<string> UnregisterAsync(IMessageChannel channel, IUser user)
+        {
+            if (Users.Remove(user.Id))
+            {
+                OnSave();
+                return Task.FromResult("You have been removed from our records.");
+            }
+            else
+            {
+                return Task.FromResult(":x: You were not in our records to begin with");
             }
         }
     }

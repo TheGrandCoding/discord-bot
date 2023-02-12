@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Net;
+using System.Net.Http;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace DiscordBot.Utils
 {
@@ -27,6 +29,14 @@ namespace DiscordBot.Utils
 
                 return e.Response;
             }
+        }
+
+        public async static Task ThrowWithContentIfError(this HttpResponseMessage response)
+        {
+            if (response.IsSuccessStatusCode)
+                return;
+            var content = await response.Content.ReadAsStringAsync();
+            throw new WebException($"{response.StatusCode} {response.ReasonPhrase}: {content}");
         }
     }
 }

@@ -126,11 +126,25 @@ namespace DiscordBot.Interactions.Modules
         public override async Task<AutocompletionResult> GenerateSuggestionsAsync(IInteractionContext context, IAutocompleteInteraction autocompleteInteraction, IParameterInfo parameter, IServiceProvider services)
         {
             var list = new List<AutocompleteResult>();
-            string text = autocompleteInteraction.Data.Current.Value as string;
+            var data = autocompleteInteraction.Data;
+            string text = data.Current.Value as string;
+
+            Func<Service, bool> precondition = x => true;
+            if(data.CommandName == "service")
+            {
+                if(data.Options.First().Name.Contains("register"))
+                {
+                    precondition = (srv) =>
+                    {
+                        return srv.GetType().IsAssignableTo(typeof(Services.BuiltIn.IRegisterable));
+                    };
+                }
+            }
+
 
             foreach (var srv in Service.GetServices())
             {
-                if (string.IsNullOrWhiteSpace(text) || srv.Name.Contains(text, StringComparison.OrdinalIgnoreCase))
+                if ((string.IsNullOrWhiteSpace(text) || srv.Name.Contains(text, StringComparison.OrdinalIgnoreCase)) && precondition(srv))
                     list.Add(new AutocompleteResult(srv.Name, srv.Name));
             }
             return AutocompletionResult.FromSuccess(list.Take(20));

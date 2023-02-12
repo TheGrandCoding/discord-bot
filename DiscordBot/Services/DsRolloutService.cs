@@ -21,7 +21,7 @@ using static DiscordBot.Utils.JsonUtils;
 namespace DiscordBot.Services
 {
     [Classes.Attributes.AlwaysSync]
-    public class DsRolloutService : SavedService
+    public class DsRolloutService : SavedService, BuiltIn.IRegisterable
     {
         public ConcurrentDictionary<string, Experiment> Experiments { get; set; } = new ConcurrentDictionary<string, Experiment>();
 
@@ -283,6 +283,36 @@ namespace DiscordBot.Services
                 }
             }
             return ls;
+        }
+
+        public async Task<string> RegisterAsync(IMessageChannel channel, IUser user)
+        {
+            if (!(channel is ITextChannel text)) return ":x: Must be used in a guild text channel";
+            Guilds[text.Guild.Id] = new DsRolloutService.GuildSave()
+            {
+                Channel = text,
+                Messages = new Dictionary<string, IUserMessage>()
+            };
+
+            foreach (var exp in Experiments.Values)
+            {
+                await sendMessageFor(exp, null);
+            }
+
+            OnSave();
+            return "Done";
+        }
+
+        public async Task<string> UnregisterAsync(IMessageChannel channel, IUser user)
+        {
+            if (!(channel is ITextChannel text)) return ":x: Must be used in a guild text channel";
+            if(Guilds.TryRemove(text.Guild.Id, out _))
+            {
+                return "Done.";
+            } else
+            {
+                return ":x: Guild was never registered to begin with.";
+            }
         }
     }
 

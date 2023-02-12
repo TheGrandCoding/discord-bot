@@ -17,13 +17,13 @@ namespace DiscordBot.Classes
         public static bool ForceDebug { get; set; } = false;
         private HttpClient http;
         protected static SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
-        public BotHttpClient(HttpClient client, string source = null, bool debug = false, 
+        public BotHttpClient(HttpClient client, string source = null, bool? debug = null, 
             IRateLimiter ratelimiter = null,
             bool storeCookies = false)
         {
             http = client;
             _source = source;
-            _debug = debug;
+            _debug = debug ?? Program.BOT_DEBUG;
             _ratelimiter = ratelimiter ?? new DefaultRateLimiter();
             _storeCookies = storeCookies;
         }

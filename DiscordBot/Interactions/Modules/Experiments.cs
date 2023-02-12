@@ -18,25 +18,6 @@ namespace DiscordBot.Interactions.Modules
     {
         public DsRolloutService Service { get; set; }
 
-        [SlashCommand("register", "Registers channel to notify changes")]
-        public async Task Register()
-        {
-            Service.Guilds[Context.Guild.Id] = new DsRolloutService.GuildSave()
-            {
-                Channel = Context.Channel as ITextChannel,
-                Messages = new Dictionary<string, IUserMessage>()
-            };
-
-            await DeferAsync(true);
-            foreach(var exp in Service.Experiments.Values)
-            {
-                await Service.sendMessageFor(exp, null);
-            }
-
-            Service.OnSave();
-            await FollowupAsync("Done", ephemeral: true);
-        }
-
         [SlashCommand("refresh", "Updates all experiment embeds across all guilds")]
         public async Task Refresh()
         {
