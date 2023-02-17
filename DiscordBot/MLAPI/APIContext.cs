@@ -113,7 +113,7 @@ namespace DiscordBot.MLAPI
                 {
                     if (Request.ContentType.StartsWith("multipart/form-data"))
                         parseMultipartForm();
-                    else if(!Request.ContentType.StartsWith("application/json")) //if (Request.ContentType.StartsWith("application/x-www-form-urlencoded"))
+                    else if(Request.ContentType.Contains("urlencoded")) //if (Request.ContentType.StartsWith("application/x-www-form-urlencoded"))
                         parseUrlEncode();
                 }
             }

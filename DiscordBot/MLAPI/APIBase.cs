@@ -60,6 +60,10 @@ namespace DiscordBot.MLAPI
             Context.HTTP.Response.StatusCode = code;
             Context.HTTP.Response.Close(bytes, true);
         }
+        public virtual void RespondRedirect(string url, string returnTo = null, int code = 302)
+        {
+            RespondRaw(LoadRedirectFile(url, returnTo), code);
+        }
 
         public virtual void RespondJson(Newtonsoft.Json.Linq.JToken json, int code = 200)
         {

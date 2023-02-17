@@ -530,5 +530,14 @@ namespace DiscordBot
         {
             return System.IO.Path.Combine(Path.GetTempPath(), filename);
         }
+
+        public static string GetSafePath(string pathstr)
+        {
+            foreach (var c in Path.GetInvalidFileNameChars())
+            {
+                pathstr = pathstr.Replace(c, '-');
+            }
+            return pathstr;
+        }
     }
 }

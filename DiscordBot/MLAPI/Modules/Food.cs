@@ -471,9 +471,7 @@ namespace DiscordBot.MLAPI.Modules
 
         Img getCatalystImg(string catalyst)
         {
-            var fName = catalyst.Replace(' ', '_');
-            foreach (var c in System.IO.Path.GetInvalidFileNameChars())
-                fName = fName.Replace(c, '_');
+            var fName = Program.GetSafePath(catalyst.Replace(' ', '_'));
             return new Img($"/_/img/cat_{fName}.png", cls: "catalyst")
                 .WithTag("title", catalyst)
                 .WithTag("alt", catalyst) as Img;

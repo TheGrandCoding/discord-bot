@@ -50,6 +50,10 @@
       "internal": "<string>",
       "tracker": {
         "webhook": "<string>"
+      },
+      "webhooks": {
+        "gh-flask": "<string>",
+        "gh-mlapibot": "<string>"
       }
     },
     "internal-bot": "<string>",
