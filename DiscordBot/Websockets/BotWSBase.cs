@@ -43,8 +43,8 @@ namespace DiscordBot.Websockets
             }
         }
 
-        private BotUser user;
-        public BotUser User { get
+        private BotDbUser user;
+        public BotDbUser User { get
             {
                 if (user != null)
                     return user;

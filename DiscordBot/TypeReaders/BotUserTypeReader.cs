@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace DiscordBot.TypeReaders
 {
-    public class BotUserTypeReader : BotTypeReader<BotUser>
+    public class BotDbUserTypeReader : BotTypeReader<BotDbUser>
     {
         public async override Task<TypeReaderResult> ReadAsync(ICommandContext context, string input, IServiceProvider services)
         {

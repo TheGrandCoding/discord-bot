@@ -19,7 +19,7 @@ namespace DiscordBot.MLAPI.Modules
             Service = Program.Services.GetRequiredService<PermissionsService>();
         }
 
-        (bool can, string err) canSetPermission(BotUser oper, BotUser target, NodeInfo node, NodeInfo requires)
+        (bool can, string err) canSetPermission(BotDbUser oper, BotDbUser target, NodeInfo node, NodeInfo requires)
         {
             if (oper == null)
                 return (false, "Operator is null");
@@ -30,7 +30,7 @@ namespace DiscordBot.MLAPI.Modules
             return (true, null);
         }
 
-        string buildHTML(BotUser user, FieldInfo field)
+        string buildHTML(BotDbUser user, FieldInfo field)
         {
             string node = (string)field.GetValue(null);
             var perm = Service.FindNode(node);
@@ -41,7 +41,7 @@ namespace DiscordBot.MLAPI.Modules
             return item + "</label><br/>";
         }
 
-        string buildHTML(BotUser user, Type type, int level)
+        string buildHTML(BotDbUser user, Type type, int level)
         {
             string html = $"<div class='level-{level}'>";
             html += $"<p>{type.Name}</p>";
@@ -57,13 +57,13 @@ namespace DiscordBot.MLAPI.Modules
             return html += "</div>";
         }
 
-        string buildHTML(BotUser user)
+        string buildHTML(BotDbUser user)
         {
             var type = typeof(DiscordBot.Perms);
             return buildHTML(user, type, 0);
         }
 
-        void permsFor(BotUser user)
+        void permsFor(BotDbUser user)
         {
             string p = buildHTML(user);
             ReplyFile("permissions.html", 200, new Replacements()

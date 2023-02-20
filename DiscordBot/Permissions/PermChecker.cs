@@ -1,6 +1,7 @@
 ﻿using DiscordBot.Classes;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace DiscordBot.Permissions
@@ -42,15 +43,15 @@ namespace DiscordBot.Permissions
             return false;
         }
 
-        public static bool UserHasPerm(BotUser user, NodeInfo seeking, out bool inheritsPerm)
+        public static bool UserHasPerm(BotDbUser user, NodeInfo seeking, out bool inheritsPerm)
         {
             inheritsPerm = false;
             if (user == null)
                 return false;
-            return new PermChecker(seeking, user.Permissions).Check(out inheritsPerm);
+            return new PermChecker(seeking, user.Permissions.Select(x => x.Node).ToList()).Check(out inheritsPerm);
         }
-        public static bool UserHasPerm(BotUser user, NodeInfo seeking) => UserHasPerm(user, seeking, out _);
-        public static bool HasPerm(Commands.BotCommandContext context, NodeInfo seeking) => UserHasPerm(context.BotUser, seeking);
+        public static bool UserHasPerm(BotDbUser user, NodeInfo seeking) => UserHasPerm(user, seeking, out _);
+        public static bool HasPerm(Commands.BotCommandContext context, NodeInfo seeking) => UserHasPerm(context.BotDbUser, seeking);
         public static bool HasPerm(MLAPI.APIContext context, NodeInfo seeking) => UserHasPerm(context.User, seeking);
     }
 }

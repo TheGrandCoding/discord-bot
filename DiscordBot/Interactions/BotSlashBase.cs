@@ -10,8 +10,8 @@ namespace DiscordBot.Interactions
 {
     public abstract class BotSlashBase : Discord.Interactions.InteractionModuleBase<SocketInteractionContext<SocketSlashCommand>>
     {
-        private BotUser _user;
-        public BotUser User
+        private BotDbUser _user;
+        public BotDbUser User
         {
             get
             {
@@ -24,8 +24,8 @@ namespace DiscordBot.Interactions
 
     public abstract class BotComponentBase : Discord.Interactions.InteractionModuleBase<SocketInteractionContext<SocketMessageComponent>>
     {
-        private BotUser _user;
-        public BotUser User
+        private BotDbUser _user;
+        public BotDbUser User
         {
             get
             {

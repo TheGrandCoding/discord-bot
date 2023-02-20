@@ -150,9 +150,9 @@ namespace DiscordBot.MLAPI
             return query;
         }
 
-        public AuthSession Session { get; set; }
+        public BotDbAuthSession Session { get; set; }
 
-        public AuthToken Token { get; set; }
+        public BotDbAuthToken Token { get; set; }
 
         public Guid Id { get; set; }
 
@@ -170,14 +170,14 @@ namespace DiscordBot.MLAPI
             Headers = dict.ToImmutableDictionary();
         }
 
-        public BotUser User { get; set; }
+        public BotDbUser User { get; set; }
     
         
         /// <summary>
         /// Generates a new session from this context
         /// </summary>
         /// <returns></returns>
-        public AuthSession GenerateNewSession(BotUser user, bool? forceApproved = null)
+        public BotDbAuthSession GenerateNewSession(BotDbUser user, bool? forceApproved = null)
         {
             return Handler.GenerateNewSession(user, IP, this.Request.UserAgent ?? "none", forceApproved).Result;
         }

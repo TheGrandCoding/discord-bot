@@ -133,8 +133,8 @@ namespace DiscordBot.MLAPI.Modules.UserModule
                         RespondRaw("You are unable to change their nickname", 403);
                         return;
                     }
-                    var botUser = guild.CurrentUser;
-                    if (botUser.Hierarchy < target.Hierarchy)
+                    var BotDbUser = guild.CurrentUser;
+                    if (BotDbUser.Hierarchy < target.Hierarchy)
                     {
                         RespondRaw("Bot is unable to modify that user (no perms)", 500);
                         return;

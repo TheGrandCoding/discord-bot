@@ -171,13 +171,13 @@ namespace DiscordBot.Commands.Modules.Legislation
                 return new BotResult($"You are already amending a bill, you must abandon or complete that Group first.");
             if (!Service.Laws.TryGetValue(name, out var act))
                 return new BotResult("Could not find a bill by that name");
-            var content = JsonConvert.SerializeObject(act, new BotUserConverter());
-            Act = JsonConvert.DeserializeObject<Act>(content, new BotUserConverter()); // easiest way to clone everything
+            var content = JsonConvert.SerializeObject(act, new BotDbUserConverter());
+            Act = JsonConvert.DeserializeObject<Act>(content, new BotDbUserConverter()); // easiest way to clone everything
             Act.PathName = $"amend-{name}-{Context.User.Id}";
             Group = new AmendmentGroup()
             {
-                Author = Context.BotUser,
-                Contributors = new BotUser[] { },
+                Author = Context.BotDbUser,
+                Contributors = new BotDbUser[] { },
                 Draft = true,
                 Id = Act.AmendmentReferences.Count + 1,
                 Date = DateTime.Now

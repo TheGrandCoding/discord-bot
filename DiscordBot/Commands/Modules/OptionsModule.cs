@@ -19,15 +19,15 @@ namespace DiscordBot.Commands.Modules
         [Description("Lists all options, current and default values.")]
         public async Task View()
         {
-            var properties = typeof(BotUserOptions).GetProperties().Where(x => x.CanWrite);
+            var properties = typeof(BotDbUserOptions).GetProperties().Where(x => x.CanWrite);
             EmbedBuilder builder = new EmbedBuilder();
-            var def = BotUserOptions.Default;
+            var def = BotDbUserOptions.Default;
             foreach (var property in properties.OrderBy(x => x.Name))
             {
                 var key = $"{Program.GetTypeName(property.PropertyType)} {property.Name}";
                 var defaultValue = property.GetValue(def);
                 var value = $"Default: `{defaultValue}`";
-                value += $"\r\nCurrent: `{property.GetValue(Context.BotUser.Options)}`";
+                value += $"\r\nCurrent: `{property.GetValue(Context.BotDbUser.Options)}`";
                 if (property.PropertyType.IsEnum)
                 {
                     value += "\r\n" + enumGetPermitted(property);
@@ -41,7 +41,7 @@ namespace DiscordBot.Commands.Modules
         [Description("Sets an option to a specific value")]
         public async Task<RuntimeResult> Set(string key, [Remainder]string value)
         {
-            var property = typeof(BotUserOptions).GetProperty(key);
+            var property = typeof(BotDbUserOptions).GetProperty(key);
             if(property == null)
             {
                 await ReplyAsync("Unknown property. Please see possible options below:");
@@ -65,22 +65,22 @@ namespace DiscordBot.Commands.Modules
         {
             if(property.PropertyType == typeof(string))
             {
-                property.SetValue(Context.BotUser.Options, value);
+                property.SetValue(Context.BotDbUser.Options, value);
             } else if (property.PropertyType == typeof(int))
             {
                 if (!int.TryParse(value, out var v))
                     return new BotResult("Value must be an integer.");
-                property.SetValue(Context.BotUser.Options, v);
+                property.SetValue(Context.BotDbUser.Options, v);
             } else if (property.PropertyType == typeof(bool))
             {
                 if (!bool.TryParse(value, out var b))
                     return new BotResult("Value must be a boolean");
-                property.SetValue(Context.BotUser.Options, b);
+                property.SetValue(Context.BotDbUser.Options, b);
             } else if (property.PropertyType.IsEnum)
             {
                 if (!Enum.TryParse(property.PropertyType, value, out var en))
                     return new BotResult("Enum value not allowed; " + enumGetPermitted(property));
-                property.SetValue(Context.BotUser.Options, en);
+                property.SetValue(Context.BotDbUser.Options, en);
             } else
             {
                 return new BotResult($"Unable to set values of type '{property.PropertyType.FullName}'.\r\n" +

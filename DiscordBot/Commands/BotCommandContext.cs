@@ -11,19 +11,19 @@ namespace DiscordBot.Commands
 {
     public class BotCommandContext : SocketCommandContext
     {
-        public BotUser BotUser { get; set; }
+        public BotDbUser BotDbUser { get; set; }
 
         public bool HasPerm(NodeInfo node)
         {
-            if (BotUser == null)
+            if (BotDbUser == null)
                 return false;
-            return PermChecker.UserHasPerm(BotUser, node);
+            return PermChecker.UserHasPerm(BotDbUser, node);
         }
 
         public BotCommandContext(DiscordSocketClient client, SocketUserMessage msg) : base(client, msg)
         {
             if (!(msg.Author.IsBot || msg.Author.IsWebhook))
-                BotUser = Program.CreateUser(msg.Author);
+                BotDbUser = BotDbContext.Get().GetUserFromDiscord(msg.Author, true).Result.Value;
         }
     }
 }

@@ -245,7 +245,7 @@ namespace DiscordBot.Services
             LogChnl(builder, SystemChannel);
         }
 
-        public string GetInvite(ChessPlayer player, Classes.BotUser usr)
+        public string GetInvite(ChessPlayer player, Classes.BotDbUser usr)
         {
             var usrInChess = Program.ChessGuild.GetUser(usr.Id);
             if (usrInChess != null)
@@ -370,8 +370,8 @@ namespace DiscordBot.Services
         public const int BuiltInClassRoomChess = -10;
         [Obsolete]
         public const int BuiltInAIChess = -15;
-        public BotUser BuiltInCoAUser;
-        public BotUser BuiltInClassUser;
+        public BotDbUser BuiltInCoAUser;
+        public BotDbUser BuiltInClassUser;
         public static ChessPlayer AIPlayer;
 
         public static long cast(ulong v)
@@ -401,7 +401,7 @@ namespace DiscordBot.Services
             BuiltInClassUser = Program.GetUserOrDefault(ChessClass);
             if (BuiltInClassUser == null)
             {
-                BuiltInClassUser = new Classes.BotUser(ChessClass);
+                BuiltInClassUser = new Classes.BotDbUser(ChessClass);
                 BuiltInClassUser.OverrideName = "Friday Lunch";
                 Program.Users.Add(BuiltInClassUser);
             }
@@ -427,7 +427,7 @@ namespace DiscordBot.Services
             BuiltInCoAUser = Program.GetUserOrDefault(ChessCoA);
             if (BuiltInCoAUser == null)
             {
-                BuiltInCoAUser = new Classes.BotUser(ChessCoA);
+                BuiltInCoAUser = new Classes.BotDbUser(ChessCoA);
                 BuiltInCoAUser.OverrideName = "Court of Appeals";
                 Program.Users.Add(BuiltInCoAUser);
             }
@@ -460,7 +460,7 @@ namespace DiscordBot.Services
             var aiuser = Program.GetUserOrDefault(ChessAI);
             if (aiuser == null)
             {
-                aiuser = new BotUser(ChessAI);
+                aiuser = new BotDbUser(ChessAI);
                 aiuser.OverrideName = "AI Player";
                 Program.Users.Add(aiuser);
             }

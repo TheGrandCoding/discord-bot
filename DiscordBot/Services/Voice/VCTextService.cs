@@ -74,7 +74,7 @@ namespace DiscordBot.Services
             }
         }
 
-        bool hasEnabledPairing(SocketGuildUser user, bool muted, BotUser bUser = null)
+        bool hasEnabledPairing(SocketGuildUser user, bool muted, BotDbUser bUser = null)
         {
             bUser ??= Program.CreateUser(user);
             if (bUser.Options.PairedVoiceChannels == CreateChannelForVoice.Never)

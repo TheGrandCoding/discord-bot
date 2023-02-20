@@ -137,7 +137,7 @@ namespace DiscordBot.Utils
             return UserInfo;
         }
 
-        public async Task<HttpResponseMessage> JoinToServer(IGuild guild, Classes.BotUser user = null)
+        public async Task<HttpResponseMessage> JoinToServer(IGuild guild, Classes.BotDbUser user = null)
         {
             if (!Scope.Contains("guilds.join"))
                 throw new InvalidOperationException("Joining guilds was not among the scopes requested.");

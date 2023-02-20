@@ -38,7 +38,7 @@ namespace DiscordBot.Services
             Program.Client.GuildMemberUpdated += Client_GuildMemberUpdated;
         }
 
-        void perform(BotUser user, ulong id, string e, ulong? criteria)
+        void perform(BotDbUser user, ulong id, string e, ulong? criteria)
         {
             if(Situations.TryGetValue(id, out var actions) && actions.TryGetValue(e, out var sit))
             {

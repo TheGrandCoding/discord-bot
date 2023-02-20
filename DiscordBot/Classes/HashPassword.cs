@@ -52,5 +52,35 @@ namespace DiscordBot.Classes
             pbkdf2.IterationCount = iterations;
             return pbkdf2.GetBytes(outputBytes);
         }
+
+
+        public static string RandomToken(int length)
+        {
+            string token = "";
+            while (token.Length < length)
+            {
+                int bottleFlip = Program.RND.Next(0, 3);
+                // 0 = number (0-9)
+                // 1 = upper (A-Z)
+                // 2 = lower (a-z)
+                if (bottleFlip == 0)
+                {
+                    token += Program.RND.Next(0, 10).ToString();
+                }
+                else if (bottleFlip == 1)
+                {
+                    int id = Program.RND.Next(65, 91);
+                    char chr = Convert.ToChar(id);
+                    token += chr.ToString();
+                }
+                else
+                {
+                    int id = Program.RND.Next(97, 123);
+                    char chr = Convert.ToChar(id);
+                    token += chr.ToString();
+                }
+            }
+            return token;
+        }
     }
 }

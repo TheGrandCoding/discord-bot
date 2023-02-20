@@ -34,7 +34,7 @@ namespace DiscordBot.Services
 
         public void SaveAct(Act act)
         {
-            var content = JsonConvert.SerializeObject(act, new BotUserConverter());
+            var content = JsonConvert.SerializeObject(act, new BotDbUserConverter());
             var path = GetActPath(act.PathName);
             var fileInfo = new FileInfo(path);
             if (fileInfo.Directory.Exists == false)
@@ -121,7 +121,7 @@ namespace DiscordBot.Services
             {
                 var fileInfo = new FileInfo(fileName);
                 var content = File.ReadAllText(fileInfo.FullName);
-                var act = JsonConvert.DeserializeObject<Act>(content, new BotUserConverter());
+                var act = JsonConvert.DeserializeObject<Act>(content, new BotDbUserConverter());
                 if(act.Draft == false && act.EnactedDate.HasValue == false)
                     act.EnactedDate = DateTime.Now;
                 act.Register(null);

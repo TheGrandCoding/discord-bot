@@ -61,20 +61,21 @@ namespace DiscordBot.Commands.Modules
         [Command("approve")]
         [Description("Approves a user for wider access to bot things")]
         [RequirePermission(Perms.Bot.ApproveUser)]
-        public async Task Approve(BotUser b)
+        public async Task Approve(BotDbUser b)
         {
-            b.IsApproved = true;
-            b.Permissions.Add(Perm.Parse(Perms.Bot.User.All));
+            b.Approved = true;
+            b.WithPerm(Perm.Parse(Perms.Bot.User.All));
+            Program.Save();
             await ReplyAsync("User has been approved.");
         }
 
         [Command("disapprove")]
         [Description("Disapproves a user for wider access to bot things")]
         [RequirePermission(Perms.Bot.ApproveUser)]
-        public async Task Disapprove(BotUser b)
+        public async Task Disapprove(BotDbUser b)
         {
-            b.IsApproved = false;
-            b.Permissions = new List<Perm>();
+            b.Approved = false;
+            b.Permissions = new List<BotDbPermission>();
             await ReplyAsync("User has been disapproved.");
         }
 
@@ -125,8 +126,7 @@ namespace DiscordBot.Commands.Modules
         [Summary("Views your own override name")]
         public async Task BotName()
         {
-            var bUser = Program.CreateUser(Context.User);
-            await ReplyAsync($"{(bUser.OverrideName == null ? "<null>" : bUser.OverrideName)}");
+            await ReplyAsync($"{(Context.BotDbUser.Name == null ? "<null>" : Context.BotDbUser.Name)}");
         }
 
         List<char> findIllegalChars(string name)
@@ -166,8 +166,8 @@ namespace DiscordBot.Commands.Modules
             var s = checkName(newName);
             if (!s.IsSuccess)
                 return s;
-            var bUser = Program.CreateUser(Context.User);
-            bUser.OverrideName = newName;
+            Context.BotDbUser.Name = newName;
+            Program.Save();
             await ReplyAsync(":ballot_box_with_check: Done");
             return new BotResult();
         }
@@ -175,20 +175,21 @@ namespace DiscordBot.Commands.Modules
         [Command("name")]
         [Summary("View someone else's name")]
         [RequirePermission(Perms.Bot.User.ViewOtherName)]
-        public async Task SeeOtherName(BotUser bUser)
+        public async Task SeeOtherName(BotDbUser bUser)
         {
-            await ReplyAsync($"{(bUser.OverrideName == null ? "<null>" : bUser.OverrideName)}");
+            await ReplyAsync($"{(bUser.Name == null ? "<null>" : bUser.Name)}");
         }
 
         [Command("name")]
         [Summary("Sets someone else's name")]
         [RequirePermission(Perms.Bot.User.ChangeOtherName)]
-        public async Task<RuntimeResult> ChangeOtherName(BotUser bUser, string newName)
+        public async Task<RuntimeResult> ChangeOtherName(BotDbUser bUser, string newName)
         {
             var s = checkName(newName);
             if (!s.IsSuccess)
                 return s;
-            bUser.OverrideName = newName;
+            bUser.Name = newName;
+            Program.Save();
             await ReplyAsync(":ballot_box_with_check: Done");
             return new BotResult();
         }
@@ -257,10 +258,9 @@ namespace DiscordBot.Commands.Modules
         [Command("verify")]
         [Summary("Verifies the specified user in the eyes of the bot")]
         [RequireOwner]
-        public async Task VerifyUser(BotUser busr, string email = null)
+        public async Task VerifyUser(BotDbUser busr)
         {
-            busr.VerifiedEmail = $"{busr.Id}@bot.test";
-            busr.IsVerified = true;
+            busr.Verified = true;
             Program.Save();
         }
 
@@ -269,12 +269,9 @@ namespace DiscordBot.Commands.Modules
         public async Task ListVerified(bool state = true)
         {
             var str = "Users " + (state ? "verified" : "not verified");
-            foreach(var usr in Program.Users)
+            foreach(var usr in BotDbContext.Get().Users.Where(x => x.Verified == state))
             {
-                if(usr.IsVerified == state)
-                {
-                    str += $"\r\n- {usr.Mention} ({usr.Name})";
-                }
+                str += $"\r\n- {usr.Connections.Discord.Mention} ({usr.Name})";
             }
             await ReplyAsync(str, allowedMentions: new AllowedMentions(AllowedMentionTypes.None));
         }

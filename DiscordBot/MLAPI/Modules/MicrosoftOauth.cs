@@ -22,7 +22,7 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         public static string getUrl(IUser user, Action<MSScopeOptions> action = null) => getUrl(user.Id, action);
-        public static string getUrl(BotUser user, Action<MSScopeOptions> action = null) => getUrl(user.Id, action);
+        public static string getUrl(BotDbUser user, Action<MSScopeOptions> action = null) => getUrl(user.Id, action);
         public static string getUrl(ulong id, Action<MSScopeOptions> action = null)
         {
             var msScope = new MSScopeOptions();

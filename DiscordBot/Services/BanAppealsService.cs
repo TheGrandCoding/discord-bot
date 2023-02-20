@@ -30,7 +30,7 @@ namespace DiscordBot.Services
         {
             return GetAllAppeals(guild).Appeals.GetValueOrDefault(user);
         }
-        public async Task<BanAppeal> CreateAppeal(IGuild guild, BotUser user)
+        public async Task<BanAppeal> CreateAppeal(IGuild guild, BotDbUser user)
         {
             var existing = GetAppeal(guild, user.Id);
             if (existing != null)

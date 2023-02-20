@@ -545,13 +545,11 @@ Changed how permissions worked for bot.
         }
 
 #region Save Info
-        public static ConcurrentBag<BotUser> Users { get; set; }
         public static uint CommandVersions { get; set; } = 0;
         public const string saveName = "new_bot_save.json";
 
         class BotSave
         {
-            public List<BotUser> users;
             public Dictionary<string, int> states;
             [JsonProperty(DefaultValueHandling = DefaultValueHandling.IgnoreAndPopulate)]
             [DefaultValue(0)]
@@ -571,7 +569,6 @@ Changed how permissions worked for bot.
                 content = "{}";
             }
             var save = JsonConvert.DeserializeObject<BotSave>(content);
-            Users = new ConcurrentBag<BotUser>(save.users ?? new List<BotUser>());
             states = save.states ?? new Dictionary<string, int>();
             CommandVersions = save.commandVersion ?? 0;
         }
@@ -580,12 +577,18 @@ Changed how permissions worked for bot.
         {
             var bSave = new BotSave()
             {
-                users = Users.ToList(),
                 states = states,
                 commandVersion = CommandVersions
             };
             var str = JsonConvert.SerializeObject(bSave);
             File.WriteAllText(Path.Combine(BASE_PATH, "Saves", saveName), str);
+            try
+            {
+                BotDbContext.Get().SaveChanges();
+            } catch(Exception ex)
+            {
+                LogError(ex, "Save");
+            }
             if(saveServices)
             {
                 Service.SendSave();
@@ -618,15 +621,16 @@ Changed how permissions worked for bot.
             }
             try
             {
-                var owner = Client.GetApplicationInfoAsync().Result.Owner.Id;
-                var bUser = GetUserOrDefault(owner);
+                var owner = Client.GetApplicationInfoAsync().Result.Owner;
+                var db = BotDbContext.Get();
+                var bUser = db.GetUserFromDiscord(owner, true).Result.Value;
                 if(bUser != null)
                 {
                     var perm = Perm.Parse(Perms.Bot.All);
                     if(!PermChecker.UserHasPerm(bUser, perm))
                     {
-                        bUser.Permissions.Add(perm);
-                        Program.Save();
+                        bUser.Permissions.Add(new BotDbPermission() { User = bUser, UserId = bUser.Id, Node = perm });
+                        db.SaveChanges();
                     }
                 }
             } catch (Exception ex)

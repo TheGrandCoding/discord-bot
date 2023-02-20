@@ -43,12 +43,13 @@ namespace DiscordBot.Commands.Modules
             await PagedReplyAsync(paginator);
         }
 
-        async Task printListFor(BotUser u)
+        async Task printListFor(BotDbUser u)
         {
             var paginator = new StaticPaginatorBuilder();
             var cPage = new PageBuilder();
-            foreach (var perm in u.Permissions)
+            foreach (var botperm in u.Permissions)
             {
+                var perm = botperm.Node;
                 string sep = perm.Type == PermType.Allow ? "**" : perm.Type == PermType.Deny ? "~~" : "";
                 var s = $"`{perm.RawNode}` {sep}{perm.Description}{sep}\r\n";
                 if ((cPage.Text.Length + s.Length) > 1024)
@@ -64,7 +65,7 @@ namespace DiscordBot.Commands.Modules
             await PagedReplyAsync(paginator);
         }
 
-        async Task printActualFor(BotUser u)
+        async Task printActualFor(BotDbUser u)
         {
             var paginator = new StaticPaginatorBuilder();
             var cPage = new PageBuilder();
@@ -92,9 +93,9 @@ namespace DiscordBot.Commands.Modules
             await PagedReplyAsync(paginator);
         }
 
-        async Task doCheckFor(BotUser u, NodeInfo node)
+        async Task doCheckFor(BotDbUser u, NodeInfo node)
         {
-            var given = PermChecker.UserHasPerm(Context.BotUser, node, out var b);
+            var given = PermChecker.UserHasPerm(Context.BotDbUser, node, out var b);
             if (given)
             {
                 await ReplyAsync($":ballot_box_with_check: {(u.Id == Context.User.Id ? "You have" : $"{u.Name} has")} that node {(b ? "via a wildcard" : "directly")}");
@@ -109,14 +110,14 @@ namespace DiscordBot.Commands.Modules
         [Summary("View your own permissions")]
         public async Task ViewOwn()
         {
-            await printListFor(Context.BotUser);
+            await printListFor(Context.BotDbUser);
         }
 
         [Command("view")]
         [Alias("viewo")]
         [Summary("View someone else's permissions")]
         [RequirePermission(Perms.Bot.Developer.ViewPermissions)]
-        public async Task ViewOther(BotUser u) => await printListFor(u);
+        public async Task ViewOther(BotDbUser u) => await printListFor(u);
 
         [Command("whohas")]
         [Summary("Lists who has the given permission")]
@@ -143,26 +144,26 @@ namespace DiscordBot.Commands.Modules
         [Summary("View your effective permissions")]
         public async Task ViewEffectiveOwn()
         {
-            await printActualFor(Context.BotUser);
+            await printActualFor(Context.BotDbUser);
         }
 
         [Command("effective")]
         [Alias("effectiveo")]
         [Summary("View someone else's effective permissions")]
         [RequirePermission(Perms.Bot.Developer.ViewPermissions)]
-        public async Task ViewEffectiveOther(BotUser u) => await printActualFor(u);
+        public async Task ViewEffectiveOther(BotDbUser u) => await printActualFor(u);
 
         [Command("check"), Alias("test")]
         [Summary("Checks whether you have the provided node")]
         public async Task Test(string nodeText)
         {
-            await doCheckFor(Context.BotUser, nodeText);
+            await doCheckFor(Context.BotDbUser, nodeText);
         }
 
         [Command("check"), Alias("test", "checko", "testo")]
         [Summary("Checks whether another user has the provided node")]
         [RequirePermission(Perms.Bot.Developer.ViewPermissions)]
-        public async Task Test(BotUser user, string nodeText)
+        public async Task Test(BotDbUser user, string nodeText)
         {
             await doCheckFor(user, nodeText);
         }
@@ -170,7 +171,7 @@ namespace DiscordBot.Commands.Modules
         [Command("grant")]
         [Summary("Gives or revokes the permission to or from the user")]
         [RequirePermission(Perms.Bot.All)]
-        public async Task<RuntimeResult> GrantPerm(BotUser user, string nodeText)
+        public async Task<RuntimeResult> GrantPerm(BotDbUser user, string nodeText)
         {
             var node = (NodeInfo)nodeText;
             if (!Context.HasPerm(node))
@@ -192,7 +193,7 @@ namespace DiscordBot.Commands.Modules
         [Command("deny")]
         [Summary("Toggles denial of the permission")]
         [RequirePermission(Perms.Bot.All)]
-        public async Task<RuntimeResult> DenyPerm(BotUser user, string nodeText)
+        public async Task<RuntimeResult> DenyPerm(BotDbUser user, string nodeText)
         {
             var node = (NodeInfo)nodeText;
             if (!Context.HasPerm(node))
@@ -212,7 +213,7 @@ namespace DiscordBot.Commands.Modules
         [Command("allow")]
         [Summary("Toggles allowal of the permission")]
         [RequirePermission(Perms.Bot.All)]
-        public async Task<RuntimeResult> AllowPerm(BotUser user, string nodeText)
+        public async Task<RuntimeResult> AllowPerm(BotDbUser user, string nodeText)
         {
             var node = (NodeInfo)nodeText;
             if (!Context.HasPerm(node))

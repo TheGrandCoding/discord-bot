@@ -6,13 +6,13 @@ using System.Text;
 
 namespace DiscordBot.Classes
 {
-    public class BotUserOptions
+    public class BotDbUserOptions
     {
         [JsonConstructor]
-        private BotUserOptions() { }
-        public static BotUserOptions Default { get
+        private BotDbUserOptions() { }
+        public static BotDbUserOptions Default { get
             {
-                return new BotUserOptions()
+                return new BotDbUserOptions()
                 {
                     PairedVoiceChannels = CreateChannelForVoice.WhenMuted
                 };

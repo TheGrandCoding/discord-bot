@@ -126,44 +126,6 @@ namespace DiscordBot.MLAPI
                 Program.LogDebug($"Loaded {keypair.Value.Count} {keypair.Key} endpoints", "API");
         }
 
-        public static bool findSession(string t, out BotUser user, out AuthSession session)
-        {
-            session = null;
-            user = null;
-            foreach(var u in Program.Users)
-            {
-                foreach(var a in u.Sessions)
-                {
-                    if(a.Token == t)
-                    {
-                        user = u;
-                        session = a;
-                        return true;
-                    }
-                }
-            }
-            return false;
-        }
-
-        public static bool findToken(string t, out BotUser user, out AuthToken token)
-        {
-            token = null;
-            user = null;
-            foreach (var u in Program.Users)
-            {
-                foreach (var a in u.Tokens)
-                {
-                    if (a.Value == t)
-                    {
-                        user = u;
-                        token = a;
-                        return true;
-                    }
-                }
-            }
-            return false;
-        }
-
         static string getAnyValue(HttpListenerContext request, string key, out Cookie cookie)
         {
             string strToken = null;
@@ -177,24 +139,27 @@ namespace DiscordBot.MLAPI
         static APIContext parseContext(HttpListenerContext request)
         {
             APIContext context = new APIContext(request);
-            string strToken = getAnyValue(request, AuthSession.CookieName, out var cookie);
+            string strToken = getAnyValue(request, BotDbAuthSession.CookieName, out var cookie);
 
-            if (findSession(strToken, out var user, out var s))
+            var db = BotDbContext.Get();
+            var session = db.GetSessionAsync(strToken).Result;
+            if (session != null)
             {
-                context.User = user;
-                context.Session = s;
+                context.User = session.User;
+                context.Session = session;
                 if(cookie == null)
-                    request.Response.AppendCookie(new Cookie(AuthSession.CookieName, strToken)
+                    request.Response.AppendCookie(new Cookie(BotDbAuthSession.CookieName, strToken)
                     {
                         Expires = DateTime.Now.AddHours(3)
                     });
             } else
             {
                 strToken = getAnyValue(request, "api-key", out cookie);
-                if(findToken(strToken, out user, out var t))
+                var autht = db.GetTokenAsync(strToken).Result;
+                if(autht != null)
                 {
-                    context.User = user;
-                    context.Token = t;
+                    context.User = autht.User;
+                    context.Token = autht;
                 }
             }
 
@@ -204,28 +169,33 @@ namespace DiscordBot.MLAPI
 
         public struct holdInfo
         {
-            public AuthSession s;
+            public BotDbAuthSession s;
             public string ip;
         }
         public static ConcurrentDictionary<ulong, holdInfo> holding = new ConcurrentDictionary<ulong, holdInfo>();
 
-        public static EmbedBuilder getBuilder(AuthSession s, bool redactIp)
+        public static EmbedBuilder getBuilder(BotDbAuthSession s, bool redactIp)
         {
             var embed = new EmbedBuilder();
             embed.Title = "New IP Detected";
             embed.Description = "A login has been attempted by an unknown IP address to the MLAPI website through your account.\r\n" +
                 "Please approve the login below.";
-            embed.AddField("IP", redactIp ? "||<redacted>||" : s.IpAddress, true);
+            embed.AddField("IP", redactIp ? "||<redacted>||" : s.IP, true);
             embed.AddField("User-Agent", s.UserAgent, true);
             return embed;
         }
-        public static async Task<AuthSession> GenerateNewSession(BotUser user, string ip, string userAgent, bool? forceApproved = null)
+        public static async Task<BotDbAuthSession> GenerateNewSession(BotDbUser user, string ip, string userAgent, bool? forceApproved = null)
         {
-            var s = new AuthSession(ip, userAgent, forceApproved ?? (user?.ApprovedIPs ?? new List<string>()).Contains(ip));
-            if (ip == "localhost" || ip == "127.0.0.1" || ip == "::1" || Program.BOT_DEBUG)
-                s.Approved = true;
-            user.Sessions.Add(s);
-            Program.Save();
+            if(forceApproved.HasValue == false)
+            {
+                forceApproved = ip == "localhost" || 
+                                ip == "127.0.0.1" || 
+                                ip == "::1" || 
+                                Program.BOT_DEBUG || 
+                                user.ApprovedIPs.Any(x => x.IP == ip);
+            }
+            var db = Program.Services.GetRequiredService<BotDbContext>();
+            var s = await db.GenerateNewSession(user, ip, userAgent, forceApproved);
             if (s.Approved)
                 return s;
 
@@ -237,7 +207,7 @@ namespace DiscordBot.MLAPI
             components.WithButton("Approve", $"internal:app:{user.Id}:true", ButtonStyle.Success);
             components.WithButton("Deny", $"internal:app:{user.Id}:false", ButtonStyle.Danger);
             holding[user.Id] = new holdInfo() { s = s, ip = ip };
-            await user.FirstValidUser.SendMessageAsync(embed: embed.Build(), components: components.Build());
+            await user.Connections.Discord.SendMessageAsync(embed: embed.Build(), components: components.Build());
 
             return s;
         }
@@ -392,6 +362,7 @@ namespace DiscordBot.MLAPI
                 string current = context.Request.Url.PathAndQuery;
                 if (context.User != null)
                     context.User.RedirectUrl = current;
+                BotDbContext.Get().SaveChanges();
                 context.HTTP.Response.AppendCookie(new Cookie("redirect", current)
                 {
                     Expires = DateTime.Now.AddDays(1),

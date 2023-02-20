@@ -21,7 +21,7 @@ namespace DiscordBot.Commands.Modules.MLAPI
         [Summary("Sets your MLAPI password.")]
         public async Task SetPassword()
         {
-            Context.BotUser.MLAPIPassword = null;
+            Context.BotDbUser.MLAPIPassword = null;
             await ReplyAsync(embed: new EmbedBuilder()
                 .WithDescription($"Please [click here]({Handler.LocalAPIUrl}/login/discord) to set your password")
                 .Build());

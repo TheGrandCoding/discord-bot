@@ -43,20 +43,16 @@ namespace DiscordBot.MLAPI.Modules
             var thing = Program.Configuration["tokens:padlock"];
             if(thing == code.ToString())
             {
-                var bUser = Program.GetUserOrDefault(666);
-                if(bUser == null)
+                var webu = new WebUser()
                 {
-                    new BotUser(new WebUser()
-                    {
-                        Username = "Teacher",
-                        Discriminator = 1,
-                        Id = 666
-                    });
-                    Program.Users.Add(bUser);
-                }
-
+                    Username = "Teacher",
+                    Discriminator = 1,
+                    Id = 666
+                };
+                var db = BotDbContext.Get();
+                var bUser = db.GetUserFromDiscord(webu, true).Result.Value;
                 var session = Context.GenerateNewSession(bUser, true);
-                Context.HTTP.Response.AppendCookie(new Cookie(AuthSession.CookieName, session.Token, "/")
+                Context.HTTP.Response.AppendCookie(new Cookie(BotDbAuthSession.CookieName, session.Token, "/")
                 {
                     Expires = DateTime.Now.AddDays(3)
                 });
