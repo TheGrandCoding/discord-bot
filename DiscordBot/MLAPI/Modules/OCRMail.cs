@@ -129,7 +129,7 @@ namespace DiscordBot.MLAPI.Modules
         {
             var path = Path.Combine(BaseDir.FullName, rec, send, date);
             var data = new List<string>();
-            foreach(var file in Directory.EnumerateFiles(path))
+            foreach(var file in Directory.EnumerateFiles(path).OrderBy(x => x))
             {
                 var info = new FileInfo(file);
                 if (info.Name.EndsWith(".txt")) continue;
