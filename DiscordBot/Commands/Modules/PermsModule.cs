@@ -185,7 +185,7 @@ namespace DiscordBot.Commands.Modules
                     return new BotResult();
                 }
             }
-            user.Permissions.Add(new BotDbPermission(user, new Perm(node, PermType.Grant)));
+            user.WithPerm(new Perm(node, PermType.Grant));
             await printListFor(user);
             return new BotResult();
         }

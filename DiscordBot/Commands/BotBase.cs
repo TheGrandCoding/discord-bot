@@ -48,7 +48,9 @@ namespace DiscordBot.Commands
         {
             base.AfterExecute(command);
             if (_db != null)
+            {
                 _db.SaveChanges();
+            }
         }
 
         public async Task<RuntimeResult> Success(string message = null, bool isTTS = false, Embed embed = null)

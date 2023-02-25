@@ -178,6 +178,14 @@ namespace DiscordBot.MLAPI
                 return _db ??= BotDbContext.Get();
             }
         }
+        public void DisposeDB()
+        {
+            if(_db != null)
+            {
+                _db.SaveChanges();
+                _db.Dispose();
+            }
+        }
         public BotDbUser User { get; set; }
 
 
@@ -185,9 +193,9 @@ namespace DiscordBot.MLAPI
         /// Generates a new session from this context
         /// </summary>
         /// <returns></returns>
-        public BotDbAuthSession GenerateNewSession(BotDbUser user, bool? forceApproved = null)
+        public BotDbAuthSession GenerateNewSession(BotDbUser user, bool? forceApproved = null, bool logoutOthers = false)
         {
-            return Handler.GenerateNewSession(user, IP, this.Request.UserAgent ?? "none", forceApproved).Result;
+            return Handler.GenerateNewSession(user, IP, this.Request.UserAgent ?? "none", BotDB, forceApproved, logoutOthers).Result;
         }
     
     }

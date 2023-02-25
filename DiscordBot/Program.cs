@@ -512,6 +512,7 @@ Changed how permissions worked for bot.
                     new MariaDbServerVersion(new Version(10, 3, 25)));
 #endif
             }, ServiceLifetime.Transient);
+            coll.AddDbContext<BotDbContext>(ServiceLifetime.Transient);
 
             var yClient = new Google.Apis.YouTube.v3.YouTubeService(new Google.Apis.Services.BaseClientService.Initializer()
             {
@@ -619,23 +620,28 @@ Changed how permissions worked for bot.
                 Environment.Exit(1);
                 return;
             }
+            var db = BotDbContext.Get();
             try
             {
                 var owner = Client.GetApplicationInfoAsync().Result.Owner;
-                var db = BotDbContext.Get();
                 var bUser = db.GetUserFromDiscord(owner, true).Result.Value;
                 if(bUser != null)
                 {
+                    bUser.Approved = true;
+                    bUser.Verified = true;
                     var perm = Perm.Parse(Perms.Bot.All);
                     if(!PermChecker.UserHasPerm(bUser, perm))
                     {
-                        bUser.Permissions.Add(new BotDbPermission() { User = bUser, UserId = bUser.Id, PermNode = perm });
-                        db.SaveChanges();
+                        bUser.WithPerm(perm);
                     }
+                    db.SaveChanges();
                 }
             } catch (Exception ex)
             {
                 LogError(ex, "SetOwnerDev");
+            } finally
+            {
+                db.Dispose();
             }
             Service.SendLoad();
             try

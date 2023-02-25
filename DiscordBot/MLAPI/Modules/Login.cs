@@ -29,8 +29,7 @@ namespace DiscordBot.MLAPI.Modules
             var userInfo = oauth.GetUserInformation().Result;
             try
             {
-                var db = BotDbContext.Get();
-                var result = db.GetUserFromDiscord(userInfo, true).Result;
+                var result = Context.BotDB.GetUserFromDiscord(userInfo, true).Result;
                 if(!result.Success)
                 {
                     RespondRaw($"Faield: {result.ErrorMessage}", 500);
@@ -149,10 +148,10 @@ namespace DiscordBot.MLAPI.Modules
             }
         }
 
-        public static void SetLoginSession(APIContext context, BotDbUser user)
+        public static void SetLoginSession(APIContext context, BotDbUser user, bool purgeOtherSessions = false)
         {
             // password valid, we need to log them in.
-            var session = context.GenerateNewSession(user);
+            var session = context.GenerateNewSession(user, logoutOthers: purgeOtherSessions);
             // to prevent logging out any other devices, we'll maintain the same token value.
             context.HTTP.Response.Cookies.Add(new Cookie(BotDbAuthSession.CookieName, session.Token, "/")
             {
@@ -240,8 +239,8 @@ namespace DiscordBot.MLAPI.Modules
                 RespondRaw($"Password is known to be compromised; it cannot be used.", 400);
                 return;
             }
-            Context.User.Connections.PasswordHash = pwd;
-            SetLoginSession(Context, Context.User);
+            Context.User.Connections.PasswordHash = PasswordHash.HashPassword(pwd);
+            SetLoginSession(Context, Context.User, true);
             RespondRedirect(Context.User.RedirectUrl ?? "/");
         }
     

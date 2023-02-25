@@ -97,7 +97,7 @@ namespace DiscordBot.Services
                 save.Fails[responsible.Id] = save.Fails.GetValueOrDefault(responsible.Id, 0) + 1;
             bUser.Approved = true; // prevent them being locked from verifing
             var url = new UrlBuilder(Handler.LocalAPIUrl + "/verify");
-            var session = await Handler.GenerateNewSession(bUser, null, null, true);
+            var session = await Handler.GenerateNewSession(bUser, null, null, db, true);
             url.Add(BotDbAuthSession.CookieName, session.Token);
         }
 

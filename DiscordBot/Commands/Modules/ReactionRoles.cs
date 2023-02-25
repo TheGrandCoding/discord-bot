@@ -146,7 +146,7 @@ namespace DiscordBot.Commands.Modules
                 await ReplyAsync("Unblocked");
             } else
             {
-                bUser.Permissions.Add(new BotDbPermission(bUser, perm));
+                bUser.WithPerm(perm);
                 await ReplyAsync("Blocked.");
             }
         }

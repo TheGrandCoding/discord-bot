@@ -183,7 +183,7 @@ namespace DiscordBot.MLAPI
             embed.AddField("User-Agent", s.UserAgent, true);
             return embed;
         }
-        public static async Task<BotDbAuthSession> GenerateNewSession(BotDbUser user, string ip, string userAgent, bool? forceApproved = null)
+        public static async Task<BotDbAuthSession> GenerateNewSession(BotDbUser user, string ip, string userAgent, BotDbContext db, bool? forceApproved = null, bool logoutOthers = false)
         {
             if(forceApproved.HasValue == false)
             {
@@ -193,8 +193,7 @@ namespace DiscordBot.MLAPI
                                 Program.BOT_DEBUG || 
                                 user.ApprovedIPs.Any(x => x.IP == ip);
             }
-            var db = Program.Services.GetRequiredService<BotDbContext>();
-            var s = await db.GenerateNewSession(user, ip, userAgent, forceApproved);
+            var s = await db.GenerateNewSession(user, ip, userAgent, logoutOthers, forceApproved);
             if (s.Approved)
                 return s;
 
@@ -497,7 +496,7 @@ namespace DiscordBot.MLAPI
                 {
                     Program.LogError(ex, "AfterExHandler");
                 }
-                commandBase.Context.BotDB.SaveChanges();
+                commandBase.Context.DisposeDB();
             }
             Console.WriteLine($"{context.Id}: Returned {commandBase.StatusSent}");
         }

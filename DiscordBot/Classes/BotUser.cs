@@ -4,15 +4,28 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace DiscordBot.Classes
 {
     public class BotDbContext : DbContext
     {
+        static int _id = 0;
+        static int _disposed = 0;
+        int Id = 0;
         public static BotDbContext Get()
         {
-            return Program.Services.GetRequiredService<BotDbContext>();
+            var d = Program.Services.GetRequiredService<BotDbContext>();
+            d.Id = System.Threading.Interlocked.Increment(ref _id);
+            Program.LogDebug($"Created DB {d.Id}", "BotDbCtx");
+            return d;
+        }
+        public override void Dispose()
+        {
+            int count = System.Threading.Interlocked.Increment(ref _disposed);
+            Program.LogWarning($"Disposing DB {Id}; count: {count}", "BotDbCtx");
+            base.Dispose();
         }
         public DbSet<BotDbUser> Users { get; set; } 
         public DbSet<BotDbAuthToken> AuthTokens { get; set; }
@@ -26,8 +39,23 @@ namespace DiscordBot.Classes
                     toProvider => toProvider.RawNode,
                     fromProvider => Perm.Parse(fromProvider)
                 );
+            mb.Entity<BotDbUser>(b =>
+            {
+                b.Navigation(p => p.AuthSessions).AutoInclude();
+                b.Navigation(p => p.AuthTokens).AutoInclude();
+                b.Navigation(p => p.ApprovedIPs).AutoInclude();
+                b.Navigation(p => p.Permissions).AutoInclude();
+            });
         }
-
+        protected override void OnConfiguring(DbContextOptionsBuilder options)
+        {
+#if WINDOWS
+            options.UseSqlServer(Program.getDbString("botdb"));
+#else
+                options.UseMySql(Program.getDbString("botdb"),
+                    new MariaDbServerVersion(new Version(10, 3, 25)));
+#endif
+        }
 
         public async Task<Result<BotDbUser>> AttemptLoginAsync(string username, string password)
         {
@@ -43,6 +71,7 @@ namespace DiscordBot.Classes
             return new("Incorrect password");
         }
 
+
         public async Task<BotDbUser> GetUserAsync(uint id)
         {
             return await Users.FindAsync(id);
@@ -51,15 +80,16 @@ namespace DiscordBot.Classes
         {
             var idstr = discordUser.Id.ToString();
             var user = await Users.FirstOrDefaultAsync(x => x.Connections.DiscordId == idstr);
-            if(user == null) return new(user);
+            if(user != null) return new(user);
             if (!createIfNotExist) return new("No user has linked that account");
 
             user = new BotDbUser();
             user.Name = discordUser.Username;
-            user.Connections = new BotDbConnections()
+            var conns = new BotDbConnections()
             {
                 DiscordId = idstr
             };
+            user.Connections = conns;
             await Users.AddAsync(user);
             return new(user);
         }
@@ -76,15 +106,24 @@ namespace DiscordBot.Classes
         }
         public async Task<BotDbAuthSession> GetSessionAsync(string token)
         {
-            return await AuthSessions.FindAsync(token);
+            return await AuthSessions
+                .Include(x => x.User)
+                .FirstOrDefaultAsync(t => t.Token == token);
         }
         public async Task<BotDbAuthToken> GetTokenAsync(string token)
         {
-            var BotDbAuthToken = await AuthTokens.FindAsync(token);
+            var BotDbAuthToken = await AuthTokens
+                .Include(x => x.User)
+                .FirstOrDefaultAsync(t => t.Token == token);
             return BotDbAuthToken;
         }
-        public async Task<BotDbAuthSession> GenerateNewSession(BotDbUser user, string ip, string ua, bool? forceApproved = null)
+        public async Task<BotDbAuthSession> GenerateNewSession(BotDbUser user, string ip, string ua, bool logoutOthers, bool? forceApproved = null)
         {
+            if(logoutOthers)
+            {
+                await AuthSessions.Where(x => x.UserId == user.Id)
+                    .ExecuteDeleteAsync();
+            }
             var auth = new BotDbAuthSession(ip, ua, forceApproved ?? false);
             auth.User = user;
             await AuthSessions.AddAsync(auth);
@@ -115,13 +154,15 @@ namespace DiscordBot.Classes
         /// </summary>
         public string Reason { get; set; }
 
-        public BotDbConnections Connections { get; set; }
-        public BotDbUserOptions Options { get; set; }
+        [Required]
+        public BotDbConnections Connections { get; set; } = new();
+        [Required]
+        public BotDbUserOptions Options { get; set; } = new();
 
-        public List<BotDbAuthSession> AuthSessions { get; set; }
-        public List<BotDbAuthToken> AuthTokens { get; set; }
-        public List<BotDbApprovedIP> ApprovedIPs { get; set; }
-        public List<BotDbPermission> Permissions { get; set; }
+        public virtual List<BotDbAuthSession> AuthSessions { get; set; } = new();
+        public virtual List<BotDbAuthToken> AuthTokens { get; set; } = new();
+        public virtual List<BotDbApprovedIP> ApprovedIPs { get; set; } = new();
+        public virtual List<BotDbPermission> Permissions { get; set; } = new();
 
         public void WithPerm(Perm perm)
         {
@@ -194,7 +235,7 @@ namespace DiscordBot.Classes
 
         public uint UserId { get; set; }
         [ForeignKey(nameof(UserId))]
-        public BotDbUser User { get; set; }
+        public virtual BotDbUser User { get; set; }
     }
     public class BotDbAuthToken
     {
@@ -235,27 +276,32 @@ namespace DiscordBot.Classes
         }
         public uint UserId { get; set; }
         [ForeignKey(nameof(UserId))]
-        public BotDbUser User { get; set; }
+        public virtual BotDbUser User { get; set; }
     }
 
+    [PrimaryKey(nameof(UserId), nameof(IP))]
     public class BotDbApprovedIP
     {
         public uint UserId { get; set; }
-        public BotDbUser User { get; set; }
+        public virtual BotDbUser User { get; set; }
 
         public string IP { get; set; }
     }
+    [PrimaryKey(nameof(UserId), nameof(PermNode))]
     public class BotDbPermission
     {
         public BotDbPermission() { }
-        public BotDbPermission(BotDbUser user, Perm node)
+        public static BotDbPermission Create(BotDbUser user, Perm node)
         {
-            UserId = user.Id;
-            User = user;
-            PermNode = node;
+            return new BotDbPermission()
+            {
+                UserId = user.Id,
+                User = user,
+                PermNode = node
+            };
         }
         public uint UserId { get; set; }
-        public BotDbUser User { get; set; }
+        public virtual BotDbUser User { get; set; }
 
         public Perm PermNode { get; set; }
     }

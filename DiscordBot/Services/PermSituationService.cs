@@ -45,7 +45,7 @@ namespace DiscordBot.Services
                 if (sit.State != null && sit.State != criteria)
                     return;
                 if(!string.IsNullOrWhiteSpace(sit.PermAdded))
-                    user.Permissions.Add(new BotDbPermission(user, Perm.Parse(sit.PermAdded)));
+                    user.WithPerm(Perm.Parse(sit.PermAdded));
                 if(!string.IsNullOrWhiteSpace(sit.PermRemoved))
                     user.Permissions.RemoveAll(x => x.PermNode.RawNode == sit.PermRemoved);
             }
