@@ -21,16 +21,18 @@ namespace DiscordBot.MLAPI.Modules
             } }
 
 
-        string getName(DirectoryInfo info)
+        string getData(DirectoryInfo info, string fName, string dflt)
         {
             try
             {
-                return File.ReadAllText(Path.Combine(info.FullName, "name.txt")).Trim();
+                return File.ReadAllText(Path.Combine(info.FullName, fName)).Trim();
             } catch
             {
-                return info.Name;
+                return dflt;
             }
         }
+        string getName(DirectoryInfo info) => getData(info, "name.txt", info.Name);
+        string getSubject(DirectoryInfo info) => getData(info, "subject.txt", "[None set]");
         int getNextPageNum(string info)
         {
             int x = 0;
@@ -54,7 +56,7 @@ namespace DiscordBot.MLAPI.Modules
                 .WithHeaderColumn("To")
                 .WithHeaderColumn("From")
                 .WithHeaderColumn("Date")
-                .WithHeaderColumn("Pages");
+                .WithHeaderColumn("Subject");
             table.Children.Add(new TableRow()
             {
                 Children =
@@ -79,12 +81,11 @@ namespace DiscordBot.MLAPI.Modules
                     foreach(var date in sender.EnumerateDirectories())
                     {
                         var dateName = getName(date);
-                        var pageFiles = date.EnumerateFiles();
                         var tr = new TableRow()
                             .WithCell(recName)
                             .WithCell(sendName)
                             .WithCell(dateName)
-                            .WithCell(string.Join(", ", pageFiles.Select(x => x.Name)))
+                            .WithCell(getSubject(date))
                             .WithTag("data-link", $"/ocr/view/{recipient.Name}/{sender.Name}/{date.Name}")
                             .WithTag("onclick", "gotorow(event)");
                         table.Children.Add(tr);
@@ -103,9 +104,9 @@ namespace DiscordBot.MLAPI.Modules
 
         [Method("POST"), Path("/ocr/upload")]
         [RequireNoExcessQuery(false)]
-        public void DoUpload(string recipient, string sender, DateTime date)
+        public void DoUpload(string recipient, string sender, string date)
         {
-            var dir = Path.Combine(BaseDir.FullName, Program.GetSafePath(recipient), Program.GetSafePath(sender), $"{date:yyyy-MM-dd}");
+            var dir = Path.Combine(BaseDir.FullName, Program.GetSafePath(recipient), Program.GetSafePath(sender), Program.GetSafePath(date));
             if(!Directory.Exists(dir))
                 Directory.CreateDirectory(dir);
             int next = getNextPageNum(dir);
@@ -124,7 +125,7 @@ namespace DiscordBot.MLAPI.Modules
         [Method("GET"), Path("/ocr/view/{rec}/{send}/{date}")]
         [Regex("rec", RegexAttribute.Alpha)]
         [Regex("send", RegexAttribute.Alpha)]
-        [Regex("date", RegexAttribute.Date)]
+        [Regex("date", RegexAttribute.Date + "[a-z]?")] // add optional suffix in case multiple letters on same day
         public void ViewMail(string rec, string send, string date)
         {
             var path = Path.Combine(BaseDir.FullName, rec, send, date);
@@ -146,7 +147,7 @@ namespace DiscordBot.MLAPI.Modules
         [Method("GET"), Path("/ocr/raw/{rec}/{send}/{date}/{file}")]
         [Regex("rec", RegexAttribute.Alpha)]
         [Regex("send", RegexAttribute.Alpha)]
-        [Regex("date", RegexAttribute.Date)]
+        [Regex("date", RegexAttribute.Date + "[a-z]?")]
         [Regex("file", RegexAttribute.Filename)]
         public void FetchRaw(string rec, string send, string date, string file)
         {
