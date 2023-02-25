@@ -1,4 +1,5 @@
-﻿using BencodeNET.Parsing;
+﻿#if INCLUDE_OLD_SCHOOL
+using BencodeNET.Parsing;
 using BencodeNET.Torrents;
 using Discord;
 using Discord.Commands;
@@ -132,3 +133,4 @@ namespace DiscordBot.Commands.Modules
         }
     }
 }
+#endif

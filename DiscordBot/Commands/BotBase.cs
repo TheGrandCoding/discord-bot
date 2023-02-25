@@ -26,6 +26,11 @@ namespace DiscordBot.Commands
 
 
         public InteractivityService InteractivityService { get; set; }
+        private Classes.BotDbContext _db;
+        public Classes.BotDbContext BotDB { get
+            {
+                return _db ??= Classes.BotDbContext.Get();
+            } }
         static CmdDisableService cmdDisableService { get; set; }
 
 
@@ -37,6 +42,13 @@ namespace DiscordBot.Commands
             cmdDisableService ??= Program.Services.GetRequiredService<CmdDisableService>();
             if (cmdDisableService.IsDisabled(command, out string reason))
                 throw new Exception($"{reason}");
+        }
+
+        protected override void AfterExecute(CommandInfo command)
+        {
+            base.AfterExecute(command);
+            if (_db != null)
+                _db.SaveChanges();
         }
 
         public async Task<RuntimeResult> Success(string message = null, bool isTTS = false, Embed embed = null)

@@ -418,10 +418,11 @@ namespace DiscordBot.Commands.Modules
                 await Target?.AddRoleAsync(Role, new RequestOptions() { AuditLogReason = "I love democracy" });
             else
                 await Target?.RemoveRoleAsync(Role, new RequestOptions() { AuditLogReason = "Voted" });
-            var bUser = Program.CreateUser(Target);
-            bUser.IsVerified = Adding;
-            bUser.IsApproved = (bUser.IsApproved ?? false) || Adding;
-            Program.Save();
+            var db = Classes.BotDbContext.Get();
+            var bUser = (await db.GetUserFromDiscord(Target, true)).Value;
+            bUser.Verified = Adding;
+            bUser.Approved = (bUser.Approved ?? false) || Adding;
+            await db.SaveChangesAsync();
             return new BotResult();
         }
     }

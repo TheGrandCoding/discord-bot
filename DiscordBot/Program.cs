@@ -629,7 +629,7 @@ Changed how permissions worked for bot.
                     var perm = Perm.Parse(Perms.Bot.All);
                     if(!PermChecker.UserHasPerm(bUser, perm))
                     {
-                        bUser.Permissions.Add(new BotDbPermission() { User = bUser, UserId = bUser.Id, Node = perm });
+                        bUser.Permissions.Add(new BotDbPermission() { User = bUser, UserId = bUser.Id, PermNode = perm });
                         db.SaveChanges();
                     }
                 }

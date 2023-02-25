@@ -29,7 +29,7 @@ namespace DiscordBot.MLAPI
                     throw new RedirectException("/login", "Requires authentication");
                 if(_valid)
                 {
-                    if (context.User.DiscriminatorValue == 0 || string.IsNullOrWhiteSpace(context.User.Name))
+                    if (context.User.Connections.Discord == null || string.IsNullOrWhiteSpace(context.User.Name))
                         return PreconditionResult.FromError("Requires valid user account");
                 }
             }

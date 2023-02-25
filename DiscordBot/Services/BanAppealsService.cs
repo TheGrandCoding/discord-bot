@@ -1,6 +1,7 @@
 ﻿using Discord;
 using DiscordBot.Classes;
 using DiscordBot.Classes.Rules;
+using DiscordBot.Utils;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -59,7 +60,7 @@ namespace DiscordBot.Services
             appeals.Appeals[user.Id] = appeal;
             OnSave();
             await txt.SendMessageAsync(embed: new EmbedBuilder()
-                .WithAuthor(user.Name, user.GetAnyAvatarUrl())
+                .WithAuthor(user.Name, user.Connections.Discord.GetAnyAvatarUrl())
                 .WithTitle($"Ban Appeal")
                 .WithDescription($"Original Ban Reason:\r\n> {(appeal.Ban.Reason ?? "No reason provided")}")
                 .WithFooter($"{Program.Prefix}appeal mute | {Program.Prefix}appeal approve | {Program.Prefix}appeal reject")

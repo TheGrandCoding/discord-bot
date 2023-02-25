@@ -21,7 +21,7 @@ namespace DiscordBot.Classes
         protected override void OnModelCreating(ModelBuilder mb)
         {
             mb.Entity<BotDbPermission>()
-                .Property(x => x.Node)
+                .Property(x => x.PermNode)
                 .HasConversion(
                     toProvider => toProvider.RawNode,
                     fromProvider => Perm.Parse(fromProvider)
@@ -63,15 +63,25 @@ namespace DiscordBot.Classes
             await Users.AddAsync(user);
             return new(user);
         }
-
+        public async Task<Result<BotDbUser>> GetUserFromDiscord(ulong dsId, bool createIfNotExist)
+        {
+            var user = await Program.Client.GetUserAsync(dsId);
+            if (user != null)
+                return await GetUserFromDiscord(user, createIfNotExist);
+            var str = dsId.ToString();
+            var fetch = await Users.FirstOrDefaultAsync(x => x.Connections.DiscordId == str);
+            if (fetch != null)
+                return new(fetch);
+            return new("Could not find user in DB");
+        }
         public async Task<BotDbAuthSession> GetSessionAsync(string token)
         {
             return await AuthSessions.FindAsync(token);
         }
         public async Task<BotDbAuthToken> GetTokenAsync(string token)
         {
-            var authtoken = await AuthTokens.FindAsync(token);
-            return authtoken;
+            var BotDbAuthToken = await AuthTokens.FindAsync(token);
+            return BotDbAuthToken;
         }
         public async Task<BotDbAuthSession> GenerateNewSession(BotDbUser user, string ip, string ua, bool? forceApproved = null)
         {
@@ -100,7 +110,13 @@ namespace DiscordBot.Classes
 
         public string RedirectUrl { get; set; }
 
+        /// <summary>
+        /// Default penalty reason
+        /// </summary>
+        public string Reason { get; set; }
+
         public BotDbConnections Connections { get; set; }
+        public BotDbUserOptions Options { get; set; }
 
         public List<BotDbAuthSession> AuthSessions { get; set; }
         public List<BotDbAuthToken> AuthTokens { get; set; }
@@ -113,9 +129,26 @@ namespace DiscordBot.Classes
             {
                 User = this,
                 UserId = Id,
-                Node = perm
+                PermNode = perm
             };
             Permissions.Add(bot);
+        }
+        public int RemovePerm(Perm perm)
+        {
+            return Permissions.RemoveAll(x => x.PermNode.RawNode == perm.RawNode);
+        }
+
+        public void WithApprovedIP(string ip)
+        {
+            if (!System.Net.IPAddress.TryParse(ip, out _))
+                throw new ArgumentException("Not a valid IP");
+            var dbi = new BotDbApprovedIP()
+            {
+                IP = ip,
+                User = this,
+                UserId = Id
+            };
+            ApprovedIPs.Add(dbi);
         }
 
     }
@@ -135,6 +168,7 @@ namespace DiscordBot.Classes
                 return _discord ??= Program.Client.GetUser(ulong.Parse(DiscordId));
             } }
     }
+
 
     public class BotDbAuthSession
     {
@@ -164,11 +198,41 @@ namespace DiscordBot.Classes
     }
     public class BotDbAuthToken
     {
+        public const string TimeToken = "timetracker";
+
+        public BotDbAuthToken() { }
+        public static BotDbAuthToken Create(BotDbUser user, string name, int length = 32, params string[] scopes)
+        {
+            return new BotDbAuthToken()
+            {
+                User = user,
+                UserId = user.Id,
+                Name = name,
+                Scopes = scopes,
+                Token = PasswordHash.RandomToken(length)
+            };
+        }
+
         [Key]
         public string Token { get; set; }
 
         public string Name { get; set; }
-        public string Scopes { get; set; }
+
+        [Column("Scopes")]
+        string _scopes;
+
+        [NotMapped]
+        public string[] Scopes 
+        { 
+            get
+            {
+                return (_scopes ?? "").Split(';');
+            } 
+            set
+            {
+                _scopes = string.Join(';', value);
+            }
+        }
         public uint UserId { get; set; }
         [ForeignKey(nameof(UserId))]
         public BotDbUser User { get; set; }
@@ -183,10 +247,17 @@ namespace DiscordBot.Classes
     }
     public class BotDbPermission
     {
+        public BotDbPermission() { }
+        public BotDbPermission(BotDbUser user, Perm node)
+        {
+            UserId = user.Id;
+            User = user;
+            PermNode = node;
+        }
         public uint UserId { get; set; }
         public BotDbUser User { get; set; }
 
-        public Perm Node { get; set; }
+        public Perm PermNode { get; set; }
     }
 
 }

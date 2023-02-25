@@ -58,9 +58,10 @@ namespace DiscordBot.Services
                     return;
 
                 int hasEnabledPair = 0;
+                var db = BotDbContext.Get();
                 foreach (var usr in vc.Users)
                 {
-                    var b = hasEnabledPairing(usr, usr.IsSelfMuted);
+                    var b = hasEnabledPairing(usr, usr.IsSelfMuted, db);
                     if (b)
                         hasEnabledPair++;
                 }
@@ -74,9 +75,9 @@ namespace DiscordBot.Services
             }
         }
 
-        bool hasEnabledPairing(SocketGuildUser user, bool muted, BotDbUser bUser = null)
+        bool hasEnabledPairing(SocketGuildUser user, bool muted, BotDbContext db, BotDbUser bUser = null)
         {
-            bUser ??= Program.CreateUser(user);
+            bUser ??= db.GetUserFromDiscord(user, true).Result.Value;
             if (bUser.Options.PairedVoiceChannels == CreateChannelForVoice.Never)
                 return false;
             if (bUser.Options.PairedVoiceChannels == CreateChannelForVoice.WhenMuted && muted == false)
@@ -120,9 +121,10 @@ namespace DiscordBot.Services
             }
             if (pairedChannel == null)
                 return;
+            var db = BotDbContext.Get();
             if(Threads.TryGetValue(voice, out var thread))
             {
-            } else if(hasEnabledPairing(user, state.IsSelfMuted))
+            } else if(hasEnabledPairing(user, state.IsSelfMuted, db))
             {
                 manage = true;
 
@@ -179,7 +181,8 @@ namespace DiscordBot.Services
             var voice = state.VoiceChannel;
             if(Threads.TryGetValue(voice, out var thread))
             {
-                var pairings = voice.Users.Count(x => x.Id != user.Id && hasEnabledPairing(x, state.IsSelfMuted));
+                var db = BotDbContext.Get();
+                var pairings = voice.Users.Count(x => x.Id != user.Id && hasEnabledPairing(x, state.IsSelfMuted, db));
                 var embed = new EmbedBuilder();
                 embed.Title = $"User Left Paired VC";
                 embed.Description = $"{user.GetName()} has left {voice.Name}, with {voice.Users.Count} remaining\r\n" +
@@ -191,7 +194,7 @@ namespace DiscordBot.Services
                 {
                     if (usr.Id == user.Id)
                         continue;
-                    var b = hasEnabledPairing(usr, usr.IsSelfMuted);
+                    var b = hasEnabledPairing(usr, usr.IsSelfMuted, db);
                     debug.Add($"{usr.GetName()}:{b:0}");
                     if (b)
                         hasEnabledPair++;
@@ -216,7 +219,8 @@ namespace DiscordBot.Services
             var to = tState.VoiceChannel;
             if(Threads.TryGetValue(from, out var thread))
             {
-                var pairings = from.Users.Count(x => x.Id != user.Id && hasEnabledPairing(x, fState.IsSelfMuted || tState.IsSelfMuted));
+                var db = BotDbContext.Get();
+                var pairings = from.Users.Count(x => x.Id != user.Id && hasEnabledPairing(x, fState.IsSelfMuted || tState.IsSelfMuted, db));
                 if (pairings == 0)
                 {
                     Threads.TryRemove(from, out _);
@@ -237,6 +241,7 @@ namespace DiscordBot.Services
         {
             var shouldSave = false;
             var toRemove = new List<SocketVoiceChannel>();
+            var db = BotDbContext.Get();
             foreach (var keypair in Threads)
             {
                 var voice = keypair.Key;
@@ -250,7 +255,7 @@ namespace DiscordBot.Services
                 foreach(var usr in voice.Users)
                 {
                     if (usr.IsBot) continue;
-                    var bUser = Program.CreateUser(usr);
+                    var bUser = (await db.GetUserFromDiscord(usr, true)).Value;
                     if (bUser.Options.PairedVoiceChannels == CreateChannelForVoice.Never)
                         continue;
                     if (bUser.Options.PairedVoiceChannels == CreateChannelForVoice.WhenMuted && !usr.IsSelfMuted)
@@ -277,7 +282,7 @@ namespace DiscordBot.Services
 #if !DEBUG
             foreach(var g in Program.Client.Guilds)
             {
-                var existing = await catchupVCs(g);
+                var existing = await catchupVCs(g, db);
                 shouldSave = shouldSave || existing;
             }
 #endif
@@ -285,14 +290,14 @@ namespace DiscordBot.Services
                 OnSave();
         }
 
-        async Task<bool> catchupVCs(SocketGuild guild)
+        async Task<bool> catchupVCs(SocketGuild guild, BotDbContext db)
         {
             var doneAny = false;
-            foreach(var vc in guild.VoiceChannels)
+            foreach (var vc in guild.VoiceChannels)
             {
                 if (Threads.TryGetValue(vc, out _))
                     continue;
-                var createdDueTo = vc.Users.FirstOrDefault(x => hasEnabledPairing(x, x.IsSelfMuted));
+                var createdDueTo = vc.Users.FirstOrDefault(x => hasEnabledPairing(x, x.IsSelfMuted, db));
                 if (createdDueTo == null)
                     continue;
                 doneAny = true;

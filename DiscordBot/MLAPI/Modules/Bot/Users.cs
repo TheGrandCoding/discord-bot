@@ -27,13 +27,20 @@ namespace DiscordBot.MLAPI.Modules.Bot
                         .WithHeader("Deny")
                 }
             };
-            foreach(var bUser in Program.Users.Where(x => x.IsApproved.HasValue == false))
+            foreach(var bUser in Context.BotDB.Users.Where(x => x.Approved.HasValue == false))
             {
+                var namebld = new StringBuilder();
+                namebld.Append(bUser.Name);
+                if(bUser.Connections.Discord != null)
+                {
+                    namebld.Append($"#{bUser.Connections.Discord.Discriminator}");
+                }
+
                 table.Children.Add(new TableRow()
                 {
                     Children =
                     {
-                        new TableData($"{bUser.Name}#{(bUser.OverrideDiscriminator ?? bUser.DiscriminatorValue)}"),
+                        new TableData(namebld.ToString()),
                         new TableData($"{bUser.Id}"),
                         new TableData("")
                         {
@@ -63,16 +70,15 @@ namespace DiscordBot.MLAPI.Modules.Bot
         }
    
         [Method("POST"), Path("/bot/approve")]
-        public void Set(ulong id, bool approved)
+        public void Set(uint id, bool approved)
         {
-            var bUser = Program.GetUserOrDefault(id);
+            var bUser = Context.BotDB.GetUserAsync(id).Result;
             if(bUser == null)
             {
                 RespondRaw("No user.", 404);
                 return;
             }
-            bUser.IsApproved = approved;
-            Program.Save();
+            bUser.Approved = approved;
             RespondRaw("OK.");
         }
     }

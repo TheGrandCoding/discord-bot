@@ -16,10 +16,10 @@ namespace DiscordBot.Websockets
         public string SessionToken { get
             {
                 string strToken = null;
-                var cookie = Context.CookieCollection[AuthSession.CookieName];
+                var cookie = Context.CookieCollection[BotDbAuthSession.CookieName];
                 strToken ??= cookie?.Value;
-                strToken ??= Context.QueryString.Get(AuthSession.CookieName);
-                strToken ??= Context.Headers.Get($"X-{AuthSession.CookieName.ToUpper()}");
+                strToken ??= Context.QueryString.Get(BotDbAuthSession.CookieName);
+                strToken ??= Context.Headers.Get($"X-{BotDbAuthSession.CookieName.ToUpper()}");
                 return strToken;
             } }
 
@@ -48,16 +48,21 @@ namespace DiscordBot.Websockets
             {
                 if (user != null)
                     return user;
-                if (!Handler.findSession(SessionToken, out var usr, out _))
+                var db = BotDbContext.Get();
+                var session = db.GetSessionAsync(SessionToken).Result;
+                if (session != null)
                 {
-                    if(!Handler.findToken(ApiToken, out usr, out _))
-                    {
-                        Program.LogDebug($"{IP} provided an unknown session or auth token, or none at all.", "WSLog");
-                        return null;
-                    }
+                    user = session.User;
+                    return user;
                 }
-                user = usr;
-                return user;
+                var token = db.GetTokenAsync(ApiToken).Result;
+                if(token != null)
+                {
+                    user = token.User;
+                    return user;
+                }
+                Program.LogDebug($"{IP} provided an unknown session or auth token, or none at all.", "WSLog");
+                return null;
             } }
 
         public string Type => this.GetType().Name;

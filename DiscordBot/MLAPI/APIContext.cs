@@ -170,9 +170,17 @@ namespace DiscordBot.MLAPI
             Headers = dict.ToImmutableDictionary();
         }
 
+        private BotDbContext _db;
+        public DiscordBot.Classes.BotDbContext BotDB 
+        { 
+            get
+            {
+                return _db ??= BotDbContext.Get();
+            }
+        }
         public BotDbUser User { get; set; }
-    
-        
+
+
         /// <summary>
         /// Generates a new session from this context
         /// </summary>

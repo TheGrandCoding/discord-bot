@@ -69,7 +69,7 @@ namespace DiscordBot.Services
             id = null;
             while(found)
             {
-                id = Classes.AuthToken.Generate(32);
+                id = Classes.PasswordHash.RandomToken(32);
                 foreach(var otherId in getUserIds())
                 { // verify file ID is unique accross all users
                     found = File.Exists(GetFilePath(otherId, id));

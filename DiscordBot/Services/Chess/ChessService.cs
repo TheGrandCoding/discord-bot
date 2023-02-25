@@ -407,9 +407,9 @@ namespace DiscordBot.Services
             }
             BuiltInClassUser.VerifiedEmail = null;
             BuiltInClassUser.IsVerified = false;
-            BuiltInClassUser.Tokens = new List<AuthToken>()
+            BuiltInClassUser.Tokens = new List<BotDbAuthToken>()
             {
-                new AuthToken(AuthToken.LoginPassword, PasswordHash.HashPassword("fridayclassroom"))
+                new BotDbAuthToken(BotDbAuthToken.LoginPassword, PasswordHash.HashPassword("fridayclassroom"))
             };
             BuiltInClassUser.OverrideDiscriminator = 1;
             BuiltInClassUser.ServiceUser = true;
@@ -436,10 +436,10 @@ namespace DiscordBot.Services
             BuiltInCoAUser.OverrideDiscriminator = 1;
             BuiltInCoAUser.OverrideName = "Court of Appeals";
             BuiltInCoAUser.ServiceUser = true;
-            var coaToken = BuiltInCoAUser.Tokens.FirstOrDefault(x => x.Name == AuthToken.LoginPassword);
+            var coaToken = BuiltInCoAUser.Tokens.FirstOrDefault(x => x.Name == BotDbAuthToken.LoginPassword);
             if(coaToken == null)
             {
-                coaToken = new AuthToken(AuthToken.LoginPassword, 24);
+                coaToken = new BotDbAuthToken(BotDbAuthToken.LoginPassword, 24);
                 BuiltInCoAUser.Tokens.Add(coaToken);
             } else
             {

@@ -80,9 +80,9 @@ namespace DiscordBot.MLAPI.Modules
 
         [Method("GET"), Path("/bot/permissions")]
         [RequirePermNode(Perms.Bot.Developer.ViewPermissions)]
-        public void SeePermissions(ulong user)
+        public void SeePermissions(uint user)
         {
-            var usr = Program.GetUserOrDefault(user);
+            var usr = Context.BotDB.GetUserAsync(user).Result;
             if (usr == null)
             {
                 HTTPError(System.Net.HttpStatusCode.NotFound, "User", "Unknown user id");
@@ -92,9 +92,9 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("POST"), Path("/bot/permissions")]
-        public void TrySetPermission(ulong user, string node, bool value)
+        public void TrySetPermission(uint user, string node, bool value)
         {
-            var other = Program.GetUserOrDefault(user);
+            var other = Context.BotDB.GetUserAsync(user).Result;
             if (other == null)
             {
                 RespondRaw("Unknown target", 404);
@@ -113,10 +113,9 @@ namespace DiscordBot.MLAPI.Modules
                 try
                 {
                     if (value)
-                        other.Permissions.Add(perm);
+                        other.WithPerm(perm);
                     else
-                        other.Permissions.Remove(perm);
-                    Program.Save();
+                        other.RemovePerm(perm);
                     RespondRaw("Set");
                 }
                 catch (Exception ex)

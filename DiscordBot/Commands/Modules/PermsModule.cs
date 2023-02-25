@@ -49,7 +49,7 @@ namespace DiscordBot.Commands.Modules
             var cPage = new PageBuilder();
             foreach (var botperm in u.Permissions)
             {
-                var perm = botperm.Node;
+                var perm = botperm.PermNode;
                 string sep = perm.Type == PermType.Allow ? "**" : perm.Type == PermType.Deny ? "~~" : "";
                 var s = $"`{perm.RawNode}` {sep}{perm.Description}{sep}\r\n";
                 if ((cPage.Text.Length + s.Length) > 1024)
@@ -129,7 +129,7 @@ namespace DiscordBot.Commands.Modules
                 return new BotResult("There does not exist a permission node by that text.");
 
             string s = "";
-            foreach(var usr in Program.Users)
+            foreach(var usr in BotDB.Users)
             {
                 if(PermChecker.UserHasPerm(usr, perm))
                     s += $"- <@{usr.Id}>\r\n";
@@ -180,12 +180,12 @@ namespace DiscordBot.Commands.Modules
             {
                 if(!inherit)
                 {
-                    var i = user.Permissions.RemoveAll(x => x.Type == PermType.Grant && x.Node == node.Node);
+                    var i = user.Permissions.RemoveAll(x => x.PermNode.Type == PermType.Grant && x.PermNode.Node == node.Node);
                     await ReplyAsync($"Removed {i} perms that match the node.");
                     return new BotResult();
                 }
             }
-            user.Permissions.Add(new Perm(node, PermType.Grant));
+            user.Permissions.Add(new BotDbPermission(user, new Perm(node, PermType.Grant)));
             await printListFor(user);
             return new BotResult();
         }
@@ -198,13 +198,13 @@ namespace DiscordBot.Commands.Modules
             var node = (NodeInfo)nodeText;
             if (!Context.HasPerm(node))
                 return new BotResult("You must have the permission you wish to deny.");
-            var i = user.Permissions.RemoveAll(x => x.Type == PermType.Deny && x.Node == node.Node);
+            var i = user.Permissions.RemoveAll(x => x.PermNode.Type == PermType.Deny && x.PermNode.Node == node.Node);
             if(i > 0)
             {
                 await ReplyAsync("Removed denial of permission.");
             } else
             {
-                user.Permissions.Add(new Perm(node, PermType.Deny));
+                user.WithPerm(new Perm(node, PermType.Deny));
             }
             await printListFor(user);
             return new BotResult();
@@ -218,14 +218,14 @@ namespace DiscordBot.Commands.Modules
             var node = (NodeInfo)nodeText;
             if (!Context.HasPerm(node))
                 return new BotResult("You must have the permission you wish to allow.");
-            var i = user.Permissions.RemoveAll(x => x.Type == PermType.Allow && x.Node == node.Node);
+            var i = user.Permissions.RemoveAll(x => x.PermNode.Type == PermType.Allow && x.PermNode.Node == node.Node);
             if (i > 0)
             {
                 await ReplyAsync("Removed allowal of permission.");
             }
             else
             {
-                user.Permissions.Add(new Perm(node, PermType.Allow));
+                user.WithPerm(new Perm(node, PermType.Allow));
             }
             await printListFor(user);
             return new BotResult();

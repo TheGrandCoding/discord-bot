@@ -13,23 +13,25 @@ namespace DiscordBot.TypeReaders
     {
         public async override Task<TypeReaderResult> ReadAsync(ICommandContext context, string input, IServiceProvider services)
         {
+            var db = BotDbContext.Get();
+            if(uint.TryParse(input, out var dbId))
+            {
+                var dbUser = await db.GetUserAsync(dbId);
+                if(dbUser != null)
+                    return TypeReaderResult.FromSuccess(dbUser);
+            }
             if(ulong.TryParse(input, out var id) || MentionUtils.TryParseUser(input, out id))
             {
-                var user = Program.GetUserOrDefault(id);
-                if(user == null)
-                {
-                    var usr = Program.Client.GetUser(id);
-                    if (usr == null)
-                        return TypeReaderResult.FromError(CommandError.ParseFailed, $"Unknown user by id {id}");
-                    user = Program.CreateUser(usr);
-                }
-                return TypeReaderResult.FromSuccess(user);
+                var res = await db.GetUserFromDiscord(id, true);
+                if(res.Success)
+                    return TypeReaderResult.FromSuccess(res.Value);
             }
-            var u2 = Program.Users.FirstOrDefault(x => x.Name == input || x.Username == input);
+            var u2 = db.Users.FirstOrDefault(x => x.Name == input || x.Name == input);
             if (u2 != null)
                 return TypeReaderResult.FromSuccess(u2);
-            var result = await new UserTypeReader<IUser>().ReadAsync(context, input, services);
-            return result;
+            //var result = await new UserTypeReader<IUser>().ReadAsync(context, input, services);
+            //return result;
+            return TypeReaderResult.FromError(CommandError.ParseFailed, "Failed to get user from that input");
         }
     }
 }

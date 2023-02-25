@@ -48,7 +48,7 @@ namespace DiscordBot.Permissions
             inheritsPerm = false;
             if (user == null)
                 return false;
-            return new PermChecker(seeking, user.Permissions.Select(x => x.Node).ToList()).Check(out inheritsPerm);
+            return new PermChecker(seeking, user.Permissions.Select(x => x.PermNode).ToList()).Check(out inheritsPerm);
         }
         public static bool UserHasPerm(BotDbUser user, NodeInfo seeking) => UserHasPerm(user, seeking, out _);
         public static bool HasPerm(Commands.BotCommandContext context, NodeInfo seeking) => UserHasPerm(context.BotDbUser, seeking);

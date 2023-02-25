@@ -34,6 +34,7 @@ namespace DiscordBot.MLAPI
         private string BaseFolder { get; set; }
         public APIContext Context { get; set; }
 
+
         public bool HasNode(string perm) => Context.HasPerm(perm);
 
         public enum SidebarType

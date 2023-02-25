@@ -15,9 +15,10 @@ namespace DiscordBot.Classes
 
         public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
         {
-            var lng = (long)reader.Value;
-            var id = Convert.ToUInt64(lng);
-            return Program.GetUserOrDefault(id);
+            var _int = (int)reader.Value;
+            var id = Convert.ToUInt32(_int);
+            var db = BotDbContext.Get();
+            return db.GetUserAsync(id).Result;
         }
 
         public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)

@@ -45,8 +45,9 @@ namespace DiscordBot.MLAPI.Modules.UserModule
             {
                 if (oper.GuildPermissions.ChangeNickname)
                     return true;
-                var botU = Program.CreateUser(oper);
-                if (PermChecker.UserHasPerm(botU, Perms.Bot.User.ChangeServerNickname))
+                var result = Context.BotDB.GetUserFromDiscord(oper, false).Result;
+                if (!result.Success) return false;
+                if (PermChecker.UserHasPerm(result.Value, Perms.Bot.User.ChangeServerNickname))
                     return true;
             }
             return false;
@@ -160,23 +161,20 @@ namespace DiscordBot.MLAPI.Modules.UserModule
 
         #region Tokens
 
-        AuthToken GetToken(string n)
+        BotDbAuthToken GetToken(string n)
         {
-            if (n == AuthToken.LoginPassword)
-                return null; // cant login password (separate page for dat)
-            return Context.User.Tokens.FirstOrDefault(x => x.Name.ToLower() == n.ToLower());
+            return Context.User.AuthTokens.FirstOrDefault(x => x.Name.ToLower() == n.ToLower());
         }
 
         [Path("/user/tokens"), Method("GET")]
         public void TokenPage()
         {
             var tokenTable = "";
-            foreach (var token in Context.User.Tokens)
+            foreach (var token in Context.User.AuthTokens)
             {
-                bool hide = token.Name == AuthToken.LoginPassword;
                 string ROW = $"<tr>";
                 ROW += $"<td>{token.Name}</td>";
-                ROW += $"<td><p class='hide'>{(hide ? "[redacted]" : token.Value)}</p></td>";
+                ROW += $"<td><p class='hide'>{token.Token}</p></td>";
                 tokenTable += ROW + "</tr>";
             }
 
@@ -193,8 +191,8 @@ namespace DiscordBot.MLAPI.Modules.UserModule
                 return;
             }
 
-            Context.User.Tokens.Remove(token);
-            Program.Save();
+            Context.User.AuthTokens.Remove(token);
+            Context.BotDB.SaveChanges();
             RespondRaw("Token has been removed", 200);
         }
 
@@ -208,19 +206,27 @@ namespace DiscordBot.MLAPI.Modules.UserModule
             }
 
             var token = GetToken(name);
-            if(name == AuthToken.LoginPassword)
+            try
             {
-                RespondRaw($"{Handler.LocalAPIUrl}/login/setpassword", 400);
-                return;
+                if (token == null)
+                {
+                    token = new BotDbAuthToken()
+                    {
+                        Name = name,
+                        UserId = Context.User.Id,
+                        User = Context.User,
+                        Token = PasswordHash.RandomToken(16)
+                    };
+                    Context.User.AuthTokens.Add(token);
+                    RespondRaw("Token generated and added");
+                    return;
+                } 
+                token.Token = PasswordHash.RandomToken(token.Token.Length);
             }
-            if (token == null)
+            finally
             {
-                token = new AuthToken(name, 16);
-                Context.User.Tokens.Add(token);
-                RespondRaw("Token generated and added");
-                return;
+                Context.BotDB.SaveChanges();
             }
-            token.Regenerate(token.Value.Length);
             RespondRaw("Token regenerated");
         }
         #endregion

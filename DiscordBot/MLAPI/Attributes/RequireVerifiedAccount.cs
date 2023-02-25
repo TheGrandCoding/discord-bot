@@ -24,7 +24,7 @@ namespace DiscordBot.MLAPI
                 return PreconditionResult.FromSuccess();
             if (context.User == null)
                 throw new RedirectException("/login", "Must authenticate");
-            if (!context.User.IsVerified)
+            if (!context.User.Verified)
                 throw new RedirectException("/verify", "Must verify");
             return PreconditionResult.FromSuccess();
         }

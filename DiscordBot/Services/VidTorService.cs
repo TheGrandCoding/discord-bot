@@ -1,4 +1,5 @@
-﻿using Discord;
+﻿#if INCLUDE_OLD_SCHOOL
+using Discord;
 using DiscordBot.Classes;
 using qBitApi;
 using System;
@@ -174,7 +175,7 @@ namespace DiscordBot.Services
         {
             var info = new TorrentInfo();
             action(info);
-            info.Name = AuthToken.Generate(32);
+            info.Name = BotDbAuthToken.Generate(32);
             _lock.Wait();
             try
             {
@@ -203,3 +204,4 @@ namespace DiscordBot.Services
         public string Lesson { get; set; }
     }
 }
+#endif

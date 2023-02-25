@@ -1,4 +1,5 @@
-﻿using Discord;
+﻿#if INCLUDE_OLD_SCHOOL
+using Discord;
 using Discord.WebSocket;
 using System;
 using System.Collections.Generic;
@@ -47,3 +48,4 @@ namespace DiscordBot.Services
         }
     }
 }
+#endif

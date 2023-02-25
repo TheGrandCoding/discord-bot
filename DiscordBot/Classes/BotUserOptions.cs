@@ -6,10 +6,11 @@ using System.Text;
 
 namespace DiscordBot.Classes
 {
+    [Microsoft.EntityFrameworkCore.Owned]
     public class BotDbUserOptions
     {
-        [JsonConstructor]
-        private BotDbUserOptions() { }
+        public BotDbUserOptions() { }
+        [System.ComponentModel.DataAnnotations.Schema.NotMapped]
         public static BotDbUserOptions Default { get
             {
                 return new BotDbUserOptions()
@@ -19,6 +20,7 @@ namespace DiscordBot.Classes
             } }
 
         public CreateChannelForVoice PairedVoiceChannels { get; set; }
+        [DefaultValue(IsolationNotify.End)]
         public IsolationNotify WhenToNotifyIsolation { get; set; } = IsolationNotify.End;
     }
 

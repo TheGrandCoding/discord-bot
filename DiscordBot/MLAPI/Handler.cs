@@ -141,8 +141,7 @@ namespace DiscordBot.MLAPI
             APIContext context = new APIContext(request);
             string strToken = getAnyValue(request, BotDbAuthSession.CookieName, out var cookie);
 
-            var db = BotDbContext.Get();
-            var session = db.GetSessionAsync(strToken).Result;
+            var session = context.BotDB.GetSessionAsync(strToken).Result;
             if (session != null)
             {
                 context.User = session.User;
@@ -155,7 +154,7 @@ namespace DiscordBot.MLAPI
             } else
             {
                 strToken = getAnyValue(request, "api-key", out cookie);
-                var autht = db.GetTokenAsync(strToken).Result;
+                var autht = context.BotDB.GetTokenAsync(strToken).Result;
                 if(autht != null)
                 {
                     context.User = autht.User;
@@ -489,8 +488,17 @@ namespace DiscordBot.MLAPI
                 }
                 catch { }
                 Program.LogError(ex, "ExHandler");
+            } finally
+            {
+                try
+                {
+                    commandBase.AfterExecute();
+                } catch(Exception ex)
+                {
+                    Program.LogError(ex, "AfterExHandler");
+                }
+                commandBase.Context.BotDB.SaveChanges();
             }
-            commandBase.AfterExecute();
             Console.WriteLine($"{context.Id}: Returned {commandBase.StatusSent}");
         }
 
