@@ -35,6 +35,12 @@ namespace DiscordBot.MLAPI
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
     public class RegexAttribute : Attribute
     {
+        public const string SnowflakeRgx = "[0-9]{17,20}";
+        public const string Alpha = "[A-Za-z]+";
+        public const string Alphanumeric = "[A-Za-z0-9]+";
+        public const string AlphaSymbols = "[A-Za-z0-9_]+";
+        public const string Filename = AlphaSymbols + @"\." + AlphaSymbols;
+        public const string Date = "[0-9]{4}-[0-9]{2}-[0-9]{2}";
         public string Name { get; }
         public string Regex { get; }
         public RegexAttribute(string name, string regex)

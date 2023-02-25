@@ -92,10 +92,7 @@ namespace DiscordBot.MLAPI.Modules
             }
             try
             {
-                StatusSent = 200;
-                Context.HTTP.Response.StatusCode = 200;
-                fs.CopyTo(Context.HTTP.Response.OutputStream);
-                Context.HTTP.Response.Close();
+                ReplyStream(fs, 200);
             } finally
             {
                 fs.Close();
