@@ -92,14 +92,14 @@ namespace DiscordBot.MLAPI.Modules
                     }
                 }
             }
-            ReplyFile("folder.html", 200,
+            await ReplyFile("folder.html", 200,
                 new Replacements().Add("table", table));
         }
 
         [Method("GET"), Path("/ocr/upload")]
         public async Task Upload()
         {
-            ReplyFile("upload.html", 200);
+            await ReplyFile("upload.html", 200);
         }
 
         [Method("POST"), Path("/ocr/upload")]
@@ -141,7 +141,7 @@ namespace DiscordBot.MLAPI.Modules
                 data.Add($"<iframe src=\"/ocr/raw/{rec}/{send}/{date}/{ocr}\"></iframe>");
                 data.Add("</div>");
             }
-            ReplyFile("mail.html", 200, new Replacements().Add("pages", string.Join("\n", data)));
+            await ReplyFile("mail.html", 200, new Replacements().Add("pages", string.Join("\n", data)));
         }
 
         [Method("GET"), Path("/ocr/raw/{rec}/{send}/{date}/{file}")]
@@ -162,10 +162,10 @@ namespace DiscordBot.MLAPI.Modules
             {
                 if(file.EndsWith(".txt"))
                 {
-                    RespondRaw("[No text recognition found]", 400);
+                    await RespondRaw("[No text recognition found]", 400);
                 } else
                 {
-                    RespondRaw("", 404);
+                    await RespondRaw("", 404);
                 }
             }
         }

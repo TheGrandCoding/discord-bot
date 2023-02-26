@@ -26,7 +26,7 @@ namespace DiscordBot.MLAPI.Modules
             var srv = Program.Services.GetRequiredService<SonarrWebhooksService>();
             if(srv.HasFailed)
             {
-                RespondRaw("Internal error occurer; service has failed.", 500);
+                await RespondRaw("Internal error occurer; service has failed.", 500);
                 return;
             }
             Program.LogInfo($"Received webhook", "SonarrPOST");
@@ -38,7 +38,7 @@ namespace DiscordBot.MLAPI.Modules
                 File.WriteAllText("latest" + sonarrEvent.EventType + ".json", towrite);
             } catch { }
             srv.Handle(sonarrEvent);
-            RespondRaw("OK");
+            await RespondRaw("OK");
         }
     
         [Method("POST"), Path("webhooks/radarr")]
@@ -47,7 +47,7 @@ namespace DiscordBot.MLAPI.Modules
             var srv = Program.Services.GetRequiredService<RadarrWebhookService>();
             if (srv.HasFailed)
             {
-                RespondRaw("Internal error occurer; service has failed.", 500);
+                await RespondRaw("Internal error occurer; service has failed.", 500);
                 return;
             }
             Program.LogInfo($"Received webhook", "RadarrPOST");
@@ -60,7 +60,7 @@ namespace DiscordBot.MLAPI.Modules
             }
             catch { }
             srv.Handle(radarrEvent);
-            RespondRaw("OK");
+            await RespondRaw("OK");
         }
     
         [Method("POST"), Path("webhooks/gh-catch")]
@@ -80,22 +80,22 @@ namespace DiscordBot.MLAPI.Modules
             };
             srv.InboundWebhook(data);
 
-            RespondRaw("OK");
+            await RespondRaw("OK");
         }
     
 
-        void _checkRestart(string serviceName, string shortLogName)
+        async Task _checkRestart(string serviceName, string shortLogName)
         {
             var jobj = JObject.Parse(Context.Body);
             if (!jobj.TryGetValue("ref", out var refT))
             {
-                RespondRaw("No 'ref' value?", 400);
+                await RespondRaw("No 'ref' value?", 400);
                 return;
             }
             var asS = refT.ToObject<string>();
             if (asS == "refs/heads/main" || asS == "refs/heads/master")
             {
-                RespondRaw("Restarting", 200);
+                await RespondRaw("Restarting", 200);
                 var psi = new ProcessStartInfo("sudo");
                 psi.Arguments = $"systemctl restart {serviceName}";
                 var x = Process.Start(psi);
@@ -111,7 +111,7 @@ namespace DiscordBot.MLAPI.Modules
             }
             else
             {
-                RespondRaw($"Not restarting for ref '{asS}'", 200);
+                await RespondRaw($"Not restarting for ref '{asS}'", 200);
             }
         }
     
@@ -124,7 +124,7 @@ namespace DiscordBot.MLAPI.Modules
 #endif
         public async Task GitHubFlask()
         {
-            _checkRestart("flaskr", "FL");
+            await _checkRestart("flaskr", "FL");
         }
 
         [Method("POST"), Path("webhooks/gh-mlapibot")]
@@ -135,7 +135,7 @@ namespace DiscordBot.MLAPI.Modules
 #endif
         public async Task GitHubMlapibot()
         {
-            _checkRestart("mlapibot", "ML");
+            await _checkRestart("mlapibot", "ML");
         }
 
     }

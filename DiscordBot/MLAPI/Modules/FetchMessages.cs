@@ -859,7 +859,7 @@ namespace DiscordBot.MLAPI.Modules
             string chnls = getChannels(gul, chnl);
             string chat = getChat(gul, chnl, msg == 0 ? ulong.MaxValue : msg);
             string users = getUsers(gul, chnl);
-            ReplyFile("base.html", 200, new Replacements()
+            await ReplyFile("base.html", 200, new Replacements()
                 .Add("guilds", guilds)
                 .Add("channels", chnls)
                 .Add("chat", chat)
@@ -875,7 +875,7 @@ namespace DiscordBot.MLAPI.Modules
             Self = gul.GetUser(Context.User.Id);
             var chnl = channel == 0 ? getDefaultChannel(gul) : gul.GetTextChannel(channel);
             string chat = getChat(gul, chnl, before == 0 ? ulong.MaxValue : before);
-            RespondRaw(chat, 200);
+            await RespondRaw(chat, 200);
         }
 
         [Method("POST"), Path("/" + urlName + "/message")]
@@ -884,29 +884,29 @@ namespace DiscordBot.MLAPI.Modules
             var gul = Program.Client.GetGuild(guild);
             if (gul == null)
             {
-                RespondRaw("Guild unknown", 404);
+                await RespondRaw("Guild unknown", 404);
                 return;
             }
             Self = gul.GetUser(Context.User.Id);
             if (Self == null)
             { // security through obscurity
-                RespondRaw("Guild not found", 404);
+                await RespondRaw("Guild not found", 404);
                 return;
             }
             var chnl = gul.GetTextChannel(channel);
             if (chnl == null)
             {
-                RespondRaw("Unknwn channel", 404);
+                await RespondRaw("Unknwn channel", 404);
                 return;
             }
             if (!hasAccessTo(chnl))
             {
-                RespondRaw("Channel not found", 404);
+                await RespondRaw("Channel not found", 404);
                 return;
             }
             if (!hasWritePermissions(chnl))
             {
-                RespondRaw("Unable to send messages", 403);
+                await RespondRaw("Unable to send messages", 403);
                 return;
             }
             string TEXT;
@@ -914,19 +914,19 @@ namespace DiscordBot.MLAPI.Modules
                 TEXT = ms.ReadToEnd();
             if (string.IsNullOrWhiteSpace(TEXT) || TEXT.Length > 2000)
             {
-                RespondRaw("Failed: Message invalid. Check length", 400);
+                await RespondRaw("Failed: Message invalid. Check length", 400);
                 return;
             }
             try
             {
                 var vv = Webhooks.GetWebhookClientAsync(chnl).Result;
                 vv.SendMessageAsync(TEXT, username: (Self.Nickname ?? Self.Username), avatarUrl: Self.GetAvatarUrl());
-                RespondRaw("");
+                await RespondRaw("");
             }
             catch (Exception ex)
             {
                 Program.LogError(ex, "VPN");
-                RespondRaw(ex.Message, System.Net.HttpStatusCode.InternalServerError);
+                await RespondRaw(ex.Message, System.Net.HttpStatusCode.InternalServerError);
             }
         }
     

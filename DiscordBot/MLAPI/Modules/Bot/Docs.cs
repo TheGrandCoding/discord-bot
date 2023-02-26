@@ -643,7 +643,7 @@ namespace DiscordBot.MLAPI.Modules
         [Name("View documentation")]
         public async Task Base()
         {
-            ReplyFile("docs.html", 200, rep(null, null)
+            await ReplyFile("docs.html", 200, rep(null, null)
                 .Add("mainContent", "<strong>Please select an item on the left!</strong>"));
         }
 
@@ -654,7 +654,7 @@ namespace DiscordBot.MLAPI.Modules
         {
             CurrentLook = name;
             var item = Program.Commands.Modules.FirstOrDefault(x => escapeForUrl(x.Name) == name);
-            ReplyFile("docs.html", 200, rep(name, null)
+            await ReplyFile("docs.html", 200, rep(name, null)
                 .Add("mainContent", cmdGetMain(item)));
         }
 
@@ -665,7 +665,7 @@ namespace DiscordBot.MLAPI.Modules
         {
             CurrentLook = name;
             var module = Handler.Modules.FirstOrDefault(x => escapeForUrl(x.Name) == name);
-            ReplyFile("docs.html", 200, rep(null, name)
+            await ReplyFile("docs.html", 200, rep(null, name)
                 .Add("mainContent", apiGetMain(module)));
         }
 

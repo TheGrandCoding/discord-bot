@@ -25,24 +25,24 @@ namespace DiscordBot.MLAPI.Modules.Guild
             SocketGuild guild = Program.Client.GetGuild(guildId);
             if(guild == null)
             {
-                RespondRaw("Unknown guild", 404);
+                await RespondRaw("Unknown guild", 404);
                 return;
             }
             var user = guild.GetUser(Context.User.Id);
             if(user == null)
             {
-                RespondRaw("Unknown guild", 400);
+                await RespondRaw("Unknown guild", 400);
                 return;
             }
             if(!(user.GuildPermissions.Administrator || user.GuildPermissions.ManageGuild))
             {
-                RespondRaw("Forbidden", 403);
+                await RespondRaw("Forbidden", 403);
                 return;
             }
             var service = Program.Services.GetRequiredService<RulesService>();
             if(!service.Rules.TryGetValue(guildId, out var rules))
             {
-                RespondRaw("You need to setup the rules in the first instance via command first. You can edit them here later. Yes - I'm lazy.", 400);
+                await RespondRaw("You need to setup the rules in the first instance via command first. You can edit them here later. Yes - I'm lazy.", 400);
                 return;
             }
             var table = new Table(id: "table")
@@ -97,7 +97,7 @@ namespace DiscordBot.MLAPI.Modules.Guild
                     }.WithTag("colspan", "3")
                 }
             });
-            ReplyFile("rules.html", 200,
+            await ReplyFile("rules.html", 200,
                 new Replacements()
                 .Add("server", guild)
                 .Add("table", table));
@@ -110,24 +110,24 @@ namespace DiscordBot.MLAPI.Modules.Guild
             SocketGuild guild = Program.Client.GetGuild(guildId);
             if (guild == null)
             {
-                RespondRaw("Unknown guild", 404);
+                await RespondRaw("Unknown guild", 404);
                 return;
             }
             var user = guild.GetUser(Context.User.Id);
             if (user == null)
             {
-                RespondRaw("Unknown guild", 400);
+                await RespondRaw("Unknown guild", 400);
                 return;
             }
             if (!(user.GuildPermissions.Administrator || user.GuildPermissions.ManageGuild))
             {
-                RespondRaw("Forbidden", 403);
+                await RespondRaw("Forbidden", 403);
                 return;
             }
             var service = Program.Services.GetRequiredService<RulesService>();
             if (!service.Rules.TryGetValue(guildId, out var ruleset))
             {
-                RespondRaw("You need to setup the rules by command first", 400);
+                await RespondRaw("You need to setup the rules by command first", 400);
                 return;
             }
             var jarray = JArray.Parse(Context.Body);
@@ -140,7 +140,7 @@ namespace DiscordBot.MLAPI.Modules.Guild
                 rule.Long = obj["long"].ToObject<string>();
                 if(rule.Short.Length > 256 || rule.Long.Length > 1024)
                 {
-                    RespondRaw($"Item {rule.Id} has invalid properties", 400);
+                    await RespondRaw($"Item {rule.Id} has invalid properties", 400);
                     return;
                 }
                 rules.Add(rule);
@@ -148,7 +148,7 @@ namespace DiscordBot.MLAPI.Modules.Guild
             ruleset.CurrentRules = rules;
             service.Update(ruleset).Wait();
             service.OnSave();
-            RespondRaw("OK", 200);
+            await RespondRaw("OK", 200);
         }
     }
 }

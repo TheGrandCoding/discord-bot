@@ -138,7 +138,7 @@ namespace DiscordBot.MLAPI.Modules.Bot
         {
             var html = getHtml(Program.Configuration);
             var json = getJson(Program.Configuration);
-            ReplyFile("config.html", 200, new Replacements()
+            await ReplyFile("config.html", 200, new Replacements()
                 .Add("json", json)
                 .Add("html", html));
         }
@@ -154,7 +154,7 @@ namespace DiscordBot.MLAPI.Modules.Bot
             File.Copy(current.FullName, backup, true);
             File.WriteAllText(current.FullName, Context.Body);
             Program.Configuration.Reload();
-            RespondRaw("OK", 200);
+            await RespondRaw("OK", 200);
         }
     }
 }

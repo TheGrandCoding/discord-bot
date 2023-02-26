@@ -59,7 +59,7 @@ namespace DiscordBot.MLAPI.Modules.Bot
                     }
                 });
             }
-            ReplyFile("approve.html", 200, new Replacements()
+            await ReplyFile("approve.html", 200, new Replacements()
                 .Add("table", table));
         }
    
@@ -69,12 +69,12 @@ namespace DiscordBot.MLAPI.Modules.Bot
             var bUser = Program.GetUserOrDefault(id);
             if(bUser == null)
             {
-                RespondRaw("No user.", 404);
+                await RespondRaw("No user.", 404);
                 return;
             }
             bUser.IsApproved = approved;
             Program.Save();
-            RespondRaw("OK.");
+            await RespondRaw("OK.");
         }
     }
 }

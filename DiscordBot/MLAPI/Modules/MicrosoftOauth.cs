@@ -56,7 +56,7 @@ namespace DiscordBot.MLAPI.Modules
             var identityResponse = client.SendAsync(request).Result;
             if (!identityResponse.IsSuccessStatusCode)
             {
-                RespondRaw("Could not complete Oauth", identityResponse.StatusCode);
+                await RespondRaw("Could not complete Oauth", identityResponse.StatusCode);
                 return false;
             }
             var content = identityResponse.Content.ReadAsStringAsync().Result;
@@ -100,7 +100,7 @@ namespace DiscordBot.MLAPI.Modules
             var teamsResponse = client.SendAsync(teamsRequest).Result;
             if (!teamsResponse.IsSuccessStatusCode)
             {
-                RespondRaw("Could not retrieve your teams information", teamsResponse.StatusCode);
+                await RespondRaw("Could not retrieve your teams information", teamsResponse.StatusCode);
                 return false;
             }
             var content = teamsResponse.Content.ReadAsStringAsync().Result;
@@ -130,14 +130,14 @@ namespace DiscordBot.MLAPI.Modules
         {
             if(Context.User.IsVerified)
             {
-                RespondRaw($"This account is already verified", 400);
+                await RespondRaw($"This account is already verified", 400);
                 return;
             }
             var stateSplit = state.Split('.');
             var scopes = new MSScopeOptions(Program.FromBase64(stateSplit[1]).Split(' '));
             if(stateSplit[0] != Context.User.Id.ToString())
             {
-                RespondRaw("State mismatch", 400);
+                await RespondRaw("State mismatch", 400);
                 return;
             }
             var jwt = new JwtSecurityToken(id_token);

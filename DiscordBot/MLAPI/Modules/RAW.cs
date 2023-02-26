@@ -30,20 +30,20 @@ namespace DiscordBot.RESTAPI.Functions.HTML
         {
             if(Context.User == null)
             {
-                ReplyFile("_base_nologin.html", 200);
+                await ReplyFile("_base_nologin.html", 200);
             } else if (Context.User.IsApproved != true)
             {
                 RespondRedirect("/login/approval");
             } else
             {
-                ReplyFile("_base.html", 200, new Replacements());
+                await ReplyFile("_base.html", 200, new Replacements());
             }
         }
 
         [Method("GET"), Path("/gh-catch")]
         public async Task GHCatch()
         {
-            ReplyFile("gh-catch.html", 200);
+            await ReplyFile("gh-catch.html", 200);
         }
 
         static string getLastModified(string filename)
@@ -60,12 +60,12 @@ namespace DiscordBot.RESTAPI.Functions.HTML
         {
             if(Context.Endpoint == null)
             {
-                RespondRaw("Failed internal settings", HttpStatusCode.InternalServerError);
+                await RespondRaw("Failed internal settings", HttpStatusCode.InternalServerError);
                 return;
             }
             if(Context.HTTP.Request.Url.AbsolutePath.Contains(".."))
             {
-                RespondRaw("Forbidden", HttpStatusCode.BadRequest);
+                await RespondRaw("Forbidden", HttpStatusCode.BadRequest);
                 return;
             }
             var fileExtension = Path.GetExtension(filePath);
@@ -77,12 +77,12 @@ namespace DiscordBot.RESTAPI.Functions.HTML
             var priorMod = Context.Request.Headers["If-None-Match"];
             if(lastMod == priorMod)
             {
-                RespondRaw("", HttpStatusCode.NotModified);
+                await RespondRaw("", HttpStatusCode.NotModified);
                 return;
             }
             if(!File.Exists(fullPath))
             {
-                RespondRaw("Unknown item.", 404);
+                await RespondRaw("Unknown item.", 404);
                 return;
             }
             Context.HTTP.Response.Headers["ETag"] = lastMod;
@@ -136,7 +136,7 @@ namespace DiscordBot.RESTAPI.Functions.HTML
                 ROW += $"<td>{token.Value}</td>";
                 TABLE += ROW + "</tr>";
             }
-            ReplyFile("builtin.html", 200, new Replacements().Add("table", TABLE));
+            await ReplyFile("builtin.html", 200, new Replacements().Add("table", TABLE));
             if (change)
                 Program.Save();
         }
@@ -165,13 +165,13 @@ namespace DiscordBot.RESTAPI.Functions.HTML
                 }
                 usr.SendMessageAsync(embed: embed.Build());
             }
-            ReplyFile("_whitelist.html", HttpStatusCode.OK);
+            await ReplyFile("_whitelist.html", HttpStatusCode.OK);
         }
     
         [Method("GET"), Path("/dfa")]
         public async Task DFA()
         {
-            ReplyFile("dfa.html", 200);
+            await ReplyFile("dfa.html", 200);
         }
     
     }

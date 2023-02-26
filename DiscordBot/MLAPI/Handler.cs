@@ -485,7 +485,7 @@ namespace DiscordBot.MLAPI
                 }
                 if(mustRedirectTo.Count == 1)
                 { // every error is solely about not being logged in
-                    redirect(logger, context, mustRedirectTo[0]);
+                    await redirect(logger, context, mustRedirectTo[0]);
                     return;
                 }
                 sendError(new ErrorJson(list), 400);
@@ -498,13 +498,13 @@ namespace DiscordBot.MLAPI
             var failures = exceptions.Where(x => x.CompleteFailure).ToList();
             if(failures.Count > 0)
             {
-                commandBase.RespondRaw($"{string.Join(", ", failures.ToString())}", 500);
+                await commandBase.RespondRaw($"{string.Join(", ", failures.ToString())}", 500);
                 return;
             }
             var redirectEx = exceptions.FirstOrDefault(x => x is RedirectException) as RedirectException;
             if(redirectEx != null)
             {
-                redirect(logger, context, redirectEx.URL);
+                await redirect(logger, context, redirectEx.URL);
                 return;
             }
             commandBase.Context.Endpoint = found.Command;
@@ -514,7 +514,7 @@ namespace DiscordBot.MLAPI
             }
             catch (RedirectException ex)
             {
-                redirect(logger, context, ex.URL);
+                await redirect(logger, context, ex.URL);
                 logger.End(HttpStatusCode.TemporaryRedirect, ex.Message);
                 return;
             }

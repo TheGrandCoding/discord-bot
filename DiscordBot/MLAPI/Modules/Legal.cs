@@ -20,13 +20,13 @@ namespace DiscordBot.MLAPI.Modules
         [Method("GET"), Path("/terms")]
         public async Task Terms()
         {
-            ReplyFile("terms.html", 200);
+            await ReplyFile("terms.html", 200);
         }
 
         [Method("GET"), Path("/privacy")]
         public async Task Privacy()
         {
-            ReplyFile("privacy.html", 200);
+            await ReplyFile("privacy.html", 200);
         }
 
         HTMLBase getDataServices()
@@ -58,7 +58,7 @@ namespace DiscordBot.MLAPI.Modules
         {
             var accountData = Program.Serialise(Context.User, format: Newtonsoft.Json.Formatting.Indented);
             var serviceData = getDataServices();
-            ReplyFile("sar.html", 200, new Replacements()
+            await ReplyFile("sar.html", 200, new Replacements()
                 .Add("account", accountData)
                 .Add("services", serviceData));
         }

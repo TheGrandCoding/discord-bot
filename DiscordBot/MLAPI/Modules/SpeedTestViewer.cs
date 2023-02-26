@@ -69,7 +69,7 @@ namespace DiscordBot.MLAPI.Modules
                     if(remainders >= 58)
                     {
                         var errPage = getPage(new Paragraph("Speed test is in progress, cannot load data; please check back in 5 minutes"));
-                        RespondRaw(errPage, System.Net.HttpStatusCode.Conflict);
+                        await RespondRaw(errPage, System.Net.HttpStatusCode.Conflict);
                         return;
                     }
                 }
@@ -100,7 +100,7 @@ namespace DiscordBot.MLAPI.Modules
                             WEEKLY,
                             new Paragraph("Recorded speeds today"),
                             DAILY);
-            RespondRaw(page.ToString(), 200);
+            await RespondRaw(page.ToString(), 200);
         }
 
         [Method("GET"), Path("/speed")]

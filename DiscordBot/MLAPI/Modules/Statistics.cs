@@ -14,7 +14,7 @@ namespace DiscordBot.MLAPI.Modules
         [Method("GET"), Path("/statistics")]
         public async Task Raw(int id)
         {
-            ReplyFile("base.html", 200);
+            await ReplyFile("base.html", 200);
         }
     }
 }

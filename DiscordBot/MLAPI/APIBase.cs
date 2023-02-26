@@ -54,14 +54,15 @@ namespace DiscordBot.MLAPI
         public int StatusSent { get; set; } = 0;
         protected bool HasResponded => StatusSent != 0;
 
-        public virtual void RespondRaw(string obj, int code = 200)
+        public virtual Task RespondRaw(string obj, int code = 200)
         {
             StatusSent = code;
             var bytes = System.Text.Encoding.UTF8.GetBytes(obj);
             Context.HTTP.Response.StatusCode = code;
             Context.HTTP.Response.Close(bytes, true);
+            return Task.CompletedTask;
         }
-        public void RespondRaw(string obj, HttpStatusCode code)
+        public Task RespondRaw(string obj, HttpStatusCode code)
             => RespondRaw(obj, (int)code);
         public virtual async Task RespondRedirect(string url, string returnTo = null, int code = 302)
         {
@@ -194,16 +195,16 @@ namespace DiscordBot.MLAPI
             }
         }
 
-        public virtual void RespondJson(Newtonsoft.Json.Linq.JToken json, int code = 200)
+        public virtual Task RespondJson(Newtonsoft.Json.Linq.JToken json, int code = 200)
         {
             Context.HTTP.Response.AddHeader("Content-Type", "application/json");
             json ??= Newtonsoft.Json.Linq.JValue.CreateNull();
-            RespondRaw(json.ToString(Program.BOT_DEBUG ? Formatting.Indented : Formatting.None), code);
+            return RespondRaw(json.ToString(Program.BOT_DEBUG ? Formatting.Indented : Formatting.None), code);
         }
-        public virtual void RespondError(Classes.APIErrorResponse error, int code = 400)
+        public virtual Task RespondError(Classes.APIErrorResponse error, int code = 400)
         {
             Context.HTTP.Response.AddHeader("Content-Type", "application/json");
-            RespondRaw(error.Build().ToString(), code);
+            return RespondRaw(error.Build().ToString(), code);
         }
 
         protected FileStream LoadFile(string path)
@@ -271,13 +272,13 @@ namespace DiscordBot.MLAPI
             Context.HTTP.Response.Close();
         }
 
-        protected void ReplyFile(string path, HttpStatusCode code, Replacements replace = null)
+        protected Task ReplyFile(string path, HttpStatusCode code, Replacements replace = null)
             => ReplyFile(path, (int)code, replace);
 
-        protected void HTTPError(HttpStatusCode code, string title, string message)
+        protected async Task HTTPError(HttpStatusCode code, string title, string message)
         {
             Sidebar = SidebarType.None;
-            ReplyFile("_error.html", code, new Replacements()
+            await ReplyFile("_error.html", code, new Replacements()
                 .Add("error_code", code)
                 .Add("error_message", title)
                 .Add("error", message));
@@ -286,16 +287,16 @@ namespace DiscordBot.MLAPI
         protected string aLink(string url, string display) => $"<a href='{url}'>{display}</a>";
 
         public virtual Task BeforeExecute() => Task.CompletedTask;
-        public virtual void ResponseHalted(HaltExecutionException ex) 
+        public virtual Task ResponseHalted(HaltExecutionException ex) 
         { 
             var er = new ErrorJson(ex.Message);
             if(Context.WantsHTML)
             {
-                RespondRaw(er.GetPrettyPage(Context), HttpStatusCode.InternalServerError);
+                return RespondRaw(er.GetPrettyPage(Context), HttpStatusCode.InternalServerError);
             } else
             {
                 var json = JsonConvert.SerializeObject(er);
-                RespondRaw(json, HttpStatusCode.InternalServerError);
+                return RespondRaw(json, HttpStatusCode.InternalServerError);
             }
         }
         public virtual Task AfterExecute() => Task.CompletedTask;

@@ -74,7 +74,7 @@ namespace DiscordBot.MLAPI.Modules
                     }
                 );
             }
-            ReplyFile("base.html", 200, new Replacements()
+            await ReplyFile("base.html", 200, new Replacements()
                 .Add("table", table));
         }
 
@@ -89,12 +89,12 @@ namespace DiscordBot.MLAPI.Modules
                 var ban = guild.GetBanAsync(Context.User.Id).Result;
                 if(ban == null)
                 {
-                    RespondRaw($"Unknown server", 404);
+                    await RespondRaw($"Unknown server", 404);
                     return;
                 }
                 appeal = Service.CreateAppeal(guild, Context.User).Result;
             }
-            ReplyFile("appeal.html", 200, new Replacements()
+            await ReplyFile("appeal.html", 200, new Replacements()
                 .Add("guild", guild)
                 .Add("appeal", appeal)
                 .Add("guilds", getGuildsSidebar())

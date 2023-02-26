@@ -26,7 +26,7 @@ namespace DiscordBot.MLAPI.Modules.Bot
         [Method("GET"), Path("/bot/logs")]
         public async Task GetTodaysLog()
         {
-            ReplyFile("logs.html", HttpStatusCode.OK);
+            await ReplyFile("logs.html", HttpStatusCode.OK);
         }
 
         static string apiLogFolder => Path.Combine(Program.BASE_PATH, "APILogs");
@@ -70,7 +70,7 @@ namespace DiscordBot.MLAPI.Modules.Bot
                 table.Children.Add(row);
             }
             page.Children.Add(new PageBody() { Children = { table } });
-            RespondRaw(page, 200);
+            await RespondRaw(page, 200);
         }
 
         List<APILogEntry> getLog(string file)
@@ -208,7 +208,7 @@ namespace DiscordBot.MLAPI.Modules.Bot
                     }
                 }
             };
-            RespondRaw(page, 200);
+            await RespondRaw(page, 200);
         }
 
         APILogEntry getLogEntry(Guid id)
@@ -232,7 +232,7 @@ namespace DiscordBot.MLAPI.Modules.Bot
             var logEntry = getLogEntry(id);
             if(logEntry == null || (!hasPerms && logEntry.UserId != Context.User.Id))
             {
-                RespondRaw("Not found.", 404);
+                await RespondRaw("Not found.", 404);
                 return;
             }
             bool dontlogContent = logEntry.Path.StartsWith("/login")
@@ -252,7 +252,7 @@ namespace DiscordBot.MLAPI.Modules.Bot
                     }
                 }
             };
-            RespondRaw(page, 200);
+            await RespondRaw(page, 200);
         }
 
         class HTTPData
@@ -353,7 +353,7 @@ namespace DiscordBot.MLAPI.Modules.Bot
             var page = new HTMLPage();
             page.Children.Add(new PageHeader());
             page.Children.Add(new PageBody() { Children = { table } });
-            RespondRaw(page);
+            await RespondRaw(page);
         }
 
         [Method("GET")]
@@ -372,7 +372,7 @@ namespace DiscordBot.MLAPI.Modules.Bot
                 Children = { new Code(data) }
             };
             page.Children.Add(new PageBody() { Children = { pre } });
-            RespondRaw(page, 200);
+            await RespondRaw(page, 200);
             
         }
     }

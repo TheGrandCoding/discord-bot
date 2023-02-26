@@ -90,7 +90,7 @@ namespace DiscordBot.MLAPI.Modules
                 }
             }
             Sidebar = SidebarType.None;
-            ReplyFile("base.html", 200, new Replacements()
+            await ReplyFile("base.html", 200, new Replacements()
                 .Add(nameof(awaitingWrit), awaitingWrit)
                 .Add(nameof(receivedWrit), receivedWrit)
                 .Add(nameof(receivedOutcome), receivedOutcome));
@@ -102,7 +102,7 @@ namespace DiscordBot.MLAPI.Modules
         {
             var service = Program.Services.GetRequiredService<OauthCallbackService>();
             var thing = service.Register(coaLogin, Context.User.Id);
-            RespondRaw($"<a href='/oauth2/misc?state={thing}'>Open in incognite.</a>");
+            await RespondRaw($"<a href='/oauth2/misc?state={thing}'>Open in incognite.</a>");
         }
 
         void coaLogin(object sender, object[] args)
@@ -260,7 +260,7 @@ namespace DiscordBot.MLAPI.Modules
                 }
             }
 
-            ReplyFile("hearing.html", 200, new Replacements(hearing)
+            await ReplyFile("hearing.html", 200, new Replacements(hearing)
                 .Add("actions", getHearingActions(hearing))
                 .Add("outcomes", getHearingOutcome(hearing))
                 .Add("motions", motions)
@@ -280,13 +280,13 @@ namespace DiscordBot.MLAPI.Modules
             var hearing = DB.Appeals.FirstOrDefault(x => x.Id == n);
             if(hearing == null)
             {
-                RespondRaw("Unknown hearing", 404);
+                await RespondRaw("Unknown hearing", 404);
                 return;
             }
             var motion = hearing.Motions.FirstOrDefault(x => x.Id ==mn);
             if(motion == null)
             {
-                RespondRaw("Unknown motion", 404);
+                await RespondRaw("Unknown motion", 404);
                 return;
             }
 
@@ -330,7 +330,7 @@ namespace DiscordBot.MLAPI.Modules
             string cj = hearing.isClerkOnCase(SelfPlayer)
                 ? "<input type='button' class='cjdo' onclick='doThing()' value='Submit holding'>"
                 : "";
-            ReplyFile("motion.html", 200, new Replacements(hearing)
+            await ReplyFile("motion.html", 200, new Replacements(hearing)
                 .Add("files", attachments)
                 .Add("motion", motion)
                 .Add("mholding", holding)
@@ -349,16 +349,16 @@ namespace DiscordBot.MLAPI.Modules
             var hearing = DB.Appeals.FirstOrDefault(x => x.Id == n);
             if (hearing == null)
             {
-                RespondRaw("Unknown hearing", 404);
+                await RespondRaw("Unknown hearing", 404);
                 return;
             }
             var exhibit = hearing.Exhibits.FirstOrDefault(x => x.AttachmentId == ex);
             if(exhibit == null)
             {
-                RespondRaw("Unknown exhibit", 404);
+                await RespondRaw("Unknown exhibit", 404);
                 return;
             }
-            ReplyFile("exhibit.html", 200, new Replacements(hearing)
+            await ReplyFile("exhibit.html", 200, new Replacements(hearing)
                 .Add("exhibit", exhibit)
                 .Add("index", ex)
                 .Add("iframe", $"<iframe src='/chess/cases/{n}/exhibit/{ex}'></iframe>"));
@@ -373,21 +373,21 @@ namespace DiscordBot.MLAPI.Modules
             var hearing = DB.Appeals.FirstOrDefault(x => x.Id == n);
             if(hearing == null)
             {
-                RespondRaw("Unknown hearing", 404);
+                await RespondRaw("Unknown hearing", 404);
                 return;
             }
             if(hearing.Sealed)
             {
-                RespondRaw("Hearing has been Ordered sealed by the Court of Appeals.", System.Net.HttpStatusCode.UnavailableForLegalReasons);
+                await RespondRaw("Hearing has been Ordered sealed by the Court of Appeals.", System.Net.HttpStatusCode.UnavailableForLegalReasons);
                 return;
             }
             var witness = hearing.Witnesses.FirstOrDefault(x => x.Witness.Id == id);
             if(witness == null)
             {
-                RespondRaw("Unknown witness", 404);
+                await RespondRaw("Unknown witness", 404);
                 return;
             }
-            ReplyFile("witness.html", 200, new Replacements(hearing)
+            await ReplyFile("witness.html", 200, new Replacements(hearing)
                 .Add("witness", witness)
                 .Add("concluded", witness.ConcludedOn.HasValue 
                     ? $"Witness testimony was closed/concluded on {witness.ConcludedOn.Value.ToString("dd/MM/yyyy")}"
@@ -436,7 +436,7 @@ namespace DiscordBot.MLAPI.Modules
                 playerTable.Children.Add(tRow);
                 i++;
             }
-            ReplyFile($"new_{type}.html", 200, new Replacements()
+            await ReplyFile($"new_{type}.html", 200, new Replacements()
                 .Add("players", multiSelect));
         }
 
@@ -448,12 +448,12 @@ namespace DiscordBot.MLAPI.Modules
             var hearing = DB.Appeals.FirstOrDefault(x => x.Id == n);
             if (hearing == null)
             {
-                RespondRaw("Unknown hearing", 404);
+                await RespondRaw("Unknown hearing", 404);
                 return;
             }
             if(hearing.Holding != null)
             {
-                RespondRaw("Petition has been concluded, no motions may be added.", 400);
+                await RespondRaw("Petition has been concluded, no motions may be added.", 400);
                 return;
             }
             var list = new Select(name: "types");
@@ -465,7 +465,7 @@ namespace DiscordBot.MLAPI.Modules
                     continue;
                 list.Add((string)type.GetValue(null), type.Name);
             }
-            ReplyFile("newmotion.html", 200, new Replacements(hearing)
+            await ReplyFile("newmotion.html", 200, new Replacements(hearing)
                 .Add("types", list));
         }
 
@@ -477,20 +477,20 @@ namespace DiscordBot.MLAPI.Modules
             var hearing = DB.Appeals.FirstOrDefault(x => x.Id == n);
             if (hearing == null)
             {
-                RespondRaw("Unknown hearing", 404);
+                await RespondRaw("Unknown hearing", 404);
                 return;
             }
             if (hearing.Holding != null)
             {
-                RespondRaw("Petition has been concluded, no exhibits may be added.", 400);
+                await RespondRaw("Petition has been concluded, no exhibits may be added.", 400);
                 return;
             }
             if(hearing.getRelationToCase(SelfPlayer) == "Outside")
             {
-                RespondRaw("You are unrelated to this case.", 403);
+                await RespondRaw("You are unrelated to this case.", 403);
                 return;
             }
-            ReplyFile("newexhibit.html", 200, new Replacements(hearing));
+            await ReplyFile("newexhibit.html", 200, new Replacements(hearing));
         }
 
         [Method("GET")]
@@ -501,12 +501,12 @@ namespace DiscordBot.MLAPI.Modules
             var hearing = DB.Appeals.FirstOrDefault(x => x.Id == n);
             if (hearing == null)
             {
-                RespondRaw("Unknown hearing", 404);
+                await RespondRaw("Unknown hearing", 404);
                 return;
             }
             if (hearing.Holding != null)
             {
-                RespondRaw("Petition has been concluded, no further witnesses may be called.", 400);
+                await RespondRaw("Petition has been concluded, no further witnesses may be called.", 400);
                 return;
             }
             var existingWitnesses = new OptionGroup("Already called");
@@ -534,7 +534,7 @@ namespace DiscordBot.MLAPI.Modules
                 }
             }
 
-            ReplyFile("newwitness.html", 200, new Replacements(hearing)
+            await ReplyFile("newwitness.html", 200, new Replacements(hearing)
                 .Add("users", players));
         }
 
@@ -549,7 +549,7 @@ namespace DiscordBot.MLAPI.Modules
                 HTTPError(System.Net.HttpStatusCode.NotFound, "Case Number", "Could not find a hearing by that case number");
                 return;
             }
-            ReplyFile("newruling.html", 200, new Replacements(hearing));
+            await ReplyFile("newruling.html", 200, new Replacements(hearing));
         }
 
 #endregion
@@ -569,12 +569,12 @@ namespace DiscordBot.MLAPI.Modules
                 var x = DB.Players.FirstOrDefault(x => x.Id == id);
                 if(x == null)
                 {
-                    RespondRaw($"Could not find user with id '{id}'", 404);
+                    await RespondRaw($"Could not find user with id '{id}'", 404);
                     return;
                 }
                 if(x.IsBuiltInAccount)
                 {
-                    RespondRaw($"'{x.Name} ({id})' is a built in account for internal usage.", 400);
+                    await RespondRaw($"'{x.Name} ({id})' is a built in account for internal usage.", 400);
                     return;
                 }
                 var memb = new AppealsMember(x, null);
@@ -587,13 +587,13 @@ namespace DiscordBot.MLAPI.Modules
             var file = Context.Files.FirstOrDefault();
             if(file == null)
             {
-                RespondRaw("You did not upload an initial attachment; please return to previous page and retry.", 400);
+                await RespondRaw("You did not upload an initial attachment; please return to previous page and retry.", 400);
                 return;
             }
             var extension = file.FileName.Split('.')[^1];
             if(!isPermittedExtension(extension))
             {
-                RespondRaw($"File uploaded must be .txt, .pdf, or .md", 400);
+                await RespondRaw($"File uploaded must be .txt, .pdf, or .md", 400);
                 return;
             }
             var hearing = new AppealsHearing(new List<ChessPlayer>() { SelfPlayer }, _Respondents);
@@ -643,19 +643,19 @@ namespace DiscordBot.MLAPI.Modules
             var hearing = DB.Appeals.FirstOrDefault(x => x.Id == n);
             if (hearing == null)
             {
-                RespondRaw("Unknown hearing", 404);
+                await RespondRaw("Unknown hearing", 404);
                 return;
             }
             var file = Context.Files.FirstOrDefault();
             if (file == null)
             {
-                RespondRaw("No file", 400);
+                await RespondRaw("No file", 400);
                 return;
             }
             var ext = file.FileName.Split('.')[^1];
             if (!isPermittedExtension(ext))
             {
-                RespondRaw("Extension must be .txt, .pdf or .md", 400);
+                await RespondRaw("Extension must be .txt, .pdf or .md", 400);
                 return;
             }
             var attachment = new AppealsAttachment(file.FileName, SelfPlayer.Id);
@@ -688,24 +688,24 @@ namespace DiscordBot.MLAPI.Modules
             var hearing = DB.Appeals.FirstOrDefault(x => x.Id == n);
             if (hearing == null)
             {
-                RespondRaw("Unknown hearing", 404);
+                await RespondRaw("Unknown hearing", 404);
                 return;
             }
             if(hearing.getRelationToCase(SelfPlayer) == "Outside")
             {
-                RespondRaw("You are not related to this case.", 403);
+                await RespondRaw("You are not related to this case.", 403);
                 return;
             }
             var file = Context.Files.FirstOrDefault();
             if (file == null)
             {
-                RespondRaw("No file", 400);
+                await RespondRaw("No file", 400);
                 return;
             }
             var ext = file.FileName.Split('.')[^1];
             if (!isPermittedExtension(ext))
             {
-                RespondRaw("Extension is not permitted", 400);
+                await RespondRaw("Extension is not permitted", 400);
                 return;
             }
             var attachment = new AppealsAttachment(file.FileName, SelfPlayer.Id);
@@ -736,30 +736,30 @@ namespace DiscordBot.MLAPI.Modules
             var hearing = DB.Appeals.FirstOrDefault(x => x.Id == n);
             if(hearing == null)
             {
-                RespondRaw("Unknown hearing", 404);
+                await RespondRaw("Unknown hearing", 404);
                 return;
             }
             var motion = hearing.Motions.FirstOrDefault(x => x.Id ==mn);
             if(motion == null)
             {
-                RespondRaw("Unknown motion", 404);
+                await RespondRaw("Unknown motion", 404);
                 return;
             }
             if(motion.Denied || motion.Granted)
             { // some outcome
-                RespondRaw("Motion has already been ruled on", 400);
+                await RespondRaw("Motion has already been ruled on", 400);
                 return;
             }
             var file = Context.Files.FirstOrDefault();
             if(file == null)
             {
-                RespondRaw("No file", 400);
+                await RespondRaw("No file", 400);
                 return;
             }
             var ext = file.FileName.Split('.')[^1];
             if(!isPermittedExtension(ext))
             {
-                RespondRaw("Extension must be .txt, .pdf or .md", 400);
+                await RespondRaw("Extension must be .txt, .pdf or .md", 400);
                 return;
             }
             string fName = $"{(motion.Attachments.Count + 1):00}_{file.FileName}";
@@ -791,13 +791,13 @@ namespace DiscordBot.MLAPI.Modules
             var hearing = DB.Appeals.FirstOrDefault(x => x.Id == n);
             if (hearing == null)
             {
-                RespondRaw("Unknown hearing", 404);
+                await RespondRaw("Unknown hearing", 404);
                 return;
             }
             var motion = hearing.Motions.FirstOrDefault(x => x.Id ==mn);
             if (motion == null)
             {
-                RespondRaw("Unknown motion", 404);
+                await RespondRaw("Unknown motion", 404);
                 return;
             }
             motion.Holding = Uri.UnescapeDataString(Context.Body);
@@ -815,7 +815,7 @@ namespace DiscordBot.MLAPI.Modules
                     hearing.Concluded = motion.HoldingDate;
                 }
             }
-            RespondRaw("");
+            await RespondRaw("");
         }
 
         [Method("POST")]
@@ -826,25 +826,25 @@ namespace DiscordBot.MLAPI.Modules
             var hearing = DB.Appeals.FirstOrDefault(x => x.Id == n);
             if(hearing == null)
             {
-                RespondRaw("Unknown hearing", 404);
+                await RespondRaw("Unknown hearing", 404);
                 return;
             }
             if(hearing.Holding != null)
             {
-                RespondRaw("Petition has concluded, motions cannot be added", 400);
+                await RespondRaw("Petition has concluded, motions cannot be added", 400);
                 return;
             }
 
             var motionType = typeof(Motions).GetFields().FirstOrDefault(x => x.Name == types);
             if(motionType == null)
             {
-                RespondRaw("Unknown motion type", 400);
+                await RespondRaw("Unknown motion type", 400);
                 return;
             }
             string name = (string)motionType.GetValue(null);
             if(name == Motions.WritOfCertiorari)
             {
-                RespondRaw("Motion for writ of cert. can only be made once - automatically when petition is filed.");
+                await RespondRaw("Motion for writ of cert. can only be made once - automatically when petition is filed.");
                 return;
             }
             var motion = new AppealsMotion()
@@ -866,23 +866,23 @@ namespace DiscordBot.MLAPI.Modules
             var hearing = DB.Appeals.FirstOrDefault(x => x.Id == n);
             if (hearing == null)
             {
-                RespondRaw("Unknown hearing", 404);
+                await RespondRaw("Unknown hearing", 404);
                 return;
             }
             if (hearing.Holding != null)
             {
-                RespondRaw("Petition has concluded, motions cannot be added", 400);
+                await RespondRaw("Petition has concluded, motions cannot be added", 400);
                 return;
             }
             if(!hearing.CanCallWitness(SelfPlayer))
             {
-                RespondRaw("You cannot call witnesses for this petition.", System.Net.HttpStatusCode.Forbidden);
+                await RespondRaw("You cannot call witnesses for this petition.", System.Net.HttpStatusCode.Forbidden);
                 return;
             }
             var player = DB.Players.FirstOrDefault(x => x.Id == id);
             if(player == null)
             {
-                RespondRaw("Unknown player", 404);
+                await RespondRaw("Unknown player", 404);
                 return;
             }
             var existing = hearing.Witnesses.FirstOrDefault(x => x.Witness.Id == id);
@@ -908,28 +908,28 @@ namespace DiscordBot.MLAPI.Modules
             var hearing = DB.Appeals.FirstOrDefault(x => x.Id == n);
             if(hearing == null)
             {
-                RespondRaw("Error: No hearing by that case number.", 404);
+                await RespondRaw("Error: No hearing by that case number.", 404);
                 return;
             }
             if(hearing.AppealOf.HasValue)
             {
-                RespondRaw("Error: Cases that are appeals cannot be appealed; judgement is final.");
+                await RespondRaw("Error: Cases that are appeals cannot be appealed; judgement is final.");
                 return;
             }
             if(!hearing.IsArbiterCase)
             {
-                RespondRaw("Error: Cases before the Court of Appeals cannot be appealed; judgement is final.");
+                await RespondRaw("Error: Cases before the Court of Appeals cannot be appealed; judgement is final.");
                 return;
             }
             if(hearing.Holding == null)
             {
-                RespondRaw("Error: A judgement must be delivered in the first instance before appeal. If Arbiter refuses to issue, file petition against Arbiter themselves.");
+                await RespondRaw("Error: A judgement must be delivered in the first instance before appeal. If Arbiter refuses to issue, file petition against Arbiter themselves.");
                 return;
             }
             var relation = hearing.getRelationToCase(SelfPlayer);
             if(relation != "Claimant" && relation != "Respondent")
             {
-                RespondRaw("Error: only claimants or respondents may appeal.");
+                await RespondRaw("Error: only claimants or respondents may appeal.");
                 return;
             }
             List<ChessPlayer> apellees;

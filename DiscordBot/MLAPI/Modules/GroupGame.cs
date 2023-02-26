@@ -14,7 +14,7 @@ namespace DiscordBot.MLAPI.Modules
         [Method("GET"), Path("/game")]
         public async Task Base()
         {
-            ReplyFile("groupgame.html", 200);
+            await ReplyFile("groupgame.html", 200);
         }
     }
 }

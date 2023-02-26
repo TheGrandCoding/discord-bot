@@ -18,10 +18,10 @@ namespace DiscordBot.MLAPI.Modules.ServerList
         {
             if(string.IsNullOrWhiteSpace(Saved))
             {
-                RespondRaw("", 204);
+                await RespondRaw("", 204);
             } else
             {
-                RespondRaw(Saved, 200);
+                await RespondRaw(Saved, 200);
             }
         }
 
@@ -30,16 +30,16 @@ namespace DiscordBot.MLAPI.Modules.ServerList
         {
             if(!IPAddress.TryParse(ip, out _))
             {
-                RespondRaw("Bad IP", 400);
+                await RespondRaw("Bad IP", 400);
                 return;
             }
             if(!int.TryParse(port, out _))
             {
-                RespondRaw("Bad port", 400);
+                await RespondRaw("Bad port", 400);
                 return;
             }
             Saved = $"{ip}:{port}";
-            RespondRaw("", 200);
+            await RespondRaw("", 200);
         }
     }
 }

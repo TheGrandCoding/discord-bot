@@ -37,7 +37,7 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
                 Context.User.Tokens.Add(existing);
                 Program.Save();
             }
-            RespondRaw(existing.Value);
+            await RespondRaw(existing.Value);
         }
 
         [Method("GET"), Path("/api/tracker/user")]
@@ -61,13 +61,13 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
                 intervalThings["set"] = 15_000;
                 obj["interval"] = intervalThings;
             }
-            RespondRaw(obj.ToString(), HttpStatusCode.OK);
+            await RespondRaw(obj.ToString(), HttpStatusCode.OK);
         }
 
         [Method("GET"), Path("/api/tracker/latestVersion")]
         public async Task LatestVersion()
         {
-            RespondRaw(TimeTrackDb.GetExtensionVersion(), HttpStatusCode.OK);
+            await RespondRaw(TimeTrackDb.GetExtensionVersion(), HttpStatusCode.OK);
         }
 
         [Method("GET"), Path("/api/tracker/times")]
@@ -85,7 +85,7 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
         }
 
         [Method("POST"), Path("/api/tracker/times")]
-        public void SetTimes()
+        public async Task SetTimes()
         {
             var jobj = JObject.Parse(Context.Body);
             foreach(JProperty token in jobj.Children())
@@ -94,7 +94,7 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
                 DB.AddVideo(Context.User.Id, token.Name, val);
             }
             DB.SaveChanges();
-            RespondRaw("OK", HttpStatusCode.Created);
+            await RespondRaw("OK", HttpStatusCode.Created);
         }
 
         [Method("GET"), Path("/api/tracker/threads")]
@@ -135,7 +135,7 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
         [RequireGithubSignatureValid("tracker:webhook")]
         public async Task VersionUpdate()
         {
-            RespondRaw("Thanks");
+            await RespondRaw("Thanks");
             var jobj = JObject.Parse(Context.Body);
             var release = jobj["release"]["tag_name"].ToObject<string>().Substring(1);
             TimeTrackDb.SetExtVersion(release);

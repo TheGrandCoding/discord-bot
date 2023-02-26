@@ -59,7 +59,7 @@ namespace DiscordBot.MLAPI.Modules
             System.IO.File.WriteAllBytes(temp, bytes);
             var rtn = run_cmd(pypath, temp).Trim();
             Program.LogInfo(rtn, "OCR");
-            RespondRaw(rtn);
+            await RespondRaw(rtn);
         }
     }
 }

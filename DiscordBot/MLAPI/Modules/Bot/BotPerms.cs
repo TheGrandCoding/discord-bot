@@ -64,10 +64,10 @@ namespace DiscordBot.MLAPI.Modules
             return buildHTML(user, type, 0);
         }
 
-        void permsFor(BotUser user)
+        async Task permsFor(BotUser user)
         {
             string p = buildHTML(user);
-            ReplyFile("permissions.html", 200, new Replacements()
+            await ReplyFile("permissions.html", 200, new Replacements()
                 .Add("perms", p)
                 .Add("usr", user.Id)
                 .Add("name", user.Name));
@@ -76,7 +76,7 @@ namespace DiscordBot.MLAPI.Modules
         [Method("GET"), Path("/bot/permissions")]
         public async Task GetPermissionsSelf()
         {
-            permsFor(Context.User);
+            await permsFor(Context.User);
         }
 
         [Method("GET"), Path("/bot/permissions")]
@@ -98,13 +98,13 @@ namespace DiscordBot.MLAPI.Modules
             var other = Program.GetUserOrDefault(user);
             if (other == null)
             {
-                RespondRaw("Unknown target", 404);
+                await RespondRaw("Unknown target", 404);
                 return;
             }
             var perm = Perm.Parse(node);
             if (perm == null)
             {
-                RespondRaw("Unknown permission", 404);
+                await RespondRaw("Unknown permission", 404);
                 return;
             }
             var requires = Service.FindNode(perm.GetAttribute<AssignedByAttribute>().PermRequired);
@@ -118,16 +118,16 @@ namespace DiscordBot.MLAPI.Modules
                     else
                         other.Permissions.Remove(perm);
                     Program.Save();
-                    RespondRaw("Set");
+                    await RespondRaw("Set");
                 }
                 catch (Exception ex)
                 {
-                    RespondRaw("Failed: " + ex.Message, 500);
+                    await RespondRaw("Failed: " + ex.Message, 500);
                 }
             }
             else
             {
-                RespondRaw($"Failed: {errorReason}", 400);
+                await RespondRaw($"Failed: {errorReason}", 400);
             }
         }
     }

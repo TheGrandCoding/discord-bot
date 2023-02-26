@@ -37,7 +37,7 @@ namespace DiscordBot.MLAPI.Modules
             na.RawText = "[Add new]";
             ul.AddItem(new ListItem() { Children = { na } });
 
-            ReplyFile("list.html", 200, new Replacements().Add("list", ul));
+            await ReplyFile("list.html", 200, new Replacements().Add("list", ul));
         }
 
         [Method("POST"), Path("/filters/new")]
@@ -45,7 +45,7 @@ namespace DiscordBot.MLAPI.Modules
         {
             if(!Service.TryCreateNew(Context.User.Id, out var id, out var fs))
             {
-                RespondRaw("Failed", 400);
+                await RespondRaw("Failed", 400);
                 return;
             }
             try
@@ -62,7 +62,7 @@ namespace DiscordBot.MLAPI.Modules
         [Regex("filterId", FilterIdRegex)]
         public async Task EditFilter(string filterId)
         {
-            ReplyFile("edit.html", 200);
+            await ReplyFile("edit.html", 200);
         }
 
         [Method("DELETE"), Path("/filters/{filterId}")]
@@ -74,7 +74,7 @@ namespace DiscordBot.MLAPI.Modules
                 RespondRedirect("/filters");
             } else
             {
-                RespondRaw("Failed to delete", 500);
+                await RespondRaw("Failed to delete", 500);
             }
         }
 
@@ -87,7 +87,7 @@ namespace DiscordBot.MLAPI.Modules
         {
             if(!Service.TryOpenRead(filterId, out var fs))
             {
-                RespondRaw("No filter exists by that ID", 404);
+                await RespondRaw("No filter exists by that ID", 404);
                 return;
             }
             try
@@ -105,7 +105,7 @@ namespace DiscordBot.MLAPI.Modules
         {
             if(!Service.TryOpenWrite(Context.User.Id, filterId, out var fs))
             {
-                RespondRaw("No filter exists by that ID or could not open file", 404);
+                await RespondRaw("No filter exists by that ID or could not open file", 404);
                 return;
             }
             try
@@ -117,7 +117,7 @@ namespace DiscordBot.MLAPI.Modules
             {
                 fs.Close();
             }
-            RespondRaw("OK");
+            await RespondRaw("OK");
         }
     }
 }

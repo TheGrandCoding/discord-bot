@@ -42,7 +42,7 @@ namespace DiscordBot.MLAPI.Modules
                                 _a.EnactedDate.HasValue ? _a.EnactedDate.Value.ToLongDateString() : "Not yet enacted"
                             );
                     }
-                    RespondRaw($"<!DOCTYPE html><html><head></head><body>{table}</body></html>", 200);
+                    await RespondRaw($"<!DOCTYPE html><html><head></head><body>{table}</body></html>", 200);
                 }
                 else
                 {
@@ -51,7 +51,7 @@ namespace DiscordBot.MLAPI.Modules
                 return;
             }
             var page = LegislationService.PageForAct(act, raw);
-            RespondRaw(page);
+            await RespondRaw(page);
         }
     }
 }

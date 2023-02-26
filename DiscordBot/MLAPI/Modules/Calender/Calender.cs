@@ -14,14 +14,13 @@ namespace DiscordBot.MLAPI.Modules
     {
         public Calender(APIContext c) : base(c, "calender") { }
 
-        public override Task BeforeExecute()
+        public override async Task BeforeExecute()
         {
             if(!CalenderDb.Lock.WaitOne(1000 * 5))
             {
-                RespondRaw("Failed to achieve lock", 429);
+                await RespondRaw("Failed to achieve lock", 429);
                 throw new HaltExecutionException("Failed to achieve lock");
             }
-            return Task.CompletedTask;
         }
         public override Task AfterExecute()
         {
@@ -39,7 +38,7 @@ namespace DiscordBot.MLAPI.Modules
         public async Task Base()
         {
             InjectObjects = new List<Classes.HTMLHelpers.HTMLBase>();
-            ReplyFile("base.html", 200);
+            await ReplyFile("base.html", 200);
         }
 
         [Method("GET"), Path("/api/calendar")]
@@ -54,7 +53,7 @@ namespace DiscordBot.MLAPI.Modules
                     jarray.Add(e.ToJson(Context.User));
             }
 
-            RespondRaw(jarray.ToString());
+            await RespondRaw(jarray.ToString());
         }
 
         [Method("GET"), Path("/api/calendar/users")]
@@ -71,7 +70,7 @@ namespace DiscordBot.MLAPI.Modules
                 jobj["avatar"] = usr.GetAnyAvatarUrl();
                 users[$"{usr.Id}"] = jobj;
             }
-            RespondRaw(users.ToString());
+            await RespondRaw(users.ToString());
         }
 
         [Method("DELETE"), Path("/api/calendar/attendee")]
@@ -87,7 +86,7 @@ namespace DiscordBot.MLAPI.Modules
                     var evnt = db.Events.FirstOrDefault(x => x.Id == eventId);
                     if(evnt.CreatedById != Context.User.Id)
                     {
-                        RespondRaw("Forbidden", System.Net.HttpStatusCode.Forbidden);
+                        await RespondRaw("Forbidden", System.Net.HttpStatusCode.Forbidden);
                         return;
                     }
                 }
@@ -98,7 +97,7 @@ namespace DiscordBot.MLAPI.Modules
                 db.Attendees.Remove(existing);
                 db.SaveChanges();
             }
-            RespondRaw("OK");
+            await RespondRaw("OK");
         }
 
         [Method("POST"), Path("/api/calendar/attendee")]
@@ -112,7 +111,7 @@ namespace DiscordBot.MLAPI.Modules
                 db.Attendees.Add(existing);
                 db.SaveChanges();
             }
-            RespondRaw("OK");
+            await RespondRaw("OK");
         }
 
         [Method("POST"), Path("/api/calendar/events")]
@@ -249,19 +248,19 @@ namespace DiscordBot.MLAPI.Modules
             var evnt = DB.Events.Find(id);
             if(evnt == null)
             {
-                RespondRaw("Event not found", 404);
+                await RespondRaw("Event not found", 404);
                 return;
             }
             if(evnt.CreatedById != Context.User.Id)
             {
-                RespondRaw("Forbidden - you did not create this event", 403);
+                await RespondRaw("Forbidden - you did not create this event", 403);
                 return;
             }
             evnt.Start = startDate.UtcDateTime;
             evnt.End = endDate.UtcDateTime;
             DB.Events.Update(evnt);
             DB.SaveChanges();
-            RespondRaw("OK", 200);
+            await RespondRaw("OK", 200);
         }
     }
 }
