@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace DiscordBot.MLAPI.Modules
 {
@@ -13,23 +14,25 @@ namespace DiscordBot.MLAPI.Modules
     {
         public Calender(APIContext c) : base(c, "calender") { }
 
-        public override void BeforeExecute()
+        public override Task BeforeExecute()
         {
             if(!CalenderDb.Lock.WaitOne(1000 * 5))
             {
                 RespondRaw("Failed to achieve lock", 429);
                 throw new HaltExecutionException("Failed to achieve lock");
             }
+            return Task.CompletedTask;
         }
-        public override void AfterExecute()
+        public override Task AfterExecute()
         {
             CalenderDb.Lock.Release();
+            return Task.CompletedTask;
         }
 
         [Method("GET"), Path("/calender")]
         public void RedirectBase()
         {
-            RespondRaw(LoadRedirectFile("/calendar"), System.Net.HttpStatusCode.Found);
+            RespondRedirect("/calendar");
         }
 
         [Method("GET"), Path("/calendar")]
@@ -125,7 +128,7 @@ namespace DiscordBot.MLAPI.Modules
                 // we're deleting it
                 DB.Events.Remove(existing);
                 DB.SaveChanges();
-                RespondRaw(LoadRedirectFile("/calendar"), 302);
+                RespondRedirect("/calendar");
                 return;
             }
 
@@ -162,7 +165,7 @@ namespace DiscordBot.MLAPI.Modules
                 DB.Events.Update(existing);
 
             DB.SaveChanges();
-            RespondRaw(LoadRedirectFile("/calendar"), 302);
+            RespondRedirect("/calendar");
         }
 
         [Method("POST"), Path("/api/calendar/series")]
@@ -231,7 +234,7 @@ namespace DiscordBot.MLAPI.Modules
             }
 
             db.SaveChanges();
-            RespondRaw(LoadRedirectFile("/calendar"), 302);
+            RespondRedirect("/calendar");
 
 
         }

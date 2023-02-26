@@ -55,7 +55,7 @@ namespace DiscordBot.MLAPI.Modules
                 {
                     redirectTo = "/login/setpassword";
                 }
-                RespondRaw(LoadRedirectFile(redirectTo), HttpStatusCode.Redirect);
+                RespondRedirect(redirectTo);
             }
             catch (Exception ex)
             {
@@ -87,7 +87,7 @@ namespace DiscordBot.MLAPI.Modules
             var l = Context.HTTP.Request.Cookies[AuthSession.CookieName] ?? new Cookie(AuthSession.CookieName, "null");
             l.Expires = DateTime.Now.AddDays(-1);
             Context.HTTP.Response.SetCookie(l);
-            RespondRaw(LoadRedirectFile(back), HttpStatusCode.Redirect);
+            RespondRedirect(back);
         }
 
         [Method("GET"), Path("/login/discord")]
@@ -99,7 +99,7 @@ namespace DiscordBot.MLAPI.Modules
                 .Add("response_type", "code")
                 .Add("scope", "identify")
                 .Add("state", state);
-            RespondRaw(LoadRedirectFile(uri, redirect), HttpStatusCode.Redirect);
+            RespondRedirect(uri, redirect);
         }
 
         [Method("POST"), Path("/login")]
@@ -221,7 +221,7 @@ namespace DiscordBot.MLAPI.Modules
             var srv = Program.Services.GetRequiredService<TraktService>();
             if(string.IsNullOrWhiteSpace(code))
             {
-                RespondRaw(LoadRedirectFile(srv.OAuthRedirectUri.ToString()), HttpStatusCode.Redirect);
+                RespondRedirect(srv.OAuthRedirectUri.ToString());
                 return;
             }
             srv.AddUser(Context.User.Id, code).Wait();

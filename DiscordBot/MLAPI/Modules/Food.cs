@@ -612,7 +612,7 @@ namespace DiscordBot.MLAPI.Modules
         {
             if(!Service.OngoingRecipes.TryGetValue(id, out var _))
             { // no recipe
-                RespondRaw(LoadRedirectFile("/food/recipes"), System.Net.HttpStatusCode.Found);
+                RespondRedirect("/food/recipes");
             } else
             {
                 ReplyFile("new_ongoing.html", 200, new Replacements().Add("id", id));
@@ -630,7 +630,7 @@ namespace DiscordBot.MLAPI.Modules
         {
             if(Service.OngoingRecipes.Count > 0)
             {
-                RespondRaw(LoadRedirectFile($"/food/ongoing-recipe?id={Service.OngoingRecipes.First().Key}"), System.Net.HttpStatusCode.Found);
+                RespondRedirect($"/food/ongoing-recipe?id={Service.OngoingRecipes.First().Key}");
                 return;
             } else
             {
@@ -1159,7 +1159,7 @@ namespace DiscordBot.MLAPI.Modules
             if (extends > 0)
                 e = extends;
             var p = Service.AddProduct(productId, productName, "", e, uses, "");
-            RespondRaw(LoadRedirectFile($"/food/new?code={productId}&redirect={redirect}"), System.Net.HttpStatusCode.Found);
+            RespondRedirect($"/food/new?code={productId}&redirect={redirect}");
         }
         [Method("POST"),   Path("/api/food/inventory")]
         public void NewInventory(string redirect, string productId, string expires, string frozen = "off")
@@ -1176,7 +1176,7 @@ namespace DiscordBot.MLAPI.Modules
                                     int.Parse(split[2]), 0, 0, 0, DateTimeKind.Utc);
 
             Service.AddInventoryItem(productId, FoodService.DefaultInventoryId, date, frozen == "on");
-            RespondRaw(LoadRedirectFile($"/food/{redirect}"), System.Net.HttpStatusCode.Found);
+            RespondRedirect($"/food/{redirect}");
         }
 
         [Method("DELETE"), Path("/api/food/inventory")]

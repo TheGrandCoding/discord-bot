@@ -367,7 +367,7 @@ namespace DiscordBot.MLAPI.Modules
             } else
             {
                 ChessS.SetPermissionsAThread();
-                RespondRaw(LoadRedirectFile("/chess"), HttpStatusCode.Redirect);
+                RespondRedirect("/chess"), HttpStatusCode.Redirect);
             }
         }
 
@@ -381,7 +381,7 @@ namespace DiscordBot.MLAPI.Modules
                 .Add("redirect_uri", Handler.LocalAPIUrl + "/oauth2/discord")
                 .Add("state", state)
                 .Add("scope", "guilds.join");
-            RespondRaw(LoadRedirectFile(uri), HttpStatusCode.Redirect);
+            RespondRedirect(uri), HttpStatusCode.Redirect);
         }
 #endregion
 
@@ -425,10 +425,10 @@ namespace DiscordBot.MLAPI.Modules
             { // Special logout case, we just clear the verified email.
                 Context.User.IsVerified = false;
                 Context.User.VerifiedEmail = null;
-                RespondRaw(LoadRedirectFile("/chess"), HttpStatusCode.Redirect);
+                RespondRedirect("/chess"), HttpStatusCode.Redirect);
             } else
             {
-                RespondRaw(LoadRedirectFile("/logout"), HttpStatusCode.Redirect);
+                RespondRedirect("/logout"), HttpStatusCode.Redirect);
             }
         }
 
@@ -544,7 +544,7 @@ namespace DiscordBot.MLAPI.Modules
             game.BlackTime = bsec * 1000;
             var id = ChessS.AddTimedGame(game);
 
-            RespondRaw(LoadRedirectFile($"/chess/clock?id={id}"), HttpStatusCode.Redirect);
+            RespondRedirect($"/chess/clock?id={id}"), HttpStatusCode.Redirect);
         }
 
         [Method("GET"), Path("/chess/clock")]
@@ -1292,7 +1292,7 @@ namespace DiscordBot.MLAPI.Modules
                 usrs.SetScoreOnDay(usrs.Rating, DateTime.Now);
             }
             didChange = true;
-            RespondRaw(LoadRedirectFile("/chess"));
+            RespondRedirect("/chess"));
         }
 
         [Method("PUT"), Path("/chess/api/player")]

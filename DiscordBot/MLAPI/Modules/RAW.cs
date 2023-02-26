@@ -33,7 +33,7 @@ namespace DiscordBot.RESTAPI.Functions.HTML
                 ReplyFile("_base_nologin.html", 200);
             } else if (Context.User.IsApproved != true)
             {
-                RespondRaw(LoadRedirectFile("/login/approval"), HttpStatusCode.Redirect);
+                RespondRedirect("/login/approval");
             } else
             {
                 ReplyFile("_base.html", 200, new Replacements());

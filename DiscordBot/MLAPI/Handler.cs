@@ -38,9 +38,18 @@ namespace DiscordBot.MLAPI
             Server.Prefixes.Add("http://+:8887/");
             Server.Start();
             m_listening = true;
-            listenThread = new Thread(listenLoop);
-            listenThread.Start();
             buildEndpoints();
+            Task.Run(async () =>
+            {
+                try
+                {
+                    await listenLoop();
+                }
+                catch (Exception ex)
+                {
+                    Program.LogError(ex, "Handler");
+                }
+            });
         }
 
         static bool m_listening;
@@ -81,6 +90,7 @@ namespace DiscordBot.MLAPI
             var q = from t in Assembly.GetExecutingAssembly().GetTypes()
                     where t.IsClass  && t.IsSubclassOf(typeof(APIBase))
                     select t;
+            bool failed = false;
             foreach(var module in q)
             {
                 var mod = new APIModule();
@@ -92,10 +102,17 @@ namespace DiscordBot.MLAPI
                 var methods = module.GetMethods(BindingFlags.Public | BindingFlags.Instance);
                 foreach(var func in methods)
                 {
+
                     var method = func.GetCustomAttribute<MethodAttribute>();
                     var path = func.GetCustomAttribute<PathAttribute>();
                     if (method == null || path == null)
                         continue;
+                    if(!func.ReturnType.IsAssignableTo(typeof(Task)))
+                    {
+                        Program.LogError($"MLAPI method {module.Name}.{func.Name}({string.Join(", ", func.GetParameters().Select(x => x.Name))}) does not return Task", "Handler");
+                        failed = true;
+                        continue;
+                    }
                     var name = func.GetCustomAttribute<NameAttribute>();
                     var api = new APIEndpoint(method.Method.Method, path);
                     var regexs = func.GetCustomAttributes<RegexAttribute>();
@@ -121,6 +138,12 @@ namespace DiscordBot.MLAPI
                     }
                 }
                 Modules.Add(mod);
+            }
+            if(failed)
+            {
+                Program.LogCritical("Refusing to allow bot start due to malformed endpoints", "API");
+                Program.Close(1);
+                throw new ArgumentException("Invalid MLAPI functions");
             }
             foreach (var keypair in Endpoints)
                 Program.LogDebug($"Loaded {keypair.Value.Count} {keypair.Key} endpoints", "API");
@@ -253,15 +276,16 @@ namespace DiscordBot.MLAPI
                 || str.Contains("::1");
         }
 
-        static void listenLoop()
+        static async Task listenLoop()
         {
             int exceptions = 0;
             HttpListenerContext req = null;
+            var token = Program.GetToken();
             while (Listening)
             {
                 try
                 {
-                    req = Server.GetContext();
+                    req = await Server.GetContextAsync().WaitAsync(token);
                     var context = parseContext(req);
                     if (req.Request.RawUrl == "/favicon.ico")
                     {
@@ -306,10 +330,19 @@ namespace DiscordBot.MLAPI
                         req.Response.Close(bytes, false);
                         continue;
                     }
-                    handleRequest(context);
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await handleRequest(context);
+                        } catch(Exception ex)
+                        {
+                            Program.LogError(ex, "HandleRequest");
+                        }
+                    });
                     exceptions = 0;
                 }
-                catch (ThreadAbortException)
+                catch (OperationCanceledException)
                 {
                     // thread is closing, already logged - no need to catch again
                     break;
@@ -383,7 +416,7 @@ namespace DiscordBot.MLAPI
             }
         }
 
-        static void redirect(RequestLogger logger, APIContext context, string url)
+        static async Task redirect(RequestLogger logger, APIContext context, string url)
         {
             context.HTTP.Response.Headers["Location"] = url;
             try
@@ -397,13 +430,13 @@ namespace DiscordBot.MLAPI
                     Expires = DateTime.Now.AddDays(1),
                     Path = "/"
                 });
-                bs.RespondRaw(bs.LoadRedirectFile(url, current), HttpStatusCode.TemporaryRedirect);
+                await bs.RespondRedirect(url, current, 307);
             }
             catch { }
             logger.End(HttpStatusCode.TemporaryRedirect, url);
         }
 
-        static void handleRequest(APIContext context)
+        static async Task handleRequest(APIContext context)
         {
             context.Id = Guid.NewGuid();
             Console.WriteLine($"{(context?.Id.ToString() ?? "null")}: {(context.Request?.RemoteEndPoint?.ToString() ?? "null")} {(context?.Request?.Url.ToString() ?? "null")}");
@@ -477,7 +510,7 @@ namespace DiscordBot.MLAPI
             commandBase.Context.Endpoint = found.Command;
             try
             {
-                commandBase.BeforeExecute();
+                await commandBase.BeforeExecute().ConfigureAwait(false);
             }
             catch (RedirectException ex)
             {
@@ -499,8 +532,12 @@ namespace DiscordBot.MLAPI
             }
             try
             {
-                found.Command.Function.Invoke(commandBase, found.Arguments.ToArray());
+                var task = found.Command.Function.Invoke(commandBase, found.Arguments.ToArray()) as Task;
+                await task.WaitAsync(Program.GetToken()).ConfigureAwait(false);
                 logger.End((HttpStatusCode)commandBase.StatusSent);
+            } catch(OperationCanceledException)
+            {
+                return;
             }
             catch (TargetInvocationException outer)
             {
@@ -519,7 +556,7 @@ namespace DiscordBot.MLAPI
                 catch { }
                 Program.LogError(ex, "ExHandler");
             }
-            commandBase.AfterExecute();
+            await commandBase.AfterExecute().ConfigureAwait(false);
             Console.WriteLine($"{context.Id}: Returned {commandBase.StatusSent}");
         }
 

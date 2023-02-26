@@ -50,7 +50,7 @@ namespace DiscordBot.MLAPI.Modules
                 return;
             }
             var page = LegislationService.PageForAct(act, raw);
-            RespondRaw(ReplaceMatches(page, new Replacements()), HttpStatusCode.OK);
+            RespondRaw(page);
         }
     }
 }

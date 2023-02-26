@@ -176,7 +176,7 @@ namespace DiscordBot.MLAPI.Modules
             if (string.IsNullOrWhiteSpace(redirect))
                 redirect = Context.User?.RedirectUrl ?? "%2F";
             redirect = Uri.UnescapeDataString(redirect);
-            RespondRaw(LoadRedirectFile(redirect), System.Net.HttpStatusCode.Redirect);
+            RespondRedirect(redirect), System.Net.HttpStatusCode.Redirect);
         }
     
     }
