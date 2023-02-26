@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace DiscordBot.MLAPI.Modules.UserModule
 {
@@ -21,7 +22,7 @@ namespace DiscordBot.MLAPI.Modules.UserModule
         }
 
         [Path("/user"), Method("GET")]
-        public void MainPage()
+        public async Task MainPage()
         {
             ReplyFile("base.html", 200);
         }
@@ -101,7 +102,7 @@ namespace DiscordBot.MLAPI.Modules.UserModule
         }
 
         [Path("/user/nicknames"), Method("GET")]
-        public void NicknamePage()
+        public async Task NicknamePage()
         {
             var nicks = getTableNicknames();
             var other = getOtherNicknames();
@@ -111,7 +112,7 @@ namespace DiscordBot.MLAPI.Modules.UserModule
         }
 
         [Path("/user/nickchange"), Method("PATCH")]
-        public void ChangeUserNickname(ulong guildId, ulong userId, string newnick = "")
+        public async Task ChangeUserNickname(ulong guildId, ulong userId, string newnick = "")
         {
             var guild = Program.Client.GetGuild(guildId);
             if (guild == null)
@@ -168,7 +169,7 @@ namespace DiscordBot.MLAPI.Modules.UserModule
         }
 
         [Path("/user/tokens"), Method("GET")]
-        public void TokenPage()
+        public async Task TokenPage()
         {
             var tokenTable = "";
             foreach (var token in Context.User.Tokens)
@@ -184,7 +185,7 @@ namespace DiscordBot.MLAPI.Modules.UserModule
         }
 
         [Path("/user/tokens/remove"), Method("PUT")]
-        public void RemoveToken(string name)
+        public async Task RemoveToken(string name)
         {
             var token = GetToken(name);
             if (token == null)
@@ -199,7 +200,7 @@ namespace DiscordBot.MLAPI.Modules.UserModule
         }
 
         [Path("/user/tokens"), Method("PUT")]
-        public void NewToken(string name)
+        public async Task NewToken(string name)
         {
             if (name.Contains(" "))
             {

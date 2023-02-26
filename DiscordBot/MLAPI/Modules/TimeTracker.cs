@@ -14,6 +14,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace DiscordBot.MLAPI.Modules.TimeTracking
 {
@@ -27,7 +28,7 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
         public TimeTrackDb DB { get; }
 
         [Method("GET"), Path("/tracker")]
-        public void Base()
+        public async Task Base()
         {
             var existing = Context.User.Tokens.FirstOrDefault(x => x.Name == AuthToken.TimeToken);
             if(existing == null)
@@ -43,7 +44,7 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
         [RequireAuthentication(false, false)]
         [RequireApproval(false)]
         [RequireScope("html.?")]
-        public void GetUser()
+        public async Task GetUser()
         {
             JToken obj;
             if (Context.User == null)
@@ -64,13 +65,13 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
         }
 
         [Method("GET"), Path("/api/tracker/latestVersion")]
-        public void LatestVersion()
+        public async Task LatestVersion()
         {
             RespondRaw(TimeTrackDb.GetExtensionVersion(), HttpStatusCode.OK);
         }
 
         [Method("GET"), Path("/api/tracker/times")]
-        public void GetTimes(string ids)
+        public async Task GetTimes(string ids)
         {
             var jobj = new JObject();
             foreach (var id in ids.Split(';', ',')) 
@@ -97,7 +98,7 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
         }
 
         [Method("GET"), Path("/api/tracker/threads")]
-        public void GetThreads(string ids, int v = 2)
+        public async Task GetThreads(string ids, int v = 2)
         {
             var jobj = new JObject();
             foreach (var id in ids.Split(';', ','))
@@ -132,7 +133,7 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
         [RequireApproval(false)]
         [RequireScope("*")]
         [RequireGithubSignatureValid("tracker:webhook")]
-        public void VersionUpdate()
+        public async Task VersionUpdate()
         {
             RespondRaw("Thanks");
             var jobj = JObject.Parse(Context.Body);

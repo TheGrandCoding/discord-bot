@@ -8,6 +8,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using static DiscordBot.Perms;
+using System.Threading.Tasks;
 
 namespace DiscordBot.MLAPI.Modules
 {
@@ -73,14 +74,14 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("GET"), Path("/bot/permissions")]
-        public void GetPermissionsSelf()
+        public async Task GetPermissionsSelf()
         {
             permsFor(Context.User);
         }
 
         [Method("GET"), Path("/bot/permissions")]
         [RequirePermNode(Perms.Bot.Developer.ViewPermissions)]
-        public void SeePermissions(ulong user)
+        public async Task SeePermissions(ulong user)
         {
             var usr = Program.GetUserOrDefault(user);
             if (usr == null)
@@ -92,7 +93,7 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("POST"), Path("/bot/permissions")]
-        public void TrySetPermission(ulong user, string node, bool value)
+        public async Task TrySetPermission(ulong user, string node, bool value)
         {
             var other = Program.GetUserOrDefault(user);
             if (other == null)

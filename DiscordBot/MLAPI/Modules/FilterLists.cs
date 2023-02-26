@@ -21,7 +21,7 @@ namespace DiscordBot.MLAPI.Modules
         public FilterListService Service { get; set; }
 
         [Method("GET"), Path("/filters")]
-        public void ListFilters()
+        public async Task ListFilters()
         {
             var folder = Service.GetDirectory(Context.User.Id);
 
@@ -41,7 +41,7 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("POST"), Path("/filters/new")]
-        public void NewFilter()
+        public async Task NewFilter()
         {
             if(!Service.TryCreateNew(Context.User.Id, out var id, out var fs))
             {
@@ -60,14 +60,14 @@ namespace DiscordBot.MLAPI.Modules
 
         [Method("GET"), Path("/filters/{filterId}")]
         [Regex("filterId", FilterIdRegex)]
-        public void EditFilter(string filterId)
+        public async Task EditFilter(string filterId)
         {
             ReplyFile("edit.html", 200);
         }
 
         [Method("DELETE"), Path("/filters/{filterId}")]
         [Regex("filterId", FilterIdRegex)]
-        public void DeleteFilter(string filterId)
+        public async Task DeleteFilter(string filterId)
         {
             if(Service.TryDelete(Context.User.Id, filterId))
             {
@@ -83,7 +83,7 @@ namespace DiscordBot.MLAPI.Modules
         [RequireNoExcessQuery(false)]
         [RequireAuthentication(false)]
         [RequireApproval(false)]
-        public void FetchRaw(string filterId)
+        public async Task FetchRaw(string filterId)
         {
             if(!Service.TryOpenRead(filterId, out var fs))
             {
@@ -101,7 +101,7 @@ namespace DiscordBot.MLAPI.Modules
 
         [Method("POST"), Path("/filters-raw/{filterId}")]
         [Regex("filterId", FilterIdRegex)]
-        public void UploadRaw(string filterId, bool append = false)
+        public async Task UploadRaw(string filterId, bool append = false)
         {
             if(!Service.TryOpenWrite(Context.User.Id, filterId, out var fs))
             {

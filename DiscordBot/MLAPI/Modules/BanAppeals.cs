@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace DiscordBot.MLAPI.Modules
 {
@@ -48,7 +49,7 @@ namespace DiscordBot.MLAPI.Modules
 
 
         [Method("GET"), Path("/bans")]
-        public void Base()
+        public async Task Base()
         {
             var table = new Table();
             table.Children.Add(new TableRow()
@@ -79,7 +80,7 @@ namespace DiscordBot.MLAPI.Modules
 
         [Method("GET"), Path("/bans/{guildId}")]
         [Regex("guildId", @"[0-9]{17,18}")]
-        public void ViewAppeal(ulong guildId)
+        public async Task ViewAppeal(ulong guildId)
         {
             var guild = Program.Client.GetGuild(guildId);
             var appeal = Service.GetAppeal(guild, Context.User.Id);

@@ -41,7 +41,7 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("POST"), Path("/ocr")]
-        public void Execute()
+        public async Task Execute()
         {
             if(string.IsNullOrEmpty(Context.Body))
             {

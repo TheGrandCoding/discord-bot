@@ -18,6 +18,7 @@ using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 namespace DiscordBot.MLAPI.Modules
 {
@@ -849,7 +850,7 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("GET"), Path("/" + urlName)]
-        public void Base(ulong guild = 0, ulong channel = 0, ulong msg = 0)
+        public async Task Base(ulong guild = 0, ulong channel = 0, ulong msg = 0)
         {
             string guilds = getGuilds();
             var gul = guild == 0 ? getDefaultGuild() : Program.Client.GetGuild(guild);
@@ -868,7 +869,7 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("GET"), Path("/" + urlName + "/messages")]
-        public void GetMoreMessages(ulong guild, ulong channel, ulong before)
+        public async Task GetMoreMessages(ulong guild, ulong channel, ulong before)
         {
             var gul = guild == 0 ? getDefaultGuild() : Program.Client.GetGuild(guild);
             Self = gul.GetUser(Context.User.Id);
@@ -878,7 +879,7 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("POST"), Path("/" + urlName + "/message")]
-        public void SendMessage(ulong guild, ulong channel)
+        public async Task SendMessage(ulong guild, ulong channel)
         {
             var gul = Program.Client.GetGuild(guild);
             if (gul == null)
@@ -934,7 +935,7 @@ namespace DiscordBot.MLAPI.Modules
         [Regex("channel_id", @"[0-9]{17,18}")]
         [Regex("message_id", @"[0-9]{17,18}")]
         [Regex("filename", "[A-Za-z0-9]+")]
-        public void ProxyImage(ulong channel_id, ulong message_id, string filename)
+        public async Task ProxyImage(ulong channel_id, ulong message_id, string filename)
         {
             var client = Program.Services.GetRequiredService<Classes.BotHttpClient>();
             var stream = client.GetStreamAsync($"https://cdn.discordapp.com{Context.Path}").Result;

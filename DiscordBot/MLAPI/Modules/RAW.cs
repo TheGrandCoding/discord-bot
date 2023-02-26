@@ -26,7 +26,7 @@ namespace DiscordBot.RESTAPI.Functions.HTML
         }
 
         [Path("/"), Method("GET")]
-        public void BaseHTML()
+        public async Task BaseHTML()
         {
             if(Context.User == null)
             {
@@ -41,7 +41,7 @@ namespace DiscordBot.RESTAPI.Functions.HTML
         }
 
         [Method("GET"), Path("/gh-catch")]
-        public void GHCatch()
+        public async Task GHCatch()
         {
             ReplyFile("gh-catch.html", 200);
         }
@@ -56,7 +56,7 @@ namespace DiscordBot.RESTAPI.Functions.HTML
         [Regex("bracket", "(js|css|img|assets)")]
         [Regex("filePath", @"[a-zA-Z0-9\/._-]*.\.(js|css|png|jpeg|svg|woff|mp3)")]
         [RequireServerName(null)]
-        public void BackgroundWork([Summary("Folder of item")]string bracket, string filePath)
+        public async Task BackgroundWork([Summary("Folder of item")]string bracket, string filePath)
         {
             if(Context.Endpoint == null)
             {
@@ -117,7 +117,7 @@ namespace DiscordBot.RESTAPI.Functions.HTML
 
         [Method("GET"), Path("/builtin")]
         [RequireUser(144462654201790464)]
-        public void BuiltInAccounts()
+        public async Task BuiltInAccounts()
         {
             var TABLE = "";
             bool change = false;
@@ -145,7 +145,7 @@ namespace DiscordBot.RESTAPI.Functions.HTML
         [Method("GET")]
         [Path("/whitelist")]
         [RequireServerName(null)]
-        public void WhitelistLessons()
+        public async Task WhitelistLessons()
         {
             if (!sent.ContainsKey(Context.IP))
             {
@@ -169,7 +169,7 @@ namespace DiscordBot.RESTAPI.Functions.HTML
         }
     
         [Method("GET"), Path("/dfa")]
-        public void DFA()
+        public async Task DFA()
         {
             ReplyFile("dfa.html", 200);
         }

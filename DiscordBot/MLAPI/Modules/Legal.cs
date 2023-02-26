@@ -4,6 +4,7 @@ using DiscordBot.Services;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace DiscordBot.MLAPI.Modules
 {
@@ -17,13 +18,13 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("GET"), Path("/terms")]
-        public void Terms()
+        public async Task Terms()
         {
             ReplyFile("terms.html", 200);
         }
 
         [Method("GET"), Path("/privacy")]
-        public void Privacy()
+        public async Task Privacy()
         {
             ReplyFile("privacy.html", 200);
         }
@@ -53,7 +54,7 @@ namespace DiscordBot.MLAPI.Modules
 
         [Method("GET"), Path("/privacy/sar")]
         [RequireAuthentication(true)]
-        public void SAR()
+        public async Task SAR()
         {
             var accountData = Program.Serialise(Context.User, format: Newtonsoft.Json.Formatting.Indented);
             var serviceData = getDataServices();

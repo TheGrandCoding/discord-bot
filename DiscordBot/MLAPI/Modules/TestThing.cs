@@ -6,6 +6,7 @@ using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace DiscordBot.MLAPI.Modules
 {
@@ -15,7 +16,7 @@ namespace DiscordBot.MLAPI.Modules
         public TestThing(APIContext c) : base(c, "_other") { }
 
         [Method("POST"), Path("/testthing")]
-        public void Thing(string location, int people, string start, string end)
+        public async Task Thing(string location, int people, string start, string end)
         {
             if(!DateTime.TryParseExact(start, "yyyy-MM-dd", CultureInfo.CurrentCulture, DateTimeStyles.None, out var startDate))
             {
@@ -38,7 +39,7 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("PUT"), Path("/testthing")]
-        public void PadLock(int code)
+        public async Task PadLock(int code)
         {
             var thing = Program.Configuration["tokens:padlock"];
             if(thing == code.ToString())

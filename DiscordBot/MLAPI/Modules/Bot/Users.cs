@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace DiscordBot.MLAPI.Modules.Bot
 {
@@ -14,7 +15,7 @@ namespace DiscordBot.MLAPI.Modules.Bot
 
         [Method("GET"), Path("/bot/approve")]
         [RequirePermNode(Perms.Bot.ApproveUser)]
-        public void ApproveList()
+        public async Task ApproveList()
         {
             var table = new Table()
             {
@@ -63,7 +64,7 @@ namespace DiscordBot.MLAPI.Modules.Bot
         }
    
         [Method("POST"), Path("/bot/approve")]
-        public void Set(ulong id, bool approved)
+        public async Task Set(ulong id, bool approved)
         {
             var bUser = Program.GetUserOrDefault(id);
             if(bUser == null)

@@ -65,7 +65,7 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("GET"), Path("/login")]
-        public void LoginBase()
+        public async Task LoginBase()
         {
             if(Context.User != null)
             { // we'll log them out to troll them
@@ -81,7 +81,7 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("GET"), Path("/logout")]
-        public void Logout(string back = "/")
+        public async Task Logout(string back = "/")
         {
             Context.HTTP.Response.Headers["Location"] = back;
             var l = Context.HTTP.Request.Cookies[AuthSession.CookieName] ?? new Cookie(AuthSession.CookieName, "null");
@@ -91,7 +91,7 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("GET"), Path("/login/discord")]
-        public void RedirectToDiscord(string redirect = "/")
+        public async Task RedirectToDiscord(string redirect = "/")
         {
             var state = Callback.Register(handleLogin, Context.User);
             var uri = UrlBuilder.Discord()
@@ -106,7 +106,7 @@ namespace DiscordBot.MLAPI.Modules
         // We expect this data to be sent in form-data-encoded or wahtever form in the content/body
         // rather than in the Query string
         // the APIContext has the means to parse both, and CommandFinder uses both.
-        public void LoginPassword(string identifier, string password)
+        public async Task LoginPassword(string identifier, string password)
         {
             if(Context.User != null)
             {
@@ -141,7 +141,7 @@ namespace DiscordBot.MLAPI.Modules
 
         [Method("GET"), Path("/login/approval")]
         [RequireAuthentication]
-        public void ApprovalPage()
+        public async Task ApprovalPage()
         {
             if(!Context.User.IsApproved.HasValue)
             {
@@ -197,7 +197,7 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("GET"), Path("/oauth2/discord")]
-        public void OauthLogin(string code, string state)
+        public async Task OauthLogin(string code, string state)
         {
             if(!Callback.Invoke(Context, state))
             {
@@ -206,7 +206,7 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("GET"), Path("/oauth2/misc")]
-        public void OauthMisc(string state)
+        public async Task OauthMisc(string state)
         {
             if (!Callback.Invoke(Context, state))
             {
@@ -216,7 +216,7 @@ namespace DiscordBot.MLAPI.Modules
 
         [Method("GET"), Path("/oauth2/trakt")]
         [RequireAuthentication]
-        public void OauthTrakt(string code = null)
+        public async Task OauthTrakt(string code = null)
         {
             var srv = Program.Services.GetRequiredService<TraktService>();
             if(string.IsNullOrWhiteSpace(code))
@@ -230,7 +230,7 @@ namespace DiscordBot.MLAPI.Modules
 
         [Method("GET"), Path("/login/setpassword")]
         [RequireAuthentication]
-        public void SeePswdPage()
+        public async Task SeePswdPage()
         {
             ReplyFile("pwd.html", HttpStatusCode.OK, new Replacements()
                 .IfElse("dowhat",
@@ -240,7 +240,7 @@ namespace DiscordBot.MLAPI.Modules
     
         [Method("POST"), Path("/login/setpassword")]
         [RequireAuthentication]
-        public void SetLoginPswd(string pwd)
+        public async Task SetLoginPswd(string pwd)
         {
             if (pwd.Length < 8 || pwd.Length > 32)
             {
@@ -264,7 +264,7 @@ namespace DiscordBot.MLAPI.Modules
         [RequireAuthentication(true)]
         [RequireVerifiedAccount(true)]
         [RequireApproval(false)]
-        public void ForceVerify()
+        public async Task ForceVerify()
         {
             Context.User.IsApproved = true;
             var service = Program.Services.GetRequiredService<EnsureLevelEliteness>();

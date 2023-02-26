@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace DiscordBot.MLAPI.Modules.Bot
 {
@@ -133,7 +134,7 @@ namespace DiscordBot.MLAPI.Modules.Bot
         }
 
         [Method("GET"), Path("/bot/config")]
-        public void GetConfig()
+        public async Task GetConfig()
         {
             var html = getHtml(Program.Configuration);
             var json = getJson(Program.Configuration);
@@ -143,7 +144,7 @@ namespace DiscordBot.MLAPI.Modules.Bot
         }
 
         [Method("POST"), Path("/bot/config")]
-        public void NewConfig()
+        public async Task NewConfig()
         {
             var json = JObject.Parse(Context.Body);
             var configProvider = Program.Configuration.Providers.First() as JsonConfigurationProvider;

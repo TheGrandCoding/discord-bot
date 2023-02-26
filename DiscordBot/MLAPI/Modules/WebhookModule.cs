@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace DiscordBot.MLAPI.Modules
 {
@@ -20,7 +21,7 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("POST"), Path("webhooks/sonarr")]
-        public void Sonarr()
+        public async Task Sonarr()
         {
             var srv = Program.Services.GetRequiredService<SonarrWebhooksService>();
             if(srv.HasFailed)
@@ -41,7 +42,7 @@ namespace DiscordBot.MLAPI.Modules
         }
     
         [Method("POST"), Path("webhooks/radarr")]
-        public void Radarr()
+        public async Task Radarr()
         {
             var srv = Program.Services.GetRequiredService<RadarrWebhookService>();
             if (srv.HasFailed)
@@ -68,7 +69,7 @@ namespace DiscordBot.MLAPI.Modules
 #if !DEBUG
         [RequireGithubSignatureValid("webhooks:gh-catch")]
 #endif
-        public void GithubCatch()
+        public async Task GithubCatch()
         {
             var srv = Program.Services.GetRequiredService<GithubTestService>();
             var data = new DiscordBot.Services.JsonWebhook()
@@ -121,7 +122,7 @@ namespace DiscordBot.MLAPI.Modules
 #if !DEBUG
         [RequireGithubSignatureValid("webhooks:gh-flask")]
 #endif
-        public void GitHubFlask()
+        public async Task GitHubFlask()
         {
             _checkRestart("flaskr", "FL");
         }
@@ -132,7 +133,7 @@ namespace DiscordBot.MLAPI.Modules
 #if !DEBUG
         [RequireGithubSignatureValid("webhooks:gh-mlapibot")]
 #endif
-        public void GitHubMlapibot()
+        public async Task GitHubMlapibot()
         {
             _checkRestart("mlapibot", "ML");
         }

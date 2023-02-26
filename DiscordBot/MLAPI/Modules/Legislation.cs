@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace DiscordBot.MLAPI.Modules
 {
@@ -21,7 +22,7 @@ namespace DiscordBot.MLAPI.Modules
         [Method("GET")]
         [Path("/laws/{path}")]
         [Regex("path", @"[a-z0-9-\/]+")]
-        public void SeeLaw(string path, bool raw = false)
+        public async Task SeeLaw(string path, bool raw = false)
         {
             if(!Service.Laws.TryGetValue(path, out var act))
             {

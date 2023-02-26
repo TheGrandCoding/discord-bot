@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 namespace DiscordBot.MLAPI.Modules.Guild
 {
@@ -19,7 +20,7 @@ namespace DiscordBot.MLAPI.Modules.Guild
 
         [Method("GET"), Path(@"/server/{guildId}/rules")]
         [Regex("guildId", @"[0-9]{17,18}")]
-        public void Rules(ulong guildId)
+        public async Task Rules(ulong guildId)
         {
             SocketGuild guild = Program.Client.GetGuild(guildId);
             if(guild == null)
@@ -104,7 +105,7 @@ namespace DiscordBot.MLAPI.Modules.Guild
 
         [Method("POST"), Path(@"/server/{guildId}/rules")]
         [Regex("guildId", @"[0-9]{17,18}")]
-        public void SetRules(ulong guildId)
+        public async Task SetRules(ulong guildId)
         {
             SocketGuild guild = Program.Client.GetGuild(guildId);
             if (guild == null)

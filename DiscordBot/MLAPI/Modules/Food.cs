@@ -11,6 +11,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace DiscordBot.MLAPI.Modules
 {
@@ -299,7 +300,7 @@ namespace DiscordBot.MLAPI.Modules
         [Method("GET"), Path("/food")]
         [RequireApproval(false)]
         [RequireAuthentication(false, false)]
-        public void Base(bool grouped = false, bool full = false)
+        public async Task Base(bool grouped = false, bool full = false)
         {
             var s = grouped
                 ? getGroupedInfo(full)
@@ -332,19 +333,19 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("GET"), Path("/food/scan")]
-        public void Scan()
+        public async Task Scan()
         {
             ReplyFile("scan.html", 200);
         }
 
         [Method("GET"), Path("/food/enter")]
-        public void Enter()
+        public async Task Enter()
         {
             ReplyFile("enter.html", 200);
         }
 
         [Method("GET"), Path("/food/new")]
-        public void NewFood(string code = null, string redirect = null)
+        public async Task NewFood(string code = null, string redirect = null)
         {
             if(code == null)
             {
@@ -494,7 +495,7 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("GET"), Path("/food/recipes")]
-        public void ViewRecipes()
+        public async Task ViewRecipes()
         {
             var table = new Table()
             {
@@ -602,13 +603,13 @@ namespace DiscordBot.MLAPI.Modules
         }
         
         [Method("GET"), Path("/food/add-recipe")]
-        public void NewRecipe(int? modifyId = null)
+        public async Task NewRecipe(int? modifyId = null)
         {
             ReplyFile("new_recipe.html", 200, new Replacements().Add("modifying", modifyId));
         }
         
         [Method("GET"), Path("/food/ongoing-recipe")]
-        public void ViewOngoingRecipe(int id)
+        public async Task ViewOngoingRecipe(int id)
         {
             if(!Service.OngoingRecipes.TryGetValue(id, out var _))
             { // no recipe
@@ -620,13 +621,13 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("GET"), Path("test-recipe")]
-        public void ViewTestRecipe()
+        public async Task ViewTestRecipe()
         {
             ReplyFile("new_ongoing.html", 200);
         }
 
         [Method("GET"), Path("/food/ongoing-any")]
-        public void ViewFirstOngoing()
+        public async Task ViewFirstOngoing()
         {
             if(Service.OngoingRecipes.Count > 0)
             {
@@ -639,13 +640,13 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("GET"), Path("/food/next")]
-        public void ViewFutures()
+        public async Task ViewFutures()
         {
             ReplyFile("next.html", 200);
         }
 
         [Method("GET"), Path("/food/products")]
-        public void ViewProducts()
+        public async Task ViewProducts()
         {
             var table = new Table()
                 .WithHeaderColumn("Id")
@@ -806,7 +807,7 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("GET"), Path("/food/menu")]
-        public void ViewCurrentMenu()
+        public async Task ViewCurrentMenu()
         {
             viewMenuActual(true);
         }
@@ -814,13 +815,13 @@ namespace DiscordBot.MLAPI.Modules
         [Method("GET"), Path("/food/menu/readonly")]
         [RequireAuthentication(false)]
         [RequireApproval(false)]
-        public void ViewCurrentMenuReadonly()
+        public async Task ViewCurrentMenuReadonly()
         {
             viewMenuActual(false);
         }
 
         [Method("GET"), Path("/food/menu/new")]
-        public void ViewNewMenu(int? overwrite = null)
+        public async Task ViewNewMenu(int? overwrite = null)
         {
             ReplyFile("new_menu.html", 200, 
                 new Replacements()

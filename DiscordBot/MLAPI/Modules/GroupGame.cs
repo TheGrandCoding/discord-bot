@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace DiscordBot.MLAPI.Modules
 {
@@ -11,7 +12,7 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("GET"), Path("/game")]
-        public void Base()
+        public async Task Base()
         {
             ReplyFile("groupgame.html", 200);
         }

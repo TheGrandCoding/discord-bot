@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Net;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace DiscordBot.MLAPI.Modules.ServerList
 {
@@ -13,7 +14,7 @@ namespace DiscordBot.MLAPI.Modules.ServerList
 
         public static string Saved = "";
         [Method("GET"), Path("/mc/hamIp")]
-        public void GetDetails()
+        public async Task GetDetails()
         {
             if(string.IsNullOrWhiteSpace(Saved))
             {
@@ -25,7 +26,7 @@ namespace DiscordBot.MLAPI.Modules.ServerList
         }
 
         [Method("GET"), Path("/mc/sethamIp")]
-        public void PostDetails(string ip, string port)
+        public async Task PostDetails(string ip, string port)
         {
             if(!IPAddress.TryParse(ip, out _))
             {

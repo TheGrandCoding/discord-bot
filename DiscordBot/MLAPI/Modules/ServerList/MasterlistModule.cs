@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace DiscordBot.MLAPI.Modules.ServerList
 {
@@ -15,7 +16,7 @@ namespace DiscordBot.MLAPI.Modules.ServerList
         public MasterlistService Service { get; set; }
 
         [Method("GET"), Path("/masterlist")]
-        public void Base()
+        public async Task Base()
         {
             ReplyFile("base.html", 200);
         }

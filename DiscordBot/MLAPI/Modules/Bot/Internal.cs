@@ -22,7 +22,7 @@ namespace DiscordBot.MLAPI.Modules.Bot
 
         [Method("GET"), Path("/bot/close")]
         [RequireOwner]
-        public void CloseBot()
+        public async Task CloseBot()
         {
             RespondRaw("OK");
             Program.Close(0);
@@ -30,7 +30,7 @@ namespace DiscordBot.MLAPI.Modules.Bot
 
         [Method("GET"), Path("/bot/restart")]
         [RequireOwner]
-        public void RestartBot()
+        public async Task RestartBot()
         {
             RespondRaw("OK");
             Program.Close(1);
@@ -41,7 +41,7 @@ namespace DiscordBot.MLAPI.Modules.Bot
         [RequireAuthentication(false)]
         [RequireApproval(false)]
         [RequireGithubSignatureValid("bot:build")]
-        public void GithubWebhook()
+        public async Task GithubWebhook()
         {
             Program.Close(69); // closing with a non-zero code restarts it.
         }
@@ -71,7 +71,7 @@ namespace DiscordBot.MLAPI.Modules.Bot
         [Method("POST"), Path("/bot/nea")]
         [RequireAuthentication(false)]
         [RequireApproval(false)]
-        public void NEAWebhook()
+        public async Task NEAWebhook()
         {
             string value = Context.HTTP.Request.Headers["Authorization"];
             var bytes = Convert.FromBase64String(value.Split(' ')[1]);
@@ -109,7 +109,7 @@ namespace DiscordBot.MLAPI.Modules.Bot
         [Method("GET"), Path("/pc/shutdown")]
         [RequireAuthentication(false)]
         [RequireApproval(false)]
-        public void RequestPcShutdown()
+        public async Task RequestPcShutdown()
         {
             if(shutdownState == ShutdownState.Running)
             {
