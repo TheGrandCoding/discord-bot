@@ -46,12 +46,13 @@ namespace DiscordBot.Classes
                 _lock.Release();
             }
         }
-        public void WithLock(Action action)
+        public Task WithLock(Action action)
         {
             try
             {
                 _lock.Wait();
                 action();
+                return Task.CompletedTask;
             }
             finally
             {
@@ -182,6 +183,21 @@ namespace DiscordBot.Classes
                 return await AuthSessions
                     .Include(x => x.User)
                     .FirstOrDefaultAsync(t => t.Token == token);
+            });
+        }
+        public Task RemoveSessionAsync(BotDbAuthSession session)
+        {
+            return WithLock(() => {
+                AuthSessions.Remove(session);
+            });
+        }
+        public Task RemoveSessionAsync(string token)
+        {
+            return WithLock(async () =>
+            {
+                var s = await AuthSessions.FindAsync(token);
+                if (s != null)
+                    AuthSessions.Remove(s);
             });
         }
         public Task<BotDbAuthToken> GetTokenAsync(string token)

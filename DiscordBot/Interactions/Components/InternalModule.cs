@@ -28,19 +28,20 @@ namespace DiscordBot.Interactions.Components
             var user = await BotDB.GetUserAsync(uint.Parse(uId));
             if (!MLAPI.Handler.holding.TryGetValue(user.Id, out var info))
                 return;
+            var session = await BotDB.GetSessionAsync(info.token);
             if (result)
             {
-                info.s.Approved = true;
+                session.Approved = true;
                 user.WithApprovedIP(info.ip);
             }
-            else
+            else if(session != null)
             {
-                user.AuthSessions.Remove(info.s);
+                await BotDB.RemoveSessionAsync(session);
             }
             await BotDB.SaveChangesAsync();
             await Context.Interaction.UpdateAsync(m =>
             {
-                m.Embeds = new[] { MLAPI.Handler.getBuilder(info.s, result).Build() };
+                m.Embeds = new[] { MLAPI.Handler.getBuilder(session, result).Build() };
                 m.Content = "This login has been " + (result ? "approved\r\nThe IP address has been whitelisted, and now redacted." : "rejected");
             });
         }

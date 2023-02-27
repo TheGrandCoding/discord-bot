@@ -168,7 +168,7 @@ namespace DiscordBot.MLAPI
 
         public struct holdInfo
         {
-            public BotDbAuthSession s;
+            public string token;
             public string ip;
         }
         public static ConcurrentDictionary<ulong, holdInfo> holding = new ConcurrentDictionary<ulong, holdInfo>();
@@ -176,6 +176,11 @@ namespace DiscordBot.MLAPI
         public static EmbedBuilder getBuilder(BotDbAuthSession s, bool redactIp)
         {
             var embed = new EmbedBuilder();
+            if (s == null)
+            {
+                embed.Title = "[Session removed]";
+                return embed;
+            }
             embed.Title = "New IP Detected";
             embed.Description = "A login has been attempted by an unknown IP address to the MLAPI website through your account.\r\n" +
                 "Please approve the login below.";
@@ -204,7 +209,7 @@ namespace DiscordBot.MLAPI
             var components = new ComponentBuilder();
             components.WithButton("Approve", $"internal:app:{user.Id}:true", ButtonStyle.Success);
             components.WithButton("Deny", $"internal:app:{user.Id}:false", ButtonStyle.Danger);
-            holding[user.Id] = new holdInfo() { s = s, ip = ip };
+            holding[user.Id] = new holdInfo() { token = s.Token, ip = ip };
             await user.Connections.Discord.SendMessageAsync(embed: embed.Build(), components: components.Build());
 
             return s;
