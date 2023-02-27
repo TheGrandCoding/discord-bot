@@ -360,13 +360,13 @@ namespace DiscordBot.MLAPI
                 string current = context.Request.Url.PathAndQuery;
                 if (context.User != null)
                     context.User.RedirectUrl = current;
-                BotDbContext.Get().SaveChanges();
                 context.HTTP.Response.AppendCookie(new Cookie("redirect", current)
                 {
                     Expires = DateTime.Now.AddDays(1),
                     Path = "/"
                 });
                 bs.RespondRaw(bs.LoadRedirectFile(url, current), HttpStatusCode.TemporaryRedirect);
+                bs.Context.DisposeDB();
             }
             catch { }
             logger.End(HttpStatusCode.TemporaryRedirect, url);

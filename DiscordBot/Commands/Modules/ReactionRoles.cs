@@ -133,7 +133,7 @@ namespace DiscordBot.Commands.Modules
         [Summary("Prevents a user from performing any reaction roles in this server")]
         public async Task BlockWhole(SocketGuildUser user)
         {
-            var result = await BotDB.GetUserFromDiscord(user, true);
+            var result = await Context.BotDB.GetUserFromDiscord(user, true);
             if(!result.Success)
             {
                 await ReplyAsync(":x: Internal error occured");
@@ -155,7 +155,7 @@ namespace DiscordBot.Commands.Modules
         [Summary("Prevents a user from getting the specific role via reaction in this server")]
         public async Task BlockWhole(SocketGuildUser user, IRole role)
         {
-            var result = await BotDB.GetUserFromDiscord(user, true);
+            var result = await Context.BotDB.GetUserFromDiscord(user, true);
             if(!result.Success)
             {
                 await ReplyAsync(":x: Internal error occured.");

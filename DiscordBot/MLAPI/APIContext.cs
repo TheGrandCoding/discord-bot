@@ -175,7 +175,7 @@ namespace DiscordBot.MLAPI
         { 
             get
             {
-                return _db ??= BotDbContext.Get();
+                return _db ??= BotDbContext.Get(); // ds via DisposeDB, in Handler.
             }
         }
         public void DisposeDB()

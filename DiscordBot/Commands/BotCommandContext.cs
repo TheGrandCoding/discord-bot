@@ -11,7 +11,26 @@ namespace DiscordBot.Commands
 {
     public class BotCommandContext : SocketCommandContext
     {
-        public BotDbUser BotDbUser { get; set; }
+        private BotDbContext _db;
+        public BotDbContext BotDB { get
+            {
+                return _db ??= BotDbContext.Get(); // disposed via AfterExecute
+            } 
+        }
+        public void Dispose()
+        {
+            _db?.SaveChanges();
+            _db?.Dispose();
+        }
+        private BotDbUser _user;
+        public BotDbUser BotDbUser 
+        { 
+            get
+            {
+                return _user ??= BotDB.GetUserFromDiscord(this.User, true).Result.Value;
+            }
+        }
+
 
         public bool HasPerm(NodeInfo node)
         {
@@ -22,8 +41,6 @@ namespace DiscordBot.Commands
 
         public BotCommandContext(DiscordSocketClient client, SocketUserMessage msg) : base(client, msg)
         {
-            if (!(msg.Author.IsBot || msg.Author.IsWebhook))
-                BotDbUser = BotDbContext.Get().GetUserFromDiscord(msg.Author, true).Result.Value;
         }
     }
 }

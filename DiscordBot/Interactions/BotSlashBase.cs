@@ -14,7 +14,7 @@ namespace DiscordBot.Interactions
         private BotDbContext _db;
         public BotDbContext BotDB { get
             {
-                return _db ??= BotDbContext.Get();
+                return _db ??= BotDbContext.Get(); // ds via AfterExecute
             } }
         private BotDbUser _user;
         public BotDbUser User
@@ -27,8 +27,9 @@ namespace DiscordBot.Interactions
 
         public override async Task AfterExecuteAsync(ICommandInfo command)
         {
-            await _db?.SaveChangesAsync();
             await base.AfterExecuteAsync(command);
+            await _db?.SaveChangesAsync();
+            _db?.Dispose();
         }
     }
 
@@ -39,7 +40,7 @@ namespace DiscordBot.Interactions
         {
             get
             {
-                return _db ??= BotDbContext.Get();
+                return _db ??= BotDbContext.Get(); // ds via AfterExecute
             }
         }
         private BotDbUser _user;
@@ -53,8 +54,9 @@ namespace DiscordBot.Interactions
 
         public override async Task AfterExecuteAsync(ICommandInfo command)
         {
-            await _db?.SaveChangesAsync();
             await base.AfterExecuteAsync(command);
+            await _db?.SaveChangesAsync();
+            _db?.Dispose();
         }
     }
 }

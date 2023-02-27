@@ -49,8 +49,7 @@ namespace DiscordBot.MLAPI.Modules
                     Discriminator = 1,
                     Id = 666
                 };
-                var db = BotDbContext.Get();
-                var bUser = db.GetUserFromDiscord(webu, true).Result.Value;
+                var bUser = Context.BotDB.GetUserFromDiscord(webu, true).Result.Value;
                 var session = Context.GenerateNewSession(bUser, true);
                 Context.HTTP.Response.AppendCookie(new Cookie(BotDbAuthSession.CookieName, session.Token, "/")
                 {

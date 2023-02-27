@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.EntityFrameworkCore;
+using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
@@ -38,5 +39,26 @@ namespace DiscordBot.Utils
             var content = await response.Content.ReadAsStringAsync();
             throw new WebException($"{response.StatusCode} {response.ReasonPhrase}: {content}");
         }
+    
+    
+        public static void WithSQLConnection(this DbContextOptionsBuilder options, string dbName, bool remoteConnection = false)
+        {
+#if DEBUG
+            string configPath = remoteConnection ? "tokens:dbprod" : "tokens:dbdev";
+#else
+            string configPath = "tokens:db";
+            remoteConnection = true;
+#endif
+            string connStr = string.Format(Program.Configuration[configPath], dbName);
+            if (remoteConnection)
+            {
+                options.UseMySql(connStr,
+                    new MariaDbServerVersion(new Version(10, 3, 25)));
+            } else
+            {
+                options.UseSqlServer(connStr);
+            }
+        }
+    
     }
 }

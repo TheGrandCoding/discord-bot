@@ -1,10 +1,12 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using DiscordBot.Utils;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace DiscordBot.Classes
@@ -27,9 +29,23 @@ namespace DiscordBot.Classes
             Program.LogWarning($"Disposing DB {Id}; count: {count}", "BotDbCtx");
             base.Dispose();
         }
+        public static SemaphoreSlim _lock = new(1);
         public DbSet<BotDbUser> Users { get; set; } 
         public DbSet<BotDbAuthToken> AuthTokens { get; set; }
         public DbSet<BotDbAuthSession> AuthSessions { get; set; }
+
+        public async Task<T> WithLock<T>(Func<Task<T>> action)
+        {
+            try
+            {
+                await _lock.WaitAsync();
+                var task = action();
+                return await task;
+            } finally
+            {
+                _lock.Release();
+            }
+        }
 
         protected override void OnModelCreating(ModelBuilder mb)
         {
@@ -49,92 +65,104 @@ namespace DiscordBot.Classes
         }
         protected override void OnConfiguring(DbContextOptionsBuilder options)
         {
-#if WINDOWS
-            options.UseSqlServer(Program.getDbString("botdb"));
-#else
-                options.UseMySql(Program.getDbString("botdb"),
-                    new MariaDbServerVersion(new Version(10, 3, 25)));
-#endif
+            options.WithSQLConnection("botdb", true);
         }
 
-        public async Task<Result<BotDbUser>> AttemptLoginAsync(string username, string password)
+        public Task<Result<BotDbUser>> AttemptLoginAsync(string username, string password)
         {
-            var user = await Users.FirstOrDefaultAsync(x => x.Name == username);
-            if (user == null) 
-                return new("No user exists by that username");
+            return WithLock(async () =>
+            {
+                var user = await Users.FirstOrDefaultAsync(x => x.Name == username);
+                if (user == null)
+                    return new("No user exists by that username");
 
-            if (string.IsNullOrWhiteSpace(user.Connections.PasswordHash))
+                if (string.IsNullOrWhiteSpace(user.Connections.PasswordHash))
+                    return new("Incorrect password");
+
+                var valid = PasswordHash.ValidatePassword(password, user.Connections.PasswordHash);
+                if (valid) return new Result<BotDbUser>(user);
                 return new("Incorrect password");
-
-            var valid = PasswordHash.ValidatePassword(password, user.Connections.PasswordHash);
-            if (valid) return new Result<BotDbUser>(user);
-            return new("Incorrect password");
+            });
         }
 
 
-        public async Task<BotDbUser> GetUserAsync(uint id)
+        public Task<BotDbUser> GetUserAsync(uint id)
         {
-            return await Users.FindAsync(id);
+            return WithLock(async () => await Users.FindAsync(id));
         }
-        public async Task<Result<BotDbUser>> GetUserFromDiscord(Discord.IUser discordUser, bool createIfNotExist)
+        public Task<Result<BotDbUser>> GetUserFromDiscord(Discord.IUser discordUser, bool createIfNotExist)
         {
-            var idstr = discordUser.Id.ToString();
-            var user = await Users.FirstOrDefaultAsync(x => x.Connections.DiscordId == idstr);
-            if(user != null) return new(user);
-            if (!createIfNotExist) return new("No user has linked that account");
-
-            user = new BotDbUser();
-            user.Name = discordUser.Username;
-            var conns = new BotDbConnections()
+            return WithLock<Result<BotDbUser>>(async () =>
             {
-                DiscordId = idstr
-            };
-            user.Connections = conns;
-            await Users.AddAsync(user);
-            return new(user);
+                var idstr = discordUser.Id.ToString();
+                var user = await Users.FirstOrDefaultAsync(x => x.Connections.DiscordId == idstr);
+                if(user != null) return new(user);
+                if (!createIfNotExist) return new("No user has linked that account");
+
+                user = new BotDbUser();
+                user.Name = discordUser.Username;
+                var conns = new BotDbConnections()
+                {
+                    DiscordId = idstr
+                };
+                user.Connections = conns;
+                await Users.AddAsync(user);
+                return new(user);
+            });
         }
-        public async Task<Result<BotDbUser>> GetUserFromDiscord(ulong dsId, bool createIfNotExist)
+        public Task<Result<BotDbUser>> GetUserFromDiscord(ulong dsId, bool createIfNotExist)
         {
-            var user = await Program.Client.GetUserAsync(dsId);
-            if (user != null)
-                return await GetUserFromDiscord(user, createIfNotExist);
-            var str = dsId.ToString();
-            var fetch = await Users.FirstOrDefaultAsync(x => x.Connections.DiscordId == str);
-            if (fetch != null)
-                return new(fetch);
-            return new("Could not find user in DB");
+            return WithLock(async () =>
+            {
+                var user = await Program.Client.GetUserAsync(dsId);
+                if (user != null)
+                    return await GetUserFromDiscord(user, createIfNotExist);
+                var str = dsId.ToString();
+                var fetch = await Users.FirstOrDefaultAsync(x => x.Connections.DiscordId == str);
+                if (fetch != null)
+                    return new(fetch);
+                return new("Could not find user in DB");
+            });
         }
-        public async Task<BotDbAuthSession> GetSessionAsync(string token)
+        public Task<BotDbAuthSession> GetSessionAsync(string token)
         {
-            return await AuthSessions
+            return WithLock(async () => {
+                return await AuthSessions
+                    .Include(x => x.User)
+                    .FirstOrDefaultAsync(t => t.Token == token);
+            });
+        }
+        public Task<BotDbAuthToken> GetTokenAsync(string token)
+        {
+            return WithLock(async () => {
+                var BotDbAuthToken = await AuthTokens
                 .Include(x => x.User)
                 .FirstOrDefaultAsync(t => t.Token == token);
+                return BotDbAuthToken;
+            });
         }
-        public async Task<BotDbAuthToken> GetTokenAsync(string token)
+        public Task<BotDbAuthSession> GenerateNewSession(BotDbUser user, string ip, string ua, bool logoutOthers, bool? forceApproved = null)
         {
-            var BotDbAuthToken = await AuthTokens
-                .Include(x => x.User)
-                .FirstOrDefaultAsync(t => t.Token == token);
-            return BotDbAuthToken;
-        }
-        public async Task<BotDbAuthSession> GenerateNewSession(BotDbUser user, string ip, string ua, bool logoutOthers, bool? forceApproved = null)
-        {
-            if(logoutOthers)
+            return WithLock(async () =>
             {
-                await AuthSessions.Where(x => x.UserId == user.Id)
-                    .ExecuteDeleteAsync();
-            }
-            var auth = new BotDbAuthSession(ip, ua, forceApproved ?? false);
-            auth.User = user;
-            await AuthSessions.AddAsync(auth);
-            await SaveChangesAsync();
-            return auth;
+                if (logoutOthers)
+                {
+                    await AuthSessions.Where(x => x.UserId == user.Id)
+                        .ExecuteDeleteAsync();
+                }
+                var auth = new BotDbAuthSession(ip, ua, forceApproved ?? false);
+                auth.User = user;
+                await AuthSessions.AddAsync(auth);
+                await SaveChangesAsync();
+                return auth;
+            });
         }
     }
 
     public class BotDbUser
     {
         public uint Id { get; set; }
+        [MaxLength(32)]
         public string Name { get; set; }
 
         /// <summary>
@@ -147,11 +175,13 @@ namespace DiscordBot.Classes
         /// </summary>
         public bool Verified { get; set; }
 
+        [MaxLength(1024)]
         public string RedirectUrl { get; set; }
 
         /// <summary>
         /// Default penalty reason
         /// </summary>
+        [MaxLength(128)]
         public string Reason { get; set; }
 
         [Required]
@@ -197,8 +227,10 @@ namespace DiscordBot.Classes
     [Owned]
     public class BotDbConnections
     {
+        [MaxLength(128)]
         public string PasswordHash { get; set; }
 
+        [MaxLength(32)]
         public string DiscordId { get; set; }
 
         private Discord.WebSocket.SocketUser _discord;
@@ -225,10 +257,13 @@ namespace DiscordBot.Classes
         public BotDbAuthSession() { }
 
         [Key]
+        [MaxLength(64)]
         public string Token { get; set; }
 
         public DateTime StartedAt { get; set; }
+        [MaxLength(16)]
         public string IP { get; set; }
+        [MaxLength(512)]
         public string UserAgent { get; set; }
         public bool Approved { get; set; }
 
@@ -255,11 +290,14 @@ namespace DiscordBot.Classes
         }
 
         [Key]
+        [MaxLength(64)]
         public string Token { get; set; }
 
+        [MaxLength(32)]
         public string Name { get; set; }
 
         [Column("Scopes")]
+        [MaxLength(128)]
         string _scopes;
 
         [NotMapped]
@@ -303,6 +341,7 @@ namespace DiscordBot.Classes
         public uint UserId { get; set; }
         public virtual BotDbUser User { get; set; }
 
+        [MaxLength(64)]
         public Perm PermNode { get; set; }
     }
 

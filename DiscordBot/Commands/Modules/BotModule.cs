@@ -269,7 +269,7 @@ namespace DiscordBot.Commands.Modules
         public async Task ListVerified(bool state = true)
         {
             var str = "Users " + (state ? "verified" : "not verified");
-            foreach(var usr in BotDbContext.Get().Users.Where(x => x.Verified == state))
+            foreach(var usr in Context.BotDB.Users.Where(x => x.Verified == state))
             {
                 str += $"\r\n- {usr.Connections.Discord.Mention} ({usr.Name})";
             }

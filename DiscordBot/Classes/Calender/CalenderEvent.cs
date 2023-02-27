@@ -12,6 +12,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using DiscordBot.Utils;
 
 namespace DiscordBot.Classes.Calender
 {
@@ -29,6 +30,10 @@ namespace DiscordBot.Classes.Calender
     {
         public CalenderDb([NotNullAttribute] DbContextOptions options) : base(options)
         {
+        }
+        protected override void OnConfiguring(DbContextOptionsBuilder options)
+        {
+            options.WithSQLConnection("calendar");
         }
 
         public static Semaphore Lock = new Semaphore(1, 1);

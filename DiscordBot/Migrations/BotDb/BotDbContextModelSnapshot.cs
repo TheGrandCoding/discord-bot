@@ -3,7 +3,6 @@ using System;
 using DiscordBot.Classes;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -18,17 +17,15 @@ namespace DiscordBot.Migrations.BotDb
 #pragma warning disable 612, 618
             modelBuilder
                 .HasAnnotation("ProductVersion", "7.0.2")
-                .HasAnnotation("Relational:MaxIdentifierLength", 128);
-
-            SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
+                .HasAnnotation("Relational:MaxIdentifierLength", 64);
 
             modelBuilder.Entity("DiscordBot.Classes.BotDbApprovedIP", b =>
                 {
-                    b.Property<long>("UserId")
-                        .HasColumnType("bigint");
+                    b.Property<uint>("UserId")
+                        .HasColumnType("int unsigned");
 
                     b.Property<string>("IP")
-                        .HasColumnType("nvarchar(450)");
+                        .HasColumnType("varchar(255)");
 
                     b.HasKey("UserId", "IP");
 
@@ -38,22 +35,25 @@ namespace DiscordBot.Migrations.BotDb
             modelBuilder.Entity("DiscordBot.Classes.BotDbAuthSession", b =>
                 {
                     b.Property<string>("Token")
-                        .HasColumnType("nvarchar(450)");
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)");
 
                     b.Property<bool>("Approved")
-                        .HasColumnType("bit");
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<string>("IP")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(16)
+                        .HasColumnType("varchar(16)");
 
                     b.Property<DateTime>("StartedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<string>("UserAgent")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)");
 
-                    b.Property<long>("UserId")
-                        .HasColumnType("bigint");
+                    b.Property<uint>("UserId")
+                        .HasColumnType("int unsigned");
 
                     b.HasKey("Token");
 
@@ -65,13 +65,15 @@ namespace DiscordBot.Migrations.BotDb
             modelBuilder.Entity("DiscordBot.Classes.BotDbAuthToken", b =>
                 {
                     b.Property<string>("Token")
-                        .HasColumnType("nvarchar(450)");
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)");
 
                     b.Property<string>("Name")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)");
 
-                    b.Property<long>("UserId")
-                        .HasColumnType("bigint");
+                    b.Property<uint>("UserId")
+                        .HasColumnType("int unsigned");
 
                     b.HasKey("Token");
 
@@ -82,11 +84,12 @@ namespace DiscordBot.Migrations.BotDb
 
             modelBuilder.Entity("DiscordBot.Classes.BotDbPermission", b =>
                 {
-                    b.Property<long>("UserId")
-                        .HasColumnType("bigint");
+                    b.Property<uint>("UserId")
+                        .HasColumnType("int unsigned");
 
                     b.Property<string>("PermNode")
-                        .HasColumnType("nvarchar(450)");
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)");
 
                     b.HasKey("UserId", "PermNode");
 
@@ -95,26 +98,27 @@ namespace DiscordBot.Migrations.BotDb
 
             modelBuilder.Entity("DiscordBot.Classes.BotDbUser", b =>
                 {
-                    b.Property<long>("Id")
+                    b.Property<uint>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+                        .HasColumnType("int unsigned");
 
                     b.Property<bool?>("Approved")
-                        .HasColumnType("bit");
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<string>("Name")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)");
 
                     b.Property<string>("Reason")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(128)
+                        .HasColumnType("varchar(128)");
 
                     b.Property<string>("RedirectUrl")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(1024)
+                        .HasColumnType("varchar(1024)");
 
                     b.Property<bool>("Verified")
-                        .HasColumnType("bit");
+                        .HasColumnType("tinyint(1)");
 
                     b.HasKey("Id");
 
@@ -169,14 +173,16 @@ namespace DiscordBot.Migrations.BotDb
                 {
                     b.OwnsOne("DiscordBot.Classes.BotDbConnections", "Connections", b1 =>
                         {
-                            b1.Property<long>("BotDbUserId")
-                                .HasColumnType("bigint");
+                            b1.Property<uint>("BotDbUserId")
+                                .HasColumnType("int unsigned");
 
                             b1.Property<string>("DiscordId")
-                                .HasColumnType("nvarchar(max)");
+                                .HasMaxLength(32)
+                                .HasColumnType("varchar(32)");
 
                             b1.Property<string>("PasswordHash")
-                                .HasColumnType("nvarchar(max)");
+                                .HasMaxLength(128)
+                                .HasColumnType("varchar(128)");
 
                             b1.HasKey("BotDbUserId");
 
@@ -188,8 +194,8 @@ namespace DiscordBot.Migrations.BotDb
 
                     b.OwnsOne("DiscordBot.Classes.BotDbUserOptions", "Options", b1 =>
                         {
-                            b1.Property<long>("BotDbUserId")
-                                .HasColumnType("bigint");
+                            b1.Property<uint>("BotDbUserId")
+                                .HasColumnType("int unsigned");
 
                             b1.Property<int>("PairedVoiceChannels")
                                 .HasColumnType("int");

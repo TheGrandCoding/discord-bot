@@ -129,7 +129,7 @@ namespace DiscordBot.Commands.Modules
                 return new BotResult("There does not exist a permission node by that text.");
 
             string s = "";
-            foreach(var usr in BotDB.Users)
+            foreach(var usr in Context.BotDB.Users)
             {
                 if(PermChecker.UserHasPerm(usr, perm))
                     s += $"- <@{usr.Id}>\r\n";

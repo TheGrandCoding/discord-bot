@@ -119,9 +119,7 @@ namespace DiscordBot.MLAPI.Modules
                 RespondRaw("Error: you are already logged in", 400);
                 return;
             }
-            var db = BotDbContext.Get();
-            BotDbUser user;
-            var result = db.AttemptLoginAsync(identifier, password).Result;
+            var result = Context.BotDB.AttemptLoginAsync(identifier, password).Result;
             if(!result.Success)
             {
                 RespondRaw(result.ErrorMessage, 400);
@@ -252,7 +250,6 @@ namespace DiscordBot.MLAPI.Modules
         public void ForceVerify()
         {
             Context.User.Verified = true;
-            BotDbContext.Get().SaveChanges();
             var service = Program.Services.GetRequiredService<EnsureLevelEliteness>();
             foreach(var guild in Program.Client.Guilds)
             {

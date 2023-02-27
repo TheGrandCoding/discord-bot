@@ -26,11 +26,6 @@ namespace DiscordBot.Commands
 
 
         public InteractivityService InteractivityService { get; set; }
-        private Classes.BotDbContext _db;
-        public Classes.BotDbContext BotDB { get
-            {
-                return _db ??= Classes.BotDbContext.Get();
-            } }
         static CmdDisableService cmdDisableService { get; set; }
 
 
@@ -47,10 +42,7 @@ namespace DiscordBot.Commands
         protected override void AfterExecute(CommandInfo command)
         {
             base.AfterExecute(command);
-            if (_db != null)
-            {
-                _db.SaveChanges();
-            }
+            Context?.Dispose();
         }
 
         public async Task<RuntimeResult> Success(string message = null, bool isTTS = false, Embed embed = null)

@@ -18,7 +18,11 @@ namespace DiscordBot.Classes.Rules
         {
             get
             {
-                _user ??= BotDbContext.Get().GetUserAsync(userId).Result;
+                if(_user == null)
+                {
+                    using var db = BotDbContext.Get();
+                    _user = db.GetUserAsync(userId).Result;
+                }
                 return _user;
             }
             set

@@ -43,19 +43,21 @@ namespace DiscordBot.Websockets
             }
         }
 
+        private BotDbContext _db;
+        public BotDbContext BotDB { get => _db ??= BotDbContext.Get(); }
+
         private BotDbUser user;
         public BotDbUser User { get
             {
                 if (user != null)
                     return user;
-                var db = BotDbContext.Get();
-                var session = db.GetSessionAsync(SessionToken).Result;
+                var session = BotDB.GetSessionAsync(SessionToken).Result;
                 if (session != null)
                 {
                     user = session.User;
                     return user;
                 }
-                var token = db.GetTokenAsync(ApiToken).Result;
+                var token = BotDB.GetTokenAsync(ApiToken).Result;
                 if(token != null)
                 {
                     user = token.User;
@@ -110,6 +112,12 @@ namespace DiscordBot.Websockets
                     else Warn($"Unable to send to {session.GetType().FullName}", "SendToAllOthers");
                 }
             }
+        }
+
+        protected override void OnClose(CloseEventArgs e)
+        {
+            base.OnClose(e);
+            _db?.Dispose();
         }
     }
 

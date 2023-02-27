@@ -1,5 +1,6 @@
 ﻿using Discord;
 using Discord.WebSocket;
+using DiscordBot.Utils;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Microsoft.Extensions.DependencyInjection;
@@ -35,10 +36,9 @@ namespace DiscordBot.Services
         protected override void OnConfiguring(DbContextOptionsBuilder options)
         {
 #if WINDOWS
-            options.UseSqlServer(Program.getDbString("BotLog"));
+            options.WithSQLConnection("BotLog");
 #else
-                options.UseMySql(Program.getDbString("botData"),
-                    new MariaDbServerVersion(new Version(10, 3, 25)));
+            options.WithSQLConnection("botData");
 #endif
         }
 
@@ -225,8 +225,8 @@ namespace DiscordBot.Services
 
         public ulong Id { get; set; }
         public string Content { get; set; }
-        public DateTimeOffset Timestamp => SnowflakeUtils.FromSnowflake(Id);
-        public DateTimeOffset CreatedAt => SnowflakeUtils.FromSnowflake(Id);
+        public DateTimeOffset Timestamp => Discord.SnowflakeUtils.FromSnowflake(Id);
+        public DateTimeOffset CreatedAt => Discord.SnowflakeUtils.FromSnowflake(Id);
         public IUser Author { get; set; }
         public List<IEmbed> Embeds { get; set; }
 

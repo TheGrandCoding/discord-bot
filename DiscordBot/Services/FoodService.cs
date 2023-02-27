@@ -17,6 +17,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using DiscordBot.Utils;
 
 namespace DiscordBot.Services
 {
@@ -542,6 +543,10 @@ namespace DiscordBot.Services
         public FoodDbContext(DbContextOptions<FoodDbContext> opt) : base(opt)
         {
         }
+        protected override void OnConfiguring(DbContextOptionsBuilder options)
+        {
+            options.WithSQLConnection("food");
+        }
         public DbSet<Product> Products { get; set; }
         public DbSet<InventoryItem> Inventory { get; set; }
         public DbSet<HistoricItem> PreviousInventory { get; set; }
@@ -619,17 +624,6 @@ namespace DiscordBot.Services
             if (f == null) return;
             PreviousInventory.Remove(f);
             SaveChanges();
-        }
-
-        protected override void OnConfiguring(DbContextOptionsBuilder options)
-        {
-#if WINDOWS
-            options.UseSqlServer(Program.getDbString("food"));
-            var x = CharSet.Utf8Mb4;
-#else
-                options.UseMySql(Program.getDbString("food"),
-                    new MariaDbServerVersion(new Version(10, 3, 25)));
-#endif
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

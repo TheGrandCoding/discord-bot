@@ -146,6 +146,10 @@ namespace DiscordBot.Services
         public HoursDbContext(DbContextOptions<HoursDbContext> opts) : base(opts)
         {
         }
+        protected override void OnConfiguring(DbContextOptionsBuilder options)
+        {
+            options.WithSQLConnection("hours");
+        }
         public DbSet<HoursSettings> Settings { get; set; }
         public DbSet<HoursEntry> Entries { get; set; }
 
@@ -207,16 +211,6 @@ namespace DiscordBot.Services
             return entries;
         }
 
-        protected override void OnConfiguring(DbContextOptionsBuilder options)
-        {
-#if WINDOWS
-            options.UseSqlServer(Program.getDbString("hours"));
-            var x = CharSet.Utf8Mb4;
-#else
-                options.UseMySql(Program.getDbString("hours"),
-                    new MariaDbServerVersion(new Version(10, 3, 25)));
-#endif
-        }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<HoursSettings>()

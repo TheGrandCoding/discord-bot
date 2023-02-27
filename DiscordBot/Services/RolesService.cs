@@ -126,7 +126,7 @@ namespace DiscordBot.Services
                 return new BotResult($"Role {roleId} does not exist.");
             var perm = $"roles.{role.Guild.Id}.{role.Id}";
             var user = await txt.Guild.GetUserAsync(e.User.Id);
-            var db = BotDbContext.Get();
+            using var db = BotDbContext.Get();
             var result = await db.GetUserFromDiscord(user, true);
             if (!result.Success)
                 return new BotResult($"Failed to fetch user from database.");
