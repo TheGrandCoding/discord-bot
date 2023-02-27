@@ -15,7 +15,7 @@ namespace DiscordBot.MLAPI
             var type = callback.Target.GetType();
             if (!type.IsSubclassOf(typeof(APIBase)))
                 throw new ArgumentException("Callback must be on APIBase!");
-            var rnd = AuthToken.Generate(32);
+            var rnd = PasswordHash.RandomToken(32);
             States[rnd] = new OauthCallback()
             {
                 Arguments = args,

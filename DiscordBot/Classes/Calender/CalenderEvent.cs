@@ -12,6 +12,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using DiscordBot.Utils;
 
 namespace DiscordBot.Classes.Calender
 {
@@ -29,6 +30,10 @@ namespace DiscordBot.Classes.Calender
     {
         public CalenderDb([NotNullAttribute] DbContextOptions options) : base(options)
         {
+        }
+        protected override void OnConfiguring(DbContextOptionsBuilder options)
+        {
+            options.WithSQLConnection("calendar");
         }
 
         public static Semaphore Lock = new Semaphore(1, 1);
@@ -209,7 +214,7 @@ namespace DiscordBot.Classes.Calender
             var monday = DateTime.Now.Date;
             while (monday.DayOfWeek != DayOfWeek.Monday)
                 monday = monday.AddDays(-1);
-            ulong id = 144462654201790464;
+            uint id = 1;
             var sleep = AddEvent(x =>
             {
                 x.Name = "Sleep";
@@ -271,11 +276,7 @@ namespace DiscordBot.Classes.Calender
         
         public int Id { get; set; }
 
-        [NotMapped]
-        public ulong CreatedById { get; set; }
-
-        [Column("CreatedById")]
-        public long _createdById { get => (long)CreatedById; set => CreatedById = (ulong)value; }
+        public uint CreatedById { get; set; }
 
         public string Name { get; set; }
 
@@ -336,7 +337,7 @@ namespace DiscordBot.Classes.Calender
             }
         }
 
-        public bool IsVisibleTo(BotUser user)
+        public bool IsVisibleTo(BotDbUser user)
         {
             if (Visibility == EventVisibility.Full)
                 return true;
@@ -346,7 +347,7 @@ namespace DiscordBot.Classes.Calender
             return DoesAttend(user);
         }
 
-        public bool CanSeeInfo(BotUser user)
+        public bool CanSeeInfo(BotDbUser user)
         {
             if (Visibility == EventVisibility.Full)
                 return true;
@@ -354,12 +355,12 @@ namespace DiscordBot.Classes.Calender
             return DoesAttend(user);
         }
 
-        public bool DoesAttend(BotUser user)
+        public bool DoesAttend(BotDbUser user)
         {
             return CreatedById == user.Id || (Attendees ?? new List<Attendee>()).Any(x => x?.UserId == user.Id);
         }
 
-        public JObject ToJson(BotUser user)
+        public JObject ToJson(BotDbUser user)
         {
             bool seeinfo = CanSeeInfo(user);
             var jobj = new JObject();

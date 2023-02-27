@@ -25,19 +25,19 @@ namespace DiscordBot.Interactions.Components
         public async Task approval(string uId, string v)
         {
             var result = bool.Parse(v);
-            var user = Program.GetUserOrDefault(ulong.Parse(uId));
+            var user = await BotDB.GetUserAsync(uint.Parse(uId));
             if (!MLAPI.Handler.holding.TryGetValue(user.Id, out var info))
                 return;
             if (result)
             {
                 info.s.Approved = true;
-                user.ApprovedIPs.Add(info.ip);
+                user.WithApprovedIP(info.ip);
             }
             else
             {
-                user.Sessions.Remove(info.s);
+                user.AuthSessions.Remove(info.s);
             }
-            Program.Save();
+            await BotDB.SaveChangesAsync();
             await Context.Interaction.UpdateAsync(m =>
             {
                 m.Embeds = new[] { MLAPI.Handler.getBuilder(info.s, result).Build() };

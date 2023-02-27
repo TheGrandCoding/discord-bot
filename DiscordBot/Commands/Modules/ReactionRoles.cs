@@ -133,14 +133,20 @@ namespace DiscordBot.Commands.Modules
         [Summary("Prevents a user from performing any reaction roles in this server")]
         public async Task BlockWhole(SocketGuildUser user)
         {
-            var bUser = Program.CreateUser(user);
+            var result = await Context.BotDB.GetUserFromDiscord(user, true);
+            if(!result.Success)
+            {
+                await ReplyAsync(":x: Internal error occured");
+                return;
+            }
+            var bUser = result.Value;
             var perm = Perm.Parse($"-roles.{user.Guild.Id}.*");
-            if(bUser.Permissions.RemoveAll(x => x.RawNode == perm.RawNode) > 0)
+            if(bUser.Permissions.RemoveAll(x => x.PermNode.RawNode == perm.RawNode) > 0)
             {
                 await ReplyAsync("Unblocked");
             } else
             {
-                bUser.Permissions.Add(perm);
+                bUser.WithPerm(perm);
                 await ReplyAsync("Blocked.");
             }
         }
@@ -149,15 +155,21 @@ namespace DiscordBot.Commands.Modules
         [Summary("Prevents a user from getting the specific role via reaction in this server")]
         public async Task BlockWhole(SocketGuildUser user, IRole role)
         {
-            var bUser = Program.CreateUser(user);
+            var result = await Context.BotDB.GetUserFromDiscord(user, true);
+            if(!result.Success)
+            {
+                await ReplyAsync(":x: Internal error occured.");
+                return;
+            }
+            var bUser = result.Value;
             var perm = Perm.Parse($"-roles.{user.Guild.Id}.{role.Id}");
-            if (bUser.Permissions.RemoveAll(x => x.RawNode == perm.RawNode) > 0)
+            if (bUser.Permissions.RemoveAll(x => x.PermNode.RawNode == perm.RawNode) > 0)
             {
                 await ReplyAsync("Unblocked");
             }
             else
             {
-                bUser.Permissions.Add(perm);
+                bUser.WithPerm(perm);
                 await ReplyAsync("Blocked.");
             }
         }

@@ -81,10 +81,10 @@ namespace DiscordBot.Commands.Modules.Rules
         {
             if(reason == null)
             {
-                await ReplyAsync(Context.BotUser.Reason == null ? "No reason set" : Context.BotUser.Reason);
+                await ReplyAsync(Context.BotDbUser.Reason == null ? "No reason set" : Context.BotDbUser.Reason);
             } else
             {
-                Context.BotUser.Reason = reason;
+                Context.BotDbUser.Reason = reason;
                 await ReplyAsync("Reason set.");
             }
 
@@ -146,32 +146,32 @@ namespace DiscordBot.Commands.Modules.Rules
 
         [Command("mute")]
         [RequireUserPermission(GuildPermission.ManageMessages, Group = "or")]
-        public async Task Mute(BotUser target, TimeSpan duration)
+        public async Task Mute(BotDbUser target, TimeSpan duration)
         {
             await Service.AddMute(Context.User as SocketGuildUser,
                 Context.Guild.GetUser(target.Id),
-                Context.BotUser.Reason, duration);
+                Context.BotDbUser.Reason, duration);
             Success("Muted.");
         }
 
         [Command("tban"), Alias("tempban")]
         [RequireUserPermission(GuildPermission.KickMembers, Group = "or")]
         [RequireUserPermission(GuildPermission.BanMembers, Group = "or")]
-        public async Task TempBan(BotUser target, TimeSpan duration)
+        public async Task TempBan(BotDbUser target, TimeSpan duration)
         {
             await Service.AddTempBan(Context.User as SocketGuildUser,
                 Context.Guild.GetUser(target.Id),
-                Context.BotUser.Reason, duration);
+                Context.BotDbUser.Reason, duration);
             Success("Tempbanned.");
         }
 
         [Command("tblock"), Alias("topicblock")]
         [RequireUserPermission(GuildPermission.ManageMessages, Group = "or")]
-        public async Task TopicBlock(BotUser target, TimeSpan duration, [Remainder]string regex)
+        public async Task TopicBlock(BotDbUser target, TimeSpan duration, [Remainder]string regex)
         {
             await Service.AddTopicBlock(Context.User as SocketGuildUser,
                 Context.Guild.GetUser(target.Id),
-                Context.BotUser.Reason, duration, regex);
+                Context.BotDbUser.Reason, duration, regex);
             await Success("Topic block added.");
         }
 
@@ -181,7 +181,7 @@ namespace DiscordBot.Commands.Modules.Rules
         public async Task ImageBlock(ulong hash, TimeSpan? duration = null)
         {
             await Service.AddImageBlock(Context.User as SocketGuildUser, null,
-                Context.BotUser.Reason, duration, hash);
+                Context.BotDbUser.Reason, duration, hash);
         }
 
         [Command("mallinks")]

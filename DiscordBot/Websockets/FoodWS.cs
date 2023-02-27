@@ -13,10 +13,6 @@ namespace DiscordBot.Websockets
     {
         public WorkingRecipeCollection Recipe { get; private set; }
         public FoodService FoodService { get; private set; }
-        protected override void OnClose(CloseEventArgs e)
-        {
-            base.OnClose(e);
-        }
 
         protected override void OnError(ErrorEventArgs e)
         {

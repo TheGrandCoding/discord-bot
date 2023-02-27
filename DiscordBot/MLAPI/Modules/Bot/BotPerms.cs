@@ -19,7 +19,7 @@ namespace DiscordBot.MLAPI.Modules
             Service = Program.Services.GetRequiredService<PermissionsService>();
         }
 
-        (bool can, string err) canSetPermission(BotUser oper, BotUser target, NodeInfo node, NodeInfo requires)
+        (bool can, string err) canSetPermission(BotDbUser oper, BotDbUser target, NodeInfo node, NodeInfo requires)
         {
             if (oper == null)
                 return (false, "Operator is null");
@@ -30,7 +30,7 @@ namespace DiscordBot.MLAPI.Modules
             return (true, null);
         }
 
-        string buildHTML(BotUser user, FieldInfo field)
+        string buildHTML(BotDbUser user, FieldInfo field)
         {
             string node = (string)field.GetValue(null);
             var perm = Service.FindNode(node);
@@ -41,7 +41,7 @@ namespace DiscordBot.MLAPI.Modules
             return item + "</label><br/>";
         }
 
-        string buildHTML(BotUser user, Type type, int level)
+        string buildHTML(BotDbUser user, Type type, int level)
         {
             string html = $"<div class='level-{level}'>";
             html += $"<p>{type.Name}</p>";
@@ -57,13 +57,13 @@ namespace DiscordBot.MLAPI.Modules
             return html += "</div>";
         }
 
-        string buildHTML(BotUser user)
+        string buildHTML(BotDbUser user)
         {
             var type = typeof(DiscordBot.Perms);
             return buildHTML(user, type, 0);
         }
 
-        void permsFor(BotUser user)
+        void permsFor(BotDbUser user)
         {
             string p = buildHTML(user);
             ReplyFile("permissions.html", 200, new Replacements()
@@ -80,9 +80,9 @@ namespace DiscordBot.MLAPI.Modules
 
         [Method("GET"), Path("/bot/permissions")]
         [RequirePermNode(Perms.Bot.Developer.ViewPermissions)]
-        public void SeePermissions(ulong user)
+        public void SeePermissions(uint user)
         {
-            var usr = Program.GetUserOrDefault(user);
+            var usr = Context.BotDB.GetUserAsync(user).Result;
             if (usr == null)
             {
                 HTTPError(System.Net.HttpStatusCode.NotFound, "User", "Unknown user id");
@@ -92,9 +92,9 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("POST"), Path("/bot/permissions")]
-        public void TrySetPermission(ulong user, string node, bool value)
+        public void TrySetPermission(uint user, string node, bool value)
         {
-            var other = Program.GetUserOrDefault(user);
+            var other = Context.BotDB.GetUserAsync(user).Result;
             if (other == null)
             {
                 RespondRaw("Unknown target", 404);
@@ -113,10 +113,9 @@ namespace DiscordBot.MLAPI.Modules
                 try
                 {
                     if (value)
-                        other.Permissions.Add(perm);
+                        other.WithPerm(perm);
                     else
-                        other.Permissions.Remove(perm);
-                    Program.Save();
+                        other.RemovePerm(perm);
                     RespondRaw("Set");
                 }
                 catch (Exception ex)

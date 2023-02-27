@@ -14,7 +14,7 @@ namespace DiscordBot.Commands.Modules
     {
         public TranslationService Service { get; set; }
         [Command("watch")]
-        public async Task Watch(BotUser user)
+        public async Task Watch(BotDbUser user)
         {
             if(Service.Watched.TryGetValue(user.Id, out var ls))
             {

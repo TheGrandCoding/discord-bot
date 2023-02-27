@@ -31,7 +31,7 @@ namespace DiscordBot.Services.EduLink
             }
         }
 
-        public async Task<string[]> SetClasses(BotUser bUser, EduLinkClient client)
+        public async Task<string[]> SetClasses(BotDbUser bUser, EduLinkClient client)
         {
             bUser.Classes = new Dictionary<string, string>();
             var timetable = await client.TimetableAsync();

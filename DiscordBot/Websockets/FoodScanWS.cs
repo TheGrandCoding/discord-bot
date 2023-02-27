@@ -12,11 +12,6 @@ namespace DiscordBot.Websockets
     public class FoodScanWS : BotWSBase
     {
         public FoodService FoodService { get; private set; }
-        protected override void OnClose(CloseEventArgs e)
-        {
-            base.OnClose(e);
-        }
-
         public void SendCode(string code)
         {
             var data = new JObject();

@@ -1,4 +1,5 @@
-﻿using Discord;
+﻿#if INCLUDE_OLD_SCHOOL
+using Discord;
 using DiscordBot.Classes;
 using qBitApi;
 using System;
@@ -39,7 +40,7 @@ namespace DiscordBot.Services
         
         private string InternalGenerateSave()
         {
-            return Program.Serialise(Tracking, Newtonsoft.Json.TypeNameHandling.None, Newtonsoft.Json.Formatting.None, new BotUserConverter());
+            return Program.Serialise(Tracking, Newtonsoft.Json.TypeNameHandling.None, Newtonsoft.Json.Formatting.None, new BotDbUserConverter());
         }
 
         public override void OnReady()
@@ -75,7 +76,7 @@ namespace DiscordBot.Services
         public override void OnLoaded()
         {
             var sv = ReadSave("[]");
-            Tracking = Program.Deserialise<List<TorrentInfo>>(sv, new BotUserConverter());
+            Tracking = Program.Deserialise<List<TorrentInfo>>(sv, new BotDbUserConverter());
             Sync = Client.GetSyncClient();
             Sync.TorrentUpdated += Sync_TorrentUpdated;
             Sync.TorrentRemoved += Sync_TorrentRemoved;
@@ -174,7 +175,7 @@ namespace DiscordBot.Services
         {
             var info = new TorrentInfo();
             action(info);
-            info.Name = AuthToken.Generate(32);
+            info.Name = BotDbAuthToken.Generate(32);
             _lock.Wait();
             try
             {
@@ -199,7 +200,8 @@ namespace DiscordBot.Services
     {
         public string Hash { get; set; }
         public string Name { get; set; }
-        public BotUser UploadedBy { get; set; }
+        public BotDbUser UploadedBy { get; set; }
         public string Lesson { get; set; }
     }
 }
+#endif

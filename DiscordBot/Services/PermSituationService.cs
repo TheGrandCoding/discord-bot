@@ -38,22 +38,23 @@ namespace DiscordBot.Services
             Program.Client.GuildMemberUpdated += Client_GuildMemberUpdated;
         }
 
-        void perform(BotUser user, ulong id, string e, ulong? criteria)
+        void perform(BotDbUser user, ulong id, string e, ulong? criteria)
         {
             if(Situations.TryGetValue(id, out var actions) && actions.TryGetValue(e, out var sit))
             {
                 if (sit.State != null && sit.State != criteria)
                     return;
                 if(!string.IsNullOrWhiteSpace(sit.PermAdded))
-                    user.Permissions.Add(Perm.Parse(sit.PermAdded));
+                    user.WithPerm(Perm.Parse(sit.PermAdded));
                 if(!string.IsNullOrWhiteSpace(sit.PermRemoved))
-                    user.Permissions.RemoveAll(x => x.RawNode == sit.PermRemoved);
+                    user.Permissions.RemoveAll(x => x.PermNode.RawNode == sit.PermRemoved);
             }
         }
 
         private async System.Threading.Tasks.Task Client_UserJoined(Discord.WebSocket.SocketGuildUser arg)
         {
-            perform(Program.CreateUser(arg), arg.Guild.Id, "UserJoined", null);
+            using var db = BotDbContext.Get();
+            perform((await db.GetUserFromDiscord(arg, true)).Value, arg.Guild.Id, "UserJoined", null);
         }
 
         private async System.Threading.Tasks.Task Client_GuildMemberUpdated(Cacheable<Discord.WebSocket.SocketGuildUser, ulong> cached, Discord.WebSocket.SocketGuildUser arg2)
@@ -67,7 +68,8 @@ namespace DiscordBot.Services
             var removedRoles = priorRoles.Where(x => currentRoles.Contains(x) == false);
             var addedRoles = currentRoles.Where(x => priorRoles.Contains(x) == false);
 
-            var bUser = Program.CreateUser(arg2 ?? arg1);
+            using var db = BotDbContext.Get();
+            var bUser = (await db.GetUserFromDiscord(arg2 ?? arg1, true)).Value;
 
             foreach(var role in removedRoles)
             {

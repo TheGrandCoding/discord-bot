@@ -82,8 +82,8 @@ namespace DiscordBot.Classes.Cinema.Odeon
             var resp = await http.SendAsync(req);
             var content = await resp.Content.ReadAsStringAsync();
 
-            // authToken is embedded in script, which is at the end of the HTML doc
-            string authToken = null;
+            // BotDbAuthToken is embedded in script, which is at the end of the HTML doc
+            string BotDbAuthToken = null;
             int scriptEndIndex = content.Length;
             int scriptStartIndex = content.Length;
             do
@@ -93,15 +93,15 @@ namespace DiscordBot.Classes.Cinema.Odeon
 
                 if (scriptStartIndex == -1 || scriptEndIndex == -1)
                     break;
-                var authT = content.IndexOf("\"authToken\"", scriptStartIndex, scriptEndIndex - scriptStartIndex);
+                var authT = content.IndexOf("\"BotDbAuthToken\"", scriptStartIndex, scriptEndIndex - scriptStartIndex);
                 if (authT == -1)
                     continue;
 
-                var tokenStarts = authT + "\"authToken\":\"".Length;
+                var tokenStarts = authT + "\"BotDbAuthToken\":\"".Length;
                 var tokenEnds = content.IndexOf("\"", tokenStarts);
 
                 return content[new Range(tokenStarts, tokenEnds)];
-            } while (string.IsNullOrWhiteSpace(authToken) && scriptStartIndex >= 0);
+            } while (string.IsNullOrWhiteSpace(BotDbAuthToken) && scriptStartIndex >= 0);
 
             return null;
         }

@@ -14,11 +14,15 @@ namespace DiscordBot.Classes.Rules
     public class BanAppeal
     {
         [JsonIgnore]
-        public BotUser Appellant
+        public BotDbUser Appellant
         {
             get
             {
-                _user ??= Program.GetUserOrDefault(userId);
+                if(_user == null)
+                {
+                    using var db = BotDbContext.Get();
+                    _user = db.GetUserAsync(userId).Result;
+                }
                 return _user;
             }
             set
@@ -29,8 +33,8 @@ namespace DiscordBot.Classes.Rules
         }
 
         [JsonRequired]
-        private ulong userId;
-        private BotUser _user;
+        private uint userId;
+        private BotDbUser _user;
 
         public IGuild Guild { get; set; }
         public ITextChannel AppealChannel { get; set; }

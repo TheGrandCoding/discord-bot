@@ -1,4 +1,5 @@
-﻿using BencodeNET.Parsing;
+﻿#if INCLUDE_OLD_SCHOOL
+using BencodeNET.Parsing;
 using BencodeNET.Torrents;
 using Discord;
 using Discord.Commands;
@@ -72,7 +73,7 @@ namespace DiscordBot.Commands.Modules
             await Service.AddNew(temp, x =>
             {
                 x.Lesson = className;
-                x.UploadedBy = Context.BotUser;
+                x.UploadedBy = Context.BotDbUser;
             });
 
             return await Success("Torrent has been sent to download client. You will receive messages as it progresses.");
@@ -121,7 +122,7 @@ namespace DiscordBot.Commands.Modules
             if(Context.Guild == null)
                 return ("You must run this command either in the Homework channel, or specify the class name in the torrent's Comment field in the form similar to '13BMt1'", null);
             var subjectName = Context.Channel.Name;
-            foreach(var keypair in Context.BotUser.Classes)
+            foreach(var keypair in Context.BotDbUser.Classes)
             {
                 if(keypair.Value.ToLower() == subjectName)
                 {
@@ -132,3 +133,4 @@ namespace DiscordBot.Commands.Modules
         }
     }
 }
+#endif

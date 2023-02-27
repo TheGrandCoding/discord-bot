@@ -33,7 +33,7 @@ namespace DiscordBot.Websockets
             using var db = Program.Services.GetRequiredService<ChessDbContext>();
             try
             {
-                if (!Handler.findToken(Context.CookieCollection[AuthToken.SessionToken].Value, out var bUser, out _))
+                if (!Handler.findToken(Context.CookieCollection[BotDbAuthToken.SessionToken].Value, out var bUser, out _))
                 {
                     Context.WebSocket.Close(CloseStatusCode.Normal, "Authentication failed.");
                     return;

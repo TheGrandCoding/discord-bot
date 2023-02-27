@@ -28,6 +28,7 @@ namespace DiscordBot.Services
 
         public async Task Catchup()
         {
+            using var db = Classes.BotDbContext.Get();
             foreach(var keypair in Guilds)
             {
                 var id = keypair.Key;
@@ -35,10 +36,11 @@ namespace DiscordBot.Services
                 var guild = Program.Client.GetGuild(id);
                 foreach(var usr in guild.Users.Where(x => x.Roles.Any(y => y.Id == save.VerifyRole.Id)))
                 {
-                    var bUser = Program.CreateUser(usr);
-                    if (bUser.IsVerified)
+                    var result = await db.GetUserFromDiscord(usr, false);
+                    if (!result.Success) continue;
+                    if (result.Value.Verified)
                         continue;
-                    await HandleNewLevel7(save, usr);
+                    await HandleNewLevel7(save, usr, db);
                 }
             }
         }
@@ -55,7 +57,8 @@ namespace DiscordBot.Services
                 {
                     if(arg1.Roles.Any(x => x.Id == save.VerifyRole.Id) == false)
                     {
-                        await HandleNewLevel7(save, arg2);
+                        using var db = BotDbContext.Get();
+                        await HandleNewLevel7(save, arg2, db);
                     }
                 }
 
@@ -77,10 +80,12 @@ namespace DiscordBot.Services
             return null;
         }
 
-        async Task HandleNewLevel7(GuildSave save, SocketGuildUser user)
+        async Task HandleNewLevel7(GuildSave save, SocketGuildUser user, BotDbContext db)
         {
-            var bUser = Program.CreateUser(user);
-            if (bUser.IsVerified)
+            var result = await db.GetUserFromDiscord(user, true);
+            if (!result.Success) return;
+            var bUser = result.Value;
+            if (bUser.Verified)
                 return;
             var responsible = await getAdmin(user, save.VerifyRole);
             var respStr = responsible?.Username ?? $"An administrator for `{user.Guild.Name}`";
@@ -90,10 +95,10 @@ namespace DiscordBot.Services
             });
             if (responsible != null)
                 save.Fails[responsible.Id] = save.Fails.GetValueOrDefault(responsible.Id, 0) + 1;
-            bUser.IsApproved = true; // prevent them being locked from verifing
+            bUser.Approved = true; // prevent them being locked from verifing
             var url = new UrlBuilder(Handler.LocalAPIUrl + "/verify");
-            var session = await Handler.GenerateNewSession(bUser, null, null, true);
-            url.Add(AuthSession.CookieName, session.Token);
+            var session = await Handler.GenerateNewSession(bUser, null, null, db, true);
+            url.Add(BotDbAuthSession.CookieName, session.Token);
         }
 
         public override string GenerateSave()

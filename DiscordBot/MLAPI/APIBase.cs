@@ -34,6 +34,7 @@ namespace DiscordBot.MLAPI
         private string BaseFolder { get; set; }
         public APIContext Context { get; set; }
 
+
         public bool HasNode(string perm) => Context.HasPerm(perm);
 
         public enum SidebarType
@@ -107,7 +108,7 @@ namespace DiscordBot.MLAPI
             }
         }
 
-        const string matchRegex = "[<$]REPLACE id=['\"](\\S+)['\"]\\/[>$]";
+        const string matchRegex = "[<$]REPLACE id=['\"](\\S+)['\"] ?\\/[>$]";
         protected string ReplaceMatches(string input, Replacements replace)
         {
             replace.Add("user", Context.User);

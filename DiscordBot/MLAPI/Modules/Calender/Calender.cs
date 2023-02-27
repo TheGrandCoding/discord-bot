@@ -1,4 +1,5 @@
 ﻿using DiscordBot.Classes.Calender;
+using DiscordBot.Utils;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json.Linq;
 using System;
@@ -58,14 +59,15 @@ namespace DiscordBot.MLAPI.Modules
         public void APIGetUsers()
         {
             var users = new JObject();
-            foreach(var usr in Program.Users)
+            foreach(var usr in Context.BotDB.Users)
             {
-                if (usr.ServiceUser || usr.GeneratedUser)
-                    continue;
                 var jobj = new JObject();
-                jobj["username"] = usr.Username ?? usr.Name;
-                jobj["discriminator"] = usr.Discriminator;
-                jobj["avatar"] = usr.GetAnyAvatarUrl();
+                jobj["username"] = usr.Name;
+                if(usr.Connections.Discord != null)
+                {
+                    jobj["discriminator"] = usr.Connections.Discord.Discriminator;
+                    jobj["avatar"] = usr.Connections.Discord.GetAnyAvatarUrl();
+                }
                 users[$"{usr.Id}"] = jobj;
             }
             RespondRaw(users.ToString());

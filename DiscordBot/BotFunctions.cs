@@ -19,40 +19,6 @@ namespace DiscordBot
 {
     public partial class Program
     {
-        public static BotUser GetUserOrDefault(ulong id)
-        {
-            var usr = Users.FirstOrDefault(x => x.Id == id);
-            if (usr != null)
-                return usr;
-            var dsUser = Program.Client.GetUser(id);
-            if (dsUser == null)
-                return null;
-            return CreateUser(dsUser);
-        }
-        public static BotUser CreateUser(IUser user, bool saveOnModify = true)
-        {
-            bool changed = false;
-            var existing = Users.FirstOrDefault(x => x.Id == user.Id);
-            if(existing == null)
-            {
-                existing = new BotUser(user);
-                Program.Users.Add(existing);
-                changed = true;
-            }
-            if(existing.Permissions.Count == 0
-                && Program.AppInfo != null 
-                && Program.AppInfo.Owner.Id == existing.Id
-            )
-            {
-                existing.Permissions.Add(Perm.Parse("bot.*"));
-                changed = true;
-            }
-            if (changed && saveOnModify)
-                Save();
-
-            return existing;
-        }
-
         public static string GetStackTrace(string sep = "\r\n- ")
         {
             var stack = new StackTrace(1, true);

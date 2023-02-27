@@ -22,24 +22,30 @@ namespace DiscordBot.MLAPI.Modules
             Callback = Program.Services.GetRequiredService<OauthCallbackService>();
         }
 
-        void handleLogin(object sender, object[] stateArgs)
+        void handleDiscordOAuth(object sender, object[] stateArgs)
         {
             // Funky C#8, disposed at end of this function
             var oauth = new DiscordOauth("identify", Context.GetQuery("code"));
             var userInfo = oauth.GetUserInformation().Result;
             try
             {
-                var usr = handleUserInfo(userInfo);
+                var result = Context.BotDB.GetUserFromDiscord(userInfo, true).Result;
+                if(!result.Success)
+                {
+                    RespondRaw($"Faield: {result.ErrorMessage}", 500);
+                    return;
+                }
+                var usr = result.Value;
                 setSessionTokens(usr);
                 string redirectTo = Context.Request.Cookies["redirect"]?.Value;
                 if (string.IsNullOrWhiteSpace(redirectTo))
                     redirectTo = Context.User?.RedirectUrl ?? "/";
-                if (usr.IsApproved.HasValue == false)
+                if (usr.Approved.HasValue == false)
                 {
                     redirectTo = "/login/approval";
                     var admin_id = ulong.Parse(Program.Configuration["settings:admin"]);
                     string avatar = userInfo.GetAnyAvatarUrl();
-                    Program.GetUserOrDefault(admin_id).FirstValidUser.SendMessageAsync(embed: new EmbedBuilder()
+                    Program.Client.GetUser(admin_id).SendMessageAsync(embed: new EmbedBuilder()
                         .WithTitle("MLAPI User")
                         .WithDescription($"{userInfo.Username}#{userInfo.Discriminator} ({userInfo.Id}) is awaiting approval")
                         .WithUrl(Handler.LocalAPIUrl + "/bot/approve")
@@ -48,10 +54,10 @@ namespace DiscordBot.MLAPI.Modules
                         .AddField("IP", Context.Request.Headers["X-Forwarded-For"] ?? "localhost", true)
                         .AddField("Origin", Context.Request.Headers["Origin"] ?? "none", true)
                         .Build());
-                } else if (usr.IsApproved.Value == false)
+                } else if (usr.Approved.Value == false)
                 {
                     redirectTo = "/login/approval";
-                } else if (usr.MLAPIPassword == null)
+                } else if (usr.Connections.PasswordHash == null)
                 {
                     redirectTo = "/login/setpassword";
                 }
@@ -70,7 +76,7 @@ namespace DiscordBot.MLAPI.Modules
             if(Context.User != null)
             { // we'll log them out to troll them
                 Context.HTTP.Response.Headers["Location"] = "/";
-                var l = Context.HTTP.Request.Cookies[AuthSession.CookieName];
+                var l = Context.HTTP.Request.Cookies[BotDbAuthSession.CookieName];
                 l.Expires = DateTime.Now.AddDays(-1);
                 Context.HTTP.Response.SetCookie(l);
                 RespondRaw($"Logged you out; redirecting to base path", HttpStatusCode.Redirect);
@@ -84,7 +90,7 @@ namespace DiscordBot.MLAPI.Modules
         public void Logout(string back = "/")
         {
             Context.HTTP.Response.Headers["Location"] = back;
-            var l = Context.HTTP.Request.Cookies[AuthSession.CookieName] ?? new Cookie(AuthSession.CookieName, "null");
+            var l = Context.HTTP.Request.Cookies[BotDbAuthSession.CookieName] ?? new Cookie(BotDbAuthSession.CookieName, "null");
             l.Expires = DateTime.Now.AddDays(-1);
             Context.HTTP.Response.SetCookie(l);
             RespondRaw(LoadRedirectFile(back), HttpStatusCode.Redirect);
@@ -93,7 +99,7 @@ namespace DiscordBot.MLAPI.Modules
         [Method("GET"), Path("/login/discord")]
         public void RedirectToDiscord(string redirect = "/")
         {
-            var state = Callback.Register(handleLogin, Context.User);
+            var state = Callback.Register(handleDiscordOAuth, Context.User);
             var uri = UrlBuilder.Discord()
                 .Add("redirect_uri", Handler.LocalAPIUrl + "/oauth2/discord")
                 .Add("response_type", "code")
@@ -106,47 +112,60 @@ namespace DiscordBot.MLAPI.Modules
         // We expect this data to be sent in form-data-encoded or wahtever form in the content/body
         // rather than in the Query string
         // the APIContext has the means to parse both, and CommandFinder uses both.
-        public void LoginPassword(string identifier, string password)
+        public void LoginPassword(string username, string password)
         {
             if(Context.User != null)
             {
                 RespondRaw("Error: you are already logged in", 400);
                 return;
             }
-            BotUser user;
-            if(ulong.TryParse(identifier, out var id))
+            var result = Context.BotDB.AttemptLoginAsync(username, password).Result;
+            if(!result.Success)
             {
-                user = Program.GetUserOrDefault(id);
-            } else
-            {
-                user = Program.Users.FirstOrDefault(x 
-                    => x.FirstValidUser?.Username == identifier
-                    || x.OverrideName == identifier);
-            }
-            if(user == null)
-            {
-                RespondRaw("Unknown user by your identifiers.", 404);
+                RespondRedirect($"#username={Uri.EscapeDataString(username)}&fbl={Uri.EscapeDataString(result.ErrorMessage)}");
                 return;
             }
-            var token = user.MLAPIPassword;
-            if(token == null || !PasswordHash.ValidatePassword(password, token))
+            setSessionTokens(result.Value); // essentially logs them in
+            RespondRedirect("/");
+        }
+        [Method("POST"), Path("/register")]
+        public void RegisterWithPassword(string username, string password)
+        {
+            if (Context.User != null)
             {
-                // since confirming whether the user does or does not have a pwd is maybe a bad idea?
-                RespondRaw("Username or password incorrect", 404);
+                RespondRaw("Error: you are already logged in", 400);
                 return;
             }
-            setSessionTokens(user); // essentially logs them in
-            RespondRaw("Ok", 200);
+            var result = Context.BotDB.AttemptRegisterAsync(username, password).Result;
+            if (!result.Success)
+            {
+                RespondRedirect($"/login#username={Uri.EscapeDataString(username)}&fbr={Uri.EscapeDataString(result.ErrorMessage)}");
+                return;
+            }
+            setSessionTokens(result.Value); // essentially logs them in
+            RespondRedirect("/");
+            try
+            {
+                var embed = new EmbedBuilder()
+                    .WithTitle("MLAPI Account Created")
+                    .AddField("Username", $"**{username}**", true)
+                    .AddField("ID", result.Value.Id.ToString(), true)
+                    .AddField("IP", Context.IP)
+                    .AddField("User-Agent", Context.HTTP.Request.UserAgent, true)
+                    .WithDescription($"Go [here to approve]({Handler.LocalAPIUrl}/bot/approve)");
+                Program.SendLogMessageAsync(embed: embed.Build()).Wait();
+            } catch { }
         }
 
         [Method("GET"), Path("/login/approval")]
-        [RequireAuthentication]
+        [RequireAuthentication(requireDiscordConnection: false)]
+        [RequireApproval(false)]
         public void ApprovalPage()
         {
-            if(!Context.User.IsApproved.HasValue)
+            if(!Context.User.Approved.HasValue)
             {
                 RespondRaw("Your account is pending approval; please wait.", 200);
-            } else if (Context.User.IsApproved.Value)
+            } else if (Context.User.Approved.Value)
             {
                 RespondRaw("Your account is approved; please visit the main page.", 200);
             }
@@ -156,19 +175,18 @@ namespace DiscordBot.MLAPI.Modules
             }
         }
 
-        public static void SetLoginSession(APIContext context, BotUser user)
+        public static void SetLoginSession(APIContext context, BotDbUser user, bool purgeOtherSessions = false)
         {
             // password valid, we need to log them in.
-            var session = context.GenerateNewSession(user);
+            var session = context.GenerateNewSession(user, logoutOthers: purgeOtherSessions);
             // to prevent logging out any other devices, we'll maintain the same token value.
-            Program.Save(); // ensure we save the session so it persists for multiple days
-            context.HTTP.Response.Cookies.Add(new Cookie(AuthSession.CookieName, session.Token, "/")
+            context.HTTP.Response.Cookies.Add(new Cookie(BotDbAuthSession.CookieName, session.Token, "/")
             {
                 Expires = DateTime.Now.AddDays(60)
             });
         }
 
-        void setSessionTokens(BotUser user) => SetLoginSession(Context, user);
+        void setSessionTokens(BotDbUser user) => SetLoginSession(Context, user);
 
         async Task<HttpResponseMessage> postJson(JObject json, BotHttpClient client, string url)
         {
@@ -191,10 +209,6 @@ namespace DiscordBot.MLAPI.Modules
             return client.SendAsync(request).Result;
         }
 
-        BotUser handleUserInfo(IUser user)
-        {
-            return Program.CreateUser(user);
-        }
 
         [Method("GET"), Path("/oauth2/discord")]
         public void OauthLogin(string code, string state)
@@ -234,7 +248,7 @@ namespace DiscordBot.MLAPI.Modules
         {
             ReplyFile("pwd.html", HttpStatusCode.OK, new Replacements()
                 .IfElse("dowhat",
-                    Context.User.Tokens.FirstOrDefault(x => x.Name == AuthToken.LoginPassword) == null,
+                    Context.User.Connections.PasswordHash == null,
                     "create a new password", "replace your old password"));
         }
     
@@ -252,11 +266,9 @@ namespace DiscordBot.MLAPI.Modules
                 RespondRaw($"Password is known to be compromised; it cannot be used.", 400);
                 return;
             }
-            Context.User.MLAPIPassword = pwd;
-            SetLoginSession(Context, Context.User);
-            Program.Save();
-            Context.HTTP.Response.Headers["Location"] = "/";
-            RespondRaw("Set", HttpStatusCode.Redirect);
+            Context.User.Connections.PasswordHash = PasswordHash.HashPassword(pwd);
+            SetLoginSession(Context, Context.User, true);
+            RespondRedirect(Context.User.RedirectUrl ?? "/");
         }
     
     
@@ -266,7 +278,7 @@ namespace DiscordBot.MLAPI.Modules
         [RequireApproval(false)]
         public void ForceVerify()
         {
-            Context.User.IsApproved = true;
+            Context.User.Verified = true;
             var service = Program.Services.GetRequiredService<EnsureLevelEliteness>();
             foreach(var guild in Program.Client.Guilds)
             {
@@ -281,7 +293,6 @@ namespace DiscordBot.MLAPI.Modules
                     AuditLogReason = $"User has now verified"
                 }).Wait();
             }
-            Program.Save();
             service.OnSave();
             RespondRaw($"Verification process complete. You can close this window");
         }

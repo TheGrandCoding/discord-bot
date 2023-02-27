@@ -418,16 +418,6 @@ Changed how permissions worked for bot.
             return Task.CompletedTask;
         }
 
-        public static string getDbString(string database)
-        {
-#if DEBUG
-            var config = "Data Source=(localdb)\\MSSQLLocalDB;Initial Catalog={0};Integrated Security=True;Connect Timeout=30;Encrypt=False;TrustServerCertificate=False;ApplicationIntent=ReadWrite;MultiSubnetFailover=False";
-#else
-            var config = Configuration["tokens:db"];
-#endif
-            return string.Format(config, database);
-        }
-
         private static ServiceProvider ConfigureServices()
         {
             var coll = new ServiceCollection()
@@ -471,48 +461,11 @@ Changed how permissions worked for bot.
 #endif
             }, ServiceLifetime.Transient);
 #endif
-            coll.AddDbContext<TimeTrackDb>(options =>
-            {
-#if WINDOWS
-                options.UseSqlServer(getDbString("watch"));
-                options.EnableSensitiveDataLogging();
-                var x = CharSet.Utf8Mb4;
-#else
-                options.UseMySql(getDbString("watch"), 
-                    new MariaDbServerVersion(new Version(10, 3, 25)));
-#endif
-            }, ServiceLifetime.Transient);
-            coll.AddDbContext<CalenderDb>(options =>
-            {
-#if WINDOWS
-                options.UseSqlServer(getDbString("calendar"));
-                options.EnableSensitiveDataLogging();
-#else
-                options.UseMySql(getDbString("calendar"), 
-                    new MariaDbServerVersion(new Version(10, 3, 25)));
-#endif
-            }, ServiceLifetime.Transient);
-            coll.AddDbContext<FoodDbContext>(options =>
-            {
-#if WINDOWS
-                options.UseSqlServer(getDbString("food"));
-                options.EnableSensitiveDataLogging();
-#else
-                options.UseMySql(getDbString("food"), 
-                    new MariaDbServerVersion(new Version(10, 3, 25)));
-#endif
-            }, ServiceLifetime.Transient);
-
-            coll.AddDbContext<HoursDbContext>(options =>
-            {
-#if WINDOWS
-                options.UseSqlServer(getDbString("hours"));
-                options.EnableSensitiveDataLogging();
-#else
-                options.UseMySql(getDbString("hours"), 
-                    new MariaDbServerVersion(new Version(10, 3, 25)));
-#endif
-            }, ServiceLifetime.Transient);
+            coll.AddDbContext<TimeTrackDb>(ServiceLifetime.Transient);
+            coll.AddDbContext<CalenderDb>(ServiceLifetime.Transient);
+            coll.AddDbContext<FoodDbContext>(ServiceLifetime.Transient);
+            coll.AddDbContext<HoursDbContext>(ServiceLifetime.Transient);
+            coll.AddDbContext<BotDbContext>(ServiceLifetime.Transient);
 
             var yClient = new Google.Apis.YouTube.v3.YouTubeService(new Google.Apis.Services.BaseClientService.Initializer()
             {
@@ -546,13 +499,11 @@ Changed how permissions worked for bot.
         }
 
 #region Save Info
-        public static ConcurrentBag<BotUser> Users { get; set; }
         public static uint CommandVersions { get; set; } = 0;
         public const string saveName = "new_bot_save.json";
 
         class BotSave
         {
-            public List<BotUser> users;
             public Dictionary<string, int> states;
             [JsonProperty(DefaultValueHandling = DefaultValueHandling.IgnoreAndPopulate)]
             [DefaultValue(0)]
@@ -572,7 +523,6 @@ Changed how permissions worked for bot.
                 content = "{}";
             }
             var save = JsonConvert.DeserializeObject<BotSave>(content);
-            Users = new ConcurrentBag<BotUser>(save.users ?? new List<BotUser>());
             states = save.states ?? new Dictionary<string, int>();
             CommandVersions = save.commandVersion ?? 0;
         }
@@ -581,7 +531,6 @@ Changed how permissions worked for bot.
         {
             var bSave = new BotSave()
             {
-                users = Users.ToList(),
                 states = states,
                 commandVersion = CommandVersions
             };
@@ -617,22 +566,28 @@ Changed how permissions worked for bot.
                 Environment.Exit(1);
                 return;
             }
+            var db = BotDbContext.Get(); // disposed in finally
             try
             {
-                var owner = Client.GetApplicationInfoAsync().Result.Owner.Id;
-                var bUser = GetUserOrDefault(owner);
+                var owner = Client.GetApplicationInfoAsync().Result.Owner;
+                var bUser = db.GetUserFromDiscord(owner, true).Result.Value;
                 if(bUser != null)
                 {
+                    bUser.Approved = true;
+                    bUser.Verified = true;
                     var perm = Perm.Parse(Perms.Bot.All);
                     if(!PermChecker.UserHasPerm(bUser, perm))
                     {
-                        bUser.Permissions.Add(perm);
-                        Program.Save();
+                        bUser.WithPerm(perm);
                     }
+                    db.SaveChanges();
                 }
             } catch (Exception ex)
             {
                 LogError(ex, "SetOwnerDev");
+            } finally
+            {
+                db.Dispose();
             }
             Service.SendLoad();
             try

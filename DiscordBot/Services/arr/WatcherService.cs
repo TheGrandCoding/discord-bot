@@ -98,14 +98,14 @@ namespace DiscordBot.Services.arr
             return builder;
         }
 
-        /*string getAuthHeader(string authToken)
+        /*string getAuthHeader(string BotDbAuthToken)
         {
             var dict = new Dictionary<string, string>();
             dict["MediaBrowser Client"] = "MLAPI";
             dict["Device"] = "MLAPI";
             dict["DeviceId"] = "Bot";
             dict["Version"] = "1.0.0";
-            dict["Token"] = authToken;
+            dict["Token"] = BotDbAuthToken;
 
             var s = new StringBuilder();
             foreach(var keypair in dict)

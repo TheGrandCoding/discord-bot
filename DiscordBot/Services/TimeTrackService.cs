@@ -14,6 +14,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text;
+using DiscordBot.Utils;
 
 namespace DiscordBot.Services
 {
@@ -66,6 +67,10 @@ namespace DiscordBot.Services
     {
         public TimeTrackDb(DbContextOptions<TimeTrackDb> options) : base(options)
         {
+        }
+        protected override void OnConfiguring(DbContextOptionsBuilder options)
+        {
+            options.WithSQLConnection("watch");
         }
 
         private static Cached<string> ExtensionVersion { get; set; } = new Cached<string>(null, 180);

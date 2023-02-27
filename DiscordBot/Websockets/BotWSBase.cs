@@ -16,10 +16,10 @@ namespace DiscordBot.Websockets
         public string SessionToken { get
             {
                 string strToken = null;
-                var cookie = Context.CookieCollection[AuthSession.CookieName];
+                var cookie = Context.CookieCollection[BotDbAuthSession.CookieName];
                 strToken ??= cookie?.Value;
-                strToken ??= Context.QueryString.Get(AuthSession.CookieName);
-                strToken ??= Context.Headers.Get($"X-{AuthSession.CookieName.ToUpper()}");
+                strToken ??= Context.QueryString.Get(BotDbAuthSession.CookieName);
+                strToken ??= Context.Headers.Get($"X-{BotDbAuthSession.CookieName.ToUpper()}");
                 return strToken;
             } }
 
@@ -43,21 +43,28 @@ namespace DiscordBot.Websockets
             }
         }
 
-        private BotUser user;
-        public BotUser User { get
+        private BotDbContext _db;
+        public BotDbContext BotDB { get => _db ??= BotDbContext.Get(); }
+
+        private BotDbUser user;
+        public BotDbUser User { get
             {
                 if (user != null)
                     return user;
-                if (!Handler.findSession(SessionToken, out var usr, out _))
+                var session = BotDB.GetSessionAsync(SessionToken).Result;
+                if (session != null)
                 {
-                    if(!Handler.findToken(ApiToken, out usr, out _))
-                    {
-                        Program.LogDebug($"{IP} provided an unknown session or auth token, or none at all.", "WSLog");
-                        return null;
-                    }
+                    user = session.User;
+                    return user;
                 }
-                user = usr;
-                return user;
+                var token = BotDB.GetTokenAsync(ApiToken).Result;
+                if(token != null)
+                {
+                    user = token.User;
+                    return user;
+                }
+                Program.LogDebug($"{IP} provided an unknown session or auth token, or none at all.", "WSLog");
+                return null;
             } }
 
         public string Type => this.GetType().Name;
@@ -105,6 +112,12 @@ namespace DiscordBot.Websockets
                     else Warn($"Unable to send to {session.GetType().FullName}", "SendToAllOthers");
                 }
             }
+        }
+
+        protected override void OnClose(CloseEventArgs e)
+        {
+            base.OnClose(e);
+            _db?.Dispose();
         }
     }
 

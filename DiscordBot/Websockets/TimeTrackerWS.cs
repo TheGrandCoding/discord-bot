@@ -264,7 +264,7 @@ namespace DiscordBot.Websockets
                     embed.Title = "WS Error Occured";
                     embed.Description = ex.Message;
                     embed.Footer = new EmbedFooterBuilder().WithText($"{packet.Id}");
-                    User.FirstValidUser.SendMessageAsync(embed: embed.Build()).Wait();
+                    User.Connections.Discord.SendMessageAsync(embed: embed.Build()).Wait();
                 } catch { }
             } finally
             {

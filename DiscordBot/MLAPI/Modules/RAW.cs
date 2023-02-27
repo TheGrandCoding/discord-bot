@@ -31,7 +31,7 @@ namespace DiscordBot.RESTAPI.Functions.HTML
             if(Context.User == null)
             {
                 ReplyFile("_base_nologin.html", 200);
-            } else if (Context.User.IsApproved != true)
+            } else if (Context.User.Approved != true)
             {
                 RespondRaw(LoadRedirectFile("/login/approval"), HttpStatusCode.Redirect);
             } else
@@ -113,32 +113,6 @@ namespace DiscordBot.RESTAPI.Functions.HTML
             if (extension == "woff")
                 return "application/font-woff";
             return "image/" + extension;
-        }
-
-        [Method("GET"), Path("/builtin")]
-        [RequireUser(144462654201790464)]
-        public void BuiltInAccounts()
-        {
-            var TABLE = "";
-            bool change = false;
-            foreach(var usrs in Program.Users.Where(x => x.ServiceUser))
-            {
-                string ROW = "<tr>";
-                ROW += $"<td>{usrs.Id}</td>";
-                ROW += $"<td>{usrs.Name}</td>";
-                var token = usrs.Tokens.FirstOrDefault(x => x.Name == AuthToken.LoginPassword);
-                if(token == null)
-                {
-                    token = new Classes.AuthToken(AuthToken.LoginPassword, 12);
-                    usrs.Tokens.Add(token);
-                    change = true;
-                }
-                ROW += $"<td>{token.Value}</td>";
-                TABLE += ROW + "</tr>";
-            }
-            ReplyFile("builtin.html", 200, new Replacements().Add("table", TABLE));
-            if (change)
-                Program.Save();
         }
 
         static Dictionary<string, bool> sent = new Dictionary<string, bool>();

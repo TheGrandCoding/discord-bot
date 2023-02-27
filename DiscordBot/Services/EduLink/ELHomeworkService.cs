@@ -227,10 +227,10 @@ namespace DiscordBot.Services.EduLink
     {
         public Dictionary<EduLinkClient, Homework> Homeworks { get; set; } = new Dictionary<EduLinkClient, Homework>();
 
-        public List<BotUser> GetStudents(EduLinkService service)
+        public List<BotDbUser> GetStudents(EduLinkService service)
         {
             if (Homework.Subject == "-1") // "Other"? impossible to tell.
-                return new List<BotUser>();
+                return new List<BotDbUser>();
             var classes = new List<string>();
             foreach(var usr in Homeworks.Keys)
             {
@@ -246,7 +246,7 @@ namespace DiscordBot.Services.EduLink
                     Program.LogMsg($"{usr.CurrentUser.UserName}-ELH", ex);
                 }
             }
-            var students = new List<BotUser>();
+            var students = new List<BotDbUser>();
             foreach(var user in Program.Users)
             {
                 foreach(var sub in classes)

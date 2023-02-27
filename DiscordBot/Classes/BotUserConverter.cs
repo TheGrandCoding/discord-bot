@@ -6,23 +6,24 @@ using System.Text;
 
 namespace DiscordBot.Classes
 {
-    public class BotUserConverter : JsonConverter
+    public class BotDbUserConverter : JsonConverter
     {
         public override bool CanConvert(Type objectType)
         {
-            return objectType == typeof(BotUser);
+            return objectType == typeof(BotDbUser);
         }
 
         public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
         {
-            var lng = (long)reader.Value;
-            var id = Convert.ToUInt64(lng);
-            return Program.GetUserOrDefault(id);
+            var _int = (int)reader.Value;
+            var id = Convert.ToUInt32(_int);
+            using var db = BotDbContext.Get();
+            return db.GetUserAsync(id).Result;
         }
 
         public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
         {
-            if(value is BotUser bUs)
+            if(value is BotDbUser bUs)
             {
                 var jval = new JValue(bUs.Id);
                 jval.WriteTo(writer);

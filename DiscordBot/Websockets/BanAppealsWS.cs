@@ -4,6 +4,7 @@ using DiscordBot.Classes;
 using DiscordBot.Classes.Rules;
 using DiscordBot.MLAPI;
 using DiscordBot.Services;
+using DiscordBot.Utils;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json.Linq;
 using System;
@@ -72,7 +73,7 @@ namespace DiscordBot.Websockets
             if(type == "GetMessages")
             {
                 var before = json["before"].ToObject<long>();
-                var msgId = SnowflakeUtils.ToSnowflake(DateTimeOffset.FromUnixTimeMilliseconds(before));
+                var msgId = Discord.SnowflakeUtils.ToSnowflake(DateTimeOffset.FromUnixTimeMilliseconds(before));
                 var messages = Appeal.AppealChannel.GetMessagesAsync(msgId, Direction.Before).FlattenAsync().Result;
                 foreach (var x in messages)
                     if(x is IUserMessage u)
@@ -88,7 +89,7 @@ namespace DiscordBot.Websockets
                     var content = json["content"].ToString();
                     try
                     {
-                        Appeal.SendMessageAsync(content, User.Name, User.GetAnyAvatarUrl()).Wait();
+                        Appeal.SendMessageAsync(content, User.Name, User.Connections.Discord.GetAnyAvatarUrl()).Wait();
                     } catch(Exception ex)
                     {
                         Program.LogError(ex, "BanAppeal");
@@ -145,9 +146,7 @@ namespace DiscordBot.Websockets
             var json = new JObject();
             json["id"] = message.Id.ToString();
             var dMsg = new DiscordMsg(MService, message);
-            var msg = DiscordBot.MLAPI.Modules.VPN.getMessage(dMsg, 
-                Appeal.Guild, getAuthorName(dMsg), getRoleColour(dMsg), User.Id, false, false);
-            json["html"] = msg.ToString();
+            json["html"] = $"<p>{message.Author.Username}: {message.CleanContent}</p>";
             json["author"] = (dMsg.Author.IsWebhook ? User.Id : dMsg.Author.Id).ToString();
             Send(json.ToString(Newtonsoft.Json.Formatting.None));
         }

@@ -43,12 +43,13 @@ namespace DiscordBot.Commands.Modules
             await PagedReplyAsync(paginator);
         }
 
-        async Task printListFor(BotUser u)
+        async Task printListFor(BotDbUser u)
         {
             var paginator = new StaticPaginatorBuilder();
             var cPage = new PageBuilder();
-            foreach (var perm in u.Permissions)
+            foreach (var botperm in u.Permissions)
             {
+                var perm = botperm.PermNode;
                 string sep = perm.Type == PermType.Allow ? "**" : perm.Type == PermType.Deny ? "~~" : "";
                 var s = $"`{perm.RawNode}` {sep}{perm.Description}{sep}\r\n";
                 if ((cPage.Text.Length + s.Length) > 1024)
@@ -64,7 +65,7 @@ namespace DiscordBot.Commands.Modules
             await PagedReplyAsync(paginator);
         }
 
-        async Task printActualFor(BotUser u)
+        async Task printActualFor(BotDbUser u)
         {
             var paginator = new StaticPaginatorBuilder();
             var cPage = new PageBuilder();
@@ -92,9 +93,9 @@ namespace DiscordBot.Commands.Modules
             await PagedReplyAsync(paginator);
         }
 
-        async Task doCheckFor(BotUser u, NodeInfo node)
+        async Task doCheckFor(BotDbUser u, NodeInfo node)
         {
-            var given = PermChecker.UserHasPerm(Context.BotUser, node, out var b);
+            var given = PermChecker.UserHasPerm(Context.BotDbUser, node, out var b);
             if (given)
             {
                 await ReplyAsync($":ballot_box_with_check: {(u.Id == Context.User.Id ? "You have" : $"{u.Name} has")} that node {(b ? "via a wildcard" : "directly")}");
@@ -109,14 +110,14 @@ namespace DiscordBot.Commands.Modules
         [Summary("View your own permissions")]
         public async Task ViewOwn()
         {
-            await printListFor(Context.BotUser);
+            await printListFor(Context.BotDbUser);
         }
 
         [Command("view")]
         [Alias("viewo")]
         [Summary("View someone else's permissions")]
         [RequirePermission(Perms.Bot.Developer.ViewPermissions)]
-        public async Task ViewOther(BotUser u) => await printListFor(u);
+        public async Task ViewOther(BotDbUser u) => await printListFor(u);
 
         [Command("whohas")]
         [Summary("Lists who has the given permission")]
@@ -128,7 +129,7 @@ namespace DiscordBot.Commands.Modules
                 return new BotResult("There does not exist a permission node by that text.");
 
             string s = "";
-            foreach(var usr in Program.Users)
+            foreach(var usr in Context.BotDB.Users)
             {
                 if(PermChecker.UserHasPerm(usr, perm))
                     s += $"- <@{usr.Id}>\r\n";
@@ -143,26 +144,26 @@ namespace DiscordBot.Commands.Modules
         [Summary("View your effective permissions")]
         public async Task ViewEffectiveOwn()
         {
-            await printActualFor(Context.BotUser);
+            await printActualFor(Context.BotDbUser);
         }
 
         [Command("effective")]
         [Alias("effectiveo")]
         [Summary("View someone else's effective permissions")]
         [RequirePermission(Perms.Bot.Developer.ViewPermissions)]
-        public async Task ViewEffectiveOther(BotUser u) => await printActualFor(u);
+        public async Task ViewEffectiveOther(BotDbUser u) => await printActualFor(u);
 
         [Command("check"), Alias("test")]
         [Summary("Checks whether you have the provided node")]
         public async Task Test(string nodeText)
         {
-            await doCheckFor(Context.BotUser, nodeText);
+            await doCheckFor(Context.BotDbUser, nodeText);
         }
 
         [Command("check"), Alias("test", "checko", "testo")]
         [Summary("Checks whether another user has the provided node")]
         [RequirePermission(Perms.Bot.Developer.ViewPermissions)]
-        public async Task Test(BotUser user, string nodeText)
+        public async Task Test(BotDbUser user, string nodeText)
         {
             await doCheckFor(user, nodeText);
         }
@@ -170,7 +171,7 @@ namespace DiscordBot.Commands.Modules
         [Command("grant")]
         [Summary("Gives or revokes the permission to or from the user")]
         [RequirePermission(Perms.Bot.All)]
-        public async Task<RuntimeResult> GrantPerm(BotUser user, string nodeText)
+        public async Task<RuntimeResult> GrantPerm(BotDbUser user, string nodeText)
         {
             var node = (NodeInfo)nodeText;
             if (!Context.HasPerm(node))
@@ -179,12 +180,12 @@ namespace DiscordBot.Commands.Modules
             {
                 if(!inherit)
                 {
-                    var i = user.Permissions.RemoveAll(x => x.Type == PermType.Grant && x.Node == node.Node);
+                    var i = user.Permissions.RemoveAll(x => x.PermNode.Type == PermType.Grant && x.PermNode.Node == node.Node);
                     await ReplyAsync($"Removed {i} perms that match the node.");
                     return new BotResult();
                 }
             }
-            user.Permissions.Add(new Perm(node, PermType.Grant));
+            user.WithPerm(new Perm(node, PermType.Grant));
             await printListFor(user);
             return new BotResult();
         }
@@ -192,18 +193,18 @@ namespace DiscordBot.Commands.Modules
         [Command("deny")]
         [Summary("Toggles denial of the permission")]
         [RequirePermission(Perms.Bot.All)]
-        public async Task<RuntimeResult> DenyPerm(BotUser user, string nodeText)
+        public async Task<RuntimeResult> DenyPerm(BotDbUser user, string nodeText)
         {
             var node = (NodeInfo)nodeText;
             if (!Context.HasPerm(node))
                 return new BotResult("You must have the permission you wish to deny.");
-            var i = user.Permissions.RemoveAll(x => x.Type == PermType.Deny && x.Node == node.Node);
+            var i = user.Permissions.RemoveAll(x => x.PermNode.Type == PermType.Deny && x.PermNode.Node == node.Node);
             if(i > 0)
             {
                 await ReplyAsync("Removed denial of permission.");
             } else
             {
-                user.Permissions.Add(new Perm(node, PermType.Deny));
+                user.WithPerm(new Perm(node, PermType.Deny));
             }
             await printListFor(user);
             return new BotResult();
@@ -212,19 +213,19 @@ namespace DiscordBot.Commands.Modules
         [Command("allow")]
         [Summary("Toggles allowal of the permission")]
         [RequirePermission(Perms.Bot.All)]
-        public async Task<RuntimeResult> AllowPerm(BotUser user, string nodeText)
+        public async Task<RuntimeResult> AllowPerm(BotDbUser user, string nodeText)
         {
             var node = (NodeInfo)nodeText;
             if (!Context.HasPerm(node))
                 return new BotResult("You must have the permission you wish to allow.");
-            var i = user.Permissions.RemoveAll(x => x.Type == PermType.Allow && x.Node == node.Node);
+            var i = user.Permissions.RemoveAll(x => x.PermNode.Type == PermType.Allow && x.PermNode.Node == node.Node);
             if (i > 0)
             {
                 await ReplyAsync("Removed allowal of permission.");
             }
             else
             {
-                user.Permissions.Add(new Perm(node, PermType.Allow));
+                user.WithPerm(new Perm(node, PermType.Allow));
             }
             await printListFor(user);
             return new BotResult();

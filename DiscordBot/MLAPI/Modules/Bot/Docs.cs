@@ -277,7 +277,7 @@ namespace DiscordBot.MLAPI.Modules
             if (!ra._auth)
                 return "does not require authentication";
             var s = "must be executed by an authenticated session";
-            if (ra._valid)
+            if (ra._discord)
                 return s + ", and that authenticated account must have a validly linked email address";
             return s;
         }
@@ -391,7 +391,7 @@ namespace DiscordBot.MLAPI.Modules
             else if (attribute is RequireVerifiedAccount rva)
                 summary = rva._require ? "must be executed by a verified account" : "requires no verification";
             else if (attribute is RequireUser ru)
-                summary = $"must be executed by {(Program.GetUserOrDefault(ru._user)?.Name ?? $"a specific user, of ID {ru._user}")}";
+                summary = $"must be executed by {(Context.BotDB.GetUserFromDiscord(ru._user, true).Result.Value?.Name ?? $"a specific user, of ID {ru._user}")}";
             else if (attribute is RequireOwner)
                 summary = $"must be executed by the developer of this bot";
             else if (attribute is RequireScopeAttribute rs)

@@ -100,7 +100,7 @@ namespace DiscordBot.Commands.Modules
         [Command("isolate"), Alias("self-isolate")]
         [Summary("Marks a user as self-isolating")]
         [RequireUserPermission(GuildPermission.ManageNicknames)]
-        public async Task<RuntimeResult> Isolate(BotUser user, int days = 14)
+        public async Task<RuntimeResult> Isolate(BotDbUser user, int days = 14)
         {
             var usr = Context.Guild.GetUser(user.Id);
             if(days <= 0)

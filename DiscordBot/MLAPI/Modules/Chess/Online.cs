@@ -23,7 +23,7 @@ namespace DiscordBot.MLAPI.Modules
             var token = Context.User.Tokens.FirstOrDefault(x => x.Name == tokenName);
             if(token == null)
             {
-                token = new Classes.AuthToken(tokenName, 24);
+                token = new Classes.BotDbAuthToken(tokenName, 24);
                 Context.User.Tokens.Add(token);
             }
             SelfPlayer.VerifyOnlineReference = token.Value;

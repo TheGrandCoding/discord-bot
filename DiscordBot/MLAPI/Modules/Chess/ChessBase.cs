@@ -93,7 +93,7 @@ namespace DiscordBot.MLAPI.Modules
             return user.Permission.HasFlag(perm);
         }
 
-        protected bool doesHavePerm(ChessPerm perm, Classes.BotUser bUser)
+        protected bool doesHavePerm(ChessPerm perm, Classes.BotDbUser bUser)
         {
             if (bUser == null)
                 return perm == ChessPerm.Player;

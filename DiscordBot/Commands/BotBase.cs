@@ -39,6 +39,12 @@ namespace DiscordBot.Commands
                 throw new Exception($"{reason}");
         }
 
+        protected override void AfterExecute(CommandInfo command)
+        {
+            base.AfterExecute(command);
+            Context?.Dispose();
+        }
+
         public async Task<RuntimeResult> Success(string message = null, bool isTTS = false, Embed embed = null)
         {
             if(message != null || embed != null)

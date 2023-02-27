@@ -29,14 +29,14 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
         [Method("GET"), Path("/tracker")]
         public void Base()
         {
-            var existing = Context.User.Tokens.FirstOrDefault(x => x.Name == AuthToken.TimeToken);
+            var existing = Context.User.AuthTokens.FirstOrDefault(x => x.Name == BotDbAuthToken.TimeToken);
             if(existing == null)
             {
-                existing = new AuthToken(AuthToken.TimeToken, 12, "html.api.tracker", "html.api.tracker.*");
-                Context.User.Tokens.Add(existing);
-                Program.Save();
+                existing = BotDbAuthToken.Create(Context.User, BotDbAuthToken.TimeToken, 12, "html.api.tracker", "html.api.tracker.*");
+                Context.User.AuthTokens.Add(existing);
+                Context.BotDB.SaveChanges();
             }
-            RespondRaw(existing.Value);
+            RespondRaw(existing.Token);
         }
 
         [Method("GET"), Path("/api/tracker/user")]
