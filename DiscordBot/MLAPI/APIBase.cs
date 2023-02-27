@@ -3,7 +3,9 @@ using DiscordBot.Permissions;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Reflection;
 using System.Text;
@@ -74,7 +76,8 @@ namespace DiscordBot.MLAPI
                 .Add("return", returnTo ?? "false"));
         }
 
-        struct StreamReplacement
+        [DebuggerDisplay($"{{{nameof(GetDebuggerDisplay)}(),nq}}")]
+        class StreamReplacement
         {
             public StreamReplacement(string format, object v)
             {
@@ -86,9 +89,13 @@ namespace DiscordBot.MLAPI
             public object Value { get; set; }
 
             public int Pointer { get; set; } = 0;
-        }
 
-        const string replaceText = "<REPLACE id='?' />";
+            private string GetDebuggerDisplay()
+            {
+                var chr = Format.ElementAtOrDefault(Pointer);
+                return $"'{Format}' @ {Pointer}={chr}; Read='{ReadKey}'";
+            }
+        }
 
         async Task respondStreamReplacing(Stream fromStream, int code, Replacements reps, params StreamReplacement[] streamReplacements)
         {
@@ -101,14 +108,7 @@ namespace DiscordBot.MLAPI
         async Task copyStreamReplacing(Stream fromStream, Stream toStream, Replacements reps, params StreamReplacement[] replacements)
         {
             var ls = new List<StreamReplacement>(replacements);
-            foreach ((var key, var obj) in reps.objs)
-            {
-                ls.Add(new()
-                {
-                    Format = $"<REPLACE id='{key}' />",
-                    Value = obj
-                });
-            }
+            ls.Add(new($"<REPLACE id='?' />", reps));
             await copyStreamReplacing(fromStream, toStream, ls.ToArray());
         }
         bool equalChar(char lookingFor, char next)
@@ -116,6 +116,7 @@ namespace DiscordBot.MLAPI
             if (lookingFor == next) return true;
             if (lookingFor == '<') return next == '$';
             if(lookingFor == '\'') return next == '"';
+            if (lookingFor == ' ') return true;
             return false;
         }
         async Task copyStreamReplacing(Stream fromStream, Stream toStream, params StreamReplacement[] replacements)
@@ -133,6 +134,9 @@ namespace DiscordBot.MLAPI
                         bufferPtr = 0;
                         int count = await reader.ReadAsync(buffer, 0, buffer.Length);
                         if (count == 0) return null;
+                        // null out buffer
+                        for (int i = count; i < buffer.Length; i++)
+                            buffer[i] = '\0';
                     }
                     return buffer[bufferPtr++];
                 }
@@ -142,51 +146,76 @@ namespace DiscordBot.MLAPI
                     await toStream.WriteAsync(b, 0, b.Length);
                 }
                 char? next = null;
+                int i = 0;
                 do
                 {
+                    i++;
                     next = await getNext();
+                    if (!next.HasValue || next == '\0') break;
 
                     bool skipThisChar = false;
+                    string towrite = null;
                     for(int idx = 0; idx < replacements.Length; idx++)
                     {
                         var rep = replacements[idx];
-                        char lookingFor = rep.Format[rep.Pointer];
-                        if(lookingFor == '?' && rep.ReadKey != null)
+                        if(rep.Pointer < rep.Format.Length)
                         {
-                            if(equalChar('\'', next.Value))
+                            char lookingFor = rep.Format[rep.Pointer];
+                            while(lookingFor == ' ' && next != ' ')
+                            {
+                                lookingFor = rep.Format[++rep.Pointer];
+                            }
+                            if(lookingFor == '?' && rep.ReadKey != null)
+                            {
+                                if(equalChar('\'', next.Value))
+                                {
+                                    rep.Pointer += 2; // move past ? and quote
+                                    skipThisChar = true;
+                                    continue;
+                                } else
+                                {
+                                    skipThisChar = true;
+                                    rep.ReadKey.Append(next);
+                                    continue;
+                                }
+                            }
+                            if(equalChar(lookingFor, next.Value))
                             {
                                 rep.Pointer++;
-                                var key = rep.ReadKey.ToString();
-                                if(rep.Value is Replacements r && r.TryGetValue(key, out var o))
-                                    await write(o?.ToString() ?? "");
+                                skipThisChar = true;
                             } else
                             {
-                                skipThisChar = true;
-                                rep.ReadKey.Append(next);
-                                continue;
-                            }
-                        }
-                        if(equalChar(lookingFor, next.Value))
-                        {
-                            rep.Pointer++;
-                            skipThisChar = true;
-                        } else
-                        {
-                            if (rep.Pointer > 0)
-                            {
-                                await write(rep.Format.Substring(0, rep.Pointer));
-                                rep.Pointer = 0;
+                                if (rep.Pointer > 0)
+                                {
+                                    towrite = rep.Format.Substring(0, rep.Pointer);
+                                    rep.Pointer = 0;
+                                    continue;
+                                }
                             }
                         }
                         if (rep.Pointer >= rep.Format.Length)
                         {
-                            if(rep.Value is not Replacements)
-                                await write(rep.Value?.ToString() ?? "");
                             rep.Pointer = 0;
+                            skipThisChar = true;
+                            if (rep.ReadKey != null && rep.ReadKey.Length > 0)
+                            {
+                                var key = rep.ReadKey.ToString();
+                                rep.ReadKey.Clear();
+                                if (rep.Value is Replacements r && r.TryGetValue(key, out var o)) 
+                                    await write(o?.ToString() ?? "");
+                                break;
+                            } else
+                            {
+                                if (rep.Value is not Replacements)
+                                    await write(rep.Value?.ToString() ?? "");
+                                break;
+                            }
                         }
 
                     }
                     if (skipThisChar) continue;
+                    if(towrite != null) 
+                        await write(towrite);
 
                     writebuf[0] = next.Value;
                     var bytes = Encoding.UTF8.GetBytes(writebuf, 0, writecount);
@@ -241,6 +270,7 @@ namespace DiscordBot.MLAPI
                     using (StreamReader sr = new StreamReader(sidefs))
                         sidebar = sr.ReadToEnd();
                 }
+                Context.HTTP.Response.ContentType = "text/html";
                 if(sidebar != null)
                 {
                     await respondStreamReplacing(fs, code,

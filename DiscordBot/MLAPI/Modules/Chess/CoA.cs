@@ -108,7 +108,7 @@ namespace DiscordBot.MLAPI.Modules
         void coaLogin(object sender, object[] args)
         {
             Login.SetLoginSession(Context, this.ChesssInstance.BuiltInCoAUser);
-            RespondRedirect("/chess"), System.Net.HttpStatusCode.Redirect);
+            await RespondRedirect("/chess"), System.Net.HttpStatusCode.Redirect);
         }
 
 #region View Hearing
@@ -631,7 +631,7 @@ namespace DiscordBot.MLAPI.Modules
             path = Path.Join(path, attachment.FileName);
             using var fs = new FileStream(path, FileMode.Create, FileAccess.Write);
             file.Data.CopyTo(fs);
-            RespondRedirect($"/chess/cases/{hearing.Id}"), System.Net.HttpStatusCode.Redirect);
+            await RespondRedirect($"/chess/cases/{hearing.Id}"), System.Net.HttpStatusCode.Redirect);
         }
 #endregion
 
@@ -677,7 +677,7 @@ namespace DiscordBot.MLAPI.Modules
             path = Path.Join(path, attachment.FileName);
             using var fs = new FileStream(path, FileMode.Create, FileAccess.Write);
             file.Data.CopyTo(fs);
-            RespondRedirect($"/chess/cases/{hearing.Id}"), System.Net.HttpStatusCode.Redirect);
+            await RespondRedirect($"/chess/cases/{hearing.Id}"), System.Net.HttpStatusCode.Redirect);
         }
 
         [Method("POST")]
@@ -724,7 +724,7 @@ namespace DiscordBot.MLAPI.Modules
             path = Path.Join(path, attachment.FileName);
             using var fs = new FileStream(path, FileMode.Create, FileAccess.Write);
             file.Data.CopyTo(fs);
-            RespondRedirect($"/chess/cases/{hearing.Id}/exhibits/{exhibit.AttachmentId}"));
+            await RespondRedirect($"/chess/cases/{hearing.Id}/exhibits/{exhibit.AttachmentId}"));
         }
 
         [Method("POST")]
@@ -779,7 +779,7 @@ namespace DiscordBot.MLAPI.Modules
             path = Path.Join(path, attachment.FileName);
             using var fs = new FileStream(path, FileMode.Create, FileAccess.Write);
             file.Data.CopyTo(fs);
-            RespondRedirect($"/chess/cases/{hearing.Id}/motions/{motion.Id}"), System.Net.HttpStatusCode.Redirect);
+            await RespondRedirect($"/chess/cases/{hearing.Id}/motions/{motion.Id}"), System.Net.HttpStatusCode.Redirect);
         }
 
         [Method("PATCH")]
@@ -855,7 +855,7 @@ namespace DiscordBot.MLAPI.Modules
             };
             hearing.Motions.Add(motion);
             DB.SaveChanges();
-            RespondRedirect($"/chess/cases/{n}/motions/{motion.Id}"), System.Net.HttpStatusCode.Redirect);
+            await RespondRedirect($"/chess/cases/{n}/motions/{motion.Id}"), System.Net.HttpStatusCode.Redirect);
         }
 
         [Method("POST")]
@@ -888,7 +888,7 @@ namespace DiscordBot.MLAPI.Modules
             var existing = hearing.Witnesses.FirstOrDefault(x => x.Witness.Id == id);
             if(existing != null)
             {
-                RespondRedirect($"/chess/cases/{hearing.Id}/witnesses/{id}"), System.Net.HttpStatusCode.Conflict);
+                await RespondRedirect($"/chess/cases/{hearing.Id}/witnesses/{id}"), System.Net.HttpStatusCode.Conflict);
                 return;
             }
             var witness = new AppealsWitness()
@@ -897,7 +897,7 @@ namespace DiscordBot.MLAPI.Modules
                 Witness = player
             };
             hearing.Witnesses.Add(witness);
-            RespondRedirect($"/chess/cases/{hearing.Id}/witnesses/{id}"), System.Net.HttpStatusCode.Redirect);
+            await RespondRedirect($"/chess/cases/{hearing.Id}/witnesses/{id}"), System.Net.HttpStatusCode.Redirect);
         }
 
         [Method("PUT")]
@@ -958,7 +958,7 @@ namespace DiscordBot.MLAPI.Modules
             appeal.Motions.Add(mtn);
             DB.Appeals.Add(appeal);
             DB.SaveChanges();
-            RespondRedirect($"/chess/cases/{appeal.Id}"), System.Net.HttpStatusCode.Redirect);
+            await RespondRedirect($"/chess/cases/{appeal.Id}"), System.Net.HttpStatusCode.Redirect);
         }
 
         string mimeFromExtension(string ext)

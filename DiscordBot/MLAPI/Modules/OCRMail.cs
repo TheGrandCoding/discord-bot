@@ -119,7 +119,7 @@ namespace DiscordBot.MLAPI.Modules
                     file.Data.CopyTo(fs);
                 }
             }
-            RespondRedirect($"/ocr/view/{dir.Replace(BaseDir.FullName, "")}");
+            await RespondRedirect($"/ocr/view/{dir.Replace(BaseDir.FullName, "")}");
         }
 
         [Method("GET"), Path("/ocr/view/{rec}/{send}/{date}")]

@@ -81,7 +81,7 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
                 var thing = DB.GetVideo(Context.User.Id, id);
                 jobj[id] = thing?.WatchedTime ?? 0d;
             }
-            RespondJson(jobj, 200);
+            await RespondJson(jobj, 200);
         }
 
         [Method("POST"), Path("/api/tracker/times")]
@@ -125,7 +125,7 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
                 threadObj["count"] = thing.Comments;
                 jobj[id] = threadObj;
             }
-            RespondJson(jobj, 200);
+            await RespondJson(jobj, 200);
         }
 
         [Method("POST"), Path("/tracker/webhook")]

@@ -613,7 +613,7 @@ namespace DiscordBot.MLAPI.Modules
         {
             if(!Service.OngoingRecipes.TryGetValue(id, out var _))
             { // no recipe
-                RespondRedirect("/food/recipes");
+                await RespondRedirect("/food/recipes");
             } else
             {
                 await ReplyFile("new_ongoing.html", 200, new Replacements().Add("id", id));
@@ -631,7 +631,7 @@ namespace DiscordBot.MLAPI.Modules
         {
             if(Service.OngoingRecipes.Count > 0)
             {
-                RespondRedirect($"/food/ongoing-recipe?id={Service.OngoingRecipes.First().Key}");
+                await RespondRedirect($"/food/ongoing-recipe?id={Service.OngoingRecipes.First().Key}");
                 return;
             } else
             {
@@ -1091,7 +1091,7 @@ namespace DiscordBot.MLAPI.Modules
             }
             body["products"] = thing;
 
-            RespondJson(body);
+            await RespondJson(body);
         }
 
 
@@ -1122,7 +1122,7 @@ namespace DiscordBot.MLAPI.Modules
                     jobj["manu"] = man;
                 jarray.Add(jobj);
             }
-            RespondJson(jarray);
+            await RespondJson(jarray);
         }
 
 
@@ -1160,7 +1160,7 @@ namespace DiscordBot.MLAPI.Modules
             if (extends > 0)
                 e = extends;
             var p = Service.AddProduct(productId, productName, "", e, uses, "");
-            RespondRedirect($"/food/new?code={productId}&redirect={redirect}");
+            await RespondRedirect($"/food/new?code={productId}&redirect={redirect}");
         }
         [Method("POST"),   Path("/api/food/inventory")]
         public async Task NewInventory(string redirect, string productId, string expires, string frozen = "off")
@@ -1177,7 +1177,7 @@ namespace DiscordBot.MLAPI.Modules
                                     int.Parse(split[2]), 0, 0, 0, DateTimeKind.Utc);
 
             Service.AddInventoryItem(productId, FoodService.DefaultInventoryId, date, frozen == "on");
-            RespondRedirect($"/food/{redirect}");
+            await RespondRedirect($"/food/{redirect}");
         }
 
         [Method("DELETE"), Path("/api/food/inventory")]
@@ -1219,7 +1219,7 @@ namespace DiscordBot.MLAPI.Modules
             }
             foreach(var inv in selected)
                 jarr.Add(inv.ToJson(true, Service));
-            RespondJson(jarr);
+            await RespondJson(jarr);
         }
 
         [Method("PATCH"), Path("/api/food/inventory")]
@@ -1257,7 +1257,7 @@ namespace DiscordBot.MLAPI.Modules
             {
                 jarray.Add(prod.ToJson());
             }
-            RespondJson(jarray);
+            await RespondJson(jarray);
         }
 
         SavedStep parseStep(JObject obj)
@@ -1458,7 +1458,7 @@ namespace DiscordBot.MLAPI.Modules
             }
             jobj["ingredients"] = ingredients;
 
-            RespondJson(jobj);
+            await RespondJson(jobj);
         }
 
         [Method("PUT"), Path("/api/food/recipes")]
@@ -1649,7 +1649,7 @@ namespace DiscordBot.MLAPI.Modules
                 await RespondRaw("null", 404);
                 return;
             }
-            RespondJson(menu.ToJson());
+            await RespondJson(menu.ToJson());
         }
 
         struct moveData
