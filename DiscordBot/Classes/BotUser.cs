@@ -46,6 +46,18 @@ namespace DiscordBot.Classes
                 _lock.Release();
             }
         }
+        public void WithLock(Action action)
+        {
+            try
+            {
+                _lock.Wait();
+                action();
+            }
+            finally
+            {
+                _lock.Release();
+            }
+        }
 
         protected override void OnModelCreating(ModelBuilder mb)
         {
@@ -84,11 +96,51 @@ namespace DiscordBot.Classes
                 return new("Incorrect password");
             });
         }
+        public async Task<Result<BotDbUser>> AttemptRegisterAsync(string username, string password)
+        {
+            if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password)
+                || password.Length < 8)
+                return new("Username or password invalid.");
+            if (await Program.IsPasswordLeaked(password))
+                return new("Password is known to be compromised.");
+            return await WithLock<Result<BotDbUser>>(async () =>
+            {
+                var existing = await Users.FirstOrDefaultAsync(x => x.Name == username);
+                if (existing != null)
+                    return new("A user already exists by this username");
+                var buser = new BotDbUser()
+                {
+                    Name = username,
+                    Connections = new BotDbConnections()
+                    {
+                        PasswordHash = PasswordHash.HashPassword(password)
+                    }
+                };
+                await Users.AddAsync(buser);
+                return new(buser);
+            });
+        }
 
 
         public Task<BotDbUser> GetUserAsync(uint id)
         {
             return WithLock(async () => await Users.FindAsync(id));
+        }
+        public Task DeleteUserAsync(uint id)
+        {
+            return WithLock(async () =>
+            {
+                var u = await Users.FindAsync(id);
+                Users.Remove(u);
+                return Task.CompletedTask;
+            });
+        }
+        public Task DeleteUserAsync(BotDbUser user)
+        {
+            WithLock(() => {
+                Users.Remove(user);
+            });
+            return Task.CompletedTask;
         }
         public Task<Result<BotDbUser>> GetUserFromDiscord(Discord.IUser discordUser, bool createIfNotExist)
         {

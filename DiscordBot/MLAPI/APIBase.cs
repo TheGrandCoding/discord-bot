@@ -108,7 +108,7 @@ namespace DiscordBot.MLAPI
             }
         }
 
-        const string matchRegex = "[<$]REPLACE id=['\"](\\S+)['\"]\\/[>$]";
+        const string matchRegex = "[<$]REPLACE id=['\"](\\S+)['\"] ?\\/[>$]";
         protected string ReplaceMatches(string input, Replacements replace)
         {
             replace.Add("user", Context.User);

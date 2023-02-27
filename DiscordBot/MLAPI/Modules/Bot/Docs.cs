@@ -277,7 +277,7 @@ namespace DiscordBot.MLAPI.Modules
             if (!ra._auth)
                 return "does not require authentication";
             var s = "must be executed by an authenticated session";
-            if (ra._valid)
+            if (ra._discord)
                 return s + ", and that authenticated account must have a validly linked email address";
             return s;
         }

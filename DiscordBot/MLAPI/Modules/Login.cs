@@ -112,25 +112,54 @@ namespace DiscordBot.MLAPI.Modules
         // We expect this data to be sent in form-data-encoded or wahtever form in the content/body
         // rather than in the Query string
         // the APIContext has the means to parse both, and CommandFinder uses both.
-        public void LoginPassword(string identifier, string password)
+        public void LoginPassword(string username, string password)
         {
             if(Context.User != null)
             {
                 RespondRaw("Error: you are already logged in", 400);
                 return;
             }
-            var result = Context.BotDB.AttemptLoginAsync(identifier, password).Result;
+            var result = Context.BotDB.AttemptLoginAsync(username, password).Result;
             if(!result.Success)
             {
-                RespondRaw(result.ErrorMessage, 400);
+                RespondRedirect($"#username={Uri.EscapeDataString(username)}&fbl={Uri.EscapeDataString(result.ErrorMessage)}");
                 return;
             }
             setSessionTokens(result.Value); // essentially logs them in
-            RespondRaw("Ok", 200);
+            RespondRedirect("/");
+        }
+        [Method("POST"), Path("/register")]
+        public void RegisterWithPassword(string username, string password)
+        {
+            if (Context.User != null)
+            {
+                RespondRaw("Error: you are already logged in", 400);
+                return;
+            }
+            var result = Context.BotDB.AttemptRegisterAsync(username, password).Result;
+            if (!result.Success)
+            {
+                RespondRedirect($"/login#username={Uri.EscapeDataString(username)}&fbr={Uri.EscapeDataString(result.ErrorMessage)}");
+                return;
+            }
+            setSessionTokens(result.Value); // essentially logs them in
+            RespondRedirect("/");
+            try
+            {
+                var embed = new EmbedBuilder()
+                    .WithTitle("MLAPI Account Created")
+                    .AddField("Username", $"**{username}**", true)
+                    .AddField("ID", result.Value.Id.ToString(), true)
+                    .AddField("IP", Context.IP)
+                    .AddField("User-Agent", Context.HTTP.Request.UserAgent, true)
+                    .WithDescription($"Go [here to approve]({Handler.LocalAPIUrl}/bot/approve)");
+                Program.SendLogMessageAsync(embed: embed.Build()).Wait();
+            } catch { }
         }
 
         [Method("GET"), Path("/login/approval")]
-        [RequireAuthentication]
+        [RequireAuthentication(requireDiscordConnection: false)]
+        [RequireApproval(false)]
         public void ApprovalPage()
         {
             if(!Context.User.Approved.HasValue)
