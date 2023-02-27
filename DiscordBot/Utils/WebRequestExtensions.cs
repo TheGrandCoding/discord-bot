@@ -50,15 +50,8 @@ namespace DiscordBot.Utils
             remoteConnection = true;
 #endif
             if (Program.Configuration == null)
-            {
-                Console.WriteLine("Building config.");
                 Program.buildConfig();
-            }
-            Console.WriteLine($"db={dbName}; rem={remoteConnection}");
-            Console.WriteLine($"config={configPath}");
-            Console.WriteLine($"Configuration: {Program.Configuration == null}");
             string connStr = string.Format(Program.Configuration[configPath], dbName);
-            Console.WriteLine($"conn={connStr}");
             if (remoteConnection)
             {
                 options.UseMySql(connStr,

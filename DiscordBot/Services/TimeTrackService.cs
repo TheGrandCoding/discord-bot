@@ -57,7 +57,6 @@ namespace DiscordBot.Services
     {
         protected override void OnConfiguring(DbContextOptionsBuilder options)
         {
-            Console.WriteLine($"Null: {options == null}");
             options.WithSQLConnection("watch");
         }
 
