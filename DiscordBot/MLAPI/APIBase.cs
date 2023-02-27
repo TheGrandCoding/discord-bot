@@ -78,23 +78,184 @@ namespace DiscordBot.MLAPI
         }
 
         [DebuggerDisplay($"{{{nameof(GetDebuggerDisplay)}(),nq}}")]
+        class StreamCaptureGroup
+        {
+            public StreamCaptureGroup(string format)
+            {
+                Format = format;
+                Captured = new();
+            }
+            public string Format { get; set; }
+
+            public StringBuilder Captured { get; set; }
+
+            public bool Matches(char c, StreamCaptureGroup next, 
+                out bool groupFullyDone, 
+                out bool nestedDone,
+                out bool redoNextOne)
+            {
+                groupFullyDone = true;
+                nestedDone = false;
+                redoNextOne = false;
+                if (Format == "?")
+                {
+                    if(next != null)
+                    {
+                        if (next.Matches(c, null, out nestedDone, out _, out _) && nestedDone)
+                            return true;
+                    }
+                    groupFullyDone = false;
+                    Captured.Append(c);
+                    return true;
+                } else if(Format == " ")
+                {
+                    groupFullyDone = true;
+                    if (c == ' ')
+                        Captured.Append(c);
+                    else
+                        redoNextOne = true;
+                    return true;
+                }
+                else
+                {
+                    if(Format.Contains(c))
+                    {
+                        Captured.Append(c);
+                        return true;
+                    }
+                    return false;
+                }
+            }
+
+            private string GetDebuggerDisplay()
+            {
+                return $"[{Format}] = {Captured}";
+            }
+            public int Length
+            {
+                get
+                {
+                    if (Format == "?")
+                        return 1;
+                    return 1 + Format.Length + 1;
+                }
+            }
+        }
+
+        [DebuggerDisplay($"{{{nameof(GetDebuggerDisplay)}(),nq}}")]
         class StreamReplacement
         {
             public StreamReplacement(string format, object v)
             {
                 Format = format;
                 Value = v;
+                StringBuilder group = null;
+                for(int i = 0; i < Format.Length; i++)
+                {
+                    var c = Format[i];
+                    if(group != null)
+                    {
+                        if(c == ']')
+                        {
+                            Groups.Add(new(group.ToString()));
+                            group = null;
+                        } else
+                        {
+                            group.Append(c);
+                            continue;
+                        }
+                    }
+                    if(c == '?')
+                    {
+                        Groups.Add(new StreamCaptureGroup("?"));
+                    } else if(c == '[')
+                    {
+                        group = new();
+                    }
+                }
             }
             public string Format { get; set; }
-            public StringBuilder ReadKey { get; set; } = new();
             public object Value { get; set; }
 
             public int Pointer { get; set; } = 0;
+            public int GroupPointer { get; set; } = 0;
+
+            public List<StreamCaptureGroup> Groups { get; set; } = new();
+
+            string getCaptured()
+            {
+                var sb = new StringBuilder();
+                int gp = 0;
+                for(int i = 0; i < Pointer; i++)
+                {
+                    var c = Format[i];
+                    if(c == '[' || c == '?')
+                    {
+                        var group = Groups[gp];
+                        sb.Append(group.Captured);
+                        gp++;
+                        i += group.Length - 1;
+                    } else
+                    {
+                        sb.Append(c);
+                    }
+                }
+                return sb.ToString();
+            }
+
+            public string reset()
+            {
+                var c = getCaptured();
+                Pointer = 0;
+                for(int gp = 0; gp < GroupPointer; gp++)
+                    Groups[gp].Captured.Clear();
+                GroupPointer = 0;
+                return c;
+            }
+
+            public bool Matches(char c, out string captured)
+            {
+                captured = null;
+tryagain:
+                char lookingFor = Format[Pointer];
+                if(lookingFor == '[' || lookingFor == '?')
+                {
+                    if (!Groups[GroupPointer].Matches(c, GroupPointer < (Groups.Count - 1) ? Groups[GroupPointer + 1] : null, out var done, out var nested, out bool retry))
+                    {
+                        captured = reset();
+                        return false;
+                    }
+                    if (done)
+                    {
+                        Pointer += Groups[GroupPointer].Length;
+                        GroupPointer++;
+                        if (nested)
+                        {
+                            Pointer += Groups[GroupPointer].Length;
+                            GroupPointer++;
+                        }
+                        if (retry)
+                            goto tryagain;
+                    }
+                    return true;
+                } else
+                {
+                    if(lookingFor == c)
+                    {
+                        Pointer++;
+                        return true;
+                    } else
+                    {
+                        captured = reset();
+                        return false;
+                    }
+                }
+            }
 
             private string GetDebuggerDisplay()
             {
                 var chr = Format.ElementAtOrDefault(Pointer);
-                return $"'{Format}' @ {Pointer}={chr}; Read='{ReadKey}'";
+                return $"'{Format}' @ {Pointer}={chr}; seen='{getCaptured()}'";
             }
         }
 
@@ -109,7 +270,7 @@ namespace DiscordBot.MLAPI
         async Task copyStreamReplacing(Stream fromStream, Stream toStream, Replacements reps, params StreamReplacement[] replacements)
         {
             var ls = new List<StreamReplacement>(replacements);
-            ls.Add(new($"<REPLACE id='?' />", reps));
+            ls.Add(new($"[$<]REPLACE id=['\"]?['\"][ ]/[>$]", reps));
             await copyStreamReplacing(fromStream, toStream, ls.ToArray());
         }
         bool equalChar(char lookingFor, char next)
@@ -122,11 +283,14 @@ namespace DiscordBot.MLAPI
         }
         async Task copyStreamReplacing(Stream fromStream, Stream toStream, params StreamReplacement[] replacements)
         {
-            char[] buffer = new char[32];
+            char[] buffer = new char[128];
             char[] writebuf = new char[1];
             int writecount = 1;
-            int bufferPtr = 32;
+            int bufferPtr = buffer.Length;
 
+            //var DEBUG = new StringBuilder();
+
+            using(StreamWriter writer = new StreamWriter(toStream))
             using (StreamReader reader = new StreamReader(fromStream))
             {
                 async Task<char?> getNext() {
@@ -141,88 +305,58 @@ namespace DiscordBot.MLAPI
                     }
                     return buffer[bufferPtr++];
                 }
-                async Task write(string s)
-                {
-                    var b = Encoding.UTF8.GetBytes(s);
-                    await toStream.WriteAsync(b, 0, b.Length);
-                }
                 char? next = null;
                 int i = 0;
+                string towrite = null;
+                bool skipThisChar = false;
+                int length = -1;
                 do
                 {
                     i++;
                     next = await getNext();
-                    if (!next.HasValue || next == '\0') break;
+                    if (!next.HasValue || next.Value == '\0') break;
 
-                    bool skipThisChar = false;
-                    string towrite = null;
                     for(int idx = 0; idx < replacements.Length; idx++)
                     {
                         var rep = replacements[idx];
-                        if(rep.Pointer < rep.Format.Length)
+                        if (rep.Matches(next.Value, out var thiswrite))
                         {
-                            char lookingFor = rep.Format[rep.Pointer];
-                            while(lookingFor == ' ' && next != ' ')
-                            {
-                                lookingFor = rep.Format[++rep.Pointer];
-                            }
-                            if(lookingFor == '?' && rep.ReadKey != null)
-                            {
-                                if(equalChar('\'', next.Value))
-                                {
-                                    rep.Pointer += 2; // move past ? and quote
-                                    skipThisChar = true;
-                                    continue;
-                                } else
-                                {
-                                    skipThisChar = true;
-                                    rep.ReadKey.Append(next);
-                                    continue;
-                                }
-                            }
-                            if(equalChar(lookingFor, next.Value))
-                            {
-                                rep.Pointer++;
-                                skipThisChar = true;
-                            } else
-                            {
-                                if (rep.Pointer > 0)
-                                {
-                                    towrite = rep.Format.Substring(0, rep.Pointer);
-                                    rep.Pointer = 0;
-                                    continue;
-                                }
-                            }
+                            skipThisChar = true;
+                        }
+                        if (thiswrite != null && thiswrite.Length > length)
+                        {
+                            towrite = thiswrite;
+                            length = thiswrite.Length;
                         }
                         if (rep.Pointer >= rep.Format.Length)
                         {
-                            rep.Pointer = 0;
                             skipThisChar = true;
-                            if (rep.ReadKey != null && rep.ReadKey.Length > 0)
+                            if (rep.Value is Replacements r)
                             {
-                                var key = rep.ReadKey.ToString();
-                                rep.ReadKey.Clear();
-                                if (rep.Value is Replacements r && r.TryGetValue(key, out var o)) 
-                                    await write(o?.ToString() ?? "");
-                                break;
-                            } else
-                            {
-                                if (rep.Value is not Replacements)
-                                    await write(rep.Value?.ToString() ?? "");
-                                break;
+                                var id = rep.Groups.FirstOrDefault(x => x.Format == "?");
+                                if (r.TryGetValue(id.Captured.ToString(), out var o))
+                                    await writer.WriteAsync(o?.ToString() ?? "");
                             }
+                            else
+                            {
+                                await writer.WriteAsync(rep.Value?.ToString() ?? "");
+                            }
+                            rep.reset();
+                            break;
                         }
-
                     }
-                    if (skipThisChar) continue;
-                    if(towrite != null) 
-                        await write(towrite);
-
-                    writebuf[0] = next.Value;
-                    var bytes = Encoding.UTF8.GetBytes(writebuf, 0, writecount);
-                    await toStream.WriteAsync(bytes, 0, bytes.Length);
+                    if (!skipThisChar)
+                    {
+                        if (towrite != null && towrite.Length > 0)
+                            await writer.WriteAsync(towrite);
+                        await writer.WriteAsync(next.Value);
+                    }
+                    skipThisChar = false;
+                    length = -1;
+                    towrite = null;
                 } while (next.HasValue);
             }
+            Console.WriteLine("DONE");
         }
 
         public virtual Task RespondJson(Newtonsoft.Json.Linq.JToken json, int code = 200)

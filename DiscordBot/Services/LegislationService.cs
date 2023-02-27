@@ -121,11 +121,17 @@ namespace DiscordBot.Services
             {
                 var fileInfo = new FileInfo(fileName);
                 var content = File.ReadAllText(fileInfo.FullName);
-                var act = JsonConvert.DeserializeObject<Act>(content, new BotDbUserConverter());
-                if(act.Draft == false && act.EnactedDate.HasValue == false)
-                    act.EnactedDate = DateTime.Now;
-                act.Register(null);
-                Laws[act.PathName] = act;
+                try
+                {
+                    var act = JsonConvert.DeserializeObject<Act>(content, new BotDbUserConverter());
+                    if (act.Draft == false && act.EnactedDate.HasValue == false)
+                        act.EnactedDate = DateTime.Now;
+                    act.Register(null);
+                    Laws[act.PathName] = act;
+                } catch(Exception ex)
+                {
+                    Error(ex);
+                }
             }
 /*#if WINDOWS
             var a = ConstitutionAct.GetAct();
