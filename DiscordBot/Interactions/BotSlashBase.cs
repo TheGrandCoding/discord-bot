@@ -14,7 +14,7 @@ namespace DiscordBot.Interactions
         private BotDbContext _db;
         public BotDbContext BotDB { get
             {
-                return _db ??= BotDbContext.Get(); // ds via AfterExecute
+                return _db ??= BotDbContext.Get($"BotSlashBase"); // ds via AfterExecute
             } }
         private BotDbUser _user;
         public BotDbUser User
@@ -40,7 +40,7 @@ namespace DiscordBot.Interactions
         {
             get
             {
-                return _db ??= BotDbContext.Get(); // ds via AfterExecute
+                return _db ??= BotDbContext.Get("BotComponentBase"); // ds via AfterExecute
             }
         }
         private BotDbUser _user;

@@ -566,7 +566,7 @@ Changed how permissions worked for bot.
                 Environment.Exit(1);
                 return;
             }
-            var db = BotDbContext.Get(); // disposed in finally
+            var db = BotDbContext.Get("ProgramReady"); // disposed in finally
             try
             {
                 var owner = Client.GetApplicationInfoAsync().Result.Owner;

@@ -20,7 +20,7 @@ namespace DiscordBot.Classes.Rules
             {
                 if(_user == null)
                 {
-                    using var db = BotDbContext.Get();
+                    using var db = BotDbContext.Get("BanAppealGet");
                     _user = db.GetUserAsync(userId).Result;
                 }
                 return _user;

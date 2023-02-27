@@ -16,17 +16,19 @@ namespace DiscordBot.Classes
         static int _id = 0;
         static int _disposed = 0;
         int Id = 0;
-        public static BotDbContext Get()
+        string reason;
+        public static BotDbContext Get(string reason)
         {
             var d = Program.Services.GetRequiredService<BotDbContext>();
             d.Id = System.Threading.Interlocked.Increment(ref _id);
-            Program.LogDebug($"Created DB {d.Id}", "BotDbCtx");
+            d.reason = reason;
+            Program.LogDebug($"Created DB {d.Id}/{reason}", "BotDbCtx");
             return d;
         }
         public override void Dispose()
         {
             int count = System.Threading.Interlocked.Increment(ref _disposed);
-            Program.LogWarning($"Disposing DB {Id}; count: {count}", "BotDbCtx");
+            Program.LogWarning($"Disposing DB {Id}/{reason}; count: {count}", "BotDbCtx");
             base.Dispose();
         }
         public static SemaphoreSlim _lock = new(1);

@@ -14,7 +14,7 @@ namespace DiscordBot.Commands
         private BotDbContext _db;
         public BotDbContext BotDB { get
             {
-                return _db ??= BotDbContext.Get(); // disposed via AfterExecute
+                return _db ??= BotDbContext.Get($"BotCmdCtx:{Message.Id}"); // disposed via AfterExecute
             } 
         }
         public void Dispose()

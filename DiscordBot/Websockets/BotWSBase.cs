@@ -44,7 +44,7 @@ namespace DiscordBot.Websockets
         }
 
         private BotDbContext _db;
-        public BotDbContext BotDB { get => _db ??= BotDbContext.Get(); }
+        public BotDbContext BotDB { get => _db ??= BotDbContext.Get("BotWSBase"); }
 
         private BotDbUser user;
         public BotDbUser User { get

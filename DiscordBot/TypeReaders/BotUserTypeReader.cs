@@ -13,7 +13,7 @@ namespace DiscordBot.TypeReaders
     {
         public async override Task<TypeReaderResult> ReadAsync(ICommandContext context, string input, IServiceProvider services)
         {
-            using var db = BotDbContext.Get();
+            using var db = BotDbContext.Get("BotDbTypeReader");
             if(uint.TryParse(input, out var dbId))
             {
                 var dbUser = await db.GetUserAsync(dbId);

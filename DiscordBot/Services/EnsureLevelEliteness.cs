@@ -28,7 +28,7 @@ namespace DiscordBot.Services
 
         public async Task Catchup()
         {
-            using var db = Classes.BotDbContext.Get();
+            using var db = Classes.BotDbContext.Get("EnsureLvlCatchup");
             foreach(var keypair in Guilds)
             {
                 var id = keypair.Key;
@@ -57,7 +57,7 @@ namespace DiscordBot.Services
                 {
                     if(arg1.Roles.Any(x => x.Id == save.VerifyRole.Id) == false)
                     {
-                        using var db = BotDbContext.Get();
+                        using var db = BotDbContext.Get("EnsureLvlMemberUpd");
                         await HandleNewLevel7(save, arg2, db);
                     }
                 }

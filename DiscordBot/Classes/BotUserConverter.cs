@@ -17,7 +17,7 @@ namespace DiscordBot.Classes
         {
             var _int = (int)reader.Value;
             var id = Convert.ToUInt32(_int);
-            using var db = BotDbContext.Get();
+            using var db = BotDbContext.Get($"DbUserConv");
             return db.GetUserAsync(id).Result;
         }
 
