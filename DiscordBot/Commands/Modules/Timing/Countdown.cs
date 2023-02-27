@@ -66,7 +66,7 @@ namespace DiscordBot.Commands.Modules.Timing
             {
                 Service.Countdowns.Add(cnt);
             });
-            Success("Created countdown successfully.");
+            await Success("Created countdown successfully.");
         }
         [Command("after"), Alias("duration", "time")]
         [Summary("Counts down after the specified duration has passed, then sends the message")]
@@ -86,7 +86,7 @@ namespace DiscordBot.Commands.Modules.Timing
             {
                 Service.Countdowns.Add(cnt);
             });
-            Success("Created countdown successfully.");
+            await Success("Created countdown successfully.");
         }
     }
 }

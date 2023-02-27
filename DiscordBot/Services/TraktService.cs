@@ -341,19 +341,19 @@ namespace DiscordBot.Services
             }
         }
 
-        public async Task<string> RegisterAsync(IMessageChannel channel, IUser user)
+        public Task<string> RegisterAsync(IMessageChannel channel, IUser user)
         {
             if (!(channel is ITextChannel txt))
             {
-                return ":x: Channel must be a server text channel";
+                return Task.FromResult(":x: Channel must be a server text channel");
             }
             if (!Users.TryGetValue(user.Id, out var save))
             {
-                return $":information_source: You must first authorize Trakt via the following link:\r\n<{OAuthUri}>";
+                return Task.FromResult($":information_source: You must first authorize Trakt via the following link:\r\n<{OAuthUri}>");
             }
             save.Channel = txt;
             OnSave();
-            return $"Success!\r\nThis channel will now receive messages every day for episodes airing that day.";
+            return Task.FromResult($"Success!\r\nThis channel will now receive messages every day for episodes airing that day.");
         }
 
         public Task<string> UnregisterAsync(IMessageChannel channel, IUser user)

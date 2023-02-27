@@ -56,7 +56,7 @@ namespace DiscordBot.Services
             //PrintFilms().Wait();
         }
 
-        async Task startup()
+        Task startup()
         {
             var sv = ReadSave("[]");
             var selects = Program.Deserialise<List<FilmSelectProcess>>(sv);
@@ -69,6 +69,7 @@ namespace DiscordBot.Services
             }
 
             Program.Client.InteractionCreated += Client_InteractionCreated;
+            return Task.CompletedTask;
         }
 
         async Task Client_InteractionCreated(SocketInteraction arg)

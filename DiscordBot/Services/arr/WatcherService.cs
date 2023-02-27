@@ -303,7 +303,7 @@ namespace DiscordBot.Services.arr
 
             public JellyfinPlaylistUserData UserData { get; set; }
 
-            public override async Task<EmbedBuilder> ToEmbed(WatcherService service, JellyfinAuth auth)
+            public override Task<EmbedBuilder> ToEmbed(WatcherService service, JellyfinAuth auth)
             {
 
                 var builder = new EmbedBuilder();
@@ -314,7 +314,7 @@ namespace DiscordBot.Services.arr
                 builder.Color = Color.Blue;
                 builder.WithFooter(SeriesId);
 
-                return builder;
+                return Task.FromResult(builder);
             }
         }
 
@@ -435,7 +435,7 @@ namespace DiscordBot.Services.arr
         {
             public JellyfinPlaylistUserData UserData { get; set; }
 
-            public override async Task<EmbedBuilder> ToEmbed(WatcherService service, JellyfinAuth auth)
+            public override Task<EmbedBuilder> ToEmbed(WatcherService service, JellyfinAuth auth)
             {
 
                 var builder = new EmbedBuilder();
@@ -443,7 +443,7 @@ namespace DiscordBot.Services.arr
                 builder.Title = $"{Name} ({ProductionYear})";
                 builder.Color = Color.Gold;
 
-                return builder;
+                return Task.FromResult(builder);
             }
         }
         public class JellyfinSeriesItem : JellyfinItem

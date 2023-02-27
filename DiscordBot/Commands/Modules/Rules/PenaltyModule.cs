@@ -47,7 +47,7 @@ namespace DiscordBot.Commands.Modules.Rules
         public async Task Remove(int id)
         {
             Service.RemovePenalty(id);
-            Success("Done");
+            await Success("Done");
         }
 
         [Command("penalty nsfw")]

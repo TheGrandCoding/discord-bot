@@ -118,7 +118,7 @@ namespace DiscordBot.MLAPI.Modules
         [Path("/proxy/{url}")]
         [Regex("url", ".+")]
         [RequireNoExcessQuery(false)]
-        public async Task ProxyGetWebsite(string url)
+        public Task ProxyGetWebsite(string url)
         {
             var str = Context.HTTP.Request.Url.PathAndQuery.Substring("proxy/".Length + 1);
             if(!(str.StartsWith("https://") || str.StartsWith("http://")))
@@ -128,13 +128,14 @@ namespace DiscordBot.MLAPI.Modules
             }
             var path = new Uri(str);
             request(path);
+            return Task.CompletedTask;
         }
 
         [Method("POST")]
         [Path("/proxy/{url}")]
         [Regex("url", ".+")]
         [RequireNoExcessQuery(false)]
-        public async Task ProxyPostWebsite(string url)
+        public Task ProxyPostWebsite(string url)
         {
             var str = Context.HTTP.Request.Url.PathAndQuery.Substring("proxy/".Length + 1);
             if (!(str.StartsWith("https://") || str.StartsWith("http://")))
@@ -144,6 +145,7 @@ namespace DiscordBot.MLAPI.Modules
             }
             var path = new Uri(str);
             request(path);
+            return Task.CompletedTask;
         }
 
     }

@@ -96,21 +96,21 @@ namespace DiscordBot.MLAPI.Modules.Bot
 
         [Method("DELETE"), Path("/api/bot/user")]
         [RequirePermNode(Perms.Bot.All)]
-        public void Delete(uint id)
+        public async Task Delete(uint id)
         {
-            var bUser = Context.BotDB.GetUserAsync(id).Result;
+            var bUser = await Context.BotDB.GetUserAsync(id);
             if (bUser == null)
             {
-                RespondRaw("No user.", 404);
+                await RespondRaw("No user.", 404);
                 return;
             }
             if(bUser.Approved.GetValueOrDefault(false))
             {
-                RespondRaw("Cannot delete accounts that have been approved.", 400);
+                await RespondRaw("Cannot delete accounts that have been approved.", 400);
                 return;
             }
-            Context.BotDB.DeleteUserAsync(bUser).Wait();
-            RespondRaw("OK");
+            await Context.BotDB.DeleteUserAsync(bUser);
+            await RespondRaw("OK");
         }
     }
 }

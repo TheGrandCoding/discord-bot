@@ -609,7 +609,7 @@ Changed how permissions worked for bot.
                 SendLogMessageAsync(embed: new EmbedBuilder()
                     .WithTitle("Started v" + VER_STR)
                     .WithDescription($"Bot launched in {timerOverall.ElapsedMilliseconds}ms")
-                    .Build());
+                    .Build()).Wait();
             }
             catch { }
         }

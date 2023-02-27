@@ -696,7 +696,7 @@ namespace DiscordBot.Services
         public async Task<DbMsg> GetMessageAsync(ulong messageId)
         {
             using var _db_ = DB();
-            var model = _db_.Messages.AsQueryable().FirstOrDefault(x => x.MessageId == cast(messageId));
+            var model = await _db_.Messages.AsQueryable().FirstOrDefaultAsync(x => x.MessageId == cast(messageId));
             if (model == null)
                 return null;
             return new DbMsg(this, model);

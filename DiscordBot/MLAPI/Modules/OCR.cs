@@ -45,7 +45,7 @@ namespace DiscordBot.MLAPI.Modules
         {
             if(string.IsNullOrEmpty(Context.Body))
             {
-                RespondError(APIErrorResponse.InvalidFormBody().EndRequired());
+                await RespondError(APIErrorResponse.InvalidFormBody().EndRequired());
                 return;
             }
             var split = Context.Body.IndexOf(',');

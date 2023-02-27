@@ -99,11 +99,11 @@ namespace DiscordBot.Websockets
             }
         }
 
-        async Task Client_MessageUpdated(Cacheable<IMessage, ulong> arg1, SocketMessage arg2, ISocketMessageChannel arg3)
+        Task Client_MessageUpdated(Cacheable<IMessage, ulong> arg1, SocketMessage arg2, ISocketMessageChannel arg3)
         {
-            await filterMsg(arg2);
+            return filterMsg(arg2);
         }
-        async Task filterMsg(SocketMessage arg)
+        Task filterMsg(SocketMessage arg)
         {
             if(arg is IUserMessage umsg 
                 && arg.Channel is ITextChannel channel
@@ -111,6 +111,7 @@ namespace DiscordBot.Websockets
             {
                 NewMessage(umsg);
             }
+            return Task.CompletedTask;
         }
 
         string getAuthorName(DiscordMsg msg)

@@ -46,16 +46,17 @@ namespace DiscordBot.Commands.Modules.Legislation
 
 
         [Command("import")]
-        public async Task Import()
+        public Task Import()
         {
             var attch = Context.Message.Attachments.First();
             using var wc = new WebClient();
             var file = Path.GetTempFileName();
-            wc.DownloadFile(attch.Url, file);
+            wc.DownloadFile(new Uri(attch.Url), file);
             var content = File.ReadAllText(file);
             var act = Program.Deserialise<Act>(content);
             Service.Laws[act.PathName] = act;
             Service.OnSave();
+            return Task.CompletedTask;
         }
     }
 }

@@ -104,7 +104,7 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("GET"), Path("/speed")]
-        public async Task MLBase() => Base();
+        public Task MLBase() => Base();
     
     
     

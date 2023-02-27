@@ -41,9 +41,10 @@ namespace DiscordBot.MLAPI.Modules.Bot
         [RequireAuthentication(false)]
         [RequireApproval(false)]
         [RequireGithubSignatureValid("bot:build")]
-        public async Task GithubWebhook()
+        public Task GithubWebhook()
         {
             Program.Close(69); // closing with a non-zero code restarts it.
+            return Task.CompletedTask;
         }
         
         static string Bash(string cmd)

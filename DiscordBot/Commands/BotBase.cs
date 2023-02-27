@@ -172,14 +172,15 @@ namespace DiscordBot.Commands
     public class BotBaseHandler : DiscordBot.Interactions.BotComponentBase
     {
         [Discord.Interactions.ComponentInteraction("botbase:*")]
-        public async Task Select()
+        public Task Select()
         {
             Program.LogInfo($"Selected for {Context.Interaction.Message.Id} was {Context.Interaction.Data.CustomId}", "BotBaseHandler");
             if (!BotBase.selectButton.TryGetValue(Context.Interaction.Message.Id, out var hold))
-                return;
+                return Task.CompletedTask;
             if (Context.User.Id != hold.id)
-                return;
+                return Task.CompletedTask;
             hold.source.SetResult(Context.Interaction.Data.CustomId);
+            return Task.CompletedTask;
         }
     }
 }

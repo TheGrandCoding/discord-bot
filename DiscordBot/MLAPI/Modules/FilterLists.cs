@@ -92,7 +92,7 @@ namespace DiscordBot.MLAPI.Modules
             }
             try
             {
-                ReplyStream(fs, 200);
+                await ReplyStream(fs, 200);
             } finally
             {
                 fs.Close();

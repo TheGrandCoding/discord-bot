@@ -123,7 +123,7 @@ namespace DiscordBot.Interactions.Modules
         public ListServiceAutocomplete()
         {
         }
-        public override async Task<AutocompletionResult> GenerateSuggestionsAsync(IInteractionContext context, IAutocompleteInteraction autocompleteInteraction, IParameterInfo parameter, IServiceProvider services)
+        public override Task<AutocompletionResult> GenerateSuggestionsAsync(IInteractionContext context, IAutocompleteInteraction autocompleteInteraction, IParameterInfo parameter, IServiceProvider services)
         {
             var list = new List<AutocompleteResult>();
             var data = autocompleteInteraction.Data;
@@ -147,7 +147,7 @@ namespace DiscordBot.Interactions.Modules
                 if ((string.IsNullOrWhiteSpace(text) || srv.Name.Contains(text, StringComparison.OrdinalIgnoreCase)) && precondition(srv))
                     list.Add(new AutocompleteResult(srv.Name, srv.Name));
             }
-            return AutocompletionResult.FromSuccess(list.Take(20));
+            return Task.FromResult(AutocompletionResult.FromSuccess(list.Take(20)));
         }
     }
 }

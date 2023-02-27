@@ -38,22 +38,22 @@ namespace DiscordBot.Services
         }
 #endif
 
-        public async Task<string> RegisterAsync(IMessageChannel channel, IUser user)
+        public Task<string> RegisterAsync(IMessageChannel channel, IUser user)
         {
             if(!Data.ChannelIds.Contains(channel.Id))
             {
                 Data.ChannelIds.Add(channel.Id);
                 OnSave();
             }
-            return "That channel has been registered to receieve Discord changelogs";
+            return Task.FromResult("That channel has been registered to receieve Discord changelogs");
         }
-        public async Task<string> UnregisterAsync(IMessageChannel channel, IUser user)
+        public Task<string> UnregisterAsync(IMessageChannel channel, IUser user)
         {
             if(Data.ChannelIds.Remove(channel.Id))
             {
                 OnSave();
             }
-            return "This channel was removed from receiving Discord changelogs";
+            return Task.FromResult("This channel was removed from receiving Discord changelogs");
         }
 
 

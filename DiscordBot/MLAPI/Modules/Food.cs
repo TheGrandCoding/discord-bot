@@ -1132,28 +1132,28 @@ namespace DiscordBot.MLAPI.Modules
             var _error = APIErrorResponse.InvalidFormBody();
             if(redirect != "enter" && redirect != "scan")
             {
-                RespondError(_error.Child("redirect").EndChoices("enter", "scan").Build(), 400);
+                await RespondError(_error.Child("redirect").EndChoices("enter", "scan").Build(), 400);
                 return;
             }
             productId = productId.Replace(" ", "");
             if(string.IsNullOrWhiteSpace(productId) || productId.Length > 13)
             {
-                RespondError(_error.Child("productId").EndError("INVALID", "Null, empty, whitespace or longer than 13 characters").Build(), 400);
+                await RespondError(_error.Child("productId").EndError("INVALID", "Null, empty, whitespace or longer than 13 characters").Build(), 400);
                 return;
             }
             if(string.IsNullOrWhiteSpace(productName) || productName.Length > 1024)
             {
-                RespondError(_error.Child("productName").EndError("INVALID", "Null, empty, whitespace or longer than 1024 characters").Build(), 400);
+                await RespondError(_error.Child("productName").EndError("INVALID", "Null, empty, whitespace or longer than 1024 characters").Build(), 400);
                 return;
             }
             if(extends < 0 || extends > 180)
             {
-                RespondError(_error.Child("extends").EndRange(0, 180), 400);
+                await RespondError(_error.Child("extends").EndRange(0, 180), 400);
                 return;
             }
             if(uses < 1)
             {
-                RespondError(_error.Child("uses").EndRange(1, int.MaxValue), 400);
+                await RespondError(_error.Child("uses").EndRange(1, int.MaxValue), 400);
                 return;
             }
             int? e = null;
@@ -1185,7 +1185,7 @@ namespace DiscordBot.MLAPI.Modules
         {
             if(!uses.HasValue)
             {
-                RespondError(APIErrorResponse.InvalidQueryParams().Child("uses").EndRequired());
+                await RespondError(APIErrorResponse.InvalidQueryParams().Child("uses").EndRequired());
                 return;
             }
             if(Service.AddUsesInventoryItem(invId, uses.Value, DateTime.UtcNow))
@@ -1289,12 +1289,12 @@ namespace DiscordBot.MLAPI.Modules
 
             if(!jobj.TryGetValue("ingredients", out var ingToken))
             {
-                RespondError(_err.Child("ingredients").EndRequired());
+                await RespondError(_err.Child("ingredients").EndRequired());
                 return;
             }
             if(!jobj.TryGetValue("steps", out var stepsA))
             {
-                RespondError(_err.Child("steps").EndRequired());
+                await RespondError(_err.Child("steps").EndRequired());
                 return;
             }
             if(jobj.TryGetValue("children", out var child))
@@ -1326,26 +1326,26 @@ namespace DiscordBot.MLAPI.Modules
                 id = (id ?? "").Replace(" ", "");
                 if(string.IsNullOrWhiteSpace(id))
                 {
-                    RespondError(err.Child("id").EndRequired());
+                    await RespondError(err.Child("id").EndRequired());
                     return;
                 }
                 var units = ing.GetValue("unitsUsed")?.ToObject<int?>();
                 if(!units.HasValue)
                 {
-                    RespondError(err.Child("unitsUsed").EndRequired());
+                    await RespondError(err.Child("unitsUsed").EndRequired());
                     return;
                 }
                 var frozen = ing.GetValue("frozen")?.ToObject<bool?>();
                 if(!frozen.HasValue)
                 {
-                    RespondError(err.Child("frozen").EndRequired());
+                    await RespondError(err.Child("frozen").EndRequired());
                     return;
                 }
                     
                 var prod = Service.GetProduct(id);
                 if(prod == null)
                 {
-                    RespondError(err.Child("id").EndError("MISSING", "No product by that ID exists"));
+                    await RespondError(err.Child("id").EndError("MISSING", "No product by that ID exists"));
                     return;
                 }
 
@@ -1365,12 +1365,12 @@ namespace DiscordBot.MLAPI.Modules
             {
                 if (recipe.Steps.Count > 0)
                 {
-                    RespondError(_err.EndError("CONFLICT", "Cannot have children and steps specified"));
+                    await RespondError(_err.EndError("CONFLICT", "Cannot have children and steps specified"));
                     return;
                 }
                 if(recipe.Ingredients.Count > 0)
                 {
-                    RespondError(_err.EndError("CONFLICT", "Cannot have children and ingredients specified"));
+                    await RespondError(_err.EndError("CONFLICT", "Cannot have children and ingredients specified"));
                     return;
                 }
             }
@@ -1378,13 +1378,13 @@ namespace DiscordBot.MLAPI.Modules
             {
                 if(recipe.Ingredients.Count == 0)
                 {
-                    RespondError(_err["title"].EndRequired("Title or ingredients must be given"));
+                    await RespondError(_err["title"].EndRequired("Title or ingredients must be given"));
                     return;
                 }
             }
             if (recipe.Catalyst == null && recipe.Children.Count == 0)
             {
-                RespondError(_err.Child("catalyst").EndRequired("Catalyst or child recipes is required"));
+                await RespondError(_err.Child("catalyst").EndRequired("Catalyst or child recipes is required"));
                 return;
             }
 
@@ -1530,7 +1530,7 @@ namespace DiscordBot.MLAPI.Modules
             var dayError = errorMaker.Child("days");
             if(daysArray == null)
             {
-                RespondError(dayError.EndRequired(), 400);
+                await RespondError(dayError.EndRequired(), 400);
                 return;
             }
 
@@ -1540,7 +1540,7 @@ namespace DiscordBot.MLAPI.Modules
                 var day = daysArray[dayI] as JObject;
                 if(day == null)
                 {
-                    RespondError(_error.EndError("NOT_NULL", "This field must be an object"), 400);
+                    await RespondError(_error.EndError("NOT_NULL", "This field must be an object"), 400);
                     return;
                 }
                 var menuDay = new SavedMenuDay();
@@ -1551,7 +1551,7 @@ namespace DiscordBot.MLAPI.Modules
                 var itemsError = _error.Child("items");
                 if(dayItems == null)
                 {
-                    RespondError(itemsError.EndError("NOT_NULL", "This field must be an object"), 400);
+                    await RespondError(itemsError.EndError("NOT_NULL", "This field must be an object"), 400);
                     return;
                 }
 
@@ -1566,17 +1566,17 @@ namespace DiscordBot.MLAPI.Modules
                         var item = value[itemI] as JObject;
                         if(!item.TryGetValue("type", out var type))
                         {
-                            RespondError(iError.Child("type").EndRequired());
+                            await RespondError(iError.Child("type").EndRequired());
                             return;
                         }
                         if(!item.TryGetValue("value", out var itemValue))
                         {
-                            RespondError(iError.Child("type").EndRequired());
+                            await RespondError(iError.Child("type").EndRequired());
                             return;
                         }
                         if(!item.TryGetValue("uses", out var itemUses))
                         {
-                            RespondError(iError.Child("uses").EndRequired());
+                            await RespondError(iError.Child("uses").EndRequired());
                             return;
                         }
 
@@ -1591,7 +1591,7 @@ namespace DiscordBot.MLAPI.Modules
                             {
                                 if(getProductCached(id) == null)
                                 {
-                                    RespondError(iError.EndError("MISSING", $"No product by '{id}' exists"), 400);
+                                    await RespondError(iError.EndError("MISSING", $"No product by '{id}' exists"), 400);
                                     return;
                                 }
                             }
@@ -1604,7 +1604,7 @@ namespace DiscordBot.MLAPI.Modules
                             };
                         } else
                         {
-                            RespondError(iError.Child("type").EndChoices("id", "tag"), 400);
+                            await RespondError(iError.Child("type").EndChoices("id", "tag"), 400);
                             return;
                         }
                         menuItem.AmountUsed = itemUses.ToObject<int>();
@@ -1760,7 +1760,7 @@ namespace DiscordBot.MLAPI.Modules
             }
             if(uses < 1)
             {
-                RespondError(APIErrorResponse.InvalidQueryParams().Child("uses").EndError("INVALID", "Cannot be below 1"));
+                await RespondError(APIErrorResponse.InvalidQueryParams().Child("uses").EndError("INVALID", "Cannot be below 1"));
                 return;
             }
             var mDay = Service.WorkingMenu.Days[day];
@@ -1768,7 +1768,7 @@ namespace DiscordBot.MLAPI.Modules
             var item = mGroup.FirstOrDefault(x => x?.Item?.Id == id);
             if(item == null) 
             {
-                RespondError(APIErrorResponse.InvalidQueryParams().Child("item").EndError("NOT FOUND", "No item found at the day, group and ID specified."));
+                await RespondError(APIErrorResponse.InvalidQueryParams().Child("item").EndError("NOT FOUND", "No item found at the day, group and ID specified."));
                 return;
             }
             item.Uses = uses;

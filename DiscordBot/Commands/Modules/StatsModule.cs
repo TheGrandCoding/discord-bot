@@ -89,11 +89,12 @@ namespace DiscordBot.Commands.Modules
         [Command("fstop")]
         [Summary("Force stops all stats checks")]
         [Discord.Commands.RequireOwner]
-        public async Task FStop()
+        public Task FStop()
         {
             foreach (var x in RunningStats.Values)
                 x.TokenSource.Cancel();
             RunningStats = new Dictionary<ulong, Statistics>();
+            return Task.CompletedTask;
         }
     }
 
@@ -308,7 +309,7 @@ namespace DiscordBot.Commands.Modules
 
         public void SendWebsockets()
         {
-            var _ = Task.Run(async () =>
+            var _ = Task.Run(() =>
             {
                 var jobj = GetJson().ToString();
                 if (WSService.Server.WebSocketServices.TryGetServiceHost($"/statistics", out var host))

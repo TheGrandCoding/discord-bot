@@ -105,9 +105,10 @@ namespace DiscordBot.Services
             Program.Client.ThreadCreated += Client_ThreadCreated;
             Program.Client.ThreadUpdated += Client_ThreadUpdated;
             Program.Client.ThreadDeleted += Client_ThreadDestroyed;
-            Program.Client.Disconnected += async x =>
+            Program.Client.Disconnected += (x) =>
             {
                 disconnected.Value = true;
+                return Task.CompletedTask;
             };
         }
 

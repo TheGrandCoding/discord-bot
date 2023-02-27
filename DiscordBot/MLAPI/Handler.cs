@@ -500,7 +500,7 @@ namespace DiscordBot.MLAPI
             catch (HaltExecutionException ex)
             {
                 Program.LogError(ex, $"{context.Id}");
-                commandBase.ResponseHalted(ex);
+                commandBase.ResponseHalted(ex).Wait();
                 logger.End(HttpStatusCode.InternalServerError, ex.Message);
                 return;
             }

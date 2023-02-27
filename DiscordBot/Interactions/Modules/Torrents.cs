@@ -194,7 +194,7 @@ namespace DiscordBot.Interactions.Modules
 
         }
 
-        static async Task<EmbedBuilder> getBuilder(TorrentSearchInfo info)
+        static Task<EmbedBuilder> getBuilder(TorrentSearchInfo info)
         {
             var start = info.Page * TorrentSearchInfo.pageLength;
             var end = Math.Min(start + TorrentSearchInfo.pageLength, info.torrents.Length);
@@ -212,7 +212,7 @@ namespace DiscordBot.Interactions.Modules
                     $"[Link]({x.Url}) | {TimestampTag.FromDateTime(x.FeedItem.PublishingDate.Value, TimestampTagStyles.Relative)}");
             }
 
-            return builder;
+            return Task.FromResult(builder);
         }
         static ComponentBuilder getComponents(ulong id, TorrentSearchInfo info)
         {

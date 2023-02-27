@@ -64,7 +64,7 @@ namespace DiscordBot.MLAPI.Modules
             return buildHTML(user, type, 0);
         }
 
-        async permsFor(BotDbUser user)
+        async Task permsFor(BotDbUser user)
         {
             string p = buildHTML(user);
             await ReplyFile("permissions.html", 200, new Replacements()
@@ -86,10 +86,10 @@ namespace DiscordBot.MLAPI.Modules
             var usr = Context.BotDB.GetUserAsync(user).Result;
             if (usr == null)
             {
-                HTTPError(System.Net.HttpStatusCode.NotFound, "User", "Unknown user id");
+                await HTTPError(System.Net.HttpStatusCode.NotFound, "User", "Unknown user id");
                 return;
             }
-            permsFor(usr);
+            await permsFor(usr);
         }
 
         [Method("POST"), Path("/bot/permissions")]

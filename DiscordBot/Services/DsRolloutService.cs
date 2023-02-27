@@ -303,15 +303,15 @@ namespace DiscordBot.Services
             return "Done";
         }
 
-        public async Task<string> UnregisterAsync(IMessageChannel channel, IUser user)
+        public Task<string> UnregisterAsync(IMessageChannel channel, IUser user)
         {
-            if (!(channel is ITextChannel text)) return ":x: Must be used in a guild text channel";
+            if (!(channel is ITextChannel text)) return Task.FromResult(":x: Must be used in a guild text channel");
             if(Guilds.TryRemove(text.Guild.Id, out _))
             {
-                return "Done.";
+                return Task.FromResult("Done.");
             } else
             {
-                return ":x: Guild was never registered to begin with.";
+                return Task.FromResult(":x: Guild was never registered to begin with.");
             }
         }
     }

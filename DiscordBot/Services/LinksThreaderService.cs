@@ -263,7 +263,7 @@ namespace DiscordBot.Services
             {
                 if(arg.Channel is IThreadChannel thread)
                 {
-                    text = Program.Client.GetChannel(thread.CategoryId.Value) as ITextChannel;
+                    text = await Program.Client.GetChannelAsync(thread.CategoryId.Value) as ITextChannel;
                 } else
                 {
                     text = null;
@@ -313,8 +313,6 @@ namespace DiscordBot.Services
                     save.Lock.Release();
                 }
             });
-
-            
         }
     }
 

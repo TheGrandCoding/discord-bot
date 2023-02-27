@@ -93,12 +93,12 @@ namespace DiscordBot.Services
             }
         }
 
-        async Task Client_UserVoiceStateUpdated(Discord.WebSocket.SocketUser arg1, Discord.WebSocket.SocketVoiceState arg2, Discord.WebSocket.SocketVoiceState arg3)
+        Task Client_UserVoiceStateUpdated(Discord.WebSocket.SocketUser arg1, Discord.WebSocket.SocketVoiceState arg2, Discord.WebSocket.SocketVoiceState arg3)
         {
             if (arg1.IsBot)
-                return;
+                return Task.CompletedTask;
             if (TTTGame.IsTTTVoice(arg2.VoiceChannel) || TTTGame.IsTTTVoice(arg3.VoiceChannel))
-                return;
+                return Task.CompletedTask;
             var thread = new Thread(handle);
             thread.Start(new passing()
             {
@@ -106,6 +106,7 @@ namespace DiscordBot.Services
                 arg2 = arg2,
                 arg3 = arg3
             });
+            return Task.CompletedTask;
         }
         public Semaphore lck = new Semaphore(1, 1);
         public int waiting = 0;
