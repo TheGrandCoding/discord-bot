@@ -538,7 +538,14 @@ namespace DiscordBot.MLAPI
                 {
                     Program.LogError(ex, "AfterExHandler");
                 }
-                commandBase.Context.DisposeDB();
+                try
+                {
+                    commandBase.Context.DisposeDB();
+                }
+                catch (Exception ex)
+                {
+                    Program.LogError(ex, "AfterExDispose");
+                }
             }
             Console.WriteLine($"{context.Id}: Returned {commandBase.StatusSent}");
         }
