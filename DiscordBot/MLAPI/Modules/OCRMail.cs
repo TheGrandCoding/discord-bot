@@ -50,7 +50,7 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("GET"), Path("/ocr/view")]
-        public void ViewMailsFolder()
+        public async Task ViewMailsFolder()
         {
             var table = new Table()
                 .WithHeaderColumn("To")
@@ -92,19 +92,19 @@ namespace DiscordBot.MLAPI.Modules
                     }
                 }
             }
-            ReplyFile("folder.html", 200,
+            await ReplyFile("folder.html", 200,
                 new Replacements().Add("table", table));
         }
 
         [Method("GET"), Path("/ocr/upload")]
-        public void Upload()
+        public async Task Upload()
         {
-            ReplyFile("upload.html", 200);
+            await ReplyFile("upload.html", 200);
         }
 
         [Method("POST"), Path("/ocr/upload")]
         [RequireNoExcessQuery(false)]
-        public void DoUpload(string recipient, string sender, string date)
+        public async Task DoUpload(string recipient, string sender, string date)
         {
             var dir = Path.Combine(BaseDir.FullName, Program.GetSafePath(recipient), Program.GetSafePath(sender), Program.GetSafePath(date));
             if(!Directory.Exists(dir))
@@ -119,14 +119,14 @@ namespace DiscordBot.MLAPI.Modules
                     file.Data.CopyTo(fs);
                 }
             }
-            RespondRedirect($"/ocr/view/{dir.Replace(BaseDir.FullName, "")}");
+            await RespondRedirect($"/ocr/view/{dir.Replace(BaseDir.FullName, "")}");
         }
 
         [Method("GET"), Path("/ocr/view/{rec}/{send}/{date}")]
         [Regex("rec", RegexAttribute.Alpha)]
         [Regex("send", RegexAttribute.Alpha)]
         [Regex("date", RegexAttribute.Date + "[a-z]?")] // add optional suffix in case multiple letters on same day
-        public void ViewMail(string rec, string send, string date)
+        public async Task ViewMail(string rec, string send, string date)
         {
             var path = Path.Combine(BaseDir.FullName, rec, send, date);
             var data = new List<string>();
@@ -141,7 +141,7 @@ namespace DiscordBot.MLAPI.Modules
                 data.Add($"<iframe src=\"/ocr/raw/{rec}/{send}/{date}/{ocr}\"></iframe>");
                 data.Add("</div>");
             }
-            ReplyFile("mail.html", 200, new Replacements().Add("pages", string.Join("\n", data)));
+            await ReplyFile("mail.html", 200, new Replacements().Add("pages", string.Join("\n", data)));
         }
 
         [Method("GET"), Path("/ocr/raw/{rec}/{send}/{date}/{file}")]
@@ -149,7 +149,7 @@ namespace DiscordBot.MLAPI.Modules
         [Regex("send", RegexAttribute.Alpha)]
         [Regex("date", RegexAttribute.Date + "[a-z]?")]
         [Regex("file", RegexAttribute.Filename)]
-        public void FetchRaw(string rec, string send, string date, string file)
+        public async Task FetchRaw(string rec, string send, string date, string file)
         {
             var path = Path.Combine(BaseDir.FullName, rec, send, date, Program.GetSafePath(file));
             try
@@ -162,10 +162,10 @@ namespace DiscordBot.MLAPI.Modules
             {
                 if(file.EndsWith(".txt"))
                 {
-                    RespondRaw("[No text recognition found]", 400);
+                    await RespondRaw("[No text recognition found]", 400);
                 } else
                 {
-                    RespondRaw("", 404);
+                    await RespondRaw("", 404);
                 }
             }
         }

@@ -41,7 +41,7 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("POST"), Path("/ocr")]
-        public void Execute()
+        public async Task Execute()
         {
             if(string.IsNullOrEmpty(Context.Body))
             {
@@ -59,7 +59,7 @@ namespace DiscordBot.MLAPI.Modules
             System.IO.File.WriteAllBytes(temp, bytes);
             var rtn = run_cmd(pypath, temp).Trim();
             Program.LogInfo(rtn, "OCR");
-            RespondRaw(rtn);
+            await RespondRaw(rtn);
         }
     }
 }

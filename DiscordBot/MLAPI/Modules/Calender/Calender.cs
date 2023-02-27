@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace DiscordBot.MLAPI.Modules
 {
@@ -14,34 +15,35 @@ namespace DiscordBot.MLAPI.Modules
     {
         public Calender(APIContext c) : base(c, "calender") { }
 
-        public override void BeforeExecute()
+        public override async Task BeforeExecute()
         {
             if(!CalenderDb.Lock.WaitOne(1000 * 5))
             {
-                RespondRaw("Failed to achieve lock", 429);
+                await RespondRaw("Failed to achieve lock", 429);
                 throw new HaltExecutionException("Failed to achieve lock");
             }
         }
-        public override void AfterExecute()
+        public override Task AfterExecute()
         {
             CalenderDb.Lock.Release();
+            return Task.CompletedTask;
         }
 
         [Method("GET"), Path("/calender")]
-        public void RedirectBase()
+        public async Task RedirectBase()
         {
-            RespondRaw(LoadRedirectFile("/calendar"), System.Net.HttpStatusCode.Found);
+            await RespondRedirect("/calendar");
         }
 
         [Method("GET"), Path("/calendar")]
-        public void Base()
+        public async Task Base()
         {
             InjectObjects = new List<Classes.HTMLHelpers.HTMLBase>();
-            ReplyFile("base.html", 200);
+            await ReplyFile("base.html", 200);
         }
 
         [Method("GET"), Path("/api/calendar")]
-        public void APIGetWeek(DateTime start, DateTime end)
+        public async Task APIGetWeek(DateTime start, DateTime end)
         {
             using var DB = Program.Services.GetRequiredService<CalenderDb>();
             var events = DB.GetEventsBetween(start, end).Result;
@@ -52,11 +54,11 @@ namespace DiscordBot.MLAPI.Modules
                     jarray.Add(e.ToJson(Context.User));
             }
 
-            RespondRaw(jarray.ToString());
+            await RespondRaw(jarray.ToString());
         }
 
         [Method("GET"), Path("/api/calendar/users")]
-        public void APIGetUsers()
+        public async Task APIGetUsers()
         {
             var users = new JObject();
             foreach(var usr in Context.BotDB.Users)
@@ -70,11 +72,11 @@ namespace DiscordBot.MLAPI.Modules
                 }
                 users[$"{usr.Id}"] = jobj;
             }
-            RespondRaw(users.ToString());
+            await RespondRaw(users.ToString());
         }
 
         [Method("DELETE"), Path("/api/calendar/attendee")]
-        public void APIRemvoveAttendance(int eventId, ulong? userId = null)
+        public async Task APIRemvoveAttendance(int eventId, ulong? userId = null)
         {
             using var db = Program.Services.GetRequiredService<CalenderDb>();
 
@@ -86,7 +88,7 @@ namespace DiscordBot.MLAPI.Modules
                     var evnt = db.Events.FirstOrDefault(x => x.Id == eventId);
                     if(evnt.CreatedById != Context.User.Id)
                     {
-                        RespondRaw("Forbidden", System.Net.HttpStatusCode.Forbidden);
+                        await RespondRaw("Forbidden", System.Net.HttpStatusCode.Forbidden);
                         return;
                     }
                 }
@@ -97,11 +99,11 @@ namespace DiscordBot.MLAPI.Modules
                 db.Attendees.Remove(existing);
                 db.SaveChanges();
             }
-            RespondRaw("OK");
+            await RespondRaw("OK");
         }
 
         [Method("POST"), Path("/api/calendar/attendee")]
-        public void APIAddAttendance(int eventId)
+        public async Task APIAddAttendance(int eventId)
         {
             using var db = Program.Services.GetRequiredService<CalenderDb>();
             var existing = db.Attendees.FirstOrDefault(x => x.EventId == eventId && x._userId == (long)Context.User.Id);
@@ -111,11 +113,11 @@ namespace DiscordBot.MLAPI.Modules
                 db.Attendees.Add(existing);
                 db.SaveChanges();
             }
-            RespondRaw("OK");
+            await RespondRaw("OK");
         }
 
         [Method("POST"), Path("/api/calendar/events")]
-        public void APIModifyEvent(string id, string name, DateTime start, int duration, string priority, 
+        public async Task APIModifyEvent(string id, string name, DateTime start, int duration, string priority, 
             EventVisibility? visibility = null,
             string remove = null, string submit = null)
         {
@@ -127,7 +129,7 @@ namespace DiscordBot.MLAPI.Modules
                 // we're deleting it
                 DB.Events.Remove(existing);
                 DB.SaveChanges();
-                RespondRaw(LoadRedirectFile("/calendar"), 302);
+                await RespondRedirect("/calendar");
                 return;
             }
 
@@ -164,11 +166,11 @@ namespace DiscordBot.MLAPI.Modules
                 DB.Events.Update(existing);
 
             DB.SaveChanges();
-            RespondRaw(LoadRedirectFile("/calendar"), 302);
+            await RespondRedirect("/calendar");
         }
 
         [Method("POST"), Path("/api/calendar/series")]
-        public void APIModifySeries(int event_id, string recursOn, DateTime startRecur, DateTime endRecur,
+        public async Task APIModifySeries(int event_id, string recursOn, DateTime startRecur, DateTime endRecur,
             string series_id,
             string remove = null, string disconnect = null, string add = null)
         {
@@ -233,14 +235,14 @@ namespace DiscordBot.MLAPI.Modules
             }
 
             db.SaveChanges();
-            RespondRaw(LoadRedirectFile("/calendar"), 302);
+            await RespondRedirect("/calendar");
 
 
         }
 
 
         [Method("PUT"), Path("/api/calendar/move")]
-        public void APIMoveEvent(int id, long start, long end)
+        public async Task APIMoveEvent(int id, long start, long end)
         {
             using var DB = Program.Services.GetRequiredService<CalenderDb>();
             var startDate = DateTimeOffset.FromUnixTimeMilliseconds(start);
@@ -248,19 +250,19 @@ namespace DiscordBot.MLAPI.Modules
             var evnt = DB.Events.Find(id);
             if(evnt == null)
             {
-                RespondRaw("Event not found", 404);
+                await RespondRaw("Event not found", 404);
                 return;
             }
             if(evnt.CreatedById != Context.User.Id)
             {
-                RespondRaw("Forbidden - you did not create this event", 403);
+                await RespondRaw("Forbidden - you did not create this event", 403);
                 return;
             }
             evnt.Start = startDate.UtcDateTime;
             evnt.End = endDate.UtcDateTime;
             DB.Events.Update(evnt);
             DB.SaveChanges();
-            RespondRaw("OK", 200);
+            await RespondRaw("OK", 200);
         }
     }
 }

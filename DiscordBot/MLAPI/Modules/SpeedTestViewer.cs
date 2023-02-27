@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace DiscordBot.MLAPI.Modules
 {
@@ -45,7 +46,7 @@ namespace DiscordBot.MLAPI.Modules
 
         [Method("GET"), Path("/")]
         [RequireServerName("c:speedtest")]
-        public void Base()
+        public async Task Base()
         {
             var WEEKLY = new Table();
             WEEKLY.Children.Add(getHeader("Date"));
@@ -68,7 +69,7 @@ namespace DiscordBot.MLAPI.Modules
                     if(remainders >= 58)
                     {
                         var errPage = getPage(new Paragraph("Speed test is in progress, cannot load data; please check back in 5 minutes"));
-                        RespondRaw(errPage, System.Net.HttpStatusCode.Conflict);
+                        await RespondRaw(errPage, System.Net.HttpStatusCode.Conflict);
                         return;
                     }
                 }
@@ -99,11 +100,11 @@ namespace DiscordBot.MLAPI.Modules
                             WEEKLY,
                             new Paragraph("Recorded speeds today"),
                             DAILY);
-            RespondRaw(page.ToString(), 200);
+            await RespondRaw(page.ToString(), 200);
         }
 
         [Method("GET"), Path("/speed")]
-        public void MLBase() => Base();
+        public async Task MLBase() => Base();
     
     
     

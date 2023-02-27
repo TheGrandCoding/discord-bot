@@ -79,7 +79,7 @@ namespace DiscordBot.MLAPI.Modules
             TABLE += ROW;
             OnlineLock.Release();
             Program.LogMsg($"Relased Lock", Discord.LogSeverity.Critical, "OnlineBase");
-            ReplyFile("online.html", 200, new Replacements().Add("table", TABLE));
+            await ReplyFile("online.html", 200, new Replacements().Add("table", TABLE));
         }
 
         [Method("GET"), Path("/chess/online_game")]
@@ -88,7 +88,7 @@ namespace DiscordBot.MLAPI.Modules
         {
             if(!OnlineLock.WaitOne())
             {
-                RespondRaw("Failed thread safe lock", System.Net.HttpStatusCode.InternalServerError);
+                await RespondRaw("Failed thread safe lock", System.Net.HttpStatusCode.InternalServerError);
                 return;
             }
             try
@@ -105,7 +105,7 @@ namespace DiscordBot.MLAPI.Modules
                 var black = g?.Black?.Player?.Name ?? "";
                 var token = getToken();
                 var fen = g?.InnerGame?.generate_fen() ?? "";
-                ReplyFile("game.html", 200, new Replacements()
+                await ReplyFile("game.html", 200, new Replacements()
                     .Add("side", side)
                     .Add("white", white)
                     .Add("black", black)
@@ -130,13 +130,13 @@ namespace DiscordBot.MLAPI.Modules
             var player = DB.Players.FirstOrDefault(x => x.Id == id);
             if(player == null)
             {
-                RespondRaw("Unknown player id", 404);
+                await RespondRaw("Unknown player id", 404);
                 return;
             }
             var jobj = new JObject();
             jobj["name"] = player.Name;
             jobj["id"] = player.Id;
-            RespondRaw(jobj.ToString());
+            await RespondRaw(jobj.ToString());
         }
 
         [Method("GET"), Path("/chess/api/identity")]
@@ -156,7 +156,7 @@ namespace DiscordBot.MLAPI.Modules
             if(!OnlineLock.WaitOne(60 * 1000))
             {
                 Program.LogMsg($"Failed Lock..", Discord.LogSeverity.Critical, "CreateNewGame");
-                RespondRaw("Unable to get lock", 500);
+                await RespondRaw("Unable to get lock", 500);
                 return;
             }
             try
@@ -164,14 +164,14 @@ namespace DiscordBot.MLAPI.Modules
                 Program.LogMsg($"Got Lock..", Discord.LogSeverity.Critical, "CreateNewGame");
                 if(CurrentGame != null)
                 {
-                    RespondRaw("Game already in progress", 400);
+                    await RespondRaw("Game already in progress", 400);
                     return;
                 }
                 CurrentGame = new OnlineGame();
                 Program.LogMsg($"Released Lock..", Discord.LogSeverity.Critical, "CreateNewGame");
                 CurrentGame.SendLogStart(SelfPlayer.Name);
                 WebSockets.ChessConnection.log($"Game created and thus White is: {SelfPlayer.Name}");
-                RespondRaw("", 201);
+                await RespondRaw("", 201);
             }
             catch
             {
@@ -190,18 +190,18 @@ namespace DiscordBot.MLAPI.Modules
         {
             if (ChessService.CurrentGame == null || ChessService.CurrentGame.HasEnded)
             {
-                RespondRaw("Failed", 500);
+                await RespondRaw("Failed", 500);
                 return;
             }
             if (SelfPlayer == null)
             {
-                RespondRaw("Failed", 400);
+                await RespondRaw("Failed", 400);
                 return;
             }
             var p = ChessService.CurrentGame.GetPlayer(SelfPlayer.Id);
             if (p == null)
             {
-                RespondRaw("Not connected to chess", 403);
+                await RespondRaw("Not connected to chess", 403);
                 return;
             }
             // we dont expect anything, client pro-actively notifies
@@ -218,7 +218,7 @@ namespace DiscordBot.MLAPI.Modules
                 $"For privacy purposes, the tab names will be reviewed by the Chief Justice and released to their discretion";
             builder.AddField("File Name", fName);
             ChessS.LogAdmin(builder);
-            RespondRaw("Saved");
+            await RespondRaw("Saved");
         }
 
         [Method("POST"), Path("/chess/api/online/processes")]
@@ -228,23 +228,23 @@ namespace DiscordBot.MLAPI.Modules
         {
             if(ChessService.CurrentGame == null || ChessService.CurrentGame.HasEnded)
             {
-                RespondRaw("Failed", 500);
+                await RespondRaw("Failed", 500);
                 return;
             }
             if(SelfPlayer == null)
             {
-                RespondRaw("Failed", 400);
+                await RespondRaw("Failed", 400);
                 return;
             }
             var p = ChessService.CurrentGame.GetPlayer(SelfPlayer.Id);
             if (p == null)
             {
-                RespondRaw("Not connected to chess", 403);
+                await RespondRaw("Not connected to chess", 403);
                 return;
             }
             if (!p.ExpectDemand)
             {
-                RespondRaw("Unexpected image", 400);
+                await RespondRaw("Unexpected image", 400);
                 return;
             }
 
@@ -260,7 +260,7 @@ namespace DiscordBot.MLAPI.Modules
                 $"For privacy purposes, this screenshot will be reviewed by the Chief Justice and released to their discretion";
             builder.AddField("File Name", fName);
             ChessS.LogAdmin(builder);
-            RespondRaw("Saved");
+            await RespondRaw("Saved");
         }
 
 #region Image Uploading
@@ -271,23 +271,23 @@ namespace DiscordBot.MLAPI.Modules
         {
             if (ChessService.CurrentGame == null || ChessService.CurrentGame.HasEnded)
             {
-                RespondRaw("Failed", 500);
+                await RespondRaw("Failed", 500);
                 return;
             }
             if (SelfPlayer == null)
             {
-                RespondRaw("Failed", 400);
+                await RespondRaw("Failed", 400);
                 return;
             }
             var p = ChessService.CurrentGame.GetPlayer(SelfPlayer.Id);
             if(p == null)
             {
-                RespondRaw("Not connected to chess", 403);
+                await RespondRaw("Not connected to chess", 403);
                 return;
             }
             if(!p.ExpectDemand)
             {
-                RespondRaw("Unexpected image", 400);
+                await RespondRaw("Unexpected image", 400);
                 return;
             }
             var path = Path.Combine(Program.BASE_PATH, "ChessO", "Demands", DateTime.Now.DayOfYear.ToString("000"));
@@ -304,7 +304,7 @@ namespace DiscordBot.MLAPI.Modules
                 $"For privacy purposes, this screenshot will be reviewed by the Chief Justice and released to their discretion";
             builder.AddField("File Name", fName);
             ChessS.LogAdmin(builder);
-            RespondRaw("Saved");
+            await RespondRaw("Saved");
         }
 
         private static String GetBoundary(String ctype)

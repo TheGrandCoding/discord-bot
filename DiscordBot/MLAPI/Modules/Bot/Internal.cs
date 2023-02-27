@@ -22,17 +22,17 @@ namespace DiscordBot.MLAPI.Modules.Bot
 
         [Method("GET"), Path("/bot/close")]
         [RequireOwner]
-        public void CloseBot()
+        public async Task CloseBot()
         {
-            RespondRaw("OK");
+            await RespondRaw("OK");
             Program.Close(0);
         }
 
         [Method("GET"), Path("/bot/restart")]
         [RequireOwner]
-        public void RestartBot()
+        public async Task RestartBot()
         {
-            RespondRaw("OK");
+            await RespondRaw("OK");
             Program.Close(1);
         }
 
@@ -41,7 +41,7 @@ namespace DiscordBot.MLAPI.Modules.Bot
         [RequireAuthentication(false)]
         [RequireApproval(false)]
         [RequireGithubSignatureValid("bot:build")]
-        public void GithubWebhook()
+        public async Task GithubWebhook()
         {
             Program.Close(69); // closing with a non-zero code restarts it.
         }
@@ -71,7 +71,7 @@ namespace DiscordBot.MLAPI.Modules.Bot
         [Method("POST"), Path("/bot/nea")]
         [RequireAuthentication(false)]
         [RequireApproval(false)]
-        public void NEAWebhook()
+        public async Task NEAWebhook()
         {
             string value = Context.HTTP.Request.Headers["Authorization"];
             var bytes = Convert.FromBase64String(value.Split(' ')[1]);
@@ -79,11 +79,11 @@ namespace DiscordBot.MLAPI.Modules.Bot
             var password = combined.Split(':')[1];
             if (password == Program.Configuration["tokens:github:internal"])
             {
-                RespondRaw("OK", 200);
+                await RespondRaw("OK", 200);
             }
             else
             {
-                RespondRaw("Failed.", 400);
+                await RespondRaw("Failed.", 400);
             }
         }
 
@@ -109,7 +109,7 @@ namespace DiscordBot.MLAPI.Modules.Bot
         [Method("GET"), Path("/pc/shutdown")]
         [RequireAuthentication(false)]
         [RequireApproval(false)]
-        public void RequestPcShutdown()
+        public async Task RequestPcShutdown()
         {
             if(shutdownState == ShutdownState.Running)
             {
@@ -124,28 +124,28 @@ namespace DiscordBot.MLAPI.Modules.Bot
                     .Build(),
                     components: getShutdownComponents().Build()).Result;
 
-                ReplyFile("shutdown.html", 200, new Replacements()
+                await ReplyFile("shutdown.html", 200, new Replacements()
                     .Add("text", "A request to gracefully shutdown the computer has been sent.<br/>" +
                     "<h1>Do not turn off the computer until the request has been completed</h1> " +
                     "Doing so could cause irreversible damage to programs still running.")
                     .Add("doReload", "true"));
             } else if (shutdownState == ShutdownState.Requested)
             {
-                ReplyFile("shutdown.html", 200, new Replacements()
+                await ReplyFile("shutdown.html", 200, new Replacements()
                     .Add("text", "A request to gracefully shutdown the computer has been sent. " +
                     "<h1>Do not turn off the computer until the request has been completed</h1> " +
                     "Doing so could cause irreversible damage to programs still running.")
                     .Add("doReload", "true"));
             } else if (shutdownState == ShutdownState.InProgress)
             {
-                ReplyFile("shutdown.html", 200, new Replacements()
+                await ReplyFile("shutdown.html", 200, new Replacements()
                     .Add("text", "The request is now <em>in progress</em>. Please stand by. " +
                     "<strong>Do not turn off the computer yet</strong> " +
                     "Doing so could cause irreversible damage to programs still running.")
                     .Add("doReload", "true"));
             } else if(shutdownState == ShutdownState.Waiting)
             {
-                ReplyFile("shutdown.html", 200, new Replacements()
+                await ReplyFile("shutdown.html", 200, new Replacements()
                     .Add("text", "<strong>Your request is still being processed</strong>, but is taking longer than usual. <br/>" +
                     (failOrWaitReason == null 
                         ? "This could be because programs are still being closed, or because the computer is not accessible to the internet.<br/>"
@@ -154,7 +154,7 @@ namespace DiscordBot.MLAPI.Modules.Bot
                     .Add("doReload", "true"));
             } else if (shutdownState == ShutdownState.Failed)
             {
-                ReplyFile("shutdown.html", 200, new Replacements()
+                await ReplyFile("shutdown.html", 200, new Replacements()
                     .Add("text", "<strong>Your request has failed or was refused</strong><br/>" +
                     (failOrWaitReason == null
                         ? "This could be because programs are actively still in use or because the computer is not accessible to the internet.<br/>"
@@ -164,7 +164,7 @@ namespace DiscordBot.MLAPI.Modules.Bot
             }
             else if(shutdownState == ShutdownState.Completed)
             {
-                ReplyFile("shutdown.html", 200, new Replacements()
+                await ReplyFile("shutdown.html", 200, new Replacements()
                     .Add("text", "The request has been completed. The computer should now, or will soon, be offline.")
                     .Add("doReload", "false"));
             }

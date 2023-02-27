@@ -14,6 +14,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace DiscordBot.MLAPI.Modules.TimeTracking
 {
@@ -27,7 +28,7 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
         public TimeTrackDb DB { get; }
 
         [Method("GET"), Path("/tracker")]
-        public void Base()
+        public async Task Base()
         {
             var existing = Context.User.AuthTokens.FirstOrDefault(x => x.Name == BotDbAuthToken.TimeToken);
             if(existing == null)
@@ -36,14 +37,14 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
                 Context.User.AuthTokens.Add(existing);
                 Context.BotDB.SaveChanges();
             }
-            RespondRaw(existing.Token);
+            await RespondRaw(existing.Token);
         }
 
         [Method("GET"), Path("/api/tracker/user")]
         [RequireAuthentication(false, false)]
         [RequireApproval(false)]
         [RequireScope("html.?")]
-        public void GetUser()
+        public async Task GetUser()
         {
             JToken obj;
             if (Context.User == null)
@@ -60,17 +61,17 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
                 intervalThings["set"] = 15_000;
                 obj["interval"] = intervalThings;
             }
-            RespondRaw(obj.ToString(), HttpStatusCode.OK);
+            await RespondRaw(obj.ToString(), HttpStatusCode.OK);
         }
 
         [Method("GET"), Path("/api/tracker/latestVersion")]
-        public void LatestVersion()
+        public async Task LatestVersion()
         {
-            RespondRaw(TimeTrackDb.GetExtensionVersion(), HttpStatusCode.OK);
+            await RespondRaw(TimeTrackDb.GetExtensionVersion(), HttpStatusCode.OK);
         }
 
         [Method("GET"), Path("/api/tracker/times")]
-        public void GetTimes(string ids)
+        public async Task GetTimes(string ids)
         {
             var jobj = new JObject();
             foreach (var id in ids.Split(';', ',')) 
@@ -80,11 +81,11 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
                 var thing = DB.GetVideo(Context.User.Id, id);
                 jobj[id] = thing?.WatchedTime ?? 0d;
             }
-            RespondJson(jobj, 200);
+            await RespondJson(jobj, 200);
         }
 
         [Method("POST"), Path("/api/tracker/times")]
-        public void SetTimes()
+        public async Task SetTimes()
         {
             var jobj = JObject.Parse(Context.Body);
             foreach(JProperty token in jobj.Children())
@@ -93,11 +94,11 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
                 DB.AddVideo(Context.User.Id, token.Name, val);
             }
             DB.SaveChanges();
-            RespondRaw("OK", HttpStatusCode.Created);
+            await RespondRaw("OK", HttpStatusCode.Created);
         }
 
         [Method("GET"), Path("/api/tracker/threads")]
-        public void GetThreads(string ids, int v = 2)
+        public async Task GetThreads(string ids, int v = 2)
         {
             var jobj = new JObject();
             foreach (var id in ids.Split(';', ','))
@@ -124,7 +125,7 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
                 threadObj["count"] = thing.Comments;
                 jobj[id] = threadObj;
             }
-            RespondJson(jobj, 200);
+            await RespondJson(jobj, 200);
         }
 
         [Method("POST"), Path("/tracker/webhook")]
@@ -132,9 +133,9 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
         [RequireApproval(false)]
         [RequireScope("*")]
         [RequireGithubSignatureValid("tracker:webhook")]
-        public void VersionUpdate()
+        public async Task VersionUpdate()
         {
-            RespondRaw("Thanks");
+            await RespondRaw("Thanks");
             var jobj = JObject.Parse(Context.Body);
             var release = jobj["release"]["tag_name"].ToObject<string>().Substring(1);
             TimeTrackDb.SetExtVersion(release);

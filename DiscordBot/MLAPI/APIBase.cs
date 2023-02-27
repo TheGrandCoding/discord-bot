@@ -3,11 +3,14 @@ using DiscordBot.Permissions;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 namespace DiscordBot.MLAPI
 {
@@ -54,44 +57,187 @@ namespace DiscordBot.MLAPI
         public int StatusSent { get; set; } = 0;
         protected bool HasResponded => StatusSent != 0;
 
-        public virtual void RespondRaw(string obj, int code = 200)
+        public virtual Task RespondRaw(string obj, int code = 200)
         {
             StatusSent = code;
             var bytes = System.Text.Encoding.UTF8.GetBytes(obj);
             Context.HTTP.Response.StatusCode = code;
             Context.HTTP.Response.Close(bytes, true);
+            return Task.CompletedTask;
         }
-        public virtual void RespondRedirect(string url, string returnTo = null, int code = 302)
+        public Task RespondRaw(string obj, HttpStatusCode code)
+            => RespondRaw(obj, (int)code);
+        public virtual async Task RespondRedirect(string url, string returnTo = null, int code = 302)
         {
-            RespondRaw(LoadRedirectFile(url, returnTo), code);
+            Context.HTTP.Response.Headers["Location"] = url;
+            using var fs = LoadFile("_redirect.html");
+
+            await respondStreamReplacing(fs, code, new Replacements()
+                .Add("url", url)
+                .Add("return", returnTo ?? "false"));
         }
 
-        public virtual void RespondJson(Newtonsoft.Json.Linq.JToken json, int code = 200)
+        [DebuggerDisplay($"{{{nameof(GetDebuggerDisplay)}(),nq}}")]
+        class StreamReplacement
+        {
+            public StreamReplacement(string format, object v)
+            {
+                Format = format;
+                Value = v;
+            }
+            public string Format { get; set; }
+            public StringBuilder ReadKey { get; set; } = new();
+            public object Value { get; set; }
+
+            public int Pointer { get; set; } = 0;
+
+            private string GetDebuggerDisplay()
+            {
+                var chr = Format.ElementAtOrDefault(Pointer);
+                return $"'{Format}' @ {Pointer}={chr}; Read='{ReadKey}'";
+            }
+        }
+
+        async Task respondStreamReplacing(Stream fromStream, int code, Replacements reps, params StreamReplacement[] streamReplacements)
+        {
+            reps.Add("user", Context.User);
+            StatusSent = code;
+            await copyStreamReplacing(fromStream, Context.HTTP.Response.OutputStream, reps, streamReplacements);
+            Context.HTTP.Response.StatusCode = code;
+            Context.HTTP.Response.Close();
+        }
+        async Task copyStreamReplacing(Stream fromStream, Stream toStream, Replacements reps, params StreamReplacement[] replacements)
+        {
+            var ls = new List<StreamReplacement>(replacements);
+            ls.Add(new($"<REPLACE id='?' />", reps));
+            await copyStreamReplacing(fromStream, toStream, ls.ToArray());
+        }
+        bool equalChar(char lookingFor, char next)
+        {
+            if (lookingFor == next) return true;
+            if (lookingFor == '<') return next == '$';
+            if(lookingFor == '\'') return next == '"';
+            if (lookingFor == ' ') return true;
+            return false;
+        }
+        async Task copyStreamReplacing(Stream fromStream, Stream toStream, params StreamReplacement[] replacements)
+        {
+            char[] buffer = new char[32];
+            char[] writebuf = new char[1];
+            int writecount = 1;
+            int bufferPtr = 32;
+
+            using (StreamReader reader = new StreamReader(fromStream))
+            {
+                async Task<char?> getNext() {
+                    if(bufferPtr >= buffer.Length)
+                    {
+                        bufferPtr = 0;
+                        int count = await reader.ReadAsync(buffer, 0, buffer.Length);
+                        if (count == 0) return null;
+                        // null out buffer
+                        for (int i = count; i < buffer.Length; i++)
+                            buffer[i] = '\0';
+                    }
+                    return buffer[bufferPtr++];
+                }
+                async Task write(string s)
+                {
+                    var b = Encoding.UTF8.GetBytes(s);
+                    await toStream.WriteAsync(b, 0, b.Length);
+                }
+                char? next = null;
+                int i = 0;
+                do
+                {
+                    i++;
+                    next = await getNext();
+                    if (!next.HasValue || next == '\0') break;
+
+                    bool skipThisChar = false;
+                    string towrite = null;
+                    for(int idx = 0; idx < replacements.Length; idx++)
+                    {
+                        var rep = replacements[idx];
+                        if(rep.Pointer < rep.Format.Length)
+                        {
+                            char lookingFor = rep.Format[rep.Pointer];
+                            while(lookingFor == ' ' && next != ' ')
+                            {
+                                lookingFor = rep.Format[++rep.Pointer];
+                            }
+                            if(lookingFor == '?' && rep.ReadKey != null)
+                            {
+                                if(equalChar('\'', next.Value))
+                                {
+                                    rep.Pointer += 2; // move past ? and quote
+                                    skipThisChar = true;
+                                    continue;
+                                } else
+                                {
+                                    skipThisChar = true;
+                                    rep.ReadKey.Append(next);
+                                    continue;
+                                }
+                            }
+                            if(equalChar(lookingFor, next.Value))
+                            {
+                                rep.Pointer++;
+                                skipThisChar = true;
+                            } else
+                            {
+                                if (rep.Pointer > 0)
+                                {
+                                    towrite = rep.Format.Substring(0, rep.Pointer);
+                                    rep.Pointer = 0;
+                                    continue;
+                                }
+                            }
+                        }
+                        if (rep.Pointer >= rep.Format.Length)
+                        {
+                            rep.Pointer = 0;
+                            skipThisChar = true;
+                            if (rep.ReadKey != null && rep.ReadKey.Length > 0)
+                            {
+                                var key = rep.ReadKey.ToString();
+                                rep.ReadKey.Clear();
+                                if (rep.Value is Replacements r && r.TryGetValue(key, out var o)) 
+                                    await write(o?.ToString() ?? "");
+                                break;
+                            } else
+                            {
+                                if (rep.Value is not Replacements)
+                                    await write(rep.Value?.ToString() ?? "");
+                                break;
+                            }
+                        }
+
+                    }
+                    if (skipThisChar) continue;
+                    if(towrite != null) 
+                        await write(towrite);
+
+                    writebuf[0] = next.Value;
+                    var bytes = Encoding.UTF8.GetBytes(writebuf, 0, writecount);
+                    await toStream.WriteAsync(bytes, 0, bytes.Length);
+                } while (next.HasValue);
+            }
+        }
+
+        public virtual Task RespondJson(Newtonsoft.Json.Linq.JToken json, int code = 200)
         {
             Context.HTTP.Response.AddHeader("Content-Type", "application/json");
             json ??= Newtonsoft.Json.Linq.JValue.CreateNull();
-            RespondRaw(json.ToString(Program.BOT_DEBUG ? Formatting.Indented : Formatting.None), code);
+            return RespondRaw(json.ToString(Program.BOT_DEBUG ? Formatting.Indented : Formatting.None), code);
         }
-        public virtual void RespondError(Classes.APIErrorResponse error, int code = 400)
+        public virtual Task RespondError(Classes.APIErrorResponse error, int code = 400)
         {
             Context.HTTP.Response.AddHeader("Content-Type", "application/json");
-            RespondRaw(error.Build().ToString(), code);
+            return RespondRaw(error.Build().ToString(), code);
         }
 
-        public void RespondRaw(string obj, HttpStatusCode code)
-            => RespondRaw(obj, (int)code);
-
-        public string LoadRedirectFile(string url, string returnTo = null)
-        {
-            Context.HTTP.Response.Headers["Location"] = url;
-            string file = LoadFile("_redirect.html");
-            file = ReplaceMatches(file, new Replacements()
-                .Add("url", url)
-                .Add("return", returnTo ?? "false"));
-            return file;
-        }
-
-        protected string LoadFile(string path)
+        protected FileStream LoadFile(string path)
         {
             string proper = Path.Combine(Program.BASE_PATH, "HTTP");
             if (!path.StartsWith("_") && !path.StartsWith("/"))
@@ -101,75 +247,69 @@ namespace DiscordBot.MLAPI
             proper = Path.Combine(proper, path);
             try
             {
-                return File.ReadAllText(proper, Encoding.UTF8);
+                return File.OpenRead(proper);
             } catch( FileNotFoundException)
             {
                 throw new InvalidOperationException("The file required for this operation was not found");
             }
         }
 
-        const string matchRegex = "[<$]REPLACE id=['\"](\\S+)['\"] ?\\/[>$]";
-        protected string ReplaceMatches(string input, Replacements replace)
-        {
-            replace.Add("user", Context.User);
-            var REGEX = new Regex(matchRegex);
-            var match = REGEX.Match(input);
-            while(match != null && match.Success && match.Captures.Count > 0 && match.Groups.Count > 1)
-            {
-                var key = match.Groups[1].Value;
-                if(!replace.TryGetValue(key, out var obj))
-                {
-                    Program.LogWarning($"Failed to replace '{key}'", $"API:{Context.Path}");
-                }
-                var value = obj?.ToString() ?? "";
-                input = input.Replace(match.Groups[0].Value, value);
-                match = REGEX.Match(input);
-            }
-            return input;
-        }
-
-        protected void ReplyFile(string path, int code, Replacements replace = null)
+        protected async Task ReplyFile(string path, int code, Replacements replace = null)
         {
             if(path.EndsWith(".html"))
             {
-                var f = LoadFile(path);
+                using var fs = LoadFile(path);
                 string injectedText = "";
                 foreach (var x in InjectObjects)
                     injectedText += x.ToString();
-                f = f.Replace("</head>", injectedText + "</head>");
-                f = f.Replace("<body>", "<body><REPLACE id='sidebar'/>");
-                replace ??= new Replacements();
+
                 string sN = Sidebar == SidebarType.None ? "" : Sidebar == SidebarType.Global ? "_sidebar.html" : "sidebar.html";
-                string sC = "";
+                string sidebar = null;
                 if (!string.IsNullOrWhiteSpace(sN))
-                    sC = LoadFile(sN);
-                replace.Add("sidebar", sC);
-                var replaced = ReplaceMatches(f, replace);
-                RespondRaw(replaced, code);
+                {
+                    using (var sidefs = LoadFile(sN))
+                    using (StreamReader sr = new StreamReader(sidefs))
+                        sidebar = sr.ReadToEnd();
+                }
+                Context.HTTP.Response.ContentType = "text/html";
+                if(sidebar != null)
+                {
+                    await respondStreamReplacing(fs, code,
+                        replace ?? new(),
+                        new StreamReplacement("</head>", injectedText + "</head>"),
+                        new StreamReplacement("<body>", $"<body>{sidebar}")
+                        );
+                } else
+                {
+                    await respondStreamReplacing(fs, code,
+                        replace ?? new(),
+                        new StreamReplacement("</head>", injectedText + "</head>")
+                        );
+                }
             } else
             {
-                using(var fs = File.OpenRead(path))
+                using(var fs = LoadFile(path))
                 {
-                    ReplyStream(fs, code);
+                    await ReplyStream(fs, code);
                 }
             }
         }
 
-        protected void ReplyStream(Stream stream, int code)
+        protected async Task ReplyStream(Stream stream, int code)
         {
             StatusSent = code;
             Context.HTTP.Response.StatusCode = code;
-            stream.CopyTo(Context.HTTP.Response.OutputStream);
+            await stream.CopyToAsync(Context.HTTP.Response.OutputStream);
             Context.HTTP.Response.Close();
         }
 
-        protected void ReplyFile(string path, HttpStatusCode code, Replacements replace = null)
+        protected Task ReplyFile(string path, HttpStatusCode code, Replacements replace = null)
             => ReplyFile(path, (int)code, replace);
 
-        protected void HTTPError(HttpStatusCode code, string title, string message)
+        protected async Task HTTPError(HttpStatusCode code, string title, string message)
         {
             Sidebar = SidebarType.None;
-            ReplyFile("_error.html", code, new Replacements()
+            await ReplyFile("_error.html", code, new Replacements()
                 .Add("error_code", code)
                 .Add("error_message", title)
                 .Add("error", message));
@@ -177,20 +317,20 @@ namespace DiscordBot.MLAPI
 
         protected string aLink(string url, string display) => $"<a href='{url}'>{display}</a>";
 
-        public virtual void BeforeExecute() { }
-        public virtual void ResponseHalted(HaltExecutionException ex) 
+        public virtual Task BeforeExecute() => Task.CompletedTask;
+        public virtual Task ResponseHalted(HaltExecutionException ex) 
         { 
             var er = new ErrorJson(ex.Message);
             if(Context.WantsHTML)
             {
-                RespondRaw(er.GetPrettyPage(Context), HttpStatusCode.InternalServerError);
+                return RespondRaw(er.GetPrettyPage(Context), HttpStatusCode.InternalServerError);
             } else
             {
                 var json = JsonConvert.SerializeObject(er);
-                RespondRaw(json, HttpStatusCode.InternalServerError);
+                return RespondRaw(json, HttpStatusCode.InternalServerError);
             }
         }
-        public virtual void AfterExecute() { }
+        public virtual Task AfterExecute() => Task.CompletedTask;
 
         protected string RelativeLink(MethodInfo method, params object[] args)
             => Handler.RelativeLink(method, args);

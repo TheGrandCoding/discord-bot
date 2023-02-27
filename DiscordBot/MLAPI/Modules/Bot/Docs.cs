@@ -15,6 +15,7 @@ using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using WebSocketSharp;
+using System.Threading.Tasks;
 
 namespace DiscordBot.MLAPI.Modules
 {
@@ -640,31 +641,31 @@ namespace DiscordBot.MLAPI.Modules
 
         [Method("GET"), Path("/docs")]
         [Name("View documentation")]
-        public void Base()
+        public async Task Base()
         {
-            ReplyFile("docs.html", 200, rep(null, null)
+            await ReplyFile("docs.html", 200, rep(null, null)
                 .Add("mainContent", "<strong>Please select an item on the left!</strong>"));
         }
 
         [Method("GET"), Path(@"/docs/commands/{name}")]
         [Regex("name", @"[\S\._]+")]
         [Name("View Command Module")]
-        public void CommandItem(string name)
+        public async Task CommandItem(string name)
         {
             CurrentLook = name;
             var item = Program.Commands.Modules.FirstOrDefault(x => escapeForUrl(x.Name) == name);
-            ReplyFile("docs.html", 200, rep(name, null)
+            await ReplyFile("docs.html", 200, rep(name, null)
                 .Add("mainContent", cmdGetMain(item)));
         }
 
         [Method("GET"), Path("/docs/api/{name}")]
         [Regex("name", @"[\S\._]+")]
         [Name("View API Module")]
-        public void APIItem(string name)
+        public async Task APIItem(string name)
         {
             CurrentLook = name;
             var module = Handler.Modules.FirstOrDefault(x => escapeForUrl(x.Name) == name);
-            ReplyFile("docs.html", 200, rep(null, name)
+            await ReplyFile("docs.html", 200, rep(null, name)
                 .Add("mainContent", apiGetMain(module)));
         }
 

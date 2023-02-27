@@ -26,24 +26,24 @@ namespace DiscordBot.RESTAPI.Functions.HTML
         }
 
         [Path("/"), Method("GET")]
-        public void BaseHTML()
+        public async Task BaseHTML()
         {
             if(Context.User == null)
             {
-                ReplyFile("_base_nologin.html", 200);
+                await ReplyFile("_base_nologin.html", 200);
             } else if (Context.User.Approved != true)
             {
-                RespondRaw(LoadRedirectFile("/login/approval"), HttpStatusCode.Redirect);
+                await RespondRedirect("/login/approval");
             } else
             {
-                ReplyFile("_base.html", 200, new Replacements());
+                await ReplyFile("_base.html", 200, new Replacements());
             }
         }
 
         [Method("GET"), Path("/gh-catch")]
-        public void GHCatch()
+        public async Task GHCatch()
         {
-            ReplyFile("gh-catch.html", 200);
+            await ReplyFile("gh-catch.html", 200);
         }
 
         static string getLastModified(string filename)
@@ -56,16 +56,16 @@ namespace DiscordBot.RESTAPI.Functions.HTML
         [Regex("bracket", "(js|css|img|assets)")]
         [Regex("filePath", @"[a-zA-Z0-9\/._-]*.\.(js|css|png|jpeg|svg|woff|mp3)")]
         [RequireServerName(null)]
-        public void BackgroundWork([Summary("Folder of item")]string bracket, string filePath)
+        public async Task BackgroundWork([Summary("Folder of item")]string bracket, string filePath)
         {
             if(Context.Endpoint == null)
             {
-                RespondRaw("Failed internal settings", HttpStatusCode.InternalServerError);
+                await RespondRaw("Failed internal settings", HttpStatusCode.InternalServerError);
                 return;
             }
             if(Context.HTTP.Request.Url.AbsolutePath.Contains(".."))
             {
-                RespondRaw("Forbidden", HttpStatusCode.BadRequest);
+                await RespondRaw("Forbidden", HttpStatusCode.BadRequest);
                 return;
             }
             var fileExtension = Path.GetExtension(filePath);
@@ -77,12 +77,12 @@ namespace DiscordBot.RESTAPI.Functions.HTML
             var priorMod = Context.Request.Headers["If-None-Match"];
             if(lastMod == priorMod)
             {
-                RespondRaw("", HttpStatusCode.NotModified);
+                await RespondRaw("", HttpStatusCode.NotModified);
                 return;
             }
             if(!File.Exists(fullPath))
             {
-                RespondRaw("Unknown item.", 404);
+                await RespondRaw("Unknown item.", 404);
                 return;
             }
             Context.HTTP.Response.Headers["ETag"] = lastMod;
@@ -119,7 +119,7 @@ namespace DiscordBot.RESTAPI.Functions.HTML
         [Method("GET")]
         [Path("/whitelist")]
         [RequireServerName(null)]
-        public void WhitelistLessons()
+        public async Task WhitelistLessons()
         {
             if (!sent.ContainsKey(Context.IP))
             {
@@ -139,13 +139,13 @@ namespace DiscordBot.RESTAPI.Functions.HTML
                 }
                 usr.SendMessageAsync(embed: embed.Build());
             }
-            ReplyFile("_whitelist.html", HttpStatusCode.OK);
+            await ReplyFile("_whitelist.html", HttpStatusCode.OK);
         }
     
         [Method("GET"), Path("/dfa")]
-        public void DFA()
+        public async Task DFA()
         {
-            ReplyFile("dfa.html", 200);
+            await ReplyFile("dfa.html", 200);
         }
     
     }

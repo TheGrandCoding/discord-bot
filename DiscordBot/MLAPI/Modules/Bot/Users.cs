@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace DiscordBot.MLAPI.Modules.Bot
 {
@@ -14,7 +15,7 @@ namespace DiscordBot.MLAPI.Modules.Bot
 
         [Method("GET"), Path("/bot/approve")]
         [RequirePermNode(Perms.Bot.ApproveUser)]
-        public void ApproveList()
+        public async Task ApproveList()
         {
             var table = new Table()
             {
@@ -76,22 +77,21 @@ namespace DiscordBot.MLAPI.Modules.Bot
                     }
                 });
             }
-            ReplyFile("approve.html", 200, new Replacements()
+            await ReplyFile("approve.html", 200, new Replacements()
                 .Add("table", table));
         }
    
         [Method("POST"), Path("/bot/approve")]
-        [RequirePermNode(Perms.Bot.ApproveUser)]
-        public void Set(uint id, bool approved)
+        public async Task Set(uint id, bool approved)
         {
             var bUser = Context.BotDB.GetUserAsync(id).Result;
             if(bUser == null)
             {
-                RespondRaw("No user.", 404);
+                await RespondRaw("No user.", 404);
                 return;
             }
             bUser.Approved = approved;
-            RespondRaw("OK.");
+            await RespondRaw("OK.");
         }
 
         [Method("DELETE"), Path("/api/bot/user")]

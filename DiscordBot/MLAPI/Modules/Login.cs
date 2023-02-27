@@ -61,17 +61,17 @@ namespace DiscordBot.MLAPI.Modules
                 {
                     redirectTo = "/login/setpassword";
                 }
-                RespondRaw(LoadRedirectFile(redirectTo), HttpStatusCode.Redirect);
+                RespondRedirect(redirectTo).Wait();
             }
             catch (Exception ex)
             {
                 Program.LogError(ex, "LoginOauth");
-                HTTPError(HttpStatusCode.InternalServerError, "", ex.Message);
+                HTTPError(HttpStatusCode.InternalServerError, "", ex.Message).Wait();
             }
         }
 
         [Method("GET"), Path("/login")]
-        public void LoginBase()
+        public async Task LoginBase()
         {
             if(Context.User != null)
             { // we'll log them out to troll them
@@ -79,25 +79,25 @@ namespace DiscordBot.MLAPI.Modules
                 var l = Context.HTTP.Request.Cookies[BotDbAuthSession.CookieName];
                 l.Expires = DateTime.Now.AddDays(-1);
                 Context.HTTP.Response.SetCookie(l);
-                RespondRaw($"Logged you out; redirecting to base path", HttpStatusCode.Redirect);
+                await RespondRaw($"Logged you out; redirecting to base path", HttpStatusCode.Redirect);
                 return;
             }
-            ReplyFile("login.html", 200, new Replacements()
+            await ReplyFile("login.html", 200, new Replacements()
                 .Add("link", "/login/discord"));
         }
 
         [Method("GET"), Path("/logout")]
-        public void Logout(string back = "/")
+        public async Task Logout(string back = "/")
         {
             Context.HTTP.Response.Headers["Location"] = back;
             var l = Context.HTTP.Request.Cookies[BotDbAuthSession.CookieName] ?? new Cookie(BotDbAuthSession.CookieName, "null");
             l.Expires = DateTime.Now.AddDays(-1);
             Context.HTTP.Response.SetCookie(l);
-            RespondRaw(LoadRedirectFile(back), HttpStatusCode.Redirect);
+            await RespondRedirect(back);
         }
 
         [Method("GET"), Path("/login/discord")]
-        public void RedirectToDiscord(string redirect = "/")
+        public async Task RedirectToDiscord(string redirect = "/")
         {
             var state = Callback.Register(handleDiscordOAuth, Context.User);
             var uri = UrlBuilder.Discord()
@@ -105,18 +105,18 @@ namespace DiscordBot.MLAPI.Modules
                 .Add("response_type", "code")
                 .Add("scope", "identify")
                 .Add("state", state);
-            RespondRaw(LoadRedirectFile(uri, redirect), HttpStatusCode.Redirect);
+            await RespondRedirect(uri, redirect);
         }
 
         [Method("POST"), Path("/login")]
         // We expect this data to be sent in form-data-encoded or wahtever form in the content/body
         // rather than in the Query string
         // the APIContext has the means to parse both, and CommandFinder uses both.
-        public void LoginPassword(string username, string password)
+        public async Task LoginPassword(string username, string password)
         {
             if(Context.User != null)
             {
-                RespondRaw("Error: you are already logged in", 400);
+                await RespondRaw("Error: you are already logged in", 400);
                 return;
             }
             var result = Context.BotDB.AttemptLoginAsync(username, password).Result;
@@ -126,24 +126,24 @@ namespace DiscordBot.MLAPI.Modules
                 return;
             }
             setSessionTokens(result.Value); // essentially logs them in
-            RespondRedirect("/");
+            await RespondRedirect("/");
         }
         [Method("POST"), Path("/register")]
-        public void RegisterWithPassword(string username, string password)
+        public async Task RegisterWithPassword(string username, string password)
         {
             if (Context.User != null)
             {
-                RespondRaw("Error: you are already logged in", 400);
+                await RespondRaw("Error: you are already logged in", 400);
                 return;
             }
             var result = Context.BotDB.AttemptRegisterAsync(username, password).Result;
             if (!result.Success)
             {
-                RespondRedirect($"/login#username={Uri.EscapeDataString(username)}&fbr={Uri.EscapeDataString(result.ErrorMessage)}");
+                await RespondRedirect($"/login#username={Uri.EscapeDataString(username)}&fbr={Uri.EscapeDataString(result.ErrorMessage)}");
                 return;
             }
             setSessionTokens(result.Value); // essentially logs them in
-            RespondRedirect("/");
+            await RespondRedirect("/");
             try
             {
                 var embed = new EmbedBuilder()
@@ -153,25 +153,25 @@ namespace DiscordBot.MLAPI.Modules
                     .AddField("IP", Context.IP)
                     .AddField("User-Agent", Context.HTTP.Request.UserAgent, true)
                     .WithDescription($"Go [here to approve]({Handler.LocalAPIUrl}/bot/approve)");
-                Program.SendLogMessageAsync(embed: embed.Build()).Wait();
+                await Program.SendLogMessageAsync(embed: embed.Build());
             } catch { }
         }
 
         [Method("GET"), Path("/login/approval")]
         [RequireAuthentication(requireDiscordConnection: false)]
         [RequireApproval(false)]
-        public void ApprovalPage()
+        public async Task ApprovalPage()
         {
             if(!Context.User.Approved.HasValue)
             {
-                RespondRaw("Your account is pending approval; please wait.", 200);
+                await RespondRaw("Your account is pending approval; please wait.", 200);
             } else if (Context.User.Approved.Value)
             {
-                RespondRaw("Your account is approved; please visit the main page.", 200);
+                await RespondRaw("Your account is approved; please visit the main page.", 200);
             }
             else
             {
-                RespondRaw("Your account has not been approved and is unable to access this website.", 200);
+                await RespondRaw("Your account has not been approved and is unable to access this website.", 200);
             }
         }
 
@@ -211,42 +211,42 @@ namespace DiscordBot.MLAPI.Modules
 
 
         [Method("GET"), Path("/oauth2/discord")]
-        public void OauthLogin(string code, string state)
+        public async Task OauthLogin(string code, string state)
         {
             if(!Callback.Invoke(Context, state))
             {
-                RespondRaw("Unknown callback - state mismatch. Perhaps the bot was restarted since you were redirected?", 400);
+                await RespondRaw("Unknown callback - state mismatch. Perhaps the bot was restarted since you were redirected?", 400);
             }
         }
 
         [Method("GET"), Path("/oauth2/misc")]
-        public void OauthMisc(string state)
+        public async Task OauthMisc(string state)
         {
             if (!Callback.Invoke(Context, state))
             {
-                RespondRaw("Unknown callback - state mismatch. Perhaps the bot was restarted since you were redirected?", 400);
+                await RespondRaw("Unknown callback - state mismatch. Perhaps the bot was restarted since you were redirected?", 400);
             }
         }
 
         [Method("GET"), Path("/oauth2/trakt")]
         [RequireAuthentication]
-        public void OauthTrakt(string code = null)
+        public async Task OauthTrakt(string code = null)
         {
             var srv = Program.Services.GetRequiredService<TraktService>();
             if(string.IsNullOrWhiteSpace(code))
             {
-                RespondRaw(LoadRedirectFile(srv.OAuthRedirectUri.ToString()), HttpStatusCode.Redirect);
+                await RespondRedirect(srv.OAuthRedirectUri.ToString());
                 return;
             }
             srv.AddUser(Context.User.Id, code).Wait();
-            RespondRaw("Success");
+            await RespondRaw("Success");
         }
 
         [Method("GET"), Path("/login/setpassword")]
         [RequireAuthentication]
-        public void SeePswdPage()
+        public async Task SeePswdPage()
         {
-            ReplyFile("pwd.html", HttpStatusCode.OK, new Replacements()
+            await ReplyFile("pwd.html", HttpStatusCode.OK, new Replacements()
                 .IfElse("dowhat",
                     Context.User.Connections.PasswordHash == null,
                     "create a new password", "replace your old password"));
@@ -254,21 +254,21 @@ namespace DiscordBot.MLAPI.Modules
     
         [Method("POST"), Path("/login/setpassword")]
         [RequireAuthentication]
-        public void SetLoginPswd(string pwd)
+        public async Task SetLoginPswd(string pwd)
         {
             if (pwd.Length < 8 || pwd.Length > 32)
             {
-                RespondRaw($"Password must be between 8 and 32 charactors in length", 400);
+                await RespondRaw($"Password must be between 8 and 32 charactors in length", 400);
                 return;
             }
             if(Program.IsPasswordLeaked(pwd).Result)
             {
-                RespondRaw($"Password is known to be compromised; it cannot be used.", 400);
+                await RespondRaw($"Password is known to be compromised; it cannot be used.", 400);
                 return;
             }
             Context.User.Connections.PasswordHash = PasswordHash.HashPassword(pwd);
             SetLoginSession(Context, Context.User, true);
-            RespondRedirect(Context.User.RedirectUrl ?? "/");
+            await RespondRedirect(Context.User.RedirectUrl ?? "/");
         }
     
     
@@ -276,7 +276,7 @@ namespace DiscordBot.MLAPI.Modules
         [RequireAuthentication(true)]
         [RequireVerifiedAccount(true)]
         [RequireApproval(false)]
-        public void ForceVerify()
+        public async Task ForceVerify()
         {
             Context.User.Verified = true;
             var service = Program.Services.GetRequiredService<EnsureLevelEliteness>();
@@ -294,7 +294,7 @@ namespace DiscordBot.MLAPI.Modules
                 }).Wait();
             }
             service.OnSave();
-            RespondRaw($"Verification process complete. You can close this window");
+            await RespondRaw($"Verification process complete. You can close this window");
         }
     }
 }

@@ -93,7 +93,7 @@ namespace DiscordBot.MLAPI.Modules
                     {
                         // intentionally don't set Location header
                         // so we can handle this in fetch.
-                        RespondRaw(url, HttpStatusCode.FailedDependency);
+                        await RespondRaw(url, HttpStatusCode.FailedDependency);
                         throw new HaltExecutionException("Must verify email");
                     }
                 }
@@ -348,7 +348,7 @@ namespace DiscordBot.MLAPI.Modules
             else if (count == 3)
                 adminItems = adminItems.Replace("[[W]]", "30%");
             string link = getDiscordLink();
-            ReplyFile("base.html", 200, new Replacements() 
+            await ReplyFile("base.html", 200, new Replacements() 
                 .Add("table", TABLE)
                 .Add("admin", adminItems)
                 .Add("loginBtn", loginButton())
@@ -363,11 +363,11 @@ namespace DiscordBot.MLAPI.Modules
             var response = oauth.JoinToServer(Program.ChessGuild, Context.User).Result;
             if(!response.IsSuccessStatusCode)
             {
-                RespondRaw("Error: " + response.Content.ReadAsStringAsync().Result, response.StatusCode);
+                await RespondRaw("Error: " + response.Content.ReadAsStringAsync().Result, response.StatusCode);
             } else
             {
                 ChessS.SetPermissionsAThread();
-                RespondRaw(LoadRedirectFile("/chess"), HttpStatusCode.Redirect);
+                await RespondRedirect("/chess"), HttpStatusCode.Redirect);
             }
         }
 
@@ -381,7 +381,7 @@ namespace DiscordBot.MLAPI.Modules
                 .Add("redirect_uri", Handler.LocalAPIUrl + "/oauth2/discord")
                 .Add("state", state)
                 .Add("scope", "guilds.join");
-            RespondRaw(LoadRedirectFile(uri), HttpStatusCode.Redirect);
+            await RespondRedirect(uri), HttpStatusCode.Redirect);
         }
 #endregion
 
@@ -405,7 +405,7 @@ namespace DiscordBot.MLAPI.Modules
                 ROW += $"<td>{ChessS.getLastPresentDate(DB, usr, true):yyyy-MM-dd}</td>";
                 TABLE += ROW + "</tr>";
             }
-            ReplyFile("register.html", 200, new Replacements().Add("table", TABLE));
+            await ReplyFile("register.html", 200, new Replacements().Add("table", TABLE));
         }
 
         bool shouldIncludeInRecommend(ChessPlayer player)
@@ -425,10 +425,10 @@ namespace DiscordBot.MLAPI.Modules
             { // Special logout case, we just clear the verified email.
                 Context.User.IsVerified = false;
                 Context.User.VerifiedEmail = null;
-                RespondRaw(LoadRedirectFile("/chess"), HttpStatusCode.Redirect);
+                await RespondRedirect("/chess"), HttpStatusCode.Redirect);
             } else
             {
-                RespondRaw(LoadRedirectFile("/logout"), HttpStatusCode.Redirect);
+                await RespondRedirect("/logout"), HttpStatusCode.Redirect);
             }
         }
 
@@ -437,7 +437,7 @@ namespace DiscordBot.MLAPI.Modules
         {
             if(!doesHavePerm(ChessPerm.ClassRoom))
             {
-                RespondRaw("No permissions", 403);
+                await RespondRaw("No permissions", 403);
                 return;
             }
             string TABLE = "";
@@ -503,7 +503,7 @@ namespace DiscordBot.MLAPI.Modules
                 }
                 TABLE += ROW + "</tr>";
             }
-            ReplyFile("recommend.html", 200, new Replacements()
+            await ReplyFile("recommend.html", 200, new Replacements()
                 .Add("table", TABLE)
                 .Add("colm", debug ? "<th>debug</th>" : ""));
         }
@@ -544,7 +544,7 @@ namespace DiscordBot.MLAPI.Modules
             game.BlackTime = bsec * 1000;
             var id = ChessS.AddTimedGame(game);
 
-            RespondRaw(LoadRedirectFile($"/chess/clock?id={id}"), HttpStatusCode.Redirect);
+            await RespondRedirect($"/chess/clock?id={id}"), HttpStatusCode.Redirect);
         }
 
         [Method("GET"), Path("/chess/clock")]
@@ -552,10 +552,10 @@ namespace DiscordBot.MLAPI.Modules
         {
             if(!ChessService.TimedGames.TryGetValue(id, out var game))
             {
-                RespondRaw("No game by that ID", 404);
+                await RespondRaw("No game by that ID", 404);
                 return;
             }
-            ReplyFile("chessclock.html", 200, new Replacements()
+            await ReplyFile("chessclock.html", 200, new Replacements()
                 .Add("wsId", id));
         }
 
@@ -564,7 +564,7 @@ namespace DiscordBot.MLAPI.Modules
         {
             var firstList = GetPlayerList("player1", x => !x.IsBanned);
             var secondList = GetPlayerList("player2", x => !x.IsBanned);
-            ReplyFile("setupChessClock.html", 200, new Replacements()
+            await ReplyFile("setupChessClock.html", 200, new Replacements()
                 .Add("player", SelfPlayer)
                 .Add("selectp1", firstList)
                 .Add("selectp2", secondList));
@@ -580,7 +580,7 @@ namespace DiscordBot.MLAPI.Modules
                 HTTPError(System.Net.HttpStatusCode.NotFound, "Player", "Unknown player with that Id");
                 return;
             }
-            ReplyFile("ban.html", 200, new Replacements().Add("target", target));
+            await ReplyFile("ban.html", 200, new Replacements().Add("target", target));
         }
 
 #if DEBUG // only want to be able to directly add games in debug config
@@ -599,7 +599,7 @@ namespace DiscordBot.MLAPI.Modules
                 }
                 players += $"<option {bannnn} value=\"{player.Id}\">{getPlayerName(player)}</option>";
             }
-            ReplyFile("debug_addmatch.html", 200, new Replacements().Add("playerlist", players));
+            await ReplyFile("debug_addmatch.html", 200, new Replacements().Add("playerlist", players));
         }
 #endif
 
@@ -611,21 +611,21 @@ namespace DiscordBot.MLAPI.Modules
         [RequireVerifiedAccount(false)]
         public void HandleHTTPFilesPr()
         {
-            RespondRaw("Ok");
+            await RespondRaw("Ok");
         }
         static string thing;
         [Method("GET"), Path("/chess/api/pullr")]
         [RequireChess(ChessPerm.ChiefJustice)]
         public void GetThing()
         {
-            RespondRaw(thing ?? "Not set");
+            await RespondRaw(thing ?? "Not set");
         }
 #endregion
 
         [Method("GET"), Path("/chess/api/lawcss")]
         public void LawStyle()
         {
-            ReplyFile("terms/lawstyle.css", 200);
+            await ReplyFile("terms/lawstyle.css", 200);
         }
 
         [Method("GET"), Path("/chess/conduct")]
@@ -638,7 +638,7 @@ namespace DiscordBot.MLAPI.Modules
                 return;
             }
             var page = LegislationService.PageForAct(act, raw);
-            RespondRaw(ReplaceMatches(page, new Replacements()), HttpStatusCode.OK);
+            await RespondRaw(ReplaceMatches(page, new Replacements()), HttpStatusCode.OK);
         }
 
         [Method("GET"), Path("/chess/terms")]
@@ -661,7 +661,7 @@ namespace DiscordBot.MLAPI.Modules
                 return;
             }
             var page = LegislationService.PageForAct(act, raw);
-            RespondRaw(ReplaceMatches(page, new Replacements()
+            await RespondRaw(ReplaceMatches(page, new Replacements()
                 .Add("mods", mods)
                 .Add("justices", justices)), HttpStatusCode.OK);
         }
@@ -673,7 +673,7 @@ namespace DiscordBot.MLAPI.Modules
             int satisfies = ChessService.GetPlayedAgainst(SelfPlayer, ChessService.VoterGamesRequired).Count;
             if(satisfies < ChessService.VoterGamesRequired)
             {
-                RespondRaw(new HTMLPage()
+                await RespondRaw(new HTMLPage()
                 {
                     Children =
                     {
@@ -712,7 +712,7 @@ namespace DiscordBot.MLAPI.Modules
                     ineligible += new ListItem($"<strong>{player.Name}:</strong> {result.ErrorReason}");
                 }
             }
-            ReplyFile("election.html", 200, new Replacements()
+            await ReplyFile("election.html", 200, new Replacements()
                 .Add("table", table)
                 .Add("inelig", ineligible)
                 .Add("arbiter", DB.Players.FirstOrDefault(x => x.Permission.HasFlag(ChessPerm.Arbiter)).Name)
@@ -725,14 +725,14 @@ namespace DiscordBot.MLAPI.Modules
         {
             if(ChessService.GetPlayedAgainst(SelfPlayer, ChessService.VoterGamesRequired).Count < ChessService.VoterGamesRequired)
             {
-                RespondRaw($"You are unable to vote; must have played at least {ChessService.VoterGamesRequired} games", 403);
+                await RespondRaw($"You are unable to vote; must have played at least {ChessService.VoterGamesRequired} games", 403);
                 return;
             }
             var player = DB.Players.FirstOrDefault(x => x.Id == id);
             var result = checkArbiterCandidacy(player);
             if (!result.IsSuccess)
             {
-                RespondRaw("Invalid: " + result.ErrorReason, 404);
+                await RespondRaw("Invalid: " + result.ErrorReason, 404);
                 return;
             }
             value = Math.Clamp(value, -2, 2);
@@ -742,7 +742,7 @@ namespace DiscordBot.MLAPI.Modules
                 Score = value
             });
             didChange = true;
-            RespondRaw("");
+            await RespondRaw("");
         }
 
         [Method("GET"), Path("/chess/match")]
@@ -761,7 +761,7 @@ namespace DiscordBot.MLAPI.Modules
                 }
                 players += $"<option {bannnn} value=\"{player.Id}\">{player.Name}</option>";
             }
-            ReplyFile("match.html", 200, new Replacements()
+            await ReplyFile("match.html", 200, new Replacements()
                 .Add("playerlist", players));
         }
 
@@ -932,7 +932,7 @@ namespace DiscordBot.MLAPI.Modules
                 WARNINGS += "</ul></div>";
             }
 
-            ReplyFile("history.html", 200, new Replacements()
+            await ReplyFile("history.html", 200, new Replacements()
                 .Add("table", TABLE)
                 .Add("target", player)
                 .Add("warnings", WARNINGS));
@@ -1131,7 +1131,7 @@ namespace DiscordBot.MLAPI.Modules
                 ROW.Children.AddRange(datas);
                 TABLE.Children.Add(ROW);
             }
-            ReplyFile("user.html", 200, new Replacements().Add("table", TABLE));
+            await ReplyFile("user.html", 200, new Replacements().Add("table", TABLE));
         }
 
 #endregion
@@ -1159,7 +1159,7 @@ namespace DiscordBot.MLAPI.Modules
             {
                 TEXT += $"<li><strong>{keypair.Key}</strong>: {keypair.Value}</li>";
             }
-            ReplyFile("account.html", 200, new Replacements().Add("list", TEXT));
+            await ReplyFile("account.html", 200, new Replacements().Add("list", TEXT));
         }
 
         [Method("GET"), Path("/chess/perms")]
@@ -1183,7 +1183,7 @@ namespace DiscordBot.MLAPI.Modules
                 ROW += "</select></td>";
                 TABLE += ROW + "</tr>";
             }
-            ReplyFile("perms.html", 200, new Replacements().Add("table", TABLE));
+            await ReplyFile("perms.html", 200, new Replacements().Add("table", TABLE));
         }
 
         [Method("PUT"), Path("/chess/api/connect")]
@@ -1193,18 +1193,18 @@ namespace DiscordBot.MLAPI.Modules
         {
             if(Context.User == null)
             {
-                RespondRaw("Must be logged in", 403);
+                await RespondRaw("Must be logged in", 403);
                 return;
             }
             var player = DB.Players.FirstOrDefault(x => x.Id == chessId);
             if(player == null)
             {
-                RespondRaw("Unknown player", 404);
+                await RespondRaw("Unknown player", 404);
                 return;
             }
             if(player.IsBuiltInAccount)
             {
-                RespondRaw("Account is built-in and cannot be modified", 403);
+                await RespondRaw("Account is built-in and cannot be modified", 403);
                 return;
             }
             if(discord == 0)
@@ -1216,13 +1216,13 @@ namespace DiscordBot.MLAPI.Modules
                 var accn = Program.GetUserOrDefault(discord);
                 if(accn == null)
                 {
-                    RespondRaw("Unknown discord Id", 404);
+                    await RespondRaw("Unknown discord Id", 404);
                     return;
                 }
                 player.ConnectedAccount = discord;
             }
             didChange = true;
-            RespondRaw("Set");
+            await RespondRaw("Set");
         }
 
         [Method("PUT"), Path("/chess/api/setperm")]
@@ -1233,12 +1233,12 @@ namespace DiscordBot.MLAPI.Modules
             var player = DB.Players.FirstOrDefault(x => x.Id == id);
             if(player == null)
             {
-                RespondRaw("Unknown player", 404);
+                await RespondRaw("Unknown player", 404);
                 return;
             }
             if(player.IsBuiltInAccount)
             {
-                RespondRaw("This account is built-in and cannot be changed", 403);
+                await RespondRaw("This account is built-in and cannot be changed", 403);
                 return;
             }
             EmbedBuilder builder = new EmbedBuilder();
@@ -1248,7 +1248,7 @@ namespace DiscordBot.MLAPI.Modules
             ChessS.LogAdmin(builder);
             player.Permission = perm;
             didChange = true;
-            RespondRaw("Ok");
+            await RespondRaw("Ok");
             ChessS.SetPermissionsAThread();
         }
 
@@ -1259,24 +1259,24 @@ namespace DiscordBot.MLAPI.Modules
             var player = DB.Players.FirstOrDefault(x => x.Id == id);
             if(player == null)
             {
-                RespondRaw("Unknown player", 404);
+                await RespondRaw("Unknown player", 404);
                 return;
             }
             if(expires > 31 || expires < 1)
             {
-                RespondRaw("Invalid expiration date");
+                await RespondRaw("Invalid expiration date");
                 return;
             } 
             if(Context.User == null)
             {
-                RespondRaw("You must be logged in to do that", 403);
+                await RespondRaw("You must be logged in to do that", 403);
                 return;
             }
             LogAdminAction("Note Added", note, ("Against", player.Name), ("Expires", $"{expires} days"));
             var thing = new ChessNote(SelfPlayer, player, note, expires);
             player.Notes.Add(thing);
             didChange = true;
-            RespondRaw("Added");
+            await RespondRaw("Added");
         }
 
         [Method("GET"), Path("/chess/api/lastscore")]
@@ -1292,7 +1292,7 @@ namespace DiscordBot.MLAPI.Modules
                 usrs.SetScoreOnDay(usrs.Rating, DateTime.Now);
             }
             didChange = true;
-            RespondRaw(LoadRedirectFile("/chess"));
+            await RespondRedirect("/chess"));
         }
 
         [Method("PUT"), Path("/chess/api/player")]
@@ -1300,13 +1300,13 @@ namespace DiscordBot.MLAPI.Modules
         {
             if (!doesHavePerm(ChessPerm.CreateUser))
             {
-                RespondRaw("Error: You do not have permission to do that", 403);
+                await RespondRaw("Error: You do not have permission to do that", 403);
                 return;
             }
             var existing = DB.Players.FirstOrDefault(x => x.Name == name);
             if (existing != null)
             {
-                RespondRaw("User already exists", 400);
+                await RespondRaw("User already exists", 400);
                 return;
             }
             var player = new ChessPlayer()
@@ -1319,7 +1319,7 @@ namespace DiscordBot.MLAPI.Modules
             DB.Players.Add(player);
             LogAdminAction("Account Created", player.Name);
             didChange = true;
-            RespondRaw("Ok");
+            await RespondRaw("Ok");
         }
 
         [Method("PUT"), Path("/chess/api/present")]
@@ -1327,13 +1327,13 @@ namespace DiscordBot.MLAPI.Modules
         {
             if (!doesHavePerm(ChessPerm.ClassRoom))
             {
-                RespondRaw("No permission", 403);
+                await RespondRaw("No permission", 403);
                 return;
             }
             var player = DB.Players.FirstOrDefault(x => x.Id == id);
             if (player == null || player.Removed)
             {
-                RespondRaw("No player", 404);
+                await RespondRaw("No player", 404);
                 return;
             }
             player.DateLastPresent = DateTime.Now;
@@ -1341,7 +1341,7 @@ namespace DiscordBot.MLAPI.Modules
                 .WithTitle("Player Marked Present")
                 .WithDescription($"{Context.User.Name} marks {player.Name} as present");
             ChessS.LogAdmin(builder);
-            RespondRaw("Ok");
+            await RespondRaw("Ok");
         }
 
         [Method("PUT"), Path("/chess/api/changename")]
@@ -1349,24 +1349,24 @@ namespace DiscordBot.MLAPI.Modules
         {
             if (!doesHavePerm(ChessPerm.Justice))
             {
-                RespondRaw("Error: You do not have permission to do that", 403);
+                await RespondRaw("Error: You do not have permission to do that", 403);
                 return;
             }
             var player = DB.Players.FirstOrDefault(x => x.Id == id);
             if (player == null || player.Removed)
             {
-                RespondRaw("Player not found", 404);
+                await RespondRaw("Player not found", 404);
                 return;
             }
             if (player.ShouldContinueInLoop)
             {
-                RespondRaw("That account cannot have its name changed", 403);
+                await RespondRaw("That account cannot have its name changed", 403);
                 return;
             }
             player.Notes.Add(new ChessNote(SelfPlayer, player, $"Changed name from {player.Name} to {newName}", 8));
             player.Name = newName;
             didChange = true;
-            RespondRaw("Updated");
+            await RespondRaw("Updated");
         }
 
         [Method("PUT"), Path("/chess/api/remove")]
@@ -1374,23 +1374,23 @@ namespace DiscordBot.MLAPI.Modules
         {
             if(!doesHavePerm(ChessPerm.RemoveUser))
             {
-                RespondRaw("No permission", 403);
+                await RespondRaw("No permission", 403);
                 return;
             }
             var usr = DB.Players.FirstOrDefault(x => x.Id == id);
             if(usr == null)
             {
-                RespondRaw("User not found", 404);
+                await RespondRaw("User not found", 404);
                 return;
             }
             if(usr.IsBuiltInAccount)
             {
-                RespondRaw("Account is built-in and cannot be removed", 400);
+                await RespondRaw("Account is built-in and cannot be removed", 400);
                 return;
             }
             if(usr.Removed && usr.IsBanned)
             {
-                RespondRaw("User is banned: They must first be unbanned.", 403);
+                await RespondRaw("User is banned: They must first be unbanned.", 403);
                 return;
             }
             usr.Removed = !usr.Removed;
@@ -1406,7 +1406,7 @@ namespace DiscordBot.MLAPI.Modules
                 usr.Modifier = 0;
                 LogAdminAction("User Rejoins", usr.Name);
             }
-            RespondRaw("User toggled", 200);
+            await RespondRaw("User toggled", 200);
             didChange = true;
         }
 
@@ -1417,17 +1417,17 @@ namespace DiscordBot.MLAPI.Modules
             var usr = DB.Players.FirstOrDefault(x => x.Id == id);
             if (usr == null)
             {
-                RespondRaw("User not found", 404);
+                await RespondRaw("User not found", 404);
                 return;
             }
             if(usr.ShouldContinueInLoop)
             {
-                RespondRaw("Account score cannot be changed");
+                await RespondRaw("Account score cannot be changed");
                 return;
             }
             if(value == usr.Rating)
             {
-                RespondRaw("Values are identical");
+                await RespondRaw("Values are identical");
                 return;
             }
             int old = usr.Rating;
@@ -1436,7 +1436,7 @@ namespace DiscordBot.MLAPI.Modules
             var note = new ChessNote(SelfPlayer, usr, $"Rating set to {value} from {old} ({value - old})", 14);
             usr.Notes.Add(note);
             didChange = true;
-            RespondRaw("Updated");
+            await RespondRaw("Updated");
         }
 
         [Method("PUT"), Path("/chess/api/scoremod")]
@@ -1446,19 +1446,19 @@ namespace DiscordBot.MLAPI.Modules
             var usr = DB.Players.FirstOrDefault(x => x.Id == id);
             if (usr == null)
             {
-                RespondRaw("User not found", 404);
+                await RespondRaw("User not found", 404);
                 return;
             }
             if (usr.ShouldContinueInLoop)
             {
-                RespondRaw("Account score cannot be changed");
+                await RespondRaw("Account score cannot be changed");
                 return;
             }
             int old = usr.Modifier;
             LogAdminAction("Score Modifier Set", "Modifier made to player's rating", ("Player", usr.Name), ("Old", old.ToString()), ("New", value.ToString()));
             usr.Modifier = value;
             didChange = old != value;
-            RespondRaw("Updated");
+            await RespondRaw("Updated");
         }
 
         [Method("PUT"), Path("/chess/api/dispute")]
@@ -1467,7 +1467,7 @@ namespace DiscordBot.MLAPI.Modules
             var entry = DB.Games.FirstOrDefault(x => x.Id == gameId);
             if(entry == null)
             {
-                RespondRaw("Unable to find game entry.", 404);
+                await RespondRaw("Unable to find game entry.", 404);
                 return;
             }
             var winner = entry.Winner;
@@ -1485,7 +1485,7 @@ namespace DiscordBot.MLAPI.Modules
                 winner.Wins--;
                 opposition.Losses--;
             }
-            RespondRaw("");
+            await RespondRaw("");
         }
 
         [Method("PUT"), Path("/chess/api/monitor")]
@@ -1494,19 +1494,19 @@ namespace DiscordBot.MLAPI.Modules
             var player = DB.Players.FirstOrDefault(x => x.Id == id);
             if(player == null)
             {
-                RespondRaw("Unknown player", 404);
+                await RespondRaw("Unknown player", 404);
                 return;
             }
             if(!doesHavePerm(ChessPerm.Moderator))
             {
-                RespondRaw("No permission", 403);
+                await RespondRaw("No permission", 403);
                 return;
             }
             if(player.RequireGameApproval)
             { // only justices may remove approval
                 if(!doesHavePerm(ChessPerm.Justice))
                 {
-                    RespondRaw("Only Justices of the Court of Appeals may remove monitor from players", 403);
+                    await RespondRaw("Only Justices of the Court of Appeals may remove monitor from players", 403);
                     return;
                 }
                 player.RequireGameApproval = false;
@@ -1519,7 +1519,7 @@ namespace DiscordBot.MLAPI.Modules
                     $"Until that happens, the rating change will not apply to either player");
             }
             didChange = true;
-            RespondRaw("");
+            await RespondRaw("");
         }
 
         [Method("PUT"), Path("/chess/api/time")]
@@ -1528,17 +1528,17 @@ namespace DiscordBot.MLAPI.Modules
             var player = DB.Players.FirstOrDefault(x => x.Id == id);
             if (player == null)
             {
-                RespondRaw("Unknown player", 404);
+                await RespondRaw("Unknown player", 404);
                 return;
             }
             if (!doesHavePerm(ChessPerm.ChiefJustice))
             {
-                RespondRaw("No permission", 403);
+                await RespondRaw("No permission", 403);
                 return;
             }
             player.RequireTiming = !player.RequireTiming;
             didChange = true;
-            RespondRaw("");
+            await RespondRaw("");
         }
 
         [Method("PUT"), Path("/chess/api/approve")]
@@ -1547,14 +1547,14 @@ namespace DiscordBot.MLAPI.Modules
             var game = DB.Games.FirstOrDefault(x => x.Id == id);
             if(game == null)
             {
-                RespondRaw("Unknown game", 404);
+                await RespondRaw("Unknown game", 404);
                 return;
             }
             if(game.NeedsModApproval)
             {
                 if(!doesHavePerm(ChessPerm.Moderator))
                 {
-                    RespondRaw("Game must be approved by a Moderator, and you are not that.", 403);
+                    await RespondRaw("Game must be approved by a Moderator, and you are not that.", 403);
                     return;
                 }
                 game.ApprovalGiven |= ApprovedBy.Moderator;
@@ -1585,7 +1585,7 @@ namespace DiscordBot.MLAPI.Modules
                 ChessS.LogEntry(game);
             }
             didChange = true;
-            RespondRaw("");
+            await RespondRaw("");
         }
 
         [Method("PUT"), Path("/chess/api/ban")]
@@ -1593,40 +1593,40 @@ namespace DiscordBot.MLAPI.Modules
         {
             if(!doesHavePerm(ChessPerm.Moderator))
             {
-                RespondRaw("No permissions", 403);
+                await RespondRaw("No permissions", 403);
                 return;
             }
             var player = DB.Players.FirstOrDefault(x => x.Id == id);
             if(player == null)
             {
-                RespondRaw("unknown player", 404);
+                await RespondRaw("unknown player", 404);
                 return;
             }
             if(string.IsNullOrWhiteSpace(reason) || reason.Length  > 256 || reason.Length < 16)
             {
-                RespondRaw("Reason invalid: empty or length too short or too long", 400);
+                await RespondRaw("Reason invalid: empty or length too short or too long", 400);
                 return;
             }
             if(string.IsNullOrWhiteSpace(expires) || expires.Length != 10 || expires.Contains('-') == false)
             {
-                RespondRaw("Expirery date invalid: incorrect format; require 'yyyy-MM-dd'", 400);
+                await RespondRaw("Expirery date invalid: incorrect format; require 'yyyy-MM-dd'", 400);
                 return;
             }
             var split = expires.Split('-');
             var expiresAt = new DateTime(int.Parse(split[0]), int.Parse(split[1]), int.Parse(split[2]));
             if(expiresAt.DayOfYear <= DateTime.Now.DayOfYear || expiresAt.Year < DateTime.Now.Year)
             {
-                RespondRaw("Expirery date cannot be before now", 400);
+                await RespondRaw("Expirery date cannot be before now", 400);
                 return;
             }
             if(expiresAt.DayOfWeek != DayOfWeek.Friday)
             {
-                RespondRaw("Expirery must be on a Friday", 400);
+                await RespondRaw("Expirery must be on a Friday", 400);
                 return;
             }
             if(player.IsBanned)
             {
-                RespondRaw("Player is already banned", System.Net.HttpStatusCode.Conflict);
+                await RespondRaw("Player is already banned", System.Net.HttpStatusCode.Conflict);
                 return;
             }
 
@@ -1636,7 +1636,7 @@ namespace DiscordBot.MLAPI.Modules
             player.Bans.Add(ban);
             didChange = true;
             ChessS.LogAdmin(ban);
-            RespondRaw("");
+            await RespondRaw("");
         }
 
         [Method("PUT"), Path("/chess/api/moderator")]
@@ -1645,12 +1645,12 @@ namespace DiscordBot.MLAPI.Modules
             var player = DB.Players.FirstOrDefault(x => x.Id == id);
             if(player == null)
             {
-                RespondRaw("Error: player does not exist", 404);
+                await RespondRaw("Error: player does not exist", 404);
                 return;
             }
             if(!(player.Permission == ChessPerm.Moderator || player.Permission == ChessPerm.Player))
             {
-                RespondRaw($"Error: that player has permissions that you are unable to remove or modify: {player.Permission}", 400);
+                await RespondRaw($"Error: that player has permissions that you are unable to remove or modify: {player.Permission}", 400);
                 return;
             }
             if(player.Permission == ChessPerm.Moderator)
@@ -1663,14 +1663,14 @@ namespace DiscordBot.MLAPI.Modules
                 var result = checkModeratorCandidacy(player);
                 if(!result.IsSuccess)
                 {
-                    RespondRaw($"Unable: {result.ErrorReason}", 400);
+                    await RespondRaw($"Unable: {result.ErrorReason}", 400);
                     return;
                 }
                 player.Permission = ChessPerm.Moderator;
                 didChange = true;
                 LogAdminAction("Moderator Appointed", $"The Arbiter has appointed **{player.Name}** as a Moderator");
             }
-            RespondRaw("");
+            await RespondRaw("");
         }
 
         [Method("PUT"), Path("/chess/api/register")]
@@ -1678,7 +1678,7 @@ namespace DiscordBot.MLAPI.Modules
         {
             if(!doesHavePerm(ChessPerm.ClassRoom))
             {
-                RespondRaw("No permission", 403);
+                await RespondRaw("No permission", 403);
                 return;
             }
             var splt = list.Split(',');
@@ -1690,7 +1690,7 @@ namespace DiscordBot.MLAPI.Modules
                     ids.Add(id);
                 } else
                 {
-                    RespondRaw($"Could not parse id '{item}' as int", 400);
+                    await RespondRaw($"Could not parse id '{item}' as int", 400);
                     return;
                 }
             }
@@ -1699,18 +1699,18 @@ namespace DiscordBot.MLAPI.Modules
                 var player = DB.Players.FirstOrDefault(x => x.Id == id);
                 if(player == null)
                 {
-                    RespondRaw($"Could not find player with id {id}", 400);
+                    await RespondRaw($"Could not find player with id {id}", 400);
                     return;
                 }
                 if(player.ShouldContinueInLoop || player.IsBanned)
                 {
-                    RespondRaw($"{player.Name} cannot be marked as present, they are removed, banned or built in", 400);
+                    await RespondRaw($"{player.Name} cannot be marked as present, they are removed, banned or built in", 400);
                     return;
                 }
                 player.DateLastPresent = DateTime.Now;
             }
             didChange = true;
-            RespondRaw("");
+            await RespondRaw("");
         }
 
 #region Match Adding and Rating Calculations
@@ -1796,37 +1796,37 @@ namespace DiscordBot.MLAPI.Modules
             var lossP = DB.Players.FirstOrDefault(x => x.Id == loser);
             if (winP == null)
             {
-                RespondRaw("Unknown winner", 404);
+                await RespondRaw("Unknown winner", 404);
                 return;
             }
             if (lossP == null)
             {
-                RespondRaw("Unknown loser", 404);
+                await RespondRaw("Unknown loser", 404);
                 return;
             }
             if (winP.Id == lossP.Id)
             {
-                RespondRaw("Winner and loser are identical", 400);
+                await RespondRaw("Winner and loser are identical", 400);
                 return;
             }
             if (winP.IsBuiltInAccount || lossP.IsBuiltInAccount)
             {
-                RespondRaw("One of those Accounts is built-in, so cannot be given a match", 400);
+                await RespondRaw("One of those Accounts is built-in, so cannot be given a match", 400);
                 return;
             }
             if (winP.IsBanned)
             {
-                RespondRaw($"{winP.Name} is currently banned.", 403);
+                await RespondRaw($"{winP.Name} is currently banned.", 403);
                 return;
             }
             if (lossP.IsBanned)
             {
-                RespondRaw($"{lossP.Name} is currently banned", 403);
+                await RespondRaw($"{lossP.Name} is currently banned", 403);
                 return;
             }
             int winnerRating = (int)Math.Round(getRating(winP, lossP, draw ? 0.5d : 1.0d, defaultKFunction));
             int loserRating = (int)Math.Round(getRating(lossP, winP, draw ? 0.5d : 0.0d, defaultKFunction));
-            RespondRaw($"<p>{winP.Name}: {winP.Rating} -> <strong>{winnerRating}</strong></p>" +
+            await RespondRaw($"<p>{winP.Name}: {winP.Rating} -> <strong>{winnerRating}</strong></p>" +
                 $"<p>{lossP.Name}: {lossP.Rating} -> <strong>{loserRating}</strong></p>");
         }
 
@@ -1844,37 +1844,37 @@ namespace DiscordBot.MLAPI.Modules
             var lossP = DB.Players.FirstOrDefault(x => x.Id == loser);
             if(winP == null)
             {
-                RespondRaw("Unknown winner", 404);
+                await RespondRaw("Unknown winner", 404);
                 return;
             }
             if(lossP == null)
             {
-                RespondRaw("Unknown loser", 404);
+                await RespondRaw("Unknown loser", 404);
                 return;
             }
             if(winP.Id == lossP.Id)
             {
-                RespondRaw("Winner and loser are identical", 400);
+                await RespondRaw("Winner and loser are identical", 400);
                 return;
             }
             if(winP.IsBuiltInAccount || lossP.IsBuiltInAccount)
             {
-                RespondRaw("One of those Accounts is built-in, so cannot be given a match", 400);
+                await RespondRaw("One of those Accounts is built-in, so cannot be given a match", 400);
                 return;
             }
             if(winP.IsBanned)
             {
-                RespondRaw($"{winP.Name} is currently banned.", 403);
+                await RespondRaw($"{winP.Name} is currently banned.", 403);
                 return;
             }
             if(lossP.IsBanned)
             {
-                RespondRaw($"{lossP.Name} is currently banned", 403);
+                await RespondRaw($"{lossP.Name} is currently banned", 403);
                 return;
             }
             if(!canAddMatch(winP, lossP, external))
             {
-                RespondRaw($"You do not have permission to add that match.");
+                await RespondRaw($"You do not have permission to add that match.");
                 return;
             }
             var game = createGameEntry(winP, lossP, draw, null, external, out int httpCode);
@@ -1884,7 +1884,7 @@ namespace DiscordBot.MLAPI.Modules
                 game.ApprovalGiven |= ApprovedBy.Loser;
             DB.Games.Add(game);
             didChange = true;
-            RespondRaw("Updated", httpCode);
+            await RespondRaw("Updated", httpCode);
         }
 
 

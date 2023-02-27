@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace DiscordBot.MLAPI.Modules
 {
@@ -21,7 +22,7 @@ namespace DiscordBot.MLAPI.Modules
         [Method("GET")]
         [Path("/laws/{path}")]
         [Regex("path", @"[a-z0-9-\/]+")]
-        public void SeeLaw(string path, bool raw = false)
+        public async Task SeeLaw(string path, bool raw = false)
         {
             if(!Service.Laws.TryGetValue(path, out var act))
             {
@@ -41,7 +42,7 @@ namespace DiscordBot.MLAPI.Modules
                                 _a.EnactedDate.HasValue ? _a.EnactedDate.Value.ToLongDateString() : "Not yet enacted"
                             );
                     }
-                    RespondRaw($"<!DOCTYPE html><html><head></head><body>{table}</body></html>", 200);
+                    await RespondRaw($"<!DOCTYPE html><html><head></head><body>{table}</body></html>", 200);
                 }
                 else
                 {
@@ -50,7 +51,7 @@ namespace DiscordBot.MLAPI.Modules
                 return;
             }
             var page = LegislationService.PageForAct(act, raw);
-            RespondRaw(ReplaceMatches(page, new Replacements()), HttpStatusCode.OK);
+            await RespondRaw(page);
         }
     }
 }

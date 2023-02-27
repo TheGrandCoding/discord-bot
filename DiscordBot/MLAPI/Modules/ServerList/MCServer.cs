@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Net;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace DiscordBot.MLAPI.Modules.ServerList
 {
@@ -13,32 +14,32 @@ namespace DiscordBot.MLAPI.Modules.ServerList
 
         public static string Saved = "";
         [Method("GET"), Path("/mc/hamIp")]
-        public void GetDetails()
+        public async Task GetDetails()
         {
             if(string.IsNullOrWhiteSpace(Saved))
             {
-                RespondRaw("", 204);
+                await RespondRaw("", 204);
             } else
             {
-                RespondRaw(Saved, 200);
+                await RespondRaw(Saved, 200);
             }
         }
 
         [Method("GET"), Path("/mc/sethamIp")]
-        public void PostDetails(string ip, string port)
+        public async Task PostDetails(string ip, string port)
         {
             if(!IPAddress.TryParse(ip, out _))
             {
-                RespondRaw("Bad IP", 400);
+                await RespondRaw("Bad IP", 400);
                 return;
             }
             if(!int.TryParse(port, out _))
             {
-                RespondRaw("Bad port", 400);
+                await RespondRaw("Bad port", 400);
                 return;
             }
             Saved = $"{ip}:{port}";
-            RespondRaw("", 200);
+            await RespondRaw("", 200);
         }
     }
 }

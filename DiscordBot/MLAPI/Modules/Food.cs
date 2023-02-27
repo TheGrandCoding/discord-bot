@@ -11,6 +11,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace DiscordBot.MLAPI.Modules
 {
@@ -299,7 +300,7 @@ namespace DiscordBot.MLAPI.Modules
         [Method("GET"), Path("/food")]
         [RequireApproval(false)]
         [RequireAuthentication(false, false)]
-        public void Base(bool grouped = false, bool full = false)
+        public async Task Base(bool grouped = false, bool full = false)
         {
             var s = grouped
                 ? getGroupedInfo(full)
@@ -325,30 +326,30 @@ namespace DiscordBot.MLAPI.Modules
                 links += new Anchor("/food/recipes", "View recipes");
             }
 
-            ReplyFile("base.html", 200, new Replacements()
+            await ReplyFile("base.html", 200, new Replacements()
                 .Add("inventoryid", "default")
                 .Add("table", s)
                 .Add("links", links));
         }
 
         [Method("GET"), Path("/food/scan")]
-        public void Scan()
+        public async Task Scan()
         {
-            ReplyFile("scan.html", 200);
+            await ReplyFile("scan.html", 200);
         }
 
         [Method("GET"), Path("/food/enter")]
-        public void Enter()
+        public async Task Enter()
         {
-            ReplyFile("enter.html", 200);
+            await ReplyFile("enter.html", 200);
         }
 
         [Method("GET"), Path("/food/new")]
-        public void NewFood(string code = null, string redirect = null)
+        public async Task NewFood(string code = null, string redirect = null)
         {
             if(code == null)
             {
-                ReplyFile("new_product.html", 200, new Replacements()
+                await ReplyFile("new_product.html", 200, new Replacements()
                     .Add("code", "")
                     .Add("redirect", redirect));
                 return;
@@ -368,7 +369,7 @@ namespace DiscordBot.MLAPI.Modules
                 {
                     manufs = "";
                 }
-                ReplyFile("new_product.html", 200, new Replacements()
+                await ReplyFile("new_product.html", 200, new Replacements()
                     .Add("code", formatProductId(code))
                     .Add("redirect", redirect)
                     .Add("manu", manufs));
@@ -428,7 +429,7 @@ namespace DiscordBot.MLAPI.Modules
                     tableStr = table.ToString(true);
                 }
 
-                ReplyFile("new_inventory.html", 200, new Replacements()
+                await ReplyFile("new_inventory.html", 200, new Replacements()
                     .Add("prodId", formatProductId(code))
                     .Add("prodName", getProductInfo(item, 0))
                     .Add("redirect", redirect)
@@ -440,10 +441,10 @@ namespace DiscordBot.MLAPI.Modules
         [Method("GET"), Path("/food/calendar")]
         [RequireApproval(false)]
         [RequireAuthentication(false, false)]
-        public void Calendar()
+        public async Task Calendar()
         {
             InjectObjects = new List<Classes.HTMLHelpers.HTMLBase>();
-            ReplyFile("calendar.html", 200);
+            await ReplyFile("calendar.html", 200);
         }
 
         static CacheDictionary<string, Product> productCache = new();
@@ -494,7 +495,7 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("GET"), Path("/food/recipes")]
-        public void ViewRecipes()
+        public async Task ViewRecipes()
         {
             var table = new Table()
             {
@@ -598,54 +599,54 @@ namespace DiscordBot.MLAPI.Modules
             }
             var str = Service.OngoingRecipes.Count > 0 ? ongoing.ToString() : "";
 
-            ReplyFile("recipe.html", 200, new Replacements().Add("table", table).Add("ongoing", str));
+            await ReplyFile("recipe.html", 200, new Replacements().Add("table", table).Add("ongoing", str));
         }
         
         [Method("GET"), Path("/food/add-recipe")]
-        public void NewRecipe(int? modifyId = null)
+        public async Task NewRecipe(int? modifyId = null)
         {
-            ReplyFile("new_recipe.html", 200, new Replacements().Add("modifying", modifyId));
+            await ReplyFile("new_recipe.html", 200, new Replacements().Add("modifying", modifyId));
         }
         
         [Method("GET"), Path("/food/ongoing-recipe")]
-        public void ViewOngoingRecipe(int id)
+        public async Task ViewOngoingRecipe(int id)
         {
             if(!Service.OngoingRecipes.TryGetValue(id, out var _))
             { // no recipe
-                RespondRaw(LoadRedirectFile("/food/recipes"), System.Net.HttpStatusCode.Found);
+                await RespondRedirect("/food/recipes");
             } else
             {
-                ReplyFile("new_ongoing.html", 200, new Replacements().Add("id", id));
+                await ReplyFile("new_ongoing.html", 200, new Replacements().Add("id", id));
             }
         }
 
         [Method("GET"), Path("test-recipe")]
-        public void ViewTestRecipe()
+        public async Task ViewTestRecipe()
         {
-            ReplyFile("new_ongoing.html", 200);
+            await ReplyFile("new_ongoing.html", 200);
         }
 
         [Method("GET"), Path("/food/ongoing-any")]
-        public void ViewFirstOngoing()
+        public async Task ViewFirstOngoing()
         {
             if(Service.OngoingRecipes.Count > 0)
             {
-                RespondRaw(LoadRedirectFile($"/food/ongoing-recipe?id={Service.OngoingRecipes.First().Key}"), System.Net.HttpStatusCode.Found);
+                await RespondRedirect($"/food/ongoing-recipe?id={Service.OngoingRecipes.First().Key}");
                 return;
             } else
             {
-                ReplyFile("pending.html", 200);
+                await ReplyFile("pending.html", 200);
             }
         }
 
         [Method("GET"), Path("/food/next")]
-        public void ViewFutures()
+        public async Task ViewFutures()
         {
-            ReplyFile("next.html", 200);
+            await ReplyFile("next.html", 200);
         }
 
         [Method("GET"), Path("/food/products")]
-        public void ViewProducts()
+        public async Task ViewProducts()
         {
             var table = new Table()
                 .WithHeaderColumn("Id")
@@ -655,7 +656,7 @@ namespace DiscordBot.MLAPI.Modules
             {
                 table.WithRow(new Anchor($"/food/new?code={prod.Id}&redirect=enter", prod.Id), prod.Name, Service.GetManufacturor(prod.Id) ?? "");
             }
-            ReplyFile("products.html", 200, new Replacements().Add("table", table));
+            await ReplyFile("products.html", 200, new Replacements().Add("table", table));
         }
 
         int itemN = 0;
@@ -688,7 +689,7 @@ namespace DiscordBot.MLAPI.Modules
             return div;
         }
 
-        void viewMenuActual(bool edit)
+        async Task viewMenuActual(bool edit)
         {
             var table = new Table();
             var replacements = new Replacements();
@@ -802,27 +803,27 @@ namespace DiscordBot.MLAPI.Modules
             }
             replacements.Add("edit", edit ? "true" : "");
 
-            ReplyFile("menu.html", 200, replacements.Add("table", table.ToString(true)));
+            await ReplyFile("menu.html", 200, replacements.Add("table", table.ToString(true)));
         }
 
         [Method("GET"), Path("/food/menu")]
-        public void ViewCurrentMenu()
+        public async Task ViewCurrentMenu()
         {
-            viewMenuActual(true);
+            await viewMenuActual(true);
         }
 
         [Method("GET"), Path("/food/menu/readonly")]
         [RequireAuthentication(false)]
         [RequireApproval(false)]
-        public void ViewCurrentMenuReadonly()
+        public async Task ViewCurrentMenuReadonly()
         {
-            viewMenuActual(false);
+            await viewMenuActual(false);
         }
 
         [Method("GET"), Path("/food/menu/new")]
-        public void ViewNewMenu(int? overwrite = null)
+        public async Task ViewNewMenu(int? overwrite = null)
         {
-            ReplyFile("new_menu.html", 200, 
+            await ReplyFile("new_menu.html", 200, 
                 new Replacements()
                 .Add("modify", overwrite.HasValue ? overwrite.Value.ToString() : ""));
         }
@@ -834,11 +835,11 @@ namespace DiscordBot.MLAPI.Modules
         [Method("POST"), Path("/api/food/scanned")]
         [RequireApproval(false)]
         [RequireAuthentication(false)]
-        public void APIScannedCode(string code, string token)
+        public async Task APIScannedCode(string code, string token)
         {
             if(token != Program.Configuration["tokens:foodnotify"])
             {
-                RespondRaw($"Token '{token}' is not authorised", System.Net.HttpStatusCode.Unauthorized);
+                await RespondRaw($"Token '{token}' is not authorised", System.Net.HttpStatusCode.Unauthorized);
                 return;
             }
             bool any = false;
@@ -862,10 +863,10 @@ namespace DiscordBot.MLAPI.Modules
             }
             if(any)
             {
-                RespondRaw("Redirected user.", 200);
+                await RespondRaw("Redirected user.", 200);
             } else
             {
-                RespondRaw("Notified user", 200);
+                await RespondRaw("Notified user", 200);
                 Service.NotifyScannedProduct(code).Wait();
             }
         }
@@ -956,7 +957,7 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("GET"), Path("/api/food/future")]
-        public void APIFutures(DateTime date, DateTime prev)
+        public async Task APIFutures(DateTime date, DateTime prev)
         {
             var inventory = Service.GetInventoryItems("default");
 
@@ -1090,14 +1091,14 @@ namespace DiscordBot.MLAPI.Modules
             }
             body["products"] = thing;
 
-            RespondJson(body);
+            await RespondJson(body);
         }
 
 
         [Method("GET"), Path("/api/food/calendar")]
         [RequireApproval(false)]
         [RequireAuthentication(false, false)]
-        public void APIGetWeek(DateTime start, DateTime end)
+        public async Task APIGetWeek(DateTime start, DateTime end)
         {
             start = start.ToUniversalTime();
             end = end.ToUniversalTime();
@@ -1121,12 +1122,12 @@ namespace DiscordBot.MLAPI.Modules
                     jobj["manu"] = man;
                 jarray.Add(jobj);
             }
-            RespondJson(jarray);
+            await RespondJson(jarray);
         }
 
 
         [Method("POST"), Path("/api/food/products")]
-        public void NewProduct(string redirect, string productId, string productName, int extends, int uses)
+        public async Task NewProduct(string redirect, string productId, string productName, int extends, int uses)
         {
             var _error = APIErrorResponse.InvalidFormBody();
             if(redirect != "enter" && redirect != "scan")
@@ -1159,14 +1160,14 @@ namespace DiscordBot.MLAPI.Modules
             if (extends > 0)
                 e = extends;
             var p = Service.AddProduct(productId, productName, "", e, uses, "");
-            RespondRaw(LoadRedirectFile($"/food/new?code={productId}&redirect={redirect}"), System.Net.HttpStatusCode.Found);
+            await RespondRedirect($"/food/new?code={productId}&redirect={redirect}");
         }
         [Method("POST"),   Path("/api/food/inventory")]
-        public void NewInventory(string redirect, string productId, string expires, string frozen = "off")
+        public async Task NewInventory(string redirect, string productId, string expires, string frozen = "off")
         {
             if (redirect != "enter" && redirect != "scan")
             {
-                RespondRaw("", 400);
+                await RespondRaw("", 400);
                 return;
             }
             productId = productId.Replace(" ", "");
@@ -1176,11 +1177,11 @@ namespace DiscordBot.MLAPI.Modules
                                     int.Parse(split[2]), 0, 0, 0, DateTimeKind.Utc);
 
             Service.AddInventoryItem(productId, FoodService.DefaultInventoryId, date, frozen == "on");
-            RespondRaw(LoadRedirectFile($"/food/{redirect}"), System.Net.HttpStatusCode.Found);
+            await RespondRedirect($"/food/{redirect}");
         }
 
         [Method("DELETE"), Path("/api/food/inventory")]
-        public void DeleteInventoryUses(int invId, int? uses = null)
+        public async Task DeleteInventoryUses(int invId, int? uses = null)
         {
             if(!uses.HasValue)
             {
@@ -1189,15 +1190,15 @@ namespace DiscordBot.MLAPI.Modules
             }
             if(Service.AddUsesInventoryItem(invId, uses.Value, DateTime.UtcNow))
             {
-                RespondRaw("", 200);
+                await RespondRaw("", 200);
             } else
             {
-                RespondRaw("", 404);
+                await RespondRaw("", 404);
             }
         }
 
         [Method("POST"), Path("/api/food/query")]
-        public void SearchInventory(string query, string sort = null)
+        public async Task SearchInventory(string query, string sort = null)
         {
             var items = new List<InventoryItem>();
             using (var db = Service.DB())
@@ -1218,26 +1219,26 @@ namespace DiscordBot.MLAPI.Modules
             }
             foreach(var inv in selected)
                 jarr.Add(inv.ToJson(true, Service));
-            RespondJson(jarr);
+            await RespondJson(jarr);
         }
 
         [Method("PATCH"), Path("/api/food/inventory")]
-        public void EditInventory(int invId, bool frozen)
+        public async Task EditInventory(int invId, bool frozen)
         {
             using var db = Service.DB();
             var entity = db.Inventory.Find(invId);
             if (entity == null)
             {
-                RespondRaw("", 404);
+                await RespondRaw("", 404);
                 return;
             }
             entity.Frozen = frozen;
             db.SaveChanges();
-            RespondRaw("", 200);
+            await RespondRaw("", 200);
         }
 
         [Method("GET"), Path("/api/food/product")]
-        public void SearchProducts(string query)
+        public async Task SearchProducts(string query)
         {
             List<Product> products;
             using (var db = Service.DB())
@@ -1248,7 +1249,7 @@ namespace DiscordBot.MLAPI.Modules
 
             if(products.Count == 0)
             {
-                RespondRaw("[]", 400);
+                await RespondRaw("[]", 400);
                 return;
             }
 
@@ -1256,7 +1257,7 @@ namespace DiscordBot.MLAPI.Modules
             {
                 jarray.Add(prod.ToJson());
             }
-            RespondJson(jarray);
+            await RespondJson(jarray);
         }
 
         SavedStep parseStep(JObject obj)
@@ -1279,7 +1280,7 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("POST"), Path("/api/food/recipes")]
-        public void AddRecipe(int? overwrite = null)
+        public async Task AddRecipe(int? overwrite = null)
         {
             var jobj = JObject.Parse(Context.Body);
             var recipe = new SavedRecipe(overwrite.GetValueOrDefault(-1));
@@ -1396,23 +1397,23 @@ namespace DiscordBot.MLAPI.Modules
             Service.Recipes.Add(recipe);
             Service.OnSave();
 
-            RespondRaw("OK");
+            await RespondRaw("OK");
         }
 
         [Method("DELETE"), Path("/api/food/recipe")]
-        public void DeleteRecipe(int id)
+        public async Task DeleteRecipe(int id)
         {
             Service.DeleteRecipe(id);
-            RespondRaw("OK", 200);
+            await RespondRaw("OK", 200);
         }
 
         [Method("GET"), Path("/api/food/recipe")]
-        public void GetRecipe(int id)
+        public async Task GetRecipe(int id)
         {
             var recipe = Service.Recipes.FirstOrDefault(x => x.Id == id);
             if(recipe == null)
             {
-                RespondRaw("", 404);
+                await RespondRaw("", 404);
                 return;
             }
             var jobj = new JObject();
@@ -1457,22 +1458,22 @@ namespace DiscordBot.MLAPI.Modules
             }
             jobj["ingredients"] = ingredients;
 
-            RespondJson(jobj);
+            await RespondJson(jobj);
         }
 
         [Method("PUT"), Path("/api/food/recipes")]
-        public void StartRecipe()
+        public async Task StartRecipe()
         {
             var dict = Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<int, int>>(Context.Body);
             var recipes = dict.Keys.Select(x => Service.Recipes.FirstOrDefault(r => r.Id == x)).ToList();
             if(recipes.Any(x => x == null))
             {
-                RespondRaw("A recipe is null", 400);
+                await RespondRaw("A recipe is null", 400);
                 return;
             }
             if(recipes.Count == 0)
             {
-                RespondRaw("No recipes selected", 400);
+                await RespondRaw("No recipes selected", 400);
                 return;
             }
 
@@ -1511,12 +1512,12 @@ namespace DiscordBot.MLAPI.Modules
             {
                 working = Service.ToWorkingRecipe(confirmedRecipes, dict);
             }
-            RespondRaw($"{working.Id}", 203);
+            await RespondRaw($"{working.Id}", 203);
         }
 
 
         [Method("POST"), Path("/api/food/menus")]
-        public void AddMenu(int? modify = null)
+        public async Task AddMenu(int? modify = null)
         {
             var body = JObject.Parse(Context.Body);
             var errorMaker = APIErrorResponse.InvalidFormBody();
@@ -1619,36 +1620,36 @@ namespace DiscordBot.MLAPI.Modules
                 menu.Id = modify.Value;
             Service.Menus[menu.Id] = menu;
             Service.OnSave();
-            RespondRaw("{}", 200);
+            await RespondRaw("{}", 200);
         }
 
         [Method("POST"), Path("/api/food/menu")]
-        public void SelectMenu(int id)
+        public async Task SelectMenu(int id)
         {
             if(Service.WorkingMenu != null)
             {
-                RespondRaw("Cannot overwrite current menu", 400);
+                await RespondRaw("Cannot overwrite current menu", 400);
                 return;
             }
             if(!Service.Menus.TryGetValue(id, out var menu))
             {
-                RespondRaw("Menu does not exist", 400);
+                await RespondRaw("Menu does not exist", 400);
                 return;
             }
             menu.Fulfill(Service, FoodService.DefaultInventoryId, DateTime.UtcNow.NextDay(DayOfWeek.Monday).Date, true);
             Service.OnSave();
-            RespondRaw("Ok", 200);
+            await RespondRaw("Ok", 200);
         }
 
         [Method("GET"), Path("/api/food/menu")]
-        public void ApiGetMenu(int id)
+        public async Task ApiGetMenu(int id)
         {
             if(!Service.Menus.TryGetValue(id, out var menu))
             {
-                RespondRaw("null", 404);
+                await RespondRaw("null", 404);
                 return;
             }
-            RespondJson(menu.ToJson());
+            await RespondJson(menu.ToJson());
         }
 
         struct moveData
@@ -1662,11 +1663,11 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("POST"), Path("/api/food/menu/shared")]
-        public void MenuToggleShare(int day)
+        public async Task MenuToggleShare(int day)
         {
             if (Service.WorkingMenu == null)
             {
-                RespondRaw("No current menu", 400);
+                await RespondRaw("No current menu", 400);
                 return;
             }
             var d = Service.WorkingMenu.Days.ElementAtOrDefault(day);
@@ -1686,15 +1687,15 @@ namespace DiscordBot.MLAPI.Modules
             }
             d.ManualOverride = true;
             Service.OnSave();
-            RespondRaw("", 200);
+            await RespondRaw("", 200);
         }
 
         [Method("POST"), Path("/api/food/menu/move")]
-        public void MoveMenuItem()
+        public async Task MoveMenuItem()
         {
             if(Service.WorkingMenu == null)
             {
-                RespondRaw("No current menu", 400);
+                await RespondRaw("No current menu", 400);
                 return;
             }
             var data = JsonConvert.DeserializeObject<moveData>(Context.Body);
@@ -1722,39 +1723,39 @@ namespace DiscordBot.MLAPI.Modules
 
             toD.Items.AddInner(data.ToGroup, item);
             Service.OnSave();
-            RespondRaw("OK");
+            await RespondRaw("OK");
         }
 
         [Method("PATCH"), Path("/api/food/menu/manual")]
-        public void SetMenuDayManual(int day, bool manual)
+        public async Task SetMenuDayManual(int day, bool manual)
         {
             var d = Service.WorkingMenu.Days[day];
             d.ManualOverride = manual;
             Service.OnSave();
-            RespondRaw("OK");
+            await RespondRaw("OK");
         }
     
         [Method("DELETE"), Path("/api/food/menu/item")]
-        public void DeleteMenuItem(string group, int day, int id)
+        public async Task DeleteMenuItem(string group, int day, int id)
         {
             if (Service.WorkingMenu == null)
             {
-                RespondRaw("No current menu", 400);
+                await RespondRaw("No current menu", 400);
                 return;
             }
             var mDay = Service.WorkingMenu.Days[day];
             var mGroup = mDay.Items[group];
             mGroup.RemoveAll(x => x?.Item?.Id == id);
             Service.OnSave();
-            RespondRaw("OK");
+            await RespondRaw("OK");
         }
 
         [Method("PATCH"), Path("/api/food/menu/item")]
-        public void EditMenuItem(string group, int day, int id, int uses)
+        public async Task EditMenuItem(string group, int day, int id, int uses)
         {
             if (Service.WorkingMenu == null)
             {
-                RespondRaw("No current menu", 400);
+                await RespondRaw("No current menu", 400);
                 return;
             }
             if(uses < 1)
@@ -1772,7 +1773,7 @@ namespace DiscordBot.MLAPI.Modules
             }
             item.Uses = uses;
             Service.OnSave();
-            RespondRaw("OK");
+            await RespondRaw("OK");
         }
 
     }

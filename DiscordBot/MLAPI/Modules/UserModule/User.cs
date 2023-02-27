@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace DiscordBot.MLAPI.Modules.UserModule
 {
@@ -21,9 +22,9 @@ namespace DiscordBot.MLAPI.Modules.UserModule
         }
 
         [Path("/user"), Method("GET")]
-        public void MainPage()
+        public async Task MainPage()
         {
-            ReplyFile("base.html", 200);
+            await ReplyFile("base.html", 200);
         }
 
         #region Nicks
@@ -102,22 +103,22 @@ namespace DiscordBot.MLAPI.Modules.UserModule
         }
 
         [Path("/user/nicknames"), Method("GET")]
-        public void NicknamePage()
+        public async Task NicknamePage()
         {
             var nicks = getTableNicknames();
             var other = getOtherNicknames();
-            ReplyFile("nicknames.html", 200, new Replacements()
+            await ReplyFile("nicknames.html", 200, new Replacements()
                 .Add("table_nicks", nicks)
                 .Add("table_other_nicks", other));
         }
 
         [Path("/user/nickchange"), Method("PATCH")]
-        public void ChangeUserNickname(ulong guildId, ulong userId, string newnick = "")
+        public async Task ChangeUserNickname(ulong guildId, ulong userId, string newnick = "")
         {
             var guild = Program.Client.GetGuild(guildId);
             if (guild == null)
             {
-                RespondRaw("Unknown server", 404);
+                await RespondRaw("Unknown server", 404);
             }
             else
             {
@@ -125,19 +126,19 @@ namespace DiscordBot.MLAPI.Modules.UserModule
                 var target = guild.GetUser(userId);
                 if (usrInGuild == null || target == null)
                 {
-                    RespondRaw("Not in that guild", 404);
+                    await RespondRaw("Not in that guild", 404);
                 }
                 else
                 {
                     if (!canChangeNickname(usrInGuild, target))
                     {
-                        RespondRaw("You are unable to change their nickname", 403);
+                        await RespondRaw("You are unable to change their nickname", 403);
                         return;
                     }
                     var BotDbUser = guild.CurrentUser;
                     if (BotDbUser.Hierarchy < target.Hierarchy)
                     {
-                        RespondRaw("Bot is unable to modify that user (no perms)", 500);
+                        await RespondRaw("Bot is unable to modify that user (no perms)", 500);
                         return;
                     }
                     try
@@ -146,12 +147,12 @@ namespace DiscordBot.MLAPI.Modules.UserModule
                         {
                             x.Nickname = newnick;
                         }, new Discord.RequestOptions() { AuditLogReason = $"via API: {Context.User.Id}" }).GetAwaiter().GetResult();
-                        RespondRaw("Success");
+                        await RespondRaw("Success");
                     }
                     catch (Discord.Net.HttpException ex)
                     {
                         Program.LogError(ex, "REST");
-                        RespondRaw(ex.Message, (int)ex.HttpCode);
+                        await RespondRaw(ex.Message, (int)ex.HttpCode);
                     }
                 }
             }
@@ -167,7 +168,7 @@ namespace DiscordBot.MLAPI.Modules.UserModule
         }
 
         [Path("/user/tokens"), Method("GET")]
-        public void TokenPage()
+        public async Task TokenPage()
         {
             var tokenTable = "";
             foreach (var token in Context.User.AuthTokens)
@@ -178,56 +179,48 @@ namespace DiscordBot.MLAPI.Modules.UserModule
                 tokenTable += ROW + "</tr>";
             }
 
-            ReplyFile("token.html", 200, new Replacements().Add("tokentable", tokenTable));
+            await ReplyFile("token.html", 200, new Replacements().Add("tokentable", tokenTable));
         }
 
         [Path("/user/tokens/remove"), Method("PUT")]
-        public void RemoveToken(string name)
+        public async Task RemoveToken(string name)
         {
             var token = GetToken(name);
             if (token == null)
             {
-                RespondRaw("Unknown token", 404);
+                await RespondRaw("Unknown token", 404);
                 return;
             }
 
             Context.User.AuthTokens.Remove(token);
-            Context.BotDB.SaveChanges();
-            RespondRaw("Token has been removed", 200);
+            await RespondRaw("Token has been removed", 200);
         }
 
         [Path("/user/tokens"), Method("PUT")]
-        public void NewToken(string name)
+        public async Task NewToken(string name)
         {
             if (name.Contains(" "))
             {
-                RespondRaw("Names cannot contain spaces", 400);
+                await RespondRaw("Names cannot contain spaces", 400);
                 return;
             }
 
             var token = GetToken(name);
-            try
+            if (token == null)
             {
-                if (token == null)
+                token = new BotDbAuthToken()
                 {
-                    token = new BotDbAuthToken()
-                    {
-                        Name = name,
-                        UserId = Context.User.Id,
-                        User = Context.User,
-                        Token = PasswordHash.RandomToken(16)
-                    };
-                    Context.User.AuthTokens.Add(token);
-                    RespondRaw("Token generated and added");
-                    return;
-                } 
-                token.Token = PasswordHash.RandomToken(token.Token.Length);
-            }
-            finally
-            {
-                Context.BotDB.SaveChanges();
-            }
-            RespondRaw("Token regenerated");
+                    Name = name,
+                    UserId = Context.User.Id,
+                    User = Context.User,
+                    Token = PasswordHash.RandomToken(16)
+                };
+                Context.User.AuthTokens.Add(token);
+                await RespondRaw("Token generated and added");
+                return;
+            } 
+            token.Token = PasswordHash.RandomToken(token.Token.Length);
+            await RespondRaw("Token regenerated");
         }
         #endregion
     }

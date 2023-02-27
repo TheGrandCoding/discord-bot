@@ -21,7 +21,7 @@ namespace DiscordBot.MLAPI.Modules
         public FilterListService Service { get; set; }
 
         [Method("GET"), Path("/filters")]
-        public void ListFilters()
+        public async Task ListFilters()
         {
             var folder = Service.GetDirectory(Context.User.Id);
 
@@ -37,15 +37,15 @@ namespace DiscordBot.MLAPI.Modules
             na.RawText = "[Add new]";
             ul.AddItem(new ListItem() { Children = { na } });
 
-            ReplyFile("list.html", 200, new Replacements().Add("list", ul));
+            await ReplyFile("list.html", 200, new Replacements().Add("list", ul));
         }
 
         [Method("POST"), Path("/filters/new")]
-        public void NewFilter()
+        public async Task NewFilter()
         {
             if(!Service.TryCreateNew(Context.User.Id, out var id, out var fs))
             {
-                RespondRaw("Failed", 400);
+                await RespondRaw("Failed", 400);
                 return;
             }
             try
@@ -55,26 +55,26 @@ namespace DiscordBot.MLAPI.Modules
             {
                 fs.Close();
             }
-            RespondRedirect($"/filters/{id}");
+            await RespondRedirect($"/filters/{id}");
         }
 
         [Method("GET"), Path("/filters/{filterId}")]
         [Regex("filterId", FilterIdRegex)]
-        public void EditFilter(string filterId)
+        public async Task EditFilter(string filterId)
         {
-            ReplyFile("edit.html", 200);
+            await ReplyFile("edit.html", 200);
         }
 
         [Method("DELETE"), Path("/filters/{filterId}")]
         [Regex("filterId", FilterIdRegex)]
-        public void DeleteFilter(string filterId)
+        public async Task DeleteFilter(string filterId)
         {
             if(Service.TryDelete(Context.User.Id, filterId))
             {
-                RespondRedirect("/filters");
+                await RespondRedirect("/filters");
             } else
             {
-                RespondRaw("Failed to delete", 500);
+                await RespondRaw("Failed to delete", 500);
             }
         }
 
@@ -83,11 +83,11 @@ namespace DiscordBot.MLAPI.Modules
         [RequireNoExcessQuery(false)]
         [RequireAuthentication(false)]
         [RequireApproval(false)]
-        public void FetchRaw(string filterId)
+        public async Task FetchRaw(string filterId)
         {
             if(!Service.TryOpenRead(filterId, out var fs))
             {
-                RespondRaw("No filter exists by that ID", 404);
+                await RespondRaw("No filter exists by that ID", 404);
                 return;
             }
             try
@@ -101,11 +101,11 @@ namespace DiscordBot.MLAPI.Modules
 
         [Method("POST"), Path("/filters-raw/{filterId}")]
         [Regex("filterId", FilterIdRegex)]
-        public void UploadRaw(string filterId, bool append = false)
+        public async Task UploadRaw(string filterId, bool append = false)
         {
             if(!Service.TryOpenWrite(Context.User.Id, filterId, out var fs))
             {
-                RespondRaw("No filter exists by that ID or could not open file", 404);
+                await RespondRaw("No filter exists by that ID or could not open file", 404);
                 return;
             }
             try
@@ -117,7 +117,7 @@ namespace DiscordBot.MLAPI.Modules
             {
                 fs.Close();
             }
-            RespondRaw("OK");
+            await RespondRaw("OK");
         }
     }
 }
