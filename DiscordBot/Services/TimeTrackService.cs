@@ -53,23 +53,11 @@ namespace DiscordBot.Services
     }
 
 
-    public class TimeTrackFactory : IDesignTimeDbContextFactory<TimeTrackDb>
-    {
-        public TimeTrackDb CreateDbContext(string[] args)
-        {
-            var builder = new DbContextOptionsBuilder<TimeTrackDb>();
-            builder.UseSqlServer("Server=(localdb)\\mssqllocaldb;Database=watch;MultipleActiveResultSets=true");
-            builder.EnableSensitiveDataLogging();
-            return new TimeTrackDb(builder.Options);
-        }
-    }
     public class TimeTrackDb : DbContext
     {
-        public TimeTrackDb(DbContextOptions<TimeTrackDb> options) : base(options)
-        {
-        }
         protected override void OnConfiguring(DbContextOptionsBuilder options)
         {
+            Console.WriteLine($"Null: {options == null}");
             options.WithSQLConnection("watch");
         }
 
@@ -132,7 +120,7 @@ namespace DiscordBot.Services
         public DbSet<RedditData> Threads { get; set; }
         public DbSet<IgnoreData> Ignores { get; set; }
 
-        public void AddVideo(ulong user, string id, double time)
+        public void AddVideo(uint user, string id, double time)
         {
             var vid = new VideoData()
             {
@@ -141,7 +129,7 @@ namespace DiscordBot.Services
                 WatchedTime = time,
                 LastUpdated = DateTime.Now
             };
-            var existing = WatchTimes.Find(vid._userId, vid.VideoId);
+            var existing = WatchTimes.Find(vid.UserId, vid.VideoId);
             if (existing == null)
             {
                 WatchTimes.Add(vid);
@@ -153,7 +141,7 @@ namespace DiscordBot.Services
                 WatchTimes.Update(existing);
             }
         }
-        public void AddThread(ulong user, string id, int comments)
+        public void AddThread(uint user, string id, int comments)
         {
             var rtd = new RedditData()
             {
@@ -164,7 +152,7 @@ namespace DiscordBot.Services
             };
             Threads.Add(rtd);
         }
-        public void AddIgnored(ulong user, string id, bool isIgnored)
+        public void AddIgnored(uint user, string id, bool isIgnored)
         {
             var ignore = new IgnoreData()
             {
@@ -175,7 +163,7 @@ namespace DiscordBot.Services
             {
 
                 // we're removing it
-                var existing = Ignores.Find(ignore._userId, ignore.VideoId);
+                var existing = Ignores.Find(ignore.UserId, ignore.VideoId);
                 if (existing == null)
                     return;
                 Ignores.Remove(existing);
@@ -185,31 +173,28 @@ namespace DiscordBot.Services
         }
 
 
-        public VideoData GetVideo(ulong user, string video)
+        public VideoData GetVideo(uint user, string video)
         {
-            unchecked
-            {
-                var v = WatchTimes.FirstOrDefault(x => x._userId == (long)user && x.VideoId == video);
-                return v;
-            }
+            var v = WatchTimes.FirstOrDefault(x => x.UserId == user && x.VideoId == video);
+            return v;
         }
-        public RedditData[] GetThread(ulong user, string thread)
+        public RedditData[] GetThread(uint user, string thread)
         {
             unchecked
             {
                 var v = Threads
                     .AsAsyncEnumerable()
-                    .Where(x => x._userId == (long)user && x.ThreadId == thread)
+                    .Where(x => x.UserId == user && x.ThreadId == thread)
                     .OrderBy(x => x.LastUpdated)
                     .ToArrayAsync();
                 return v.Result;
             }
         }
-        public IgnoreData[] GetIgnoreDatas(ulong user)
+        public IgnoreData[] GetIgnoreDatas(uint user)
         {
             unchecked
             {
-                var x = Ignores.AsAsyncEnumerable().Where(x => x._userId == (long)user).ToArrayAsync().Result;
+                var x = Ignores.AsAsyncEnumerable().Where(x => x.UserId == user).ToArrayAsync().Result;
                 return x;
             }
         }
@@ -219,51 +204,24 @@ namespace DiscordBot.Services
             modelBuilder.HasCharSet("utf8mb4");
 
             modelBuilder.Entity<VideoData>()
-                .HasKey(x => new { x._userId, x.VideoId });
+                .HasKey(x => new { x.UserId, x.VideoId });
             modelBuilder.Entity<RedditData>()
-                .HasKey(x => new { x._userId, x.ThreadId, x.LastUpdated });
+                .HasKey(x => new { x.UserId, x.ThreadId, x.LastUpdated });
             modelBuilder.Entity<IgnoreData>()
-                .HasKey(x => new { x._userId, x.VideoId });
+                .HasKey(x => new { x.UserId, x.VideoId });
 
         }
     }
 
     public class IgnoreData
     {
-        public long _userId
-        {
-            get
-            {
-                unchecked { return (long)UserId; }
-            }
-            set
-            {
-                unchecked { UserId = (ulong)value; }
-            }
-        }
-
-        [NotMapped]
-        public ulong UserId { get; set; }
-
+        public uint UserId { get; set; }
         public string VideoId { get; set; }
     }
 
     public class VideoData
     {
-        public long _userId
-        {
-            get
-            {
-                unchecked { return (long)UserId; }
-            }
-            set
-            {
-                unchecked { UserId = (ulong)value; }
-            }
-        }
-
-        [NotMapped]
-        public ulong UserId { get; set; }
+        public uint UserId { get; set; }
 
         public string VideoId { get; set; }
 
@@ -274,20 +232,7 @@ namespace DiscordBot.Services
 
     public class RedditData
     {
-        public long _userId
-        {
-            get
-            {
-                unchecked { return (long)UserId; }
-            }
-            set
-            {
-                unchecked { UserId = (ulong)value; }
-            }
-        }
-
-        [NotMapped]
-        public ulong UserId { get; set; }
+        public uint UserId { get; set; }
 
         public string ThreadId { get; set; }
 

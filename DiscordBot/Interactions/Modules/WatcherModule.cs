@@ -79,7 +79,7 @@ namespace DiscordBot.Interactions.Modules
         {
             await RespondAsync("Searching...", ephemeral: true);
             using var db = Program.Services.GetRequiredService<TimeTrackDb>();
-            var video = db.GetVideo(Context.User.Id, code);
+            var video = db.GetVideo(User.Id, code);
             if(video == null)
             {
                 await ModifyOriginalResponseAsync(x => x.Content = $"Video of ID {code} does not exist in the database.");

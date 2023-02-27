@@ -122,7 +122,7 @@ Changed how permissions worked for bot.
 
         public static CancellationToken GetToken() => endToken.Token;
 
-        static void buildConfig()
+        public static void buildConfig()
         {
             var builder = new ConfigurationBuilder();
             builder.SetBasePath(BASE_PATH);
