@@ -53,7 +53,7 @@ namespace DiscordBot.Utils
             if (remoteConnection)
             {
                 options.UseMySql(connStr,
-                    new MariaDbServerVersion(new Version(10, 3, 25)));
+                    new MariaDbServerVersion(new Version(10, 6, 12)));
             } else
             {
                 options.UseSqlServer(connStr);
