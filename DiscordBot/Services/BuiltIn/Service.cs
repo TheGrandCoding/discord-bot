@@ -269,7 +269,6 @@ namespace DiscordBot.Services
 
             public MethodInfo Method { get; set; }
             public Service Service { get; set; }
-
             public CronSchedule Schedule { get; set; }
 
             public void Invoke(int hour, int minute)
@@ -315,30 +314,45 @@ namespace DiscordBot.Services
 
         static void insertCron(LinkedList<schedueledJobs> queue, schedueledJobs newJob)
         {
-            if(queue.Count == 0)
+            jobsLock.Wait();
+            try
             {
-                queue.AddFirst(newJob);
-                return;
-            }
-            LinkedListNode<schedueledJobs> node = queue.First;
-            do
-            {
-                if(node.Value.Next > newJob.Next)
+                if (queue.Count == 0)
                 {
-                    queue.AddBefore(node, newJob);
+                    queue.AddFirst(newJob);
                     return;
-                } else
-                {
-                    node = node.Next;
                 }
-            } while (node != null);
-            queue.AddLast(newJob);
+                LinkedListNode<schedueledJobs> node = queue.First;
+                do
+                {
+                    if(node.Value.Next > newJob.Next)
+                    {
+                        queue.AddBefore(node, newJob);
+                        return;
+                    } else
+                    {
+                        node = node.Next;
+                    }
+                } while (node != null);
+                queue.AddLast(newJob);
+            }
+            finally
+            {
+                jobsLock.Release();
+            }
         }
         static schedueledJobs pop(LinkedList<schedueledJobs> queue)
         {
-            var x = queue.First;
-            queue.RemoveFirst();
-            return x.Value;
+            jobsLock.Wait();
+            try
+            {
+                var x = queue.First;
+                queue.RemoveFirst();
+                return x.Value;
+            } finally
+            {
+                jobsLock.Release();
+            }
         }
 
         static void handleCronSearch(LinkedList<schedueledJobs> list, Type type, Service srv)
@@ -365,21 +379,21 @@ namespace DiscordBot.Services
             }
         }
 
-        static LinkedList<schedueledJobs> fetchCrons()
+        static void fetchCrons()
         {
-            var list = new LinkedList<schedueledJobs>();
             foreach(var srv in zza_services)
             {
                 var type = srv.GetType();
-                handleCronSearch(list, type, srv);
+                handleCronSearch(currentJobs, type, srv);
             }
-            handleCronSearch(list, typeof(Service), null);
-            return list;
+            handleCronSearch(currentJobs, typeof(Service), null);
         }
 
+        static SemaphoreSlim jobsLock = new(1);
+        static LinkedList<schedueledJobs> currentJobs = new();
         static void thread()
         {
-            var jobs = fetchCrons();
+            fetchCrons();
             var token = Program.GetToken();
             var nfi = (NumberFormatInfo)CultureInfo.InvariantCulture.NumberFormat.Clone();
             nfi.NumberGroupSeparator = " ";
@@ -387,7 +401,7 @@ namespace DiscordBot.Services
             {
                 do
                 {
-                    var nextJob = pop(jobs);
+                    var nextJob = pop(currentJobs);
 
                     var now = DateTime.Now;
                     var then = nextJob.Next;
@@ -400,12 +414,40 @@ namespace DiscordBot.Services
                     }
                     nextJob.Invoke(then.Hour, then.Minute);
                     nextJob.Next = nextJob.Schedule.GetNext(nextJob.Next);
-                    insertCron(jobs, nextJob);
+                    insertCron(currentJobs, nextJob);
                 } while (!token.IsCancellationRequested);
             } catch (OperationCanceledException)
             {
                 Program.LogWarning("DailyTick thread cancalled, exiting.", "DailyTick");
             }
+        }
+
+        protected void schedule(CronSchedule sch, MethodInfo info)
+        {
+            jobsLock.Wait();
+            try
+            {
+                foreach(var x in currentJobs)
+                {
+                    if (x.Method == info)
+                        throw new ArgumentException($"That method is already scheduled");
+                }
+            }
+            finally
+            {
+                jobsLock.Release();
+            }
+            insertCron(currentJobs, new()
+            {
+                Method = info,
+                Schedule = sch,
+                Service = this,
+                Next = sch.GetNext()
+            });
+        }
+        protected void schedule(CronSchedule sch, Action func)
+        {
+            schedule(sch, func.Method);
         }
 
         protected void Info(string message, string source = null) => Program.LogInfo(message, Name + (source == null ? "" : ":" + source));
@@ -522,6 +564,13 @@ namespace DiscordBot.Services
             if (Text == "*") return true;
             if (int.TryParse(Text, out var x))
                 return x == value;
+            if(Text.Contains('/'))
+            {
+                var after = Text.Split('/')[1];
+                if (!int.TryParse(after, out var interval))
+                    throw new ArgumentException($"Cronvalue invalid: '{Text}'");
+                return (value % interval) == 0;
+            }
             if(Text.Contains('-'))
             {
                 var sp = Text.Split('-');

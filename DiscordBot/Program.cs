@@ -178,25 +178,6 @@ Changed how permissions worked for bot.
 
         static void fetchServiceFiles(List<Service> services)
         {
-            var client = Services.GetRequiredService<BotHttpClient>();
-            bool success = false;
-            try
-            {
-                var remote = Configuration["urls:download"];
-                var authPwd = Configuration["tokens:download"];
-                var response = fetchAuthedRequest(string.Format(remote, ""), authPwd);
-                success = response.IsSuccessStatusCode;
-                Program.LogWarning($"{response.StatusCode} {response.ReasonPhrase}", "fetchService");
-            } catch (Exception ex)
-            {
-                Program.LogError(ex, "fetchService");
-                success = false;
-            }
-            if(!success)
-            {
-                Program.LogWarning("Skipping fetching service files as it is not set up.", "fetchService");
-                return;
-            }
 
             // If any new files are present, load them
             var folder = Path.Combine(BASE_PATH, "Saves");
@@ -210,6 +191,26 @@ Changed how permissions worked for bot.
             
             return;
 #endif
+            var client = Services.GetRequiredService<BotHttpClient>();
+            bool success = false;
+            try
+            {
+                var remote = Configuration["urls:download"];
+                var authPwd = Configuration["tokens:download"];
+                var response = fetchAuthedRequest(string.Format(remote, ""), authPwd);
+                success = response.IsSuccessStatusCode;
+                Program.LogWarning($"{response.StatusCode} {response.ReasonPhrase}", "fetchService");
+            }
+            catch (Exception ex)
+            {
+                Program.LogError(ex, "fetchService");
+                success = false;
+            }
+            if (!success)
+            {
+                Program.LogWarning("Skipping fetching service files as it is not set up.", "fetchService");
+                return;
+            }
             List<Service> savedServices;
             if (ShouldServiceDownloads)
             {

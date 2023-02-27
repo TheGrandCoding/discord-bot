@@ -12,17 +12,35 @@ namespace DiscordBot.Services
 {
     public class CloudDNSService : SavedClassService<CloudSave>
     {
+        bool croned = false;
         public override void OnReady()
         {
             base.OnReady();
+
+            if (croned || Data.CurrentIpMethod != "router") return;
+            croned = true;
+
+            schedule(new("*", "*/5"), OnDailyTick);
         }
 
         async Task<string> getExternalIP(Classes.BotHttpClient client)
         {
-            var response = await client.GetAsync("https://checkip.amazonaws.com/");
-            var content = await response.Content.ReadAsStringAsync();
-            if (!response.IsSuccessStatusCode) return null;
-            return content.Trim();
+            if (Data.CurrentIpMethod == "router")
+            {
+                var response = await client.GetAsync("http://192.168.1.1/check.lp?ppp=1");
+                if (!response.IsSuccessStatusCode)
+                    return null;
+                var content = await response.Content.ReadAsStringAsync();
+                var jobj = JObject.Parse(content);
+                return jobj["PPP_IP"].ToObject<string>();
+            }
+            else
+            {
+                var response = await client.GetAsync("https://checkip.amazonaws.com/");
+                var content = await response.Content.ReadAsStringAsync();
+                if (!response.IsSuccessStatusCode) return null;
+                return content.Trim();
+            }
         }
 
         static bool IsPrivateAddress(IPAddress addr)
@@ -46,7 +64,7 @@ namespace DiscordBot.Services
             if (!response.IsSuccessStatusCode) return (null, null);
             var jobj = JObject.Parse(content);
             var records = jobj["result"] as JArray;
-            foreach(var rec in records)
+            foreach (var rec in records)
             {
                 if (rec is JObject j && j["name"].ToObject<string>() == Data.DomainName)
                     return (j["content"].ToObject<string>(), j["id"].ToObject<string>());
@@ -91,13 +109,18 @@ namespace DiscordBot.Services
         public async Task<Commands.BotResult> Perform()
         {
             var client = Program.Services.GetRequiredService<Classes.BotHttpClient>()
-                .Child("DynDNS", true);
+                .Child("DynDNS");
             bool dirty = false;
             try
             {
                 var externalIp = await getExternalIP(client);
-                Info($"Current IP: {externalIp}");
                 if(string.IsNullOrWhiteSpace(externalIp)) return new("No ext IP");
+
+                if (externalIp == Data.LastSeenIP)
+                    return new();
+                Info($"New external IP: {externalIp}");
+                Data.LastSeenIP = externalIp;
+                dirty = true;
 
                 if (string.IsNullOrWhiteSpace(Data.ZoneId))
                 {
@@ -144,6 +167,8 @@ namespace DiscordBot.Services
         public string Zone { get; set; }
         [JsonProperty("zone_id")]
         public string ZoneId { get; set; }
+        [JsonProperty("last_external_ip")]
+        public string LastSeenIP { get; set; }
 
         [JsonProperty("domain")]
         public string DomainName { get; set; }
@@ -152,5 +177,8 @@ namespace DiscordBot.Services
         public string Email { get; set; }
         [JsonProperty("auth_key")]
         public string AuthKey { get; set; }
+
+        [JsonProperty("cur_ip_method")]
+        public string CurrentIpMethod { get; set; } = "router";
     }
 }

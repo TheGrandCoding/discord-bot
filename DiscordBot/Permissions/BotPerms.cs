@@ -28,6 +28,9 @@ namespace DiscordBot
                 public const string ViewPermissions = "bot.developer.seeperms";
                 [Description("View nicknames of users via MLAPI, even if not present in said server")]
                 public const string ViewNicknamesAllServers = "bot.developer.nicknames";
+
+                [Description("View and manage OCR-mail.")]
+                public const string ViewOCRMail = "bot.developer.ocr-mail";
             }
 
             [AssignedBy(Bot.All)]

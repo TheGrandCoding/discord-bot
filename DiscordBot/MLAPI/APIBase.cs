@@ -130,20 +130,37 @@ namespace DiscordBot.MLAPI
 
         protected void ReplyFile(string path, int code, Replacements replace = null)
         {
-            var f = LoadFile(path);
-            string injectedText = "";
-            foreach (var x in InjectObjects)
-                injectedText += x.ToString();
-            f = f.Replace("</head>", injectedText + "</head>");
-            f = f.Replace("<body>", "<body><REPLACE id='sidebar'/>");
-            replace ??= new Replacements();
-            string sN = Sidebar == SidebarType.None ? "" : Sidebar == SidebarType.Global ? "_sidebar.html" : "sidebar.html";
-            string sC = "";
-            if (!string.IsNullOrWhiteSpace(sN))
-                sC = LoadFile(sN);
-            replace.Add("sidebar", sC);
-            var replaced = ReplaceMatches(f, replace);
-            RespondRaw(replaced, code);
+            if(path.EndsWith(".html"))
+            {
+                var f = LoadFile(path);
+                string injectedText = "";
+                foreach (var x in InjectObjects)
+                    injectedText += x.ToString();
+                f = f.Replace("</head>", injectedText + "</head>");
+                f = f.Replace("<body>", "<body><REPLACE id='sidebar'/>");
+                replace ??= new Replacements();
+                string sN = Sidebar == SidebarType.None ? "" : Sidebar == SidebarType.Global ? "_sidebar.html" : "sidebar.html";
+                string sC = "";
+                if (!string.IsNullOrWhiteSpace(sN))
+                    sC = LoadFile(sN);
+                replace.Add("sidebar", sC);
+                var replaced = ReplaceMatches(f, replace);
+                RespondRaw(replaced, code);
+            } else
+            {
+                using(var fs = File.OpenRead(path))
+                {
+                    ReplyStream(fs, code);
+                }
+            }
+        }
+
+        protected void ReplyStream(Stream stream, int code)
+        {
+            StatusSent = code;
+            Context.HTTP.Response.StatusCode = code;
+            stream.CopyTo(Context.HTTP.Response.OutputStream);
+            Context.HTTP.Response.Close();
         }
 
         protected void ReplyFile(string path, HttpStatusCode code, Replacements replace = null)
