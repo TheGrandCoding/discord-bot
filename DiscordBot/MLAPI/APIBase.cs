@@ -263,8 +263,8 @@ tryagain:
         {
             reps.Add("user", Context.User);
             StatusSent = code;
-            await copyStreamReplacing(fromStream, Context.HTTP.Response.OutputStream, reps, streamReplacements);
             Context.HTTP.Response.StatusCode = code;
+            await copyStreamReplacing(fromStream, Context.HTTP.Response.OutputStream, reps, streamReplacements);
             Context.HTTP.Response.Close();
         }
         async Task copyStreamReplacing(Stream fromStream, Stream toStream, Replacements reps, params StreamReplacement[] replacements)

@@ -22,7 +22,10 @@ namespace DiscordBot.Websockets
             var json = new JObject();
             json["message"] = Program.FormatLogMessage(msg);
             json["colour"] = Program.getColor(msg.Severity).ToString().ToLower();
-            this.Send(json.ToString());
+            try
+            {
+                this.Send(json.ToString());
+            } catch (Exception ex) { }
         }
 
         protected override void OnClose(CloseEventArgs e)

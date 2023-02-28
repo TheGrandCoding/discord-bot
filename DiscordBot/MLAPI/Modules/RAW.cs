@@ -72,7 +72,7 @@ namespace DiscordBot.RESTAPI.Functions.HTML
             if (fileExtension.StartsWith("."))
                 fileExtension = fileExtension[1..];
             var mimeType = getMimeType(fileExtension);
-            var fullPath = Path.Combine(Program.BASE_PATH, "HTTP", "_", bracket, filePath);
+            var fullPath = Path.Combine(Program.BASE_PATH, "HTTP", "_", bracket, Program.GetSafePath(filePath));
             var lastMod = getLastModified(fullPath);
             var priorMod = Context.Request.Headers["If-None-Match"];
             if(lastMod == priorMod)
@@ -88,18 +88,8 @@ namespace DiscordBot.RESTAPI.Functions.HTML
             Context.HTTP.Response.Headers["ETag"] = lastMod;
             Context.HTTP.Response.Headers["Cache-Control"] = "max-age:3600";
             Context.HTTP.Response.ContentType = mimeType;
-            Context.HTTP.Response.StatusCode = 200;
-            StatusSent = 200;
-            if(mimeType.StartsWith("text"))
-            {
-                var content = File.ReadAllText(fullPath);
-                var bytes = Encoding.UTF8.GetBytes(content);
-                Context.HTTP.Response.Close(bytes, true);
-            } else
-            {
-                var bytes = File.ReadAllBytes(fullPath);
-                Context.HTTP.Response.Close(bytes, true);
-            }
+            using var fs = File.OpenRead(fullPath);
+            await ReplyStream(fs, 200);
         }
 
         string getMimeType(string extension)
