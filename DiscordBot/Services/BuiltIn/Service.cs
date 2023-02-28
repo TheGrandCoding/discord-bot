@@ -417,7 +417,8 @@ namespace DiscordBot.Services
                     var miliseconds = (int)Math.Floor(diff.TotalMilliseconds);
                     if (miliseconds >= 500)
                     {
-                        Program.LogInfo($"Waiting for {miliseconds.ToString("#,0.00", nfi)}ms until {then:hh:mm} for {nextJob.Method.Name}", "JobSchedule");
+                        if(miliseconds > Time.Ms.Hour)
+                            Program.LogInfo($"Waiting for {miliseconds.ToString("#,0.00", nfi)}ms until {then:hh:mm} for {nextJob.Method.Name}", "JobSchedule");
                         Task.Delay(miliseconds, token).Wait(token);
                     }
                     nextJob.Invoke(then.Hour, then.Minute);
