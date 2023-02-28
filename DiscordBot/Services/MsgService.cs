@@ -628,22 +628,23 @@ namespace DiscordBot.Services
                 msg.ContentId = content.Id;
                 _db_.Messages.Add(msg);
                 await _db_.SaveChangesAsync();
-                Console.ForegroundColor = ConsoleColor.Black;
-                Console.BackgroundColor = ConsoleColor.White;
-                Console.WriteLine($"{getWhere(umsg)}: {arg.Author.Username}: {arg.Content}");
-                Console.ForegroundColor = ConsoleColor.White;
-                Console.BackgroundColor = ConsoleColor.Black;
-                Info($"Starting attachment handle for {arg.Id} on thread {Thread.CurrentThread.Name} | {Thread.CurrentThread.ManagedThreadId}");
-                foreach(var attch in umsg.Attachments)
-                {
-                    HandleAttachment(attch, guildChannel.Guild, umsg.Id);
-                }
-                Info($"Ended attachment handle for {arg.Id} on thread {Thread.CurrentThread.Name} | {Thread.CurrentThread.ManagedThreadId}");
             }
             finally
             {
                 downloadLock.Release();
             }
+            Console.ForegroundColor = ConsoleColor.Black;
+            Console.BackgroundColor = ConsoleColor.White;
+            Console.WriteLine($"{getWhere(umsg)}: {arg.Author.Username}: {arg.Content}");
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.BackgroundColor = ConsoleColor.Black;
+            Info($"Starting attachment handle for {arg.Id} on thread {Thread.CurrentThread.Name} | {Thread.CurrentThread.ManagedThreadId}");
+            foreach(var attch in umsg.Attachments)
+            {
+                HandleAttachment(attch, guildChannel.Guild, umsg.Id);
+            }
+            Info($"Ended attachment handle for {arg.Id} on thread {Thread.CurrentThread.Name} | {Thread.CurrentThread.ManagedThreadId}");
+            
 
         }
 
