@@ -103,7 +103,7 @@ namespace DiscordBot.Websockets
             if (!int.TryParse(Context.QueryString.Get("v"), out var x))
                 x = 1;
             APIVersion = x;
-            using var db = Program.Services.GetRequiredService<TimeTrackDb>();
+            using var db = Services.GetRequiredService<TimeTrackDb>();
             WatchingVideo = new Cached<bool>(false, 2);
             SendAllClientRatelimits();
             SendIgnoredDatas(db);
@@ -223,7 +223,7 @@ namespace DiscordBot.Websockets
             Program.LogDebug(e.Data, $"TTWS-{IP}");
             var packet = new TTPacket(JObject.Parse(e.Data));
 
-            using var db = Program.Services.GetRequiredService<TimeTrackDb>();
+            using var db = Services.GetRequiredService<TimeTrackDb>();
             try
             {
                 TTPacket response;

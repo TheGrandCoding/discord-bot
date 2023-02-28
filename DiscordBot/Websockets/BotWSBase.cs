@@ -13,6 +13,10 @@ namespace DiscordBot.Websockets
 {
     public abstract class BotWSBase : WebSocketBehavior
     {
+        public BotWSBase()
+        {
+            _scope = Program.GlobalServices.CreateScope();
+        }
         public string SessionToken { get
             {
                 string strToken = null;
@@ -43,8 +47,10 @@ namespace DiscordBot.Websockets
             }
         }
 
+        private IServiceScope _scope;
+        public IServiceProvider Services => _scope?.ServiceProvider ?? null;
         private BotDbContext _db;
-        public BotDbContext BotDB { get => _db ??= BotDbContext.Get("BotWSBase"); }
+        public BotDbContext BotDB { get => _db ??= Services.GetBotDb("BotWSBase"); }
 
         private BotDbUser user;
         public BotDbUser User { get
@@ -118,6 +124,7 @@ namespace DiscordBot.Websockets
         {
             base.OnClose(e);
             _db?.Dispose();
+            _scope?.Dispose();
         }
     }
 

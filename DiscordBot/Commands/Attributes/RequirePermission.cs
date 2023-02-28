@@ -20,7 +20,7 @@ namespace DiscordBot.Commands
 
         public override Task<PreconditionResult> CheckPermissionsAsync(ICommandContext context, CommandInfo command, IServiceProvider services)
         {
-            var node = Program.Services.GetRequiredService<PermissionsService>().FindNode(Node);
+            var node = services.GetRequiredService<PermissionsService>().FindNode(Node);
             if (!(context is BotCommandContext bC))
                 return Task.FromResult(PreconditionResult.FromError("Command context invalid, contact bot developer."));
             if (PermChecker.HasPerm(bC, node))

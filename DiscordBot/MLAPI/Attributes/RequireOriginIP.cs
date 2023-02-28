@@ -27,7 +27,7 @@ namespace DiscordBot.MLAPI
             return false;
         }
 
-        public override PreconditionResult Check(APIContext context)
+        public override PreconditionResult Check(APIContext context, IServiceProvider services)
         {
             if (_ip == null)
                 return PreconditionResult.FromError("Internal error: precondition failed, invalid setting - please contact admin");

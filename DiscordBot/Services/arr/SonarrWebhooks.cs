@@ -47,14 +47,14 @@ namespace DiscordBot.Services.Sonarr
                 if (!(chnl.Channel is NullTextChannel))
                     Channels.Add(chnl);
             }
-            Trakt = Program.Services.GetRequiredService<TraktService>();
+            Trakt = Program.GlobalServices.GetRequiredService<TraktService>();
         }
 
         const string CONFIG_API_KEY = "tokens:sonarr";
         public override void OnLoaded()
         {
             EnsureConfiguration(CONFIG_API_KEY);
-            var parent = Program.Services.GetRequiredService<BotHttpClient>();
+            var parent = Program.GlobalServices.GetRequiredService<BotHttpClient>();
             HTTP = parent.Child("SonarrAPI");
             var apiKey = Program.Configuration[CONFIG_API_KEY];
             HTTP.DefaultRequestHeaders.Add("X-Api-Key", apiKey);

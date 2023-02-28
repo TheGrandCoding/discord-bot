@@ -30,7 +30,7 @@ namespace DiscordBot.Services.arr
         {
             get
             {
-                return Program.Services.GetRequiredService<BotHttpClient>()
+                return Program.GlobalServices.GetRequiredService<BotHttpClient>()
                     .Child("WatcherService", Program.BOT_DEBUG);
             }
         }

@@ -22,7 +22,7 @@ namespace DiscordBot.MLAPI
             return false;
         }
 
-        public override PreconditionResult Check(APIContext context)
+        public override PreconditionResult Check(APIContext context, IServiceProvider services)
         {
             string v = context.HTTP.Request.Headers.Get("X-VERSION");
             return v == Version ? PreconditionResult.FromSuccess() : PreconditionResult.FromError($"Expected version {Version}, but got version '{(v ?? "<null>")}'");

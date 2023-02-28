@@ -20,7 +20,7 @@ namespace DiscordBot.Classes.Rules
             {
                 if(_user == null)
                 {
-                    using var db = BotDbContext.Get("BanAppealGet");
+                    using var db = Program.GlobalServices.GetBotDb("BanAppealGet");
                     _user = db.GetUserAsync(userId).Result;
                 }
                 return _user;
@@ -67,7 +67,7 @@ namespace DiscordBot.Classes.Rules
             {
                 if(_webhook == null)
                 {
-                    var srv = Program.Services.GetRequiredService<WebhookService>();
+                    var srv = Program.GlobalServices.GetRequiredService<WebhookService>();
                     _webhook = srv.GetWebhookClientAsync(AppealChannel).Result;
                 }
                 return _webhook;

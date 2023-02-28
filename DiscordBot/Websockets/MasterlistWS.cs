@@ -47,7 +47,7 @@ namespace DiscordBot.Websockets
 
         protected override void OnOpen()
         {
-            Service = Program.Services.GetRequiredService<MasterlistService>();
+            Service = Services.GetRequiredService<MasterlistService>();
 
             Game = Context.QueryString.Get("game");
             if(string.IsNullOrWhiteSpace(Game))

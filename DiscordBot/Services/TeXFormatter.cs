@@ -19,7 +19,7 @@ namespace DiscordBot.Services
 
         public override void OnReady()
         {
-            Client = Program.Services.GetRequiredService<Classes.BotHttpClient>();
+            Client = Program.GlobalServices.GetRequiredService<Classes.BotHttpClient>();
             Program.Client.MessageReceived += Client_MessageReceived;
         }
 

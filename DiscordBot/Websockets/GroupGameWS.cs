@@ -92,7 +92,7 @@ namespace DiscordBot.Websockets
                 Context.WebSocket.Close(CloseStatusCode.Normal, "Authentication failed.");
                 return;
             }
-            Service ??= Program.Services.GetRequiredService<GroupMuteService>();
+            Service ??= Services.GetRequiredService<GroupMuteService>();
             foreach(var guild in Program.Client.Guilds)
             {
                 foreach(var voice in guild.VoiceChannels)

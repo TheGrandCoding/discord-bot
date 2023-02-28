@@ -54,7 +54,7 @@ namespace DiscordBot.Services
         async Task<XkcdInfo> getkNextComic()
         {
             var url = string.Format(JsonUrl, LatestComic + 1);
-            var client = Program.Services.GetRequiredService<Classes.BotHttpClient>();
+            var client = Program.GlobalServices.GetRequiredService<Classes.BotHttpClient>();
             var result = await client.GetAsync(url);
             if (!result.IsSuccessStatusCode)
                 return null;

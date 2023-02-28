@@ -98,8 +98,7 @@ namespace DiscordBot.Commands.Modules
             EmbedBuilder builder = new EmbedBuilder();
             builder.Title = "Help - Commands";
             var cmdService = Program.Commands;
-            var services = Program.Services;
-            foreach (var cmd in await cmdService.GetExecutableCommandsAsync(Context, services))
+            foreach (var cmd in await cmdService.GetExecutableCommandsAsync(Context, Program.GlobalServices))
             {
                 if (cmd.Aliases.Contains(command))
                 {
@@ -114,7 +113,7 @@ namespace DiscordBot.Commands.Modules
                 {
                     if (mod.Name == command || mod.Aliases.Contains(command))
                     {
-                        foreach (var cmd in await mod.GetExecutableCommandsAsync(Context, services))
+                        foreach (var cmd in await mod.GetExecutableCommandsAsync(Context, Program.GlobalServices))
                         {
                             addCommandField(cmd, builder);
                         }

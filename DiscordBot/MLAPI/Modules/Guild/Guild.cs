@@ -39,7 +39,7 @@ namespace DiscordBot.MLAPI.Modules.Guild
                 await RespondRaw("Forbidden", 403);
                 return;
             }
-            var service = Program.Services.GetRequiredService<RulesService>();
+            var service = Context.Services.GetRequiredService<RulesService>();
             if(!service.Rules.TryGetValue(guildId, out var rules))
             {
                 await RespondRaw("You need to setup the rules in the first instance via command first. You can edit them here later. Yes - I'm lazy.", 400);
@@ -124,7 +124,7 @@ namespace DiscordBot.MLAPI.Modules.Guild
                 await RespondRaw("Forbidden", 403);
                 return;
             }
-            var service = Program.Services.GetRequiredService<RulesService>();
+            var service = Context.Services.GetRequiredService<RulesService>();
             if (!service.Rules.TryGetValue(guildId, out var ruleset))
             {
                 await RespondRaw("You need to setup the rules by command first", 400);

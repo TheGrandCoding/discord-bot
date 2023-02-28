@@ -19,7 +19,7 @@ namespace DiscordBot.MLAPI.Modules
     {
         public Food(APIContext c) : base(c, "food")
         {
-            Service = Program.Services.GetRequiredService<FoodService>();
+            Service = Context.Services.GetRequiredService<FoodService>();
             InjectObjects.Add(new Classes.HTMLHelpers.Objects.PageLink("stylesheet", "text/css", "/_/css/food.css"));
         }
 

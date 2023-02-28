@@ -8,6 +8,11 @@ namespace DiscordBot.Classes
 {
     public class BotDbUserConverter : JsonConverter
     {
+        public IServiceProvider Services { get; }
+        public BotDbUserConverter(IServiceProvider services)
+        {
+            Services = services;
+        }
         public override bool CanConvert(Type objectType)
         {
             return objectType == typeof(BotDbUser);
@@ -17,7 +22,7 @@ namespace DiscordBot.Classes
         {
             var _int = (int)reader.Value;
             var id = Convert.ToUInt32(_int);
-            using var db = BotDbContext.Get($"DbUserConv");
+            var db = Services.GetBotDb($"DbUserConv");
             return db.GetUserAsync(id).Result;
         }
 

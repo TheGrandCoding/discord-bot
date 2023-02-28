@@ -17,7 +17,7 @@ namespace DiscordBot.MLAPI.Modules
         public PermissionsService Service { get; set; }
         public BotPerms(APIContext c) : base(c, "bot") 
         {
-            Service = Program.Services.GetRequiredService<PermissionsService>();
+            Service = Context.Services.GetRequiredService<PermissionsService>();
         }
 
         (bool can, string err) canSetPermission(BotDbUser oper, BotDbUser target, NodeInfo node, NodeInfo requires)

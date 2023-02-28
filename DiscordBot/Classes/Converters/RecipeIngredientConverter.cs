@@ -57,7 +57,7 @@ namespace DiscordBot.Classes.Converters
                 if(_item == null)
                 {
                     Program.LogDebug($"Fetch with {Id}", "LazyInvItem");
-                    var srv = Program.Services.GetRequiredService<FoodService>();
+                    var srv = Program.GlobalServices.GetRequiredService<FoodService>();
                     _item = srv.GetInventoryItem(Id);
                 }
                 return _item;

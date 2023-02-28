@@ -20,7 +20,7 @@ namespace DiscordBot.Interactions.Modules
 
         public static ComponentBuilder getBuilder(ulong channelId)
         {
-            var srv = Program.Services.GetRequiredService<LinksThreaderService>();
+            var srv = Program.GlobalServices.GetRequiredService<LinksThreaderService>();
             ChannelFlags existing = ChannelFlags.Disabled;
             if (srv.Channels.TryGetValue(channelId, out var sv))
                 existing = sv.Flags;

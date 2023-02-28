@@ -116,7 +116,7 @@ namespace DiscordBot.Services
                 await args.User.SendMessageAsync($"You reacted with country flag `{args.Emote.Name}`, but I don't yet know what language that means. Please contact my owner.");
                 return;
             }
-            await Program.Services.GetRequiredService<TranslationService>()
+            await Program.GlobalServices.GetRequiredService<TranslationService>()
                 .Translate(args.Message, args.User, toLanguage);
         }
 

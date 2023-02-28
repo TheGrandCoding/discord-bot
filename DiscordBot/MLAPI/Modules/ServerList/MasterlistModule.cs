@@ -11,7 +11,7 @@ namespace DiscordBot.MLAPI.Modules.ServerList
     {
         public MasterlistModule(APIContext context) : base(context, "masterlist")
         {
-            Service = Program.Services.GetRequiredService<MasterlistService>();
+            Service = Context.Services.GetRequiredService<MasterlistService>();
         }
         public MasterlistService Service { get; set; }
 

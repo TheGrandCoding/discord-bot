@@ -3,6 +3,7 @@ using DiscordBot.Classes.HTMLHelpers;
 using DiscordBot.Classes.HTMLHelpers.Objects;
 using DiscordBot.Classes.Legislation;
 using DiscordBot.Classes.Legislation.Amending;
+using Microsoft.Extensions.DependencyInjection;
 //#if WINDOWS
 //using DiscordBot.Services.Acts;
 //#endif
@@ -34,7 +35,8 @@ namespace DiscordBot.Services
 
         public void SaveAct(Act act)
         {
-            var content = JsonConvert.SerializeObject(act, new BotDbUserConverter());
+            using var scope = Program.GlobalServices.CreateScope();
+            var content = JsonConvert.SerializeObject(act, new BotDbUserConverter(scope.ServiceProvider));
             var path = GetActPath(act.PathName);
             var fileInfo = new FileInfo(path);
             if (fileInfo.Directory.Exists == false)
@@ -115,6 +117,7 @@ namespace DiscordBot.Services
         {
             if (!Directory.Exists(StorageFolder))
                 Directory.CreateDirectory(StorageFolder);
+            using var scope = Program.GlobalServices.CreateScope();
             Laws = Laws ?? new Dictionary<string, Act>();
             var walk = Directory.GetFiles(StorageFolder, "*.json", SearchOption.AllDirectories);
             foreach(var fileName in walk)
@@ -123,7 +126,7 @@ namespace DiscordBot.Services
                 var content = File.ReadAllText(fileInfo.FullName);
                 try
                 {
-                    var act = JsonConvert.DeserializeObject<Act>(content, new BotDbUserConverter());
+                    var act = JsonConvert.DeserializeObject<Act>(content, new BotDbUserConverter(scope.ServiceProvider));
                     if (act.Draft == false && act.EnactedDate.HasValue == false)
                         act.EnactedDate = DateTime.Now;
                     act.Register(null);

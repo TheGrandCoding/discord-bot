@@ -25,6 +25,7 @@ namespace DiscordBot.Commands
             => Program.LogError(message, this.GetType().Name, error);
 
 
+        public IServiceProvider Services { get; set; }
         public InteractivityService InteractivityService { get; set; }
         static CmdDisableService cmdDisableService { get; set; }
 
@@ -34,7 +35,7 @@ namespace DiscordBot.Commands
         /// </summary>
         protected override void BeforeExecute(CommandInfo command)
         {
-            cmdDisableService ??= Program.Services.GetRequiredService<CmdDisableService>();
+            cmdDisableService ??= Services.GetRequiredService<CmdDisableService>();
             if (cmdDisableService.IsDisabled(command, out string reason))
                 throw new Exception($"{reason}");
         }

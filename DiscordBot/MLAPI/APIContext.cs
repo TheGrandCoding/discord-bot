@@ -19,12 +19,26 @@ namespace DiscordBot.MLAPI
 {
     public class APIContext
     {
+        public APIContext(HttpListenerContext c, IServiceScope scope)
+        {
+            Services = scope.ServiceProvider;
+            HTTP = c;
+            var dict = new Dictionary<string, string>();
+            foreach (string key in c.Request.Headers.Keys)
+            {
+                var value = c.Request.Headers[key];
+                dict[key] = value;
+            }
+            Headers = dict.ToImmutableDictionary();
+        }
+        
         public HttpListenerContext HTTP { get; set; }
         public HttpListenerRequest Request => HTTP.Request;
         public string Path => Request.Url.AbsolutePath;
         public string Query => Request.Url.Query;
         public string Method => Request.HttpMethod;
         public IReadOnlyDictionary<string, string> Headers { get; }
+        public IServiceProvider Services { get; set; }
 
         static PermissionsService pService;
 
@@ -36,7 +50,7 @@ namespace DiscordBot.MLAPI
 
         public bool HasPerm(string perm)
         {
-            pService ??= Program.Services.GetRequiredService<PermissionsService>();
+            pService ??= Services.GetRequiredService<PermissionsService>();
             var node = pService.FindNode(perm);
             if (node == null)
             {
@@ -158,24 +172,12 @@ namespace DiscordBot.MLAPI
 
         public APIEndpoint Endpoint { get; set; }
 
-        public APIContext(HttpListenerContext c)
-        {
-            HTTP = c;
-            var dict = new Dictionary<string, string>();
-            foreach(string key in c.Request.Headers.Keys)
-            {
-                var value = c.Request.Headers[key];
-                dict[key] = value;
-            }
-            Headers = dict.ToImmutableDictionary();
-        }
-
         private BotDbContext _db;
         public DiscordBot.Classes.BotDbContext BotDB 
         { 
             get
             {
-                return _db ??= BotDbContext.Get("APIContext"); // ds via DisposeDB, in Handler.
+                return _db ??= Services.GetBotDb("APIContext"); // ds via DisposeDB, in Handler.
             }
         }
         public void DisposeDB()

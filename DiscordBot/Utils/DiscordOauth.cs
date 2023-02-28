@@ -79,7 +79,7 @@ namespace DiscordBot.Utils
         public DiscordOauth(string scope, string code = null)
         {
             Scope = scope;
-            client = Program.Services.GetRequiredService<Classes.BotHttpClient>();
+            client = Program.GlobalServices.GetRequiredService<Classes.BotHttpClient>();
             if (code != null)
                 SetToken(code).Wait();
         }

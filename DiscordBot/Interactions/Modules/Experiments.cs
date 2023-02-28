@@ -80,7 +80,7 @@ namespace DiscordBot.Interactions.Modules
     {
         public override async Task<AutocompletionResult> GenerateSuggestionsAsync(IInteractionContext context, IAutocompleteInteraction autocompleteInteraction, IParameterInfo parameter, IServiceProvider services)
         {
-            var srv = Program.Services.GetRequiredService<DsRolloutService>();
+            var srv = Program.GlobalServices.GetRequiredService<DsRolloutService>();
             var results = await srv.GetAutocomplete(autocompleteInteraction);
             return AutocompletionResult.FromSuccess(results.Take(20));
         }

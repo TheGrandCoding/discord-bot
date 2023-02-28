@@ -43,7 +43,7 @@ namespace DiscordBot.Services
             Func<SocketMessageComponent, Task> handleMsgComponent = async (interaction) => {
                 if (Program.ignoringCommands) return;
                 var ctx = new SocketInteractionContext<SocketMessageComponent>(Program.Client, interaction);
-                var r = await InteractionService.ExecuteCommandAsync(ctx, Program.Services);
+                var r = await InteractionService.ExecuteCommandAsync(ctx, Program.GlobalServices);
                 Program.LogInfo($"{r.IsSuccess} {r.Error} {r.ErrorReason}", "CmdMessageCmp");
             };
 
@@ -51,7 +51,7 @@ namespace DiscordBot.Services
             {
                 if (Program.ignoringCommands) return;
                 var ctx = new SocketInteractionContext<SocketAutocompleteInteraction>(Program.Client, interaction);
-                await InteractionService.ExecuteCommandAsync(ctx, Program.Services);
+                await InteractionService.ExecuteCommandAsync(ctx, Program.GlobalServices);
             };
             Program.Client.ButtonExecuted += handleMsgComponent;
             Program.Client.SelectMenuExecuted += handleMsgComponent;
@@ -59,13 +59,13 @@ namespace DiscordBot.Services
             {
                 if (Program.ignoringCommands) return;
                 var ctx = new SocketInteractionContext<SocketSlashCommand>(Program.Client, interaction);
-                await InteractionService.ExecuteCommandAsync(ctx, Program.Services);
+                await InteractionService.ExecuteCommandAsync(ctx, Program.GlobalServices);
             };
             Program.Client.ModalSubmitted += async (modal) =>
             {
                 if (Program.ignoringCommands) return;
                 var ctx = new SocketInteractionContext<SocketModal>(Program.Client, modal);
-                await InteractionService.ExecuteCommandAsync(ctx, Program.Services);
+                await InteractionService.ExecuteCommandAsync(ctx, Program.GlobalServices);
             };
         }
 
@@ -147,7 +147,7 @@ namespace DiscordBot.Services
             if (Program.ignoringCommands)
                 return;
             var ctx = new SocketInteractionContext(_discord, x);
-            var specialResult = await InteractionService.ExecuteCommandAsync(ctx, Program.Services).ConfigureAwait(false);
+            var specialResult = await InteractionService.ExecuteCommandAsync(ctx, Program.GlobalServices).ConfigureAwait(false);
             if(!specialResult.IsSuccess)
             {
                 Program.LogError($"{specialResult.ErrorReason} {specialResult.Error}", "CommandHandling");

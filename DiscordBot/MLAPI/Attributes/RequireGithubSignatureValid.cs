@@ -17,7 +17,7 @@ namespace DiscordBot.MLAPI
         {
             return true;
         }
-        public override PreconditionResult Check(APIContext context)
+        public override PreconditionResult Check(APIContext context, IServiceProvider services)
         {
             var eventName = context.Request.Headers["X-GitHub-Event"];
             var signature = context.Request.Headers["X-Hub-Signature-256"];

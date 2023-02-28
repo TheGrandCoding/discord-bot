@@ -1,6 +1,7 @@
 ﻿using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
+using DiscordBot.Classes;
 using DiscordBot.Classes.Attributes;
 using DiscordBot.Services;
 using Microsoft.Extensions.DependencyInjection;
@@ -418,7 +419,8 @@ namespace DiscordBot.Commands.Modules
                 await Target?.AddRoleAsync(Role, new RequestOptions() { AuditLogReason = "I love democracy" });
             else
                 await Target?.RemoveRoleAsync(Role, new RequestOptions() { AuditLogReason = "Voted" });
-            using var db = Classes.BotDbContext.Get("DemocracyAction");
+            using var scope = Program.GlobalServices.CreateScope();
+            using var db = scope.ServiceProvider.GetBotDb("DemocracyAction");
             var bUser = (await db.GetUserFromDiscord(Target, true)).Value;
             bUser.Verified = Adding;
             bUser.Approved = (bUser.Approved ?? false) || Adding;

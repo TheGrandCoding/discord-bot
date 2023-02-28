@@ -13,7 +13,7 @@ namespace DiscordBot.MLAPI
 
         public bool Overriden { get; set; } = false;
 
-        public abstract PreconditionResult Check(APIContext context);
+        public abstract PreconditionResult Check(APIContext context, IServiceProvider services);
 
         public static T Get<T>(APIEndpoint command) where T : APIPrecondition
         {

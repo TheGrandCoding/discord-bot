@@ -125,7 +125,7 @@ namespace DiscordBot.MLAPI
                 PreconditionResult result = null;
                 try
                 {
-                    result = pred.Check(context);
+                    result = pred.Check(context, context.Services);
                 }
                 catch (HaltExecutionException e)
                 {

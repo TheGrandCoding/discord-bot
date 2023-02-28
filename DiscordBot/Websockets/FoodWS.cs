@@ -111,7 +111,7 @@ namespace DiscordBot.Websockets
                 Context.WebSocket.Close(CloseStatusCode.Normal, "Authentication failed.");
                 return;
             }
-            FoodService = Program.Services.GetRequiredService<FoodService>();
+            FoodService = Services.GetRequiredService<FoodService>();
             if(!FoodService.OngoingRecipes.TryGetValue(id, out var v))
             {
                 Context.WebSocket.Close(CloseStatusCode.Normal, "Recipe not found");

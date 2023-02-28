@@ -17,7 +17,7 @@ namespace DiscordBot.Interactions.Components
         {
 
             await Context.Interaction.DeferAsync(true);
-            var This = Program.Services.GetRequiredService<PenaltyService>();
+            var This = Services.GetRequiredService<PenaltyService>();
             var penaltyId = int.Parse(penId);
             var actionType = int.Parse(value);
             var penalty = This.FindPenalty(x =>

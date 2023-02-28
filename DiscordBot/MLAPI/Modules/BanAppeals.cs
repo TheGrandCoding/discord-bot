@@ -14,7 +14,7 @@ namespace DiscordBot.MLAPI.Modules
     {
         public BanAppeals(APIContext context) : base(context, "appeals")
         {
-            Service = Program.Services.GetRequiredService<BanAppealsService>();
+            Service = Context.Services.GetRequiredService<BanAppealsService>();
         }
 
         public BanAppealsService Service { get; set; }

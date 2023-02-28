@@ -20,7 +20,7 @@ namespace DiscordBot.MLAPI
             return true;
         }
 
-        public override PreconditionResult Check(APIContext context)
+        public override PreconditionResult Check(APIContext context, IServiceProvider services)
         {
             if (context.User == null)
                 return PreconditionResult.FromError("You must be logged in");

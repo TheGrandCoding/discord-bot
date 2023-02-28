@@ -17,7 +17,7 @@ namespace DiscordBot.Commands.Attributes
         {
             if(context.Channel is ITextChannel channel)
             {
-                _service ??= Program.Services.GetRequiredService<BanAppealsService>();
+                _service ??= services.GetRequiredService<BanAppealsService>();
                 if(ulong.TryParse(channel.Topic, out var userId))
                 {
                     var appeal = _service.GetAppeal(context.Guild, userId);

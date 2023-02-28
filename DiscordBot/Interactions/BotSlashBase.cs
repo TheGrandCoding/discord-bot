@@ -2,6 +2,7 @@
 using Discord.Interactions;
 using Discord.WebSocket;
 using DiscordBot.Classes;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -11,10 +12,12 @@ namespace DiscordBot.Interactions
 {
     public abstract class BotSlashBase : Discord.Interactions.InteractionModuleBase<SocketInteractionContext<SocketSlashCommand>>
     {
+        private IServiceScope _scope = Program.GlobalServices.CreateScope();
+        public IServiceProvider Services => _scope.ServiceProvider;
         private BotDbContext _db;
         public BotDbContext BotDB { get
             {
-                return _db ??= BotDbContext.Get($"BotSlashBase"); // ds via AfterExecute
+                return _db ??= Services.GetBotDb($"BotSlashBase"); // scoped
             } }
         private BotDbUser _user;
         public BotDbUser User
@@ -29,18 +32,20 @@ namespace DiscordBot.Interactions
         {
             await base.AfterExecuteAsync(command);
             await _db?.SaveChangesAsync();
-            _db?.Dispose();
+            _scope?.Dispose();
         }
     }
 
     public abstract class BotComponentBase : Discord.Interactions.InteractionModuleBase<SocketInteractionContext<SocketMessageComponent>>
     {
+        private IServiceScope _scope = Program.GlobalServices.CreateScope();
+        public IServiceProvider Services { get; set; }
         private BotDbContext _db;
         public BotDbContext BotDB
         {
             get
             {
-                return _db ??= BotDbContext.Get("BotComponentBase"); // ds via AfterExecute
+                return _db ??= Services.GetBotDb("BotComponentBase"); // ds via AfterExecute
             }
         }
         private BotDbUser _user;
@@ -57,6 +62,7 @@ namespace DiscordBot.Interactions
             await base.AfterExecuteAsync(command);
             await _db?.SaveChangesAsync();
             _db?.Dispose();
+            _scope?.Dispose();
         }
     }
 }

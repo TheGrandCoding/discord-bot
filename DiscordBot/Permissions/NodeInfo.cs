@@ -45,7 +45,7 @@ namespace DiscordBot.Permissions
         public static implicit operator string(NodeInfo i) => i.Node;
         public static implicit operator NodeInfo(string n)
         {
-            service ??= Program.Services.GetRequiredService<PermissionsService>();
+            service ??= Program.GlobalServices.GetRequiredService<PermissionsService>();
             return service.FindNode(n);
         }
     }

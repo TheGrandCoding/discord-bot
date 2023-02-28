@@ -47,7 +47,7 @@ namespace DiscordBot.Services
 
         public async Task<List<Experiment>> GetCurrentExperiments()
         {
-            var http = Program.Services.GetRequiredService<Classes.BotHttpClient>()
+            var http = Program.GlobalServices.GetRequiredService<Classes.BotHttpClient>()
                 .Child(nameof(DsRolloutService), debug: true);
             http.DefaultRequestHeaders.Add("referer", "https://rollouts.advaith.io");
             http.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.4844.84 Safari/537.36");

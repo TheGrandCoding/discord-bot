@@ -62,9 +62,8 @@ namespace DiscordBot
         static SocketGuild m_chess;
         public static SocketGuild ChessGuild => m_chess ??= Client.GetGuild(ulong.Parse(Configuration["guilds:chess"]));
 
-        public static async Task<bool> IsPasswordLeaked(string password)
+        public static async Task<bool> IsPasswordLeaked(BotHttpClient client, string password)
         {
-            var client = Program.Services.GetRequiredService<BotHttpClient>();
             var hash = Hash.GetSHA1(password);
             var prefix = hash.Substring(0, 5);
             var suffix = hash.Substring(5);
@@ -188,7 +187,7 @@ namespace DiscordBot
                 return Discord.Commands.TypeReaderResult.FromError(
                     Discord.Commands.CommandError.Exception, $"Parser for {desired.Name} unavailabe");
             }
-            var result = reader.ReadAsync(null, input, Program.Services).Result;
+            var result = reader.ReadAsync(null, input, Program.GlobalServices).Result;
             if (result.IsSuccess)
             {
                 return Discord.Commands.TypeReaderResult.FromSuccess(result.BestMatch);

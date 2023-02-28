@@ -24,7 +24,7 @@ namespace DiscordBot.MLAPI
             return false;
         }
 
-        public override PreconditionResult Check(APIContext context)
+        public override PreconditionResult Check(APIContext context, IServiceProvider services)
         {
             if(requires)
             {

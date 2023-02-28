@@ -21,7 +21,7 @@ namespace DiscordBot.Interactions.Modules
     {
         public Move()
         {
-            Webhooks = Program.Services.GetRequiredService<WebhookService>();
+            Webhooks = Services.GetRequiredService<WebhookService>();
         }
         public WebhookService Webhooks { get; }
 
@@ -44,7 +44,7 @@ namespace DiscordBot.Interactions.Modules
                 { // give logging thread time to download & upload attachment
                     Thread.Sleep((int)sleepFor * 1000);
                 }
-                var msgService = Program.Services.GetRequiredService<MsgService>();
+                var msgService = Services.GetRequiredService<MsgService>();
                 var newAttachment = await msgService.GetSavedAttachment(to.Guild, message.Id);
                 if (newAttachment == null)
                 {

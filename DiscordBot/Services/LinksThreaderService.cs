@@ -89,7 +89,7 @@ namespace DiscordBot.Services
             var info = new FileInfo(path);
             if(!info.Exists || info.Length < 1024 || (DateTime.Now - info.LastWriteTime).TotalDays > 1)
             {
-                var http = Program.Services.GetRequiredService<Classes.BotHttpClient>();
+                var http = Program.GlobalServices.GetRequiredService<Classes.BotHttpClient>();
                 var response = await http.GetAsync(uri, "LinksThreader", Program.GetToken());
                 var stream = await response.Content.ReadAsStreamAsync();
                 using (var file = new FileStream(path, FileMode.Create, FileAccess.Write))
@@ -107,7 +107,7 @@ namespace DiscordBot.Services
         async Task<smmryResponse> getSummary(Uri uri)
         {
             var apiEndpoint = getEndpoint(uri.ToString());
-            var http = Program.Services.GetRequiredService<Classes.BotHttpClient>();
+            var http = Program.GlobalServices.GetRequiredService<Classes.BotHttpClient>();
             Ratelimit.AddRequest();
             try
             {

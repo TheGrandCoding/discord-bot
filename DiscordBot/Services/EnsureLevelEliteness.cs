@@ -5,6 +5,7 @@ using DiscordBot.Classes;
 using DiscordBot.MLAPI;
 using DiscordBot.Utils;
 using Microsoft.EntityFrameworkCore.Internal;
+using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -28,7 +29,8 @@ namespace DiscordBot.Services
 
         public async Task Catchup()
         {
-            using var db = Classes.BotDbContext.Get("EnsureLvlCatchup");
+            using var scope = Program.GlobalServices.CreateScope();
+            using var db = scope.ServiceProvider.GetBotDb("EnsureLvlCatchup");
             foreach(var keypair in Guilds)
             {
                 var id = keypair.Key;
@@ -57,7 +59,8 @@ namespace DiscordBot.Services
                 {
                     if(arg1.Roles.Any(x => x.Id == save.VerifyRole.Id) == false)
                     {
-                        using var db = BotDbContext.Get("EnsureLvlMemberUpd");
+                        using var scope = Program.GlobalServices.CreateScope();
+                        using var db = scope.ServiceProvider.GetBotDb("EnsureLvlMemberUpd");
                         await HandleNewLevel7(save, arg2, db);
                     }
                 }

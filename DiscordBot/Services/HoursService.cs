@@ -18,7 +18,7 @@ namespace DiscordBot.Services
     {
         public HoursDbContext DB()
         {
-            return Program.Services.GetRequiredService<HoursDbContext>();
+            return Program.GlobalServices.GetRequiredService<HoursDbContext>();
         }
 
         public override void OnReady()

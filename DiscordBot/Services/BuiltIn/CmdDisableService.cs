@@ -24,7 +24,7 @@ namespace DiscordBot.Services.BuiltIn
             {
                 foreach(var x in relies.Types)
                 {
-                    var service = (Service)Program.Services.GetRequiredService(x);
+                    var service = (Service)Program.GlobalServices.GetRequiredService(x);
                     if(service.HasFailed)
                     {
                         SetDisabled(module, $"Relies on {service.Name} which has encountered an issue");

@@ -56,7 +56,7 @@ namespace DiscordBot.Interactions.Modules
         async Task syncShows(string token, TraktCollection sync, StringBuilder output)
         {
             var collectedAlready = await Service.GetCollectedShowsAsync(token);
-            var sonarr = Program.Services.GetRequiredService<SonarrWebhooksService>();
+            var sonarr = Services.GetRequiredService<SonarrWebhooksService>();
             var shows = await sonarr.GetShows();
 
             foreach(var show in shows)
@@ -127,7 +127,7 @@ namespace DiscordBot.Interactions.Modules
         async Task syncMovies(string token, TraktCollection sync, StringBuilder output)
         {
             var collectedAlready = await Service.GetCollectedMoviesAsync(token);
-            var radarr = Program.Services.GetRequiredService<RadarrWebhookService>();
+            var radarr = Services.GetRequiredService<RadarrWebhookService>();
             var movies = await radarr.GetMovies();
 
             foreach(var movie in movies)

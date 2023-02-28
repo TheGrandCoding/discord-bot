@@ -25,7 +25,7 @@ namespace DiscordBot.Services
 #if DEBUG
             return;
 #endif
-            using var db = Program.Services.GetRequiredService<TimeTrackDb>();
+            using var db = Program.GlobalServices.GetRequiredService<TimeTrackDb>();
             if(PurgeMonthOldThreads(db))
             {
                 db.SaveChanges();
@@ -81,7 +81,7 @@ namespace DiscordBot.Services
             }
             if (toRequest.Count == 0)
                 return dict;
-            var client = Program.Services.GetRequiredService<YouTubeService>();
+            var client = Program.GlobalServices.GetRequiredService<YouTubeService>();
             var request = client.Videos.List("snippet");
             request.Id = new Google.Apis.Util.Repeatable<string>(toRequest);
             var response = request.Execute();
@@ -97,7 +97,7 @@ namespace DiscordBot.Services
         {
             if (bypassCache || ExtensionVersion.GetValueOrDefault(null) == null)
             {
-                var client = Program.Services.GetRequiredService<Classes.BotHttpClient>();
+                var client = Program.GlobalServices.GetRequiredService<Classes.BotHttpClient>();
                 var r = client.GetAsync("https://api.github.com/repos/CheAle14/time-tracker/releases/latest").Result;
                 if (r.IsSuccessStatusCode)
                 {

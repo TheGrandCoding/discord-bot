@@ -159,9 +159,9 @@ namespace DiscordBot.MLAPI
             return strToken;
         }
 
-        static APIContext parseContext(HttpListenerContext request)
+        static APIContext parseContext(HttpListenerContext request, IServiceScope scope)
         {
-            APIContext context = new APIContext(request);
+            APIContext context = new APIContext(request, scope);
             string strToken = getAnyValue(request, BotDbAuthSession.CookieName, out var cookie);
 
             var session = context.BotDB.GetSessionAsync(strToken).Result;
@@ -259,7 +259,8 @@ namespace DiscordBot.MLAPI
                 try
                 {
                     req = await Server.GetContextAsync().WaitAsync(token);
-                    var context = parseContext(req);
+                    var scopedServices = Program.GlobalServices.CreateScope();
+                    var context = parseContext(req, scopedServices);
                     if (req.Request.RawUrl == "/favicon.ico")
                     {
                         req.Response.StatusCode = 301;
@@ -311,6 +312,9 @@ namespace DiscordBot.MLAPI
                         } catch(Exception ex)
                         {
                             Program.LogError(ex, "HandleRequest");
+                        } finally
+                        {
+                            scopedServices?.Dispose();
                         }
                     });
                     exceptions = 0;
@@ -412,6 +416,7 @@ namespace DiscordBot.MLAPI
 
         static async Task handleRequest(APIContext context)
         {
+            using var services = Program.GlobalServices.CreateScope();
             context.Id = Guid.NewGuid();
             Console.WriteLine($"{(context?.Id.ToString() ?? "null")}: {(context.Request?.RemoteEndPoint?.ToString() ?? "null")} {(context?.Request?.Url.ToString() ?? "null")}");
             var idSplit = context.Id.ToString().Split('-');

@@ -41,11 +41,11 @@ namespace DiscordBot.Services.Radarr
         {
             var save = Program.Deserialise<Save>(ReadSave("{}"));
             Channels = save.Channels ?? new List<SaveChannel>();
-            Trakt = Program.Services.GetRequiredService<TraktService>();
+            Trakt = Program.GlobalServices.GetRequiredService<TraktService>();
         }
         public override void OnLoaded()
         {
-            var parent = Program.Services.GetRequiredService<BotHttpClient>();
+            var parent = Program.GlobalServices.GetRequiredService<BotHttpClient>();
             HTTP = parent.Child("RadarrAPI");
             var apiKey = Program.Configuration["tokens:radarr"];
             if (string.IsNullOrWhiteSpace(apiKey))

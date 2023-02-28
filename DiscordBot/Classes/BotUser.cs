@@ -11,24 +11,31 @@ using System.Threading.Tasks;
 
 namespace DiscordBot.Classes
 {
+    public static class BotDbExtensions
+    {
+        public static BotDbContext GetBotDb(this IServiceProvider services, string reason)
+        {
+            var d = services.GetRequiredService<BotDbContext>();
+            d.Create(reason);
+            return d;
+        }
+    }
     public class BotDbContext : DbContext
     {
         static int _id = 0;
         static int _disposed = 0;
         int Id = 0;
-        string reason;
-        public static BotDbContext Get(string reason)
+        string _reason;
+        public void Create(string reason)
         {
-            var d = Program.Services.GetRequiredService<BotDbContext>();
-            d.Id = System.Threading.Interlocked.Increment(ref _id);
-            d.reason = reason;
-            Program.LogDebug($"Created DB {d.Id}/{reason}", "BotDbCtx");
-            return d;
+            Id = System.Threading.Interlocked.Increment(ref _id);
+            _reason = reason;
+            Program.LogDebug($"Created DB {Id}/{reason}", "BotDbCtx");
         }
         public override void Dispose()
         {
             int count = System.Threading.Interlocked.Increment(ref _disposed);
-            Program.LogWarning($"Disposing DB {Id}/{reason}; count: {count}", "BotDbCtx");
+            Program.LogWarning($"Disposing DB {Id}/{_reason}; count: {count}", "BotDbCtx");
             base.Dispose();
         }
         public static SemaphoreSlim _lock = new(1);
@@ -99,12 +106,12 @@ namespace DiscordBot.Classes
                 return new("Incorrect password");
             });
         }
-        public async Task<Result<BotDbUser>> AttemptRegisterAsync(string username, string password)
+        public async Task<Result<BotDbUser>> AttemptRegisterAsync(string username, string password, IServiceProvider services)
         {
             if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password)
                 || password.Length < 8)
                 return new("Username or password invalid.");
-            if (await Program.IsPasswordLeaked(password))
+            if (await Program.IsPasswordLeaked(services.GetRequiredService<BotHttpClient>(), password))
                 return new("Password is known to be compromised.");
             return await WithLock<Result<BotDbUser>>(async () =>
             {

@@ -382,7 +382,7 @@ namespace DiscordBot.Services
         public static LogContext DB()
         {
             Program.LogInfo(Program.GetStackTrace(), $"Log-_db_");
-            return Program.Services.GetRequiredService<LogContext>();
+            return Program.GlobalServices.GetRequiredService<LogContext>();
         }
 
         #region Startup catchup
@@ -503,7 +503,7 @@ namespace DiscordBot.Services
             downloadLock.WaitOne();
             try
             {
-                var service = Program.Services.GetRequiredService<LoggingService>();
+                var service = Program.GlobalServices.GetRequiredService<LoggingService>();
                 var chnl = service.GetChannel(guild, "attachment").Result;
                 if (NewAttachmentMap.TryGetValue(originalId, out var newMsgId))
                 {
@@ -546,7 +546,7 @@ namespace DiscordBot.Services
                 var path = Path.Combine(Path.GetTempPath(), $"{data.MessageId}_{data.Attachment.Filename}");
                 cl.DownloadFile(data.Attachment.Url, path);
                 Info($"Downloaded {data.Attachment.Url}");
-                var service = Program.Services.GetRequiredService<LoggingService>();
+                var service = Program.GlobalServices.GetRequiredService<LoggingService>();
                 var chnl = service.GetChannel(data.Guild, "attachment").Result;
                 Info($"Uploading {data.Attachment.Url}");
                 var message = chnl.SendFileAsync(path, $"{data.Guild.Id}-{data.MessageId}").Result;

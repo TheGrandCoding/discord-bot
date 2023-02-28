@@ -22,7 +22,7 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
     {
         public TimeTracker(APIContext context) : base(context, "tracker")
         {
-            DB = Program.Services.GetRequiredService<TimeTrackDb>();
+            DB = Context.Services.GetRequiredService<TimeTrackDb>();
         }
 
         public TimeTrackDb DB { get; }

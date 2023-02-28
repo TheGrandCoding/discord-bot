@@ -45,7 +45,7 @@ namespace DiscordBot.MLAPI.Modules
         [Method("GET"), Path("/api/calendar")]
         public async Task APIGetWeek(DateTime start, DateTime end)
         {
-            using var DB = Program.Services.GetRequiredService<CalenderDb>();
+            using var DB = Context.Services.GetRequiredService<CalenderDb>();
             var events = DB.GetEventsBetween(start, end).Result;
             var jarray = new JArray();
             foreach (var e in events)
@@ -78,7 +78,7 @@ namespace DiscordBot.MLAPI.Modules
         [Method("DELETE"), Path("/api/calendar/attendee")]
         public async Task APIRemvoveAttendance(int eventId, ulong? userId = null)
         {
-            using var db = Program.Services.GetRequiredService<CalenderDb>();
+            using var db = Context.Services.GetRequiredService<CalenderDb>();
 
 
             if(userId.HasValue)
@@ -105,7 +105,7 @@ namespace DiscordBot.MLAPI.Modules
         [Method("POST"), Path("/api/calendar/attendee")]
         public async Task APIAddAttendance(int eventId)
         {
-            using var db = Program.Services.GetRequiredService<CalenderDb>();
+            using var db = Context.Services.GetRequiredService<CalenderDb>();
             var existing = db.Attendees.FirstOrDefault(x => x.EventId == eventId && x._userId == (long)Context.User.Id);
             if (existing == null)
             {
@@ -121,7 +121,7 @@ namespace DiscordBot.MLAPI.Modules
             EventVisibility? visibility = null,
             string remove = null, string submit = null)
         {
-            using var DB = Program.Services.GetRequiredService<CalenderDb>();
+            using var DB = Context.Services.GetRequiredService<CalenderDb>();
             int.TryParse(id, out var idInt);
             CalenderEvent existing = string.IsNullOrWhiteSpace(id) ? null : DB.Events.Find(idInt);
             if(remove != null)
@@ -174,7 +174,7 @@ namespace DiscordBot.MLAPI.Modules
             string series_id,
             string remove = null, string disconnect = null, string add = null)
         {
-            using var db = Program.Services.GetRequiredService<CalenderDb>();
+            using var db = Context.Services.GetRequiredService<CalenderDb>();
 
             CalenderSeries series = null;
             if(int.TryParse(series_id, out var seriesId))
@@ -244,7 +244,7 @@ namespace DiscordBot.MLAPI.Modules
         [Method("PUT"), Path("/api/calendar/move")]
         public async Task APIMoveEvent(int id, long start, long end)
         {
-            using var DB = Program.Services.GetRequiredService<CalenderDb>();
+            using var DB = Context.Services.GetRequiredService<CalenderDb>();
             var startDate = DateTimeOffset.FromUnixTimeMilliseconds(start);
             var endDate = DateTimeOffset.FromUnixTimeMilliseconds(end);
             var evnt = DB.Events.Find(id);

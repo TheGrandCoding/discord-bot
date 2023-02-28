@@ -1,5 +1,6 @@
 ﻿using Discord;
 using DiscordBot.Classes;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -53,7 +54,8 @@ namespace DiscordBot.Services
 
         private async System.Threading.Tasks.Task Client_UserJoined(Discord.WebSocket.SocketGuildUser arg)
         {
-            using var db = BotDbContext.Get("PermSitJoined");
+            using var scope = Program.GlobalServices.CreateScope();
+            using var db = scope.ServiceProvider.GetBotDb("PermSitJoined");
             perform((await db.GetUserFromDiscord(arg, true)).Value, arg.Guild.Id, "UserJoined", null);
         }
 
@@ -68,7 +70,8 @@ namespace DiscordBot.Services
             var removedRoles = priorRoles.Where(x => currentRoles.Contains(x) == false);
             var addedRoles = currentRoles.Where(x => priorRoles.Contains(x) == false);
 
-            using var db = BotDbContext.Get("PermSitMemberUpt");
+            using var scope = Program.GlobalServices.CreateScope();
+            using var db = scope.ServiceProvider.GetBotDb("PermSitMemberUpt");
             var bUser = (await db.GetUserFromDiscord(arg2 ?? arg1, true)).Value;
 
             foreach(var role in removedRoles)

@@ -108,7 +108,7 @@ namespace DiscordBot.Services
 
         public async Task<Commands.BotResult> Perform()
         {
-            var client = Program.Services.GetRequiredService<Classes.BotHttpClient>()
+            var client = Program.GlobalServices.GetRequiredService<Classes.BotHttpClient>()
                 .Child("DynDNS");
             bool dirty = false;
             try

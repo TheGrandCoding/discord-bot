@@ -72,7 +72,7 @@ namespace DiscordBot.Interactions.Modules
     {
         public override async Task<AutocompletionResult> GenerateSuggestionsAsync(IInteractionContext context, IAutocompleteInteraction autocompleteInteraction, IParameterInfo parameter, IServiceProvider services)
         {
-            var srv = Program.Services.GetRequiredService<CinemaService>();
+            var srv = Program.GlobalServices.GetRequiredService<CinemaService>();
             var cinema = srv.GetCinema("odeon");
             if (!cinema.CanAutocomplete)
             {

@@ -20,7 +20,7 @@ namespace DiscordBot.MLAPI
             return true;
         }
 
-        public override PreconditionResult Check(APIContext context)
+        public override PreconditionResult Check(APIContext context, IServiceProvider services)
         {
             if (Scope == "*" || Scope == null)
                 return PreconditionResult.FromSuccess();

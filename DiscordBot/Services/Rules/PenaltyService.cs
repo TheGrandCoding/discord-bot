@@ -158,7 +158,7 @@ namespace DiscordBot.Services.Rules
                     await x.OnMessageReceived(umsg, chnl);
             };
             Program.Client.ReactionAdded += Client_ReactionAdded;
-            var changes = Program.Services.GetRequiredService<UserChangeService>();
+            var changes = Program.GlobalServices.GetRequiredService<UserChangeService>();
             changes.RolesAdded += User_RolesAdded;
             changes.RolesRemoved += User_RolesRemoved;
         }
@@ -317,7 +317,7 @@ namespace DiscordBot.Services.Rules
 
         public Task<ITextChannel> GetAdminChannel(IGuild guild)
         {
-            var srv = Program.Services.GetRequiredService<LoggingService>();
+            var srv = Program.GlobalServices.GetRequiredService<LoggingService>();
             var c = srv.GetChannel(guild, "penalty");
             srv.OnSave();
             return c;
@@ -474,7 +474,7 @@ namespace DiscordBot.Services.Rules
             Reason = reason;
             Performed = DateTime.Now;
             Duration = duration;
-            Service = Program.Services.GetRequiredService<PenaltyService>();
+            Service = Program.GlobalServices.GetRequiredService<PenaltyService>();
         }
         public int Id { get; set; }
         public SocketGuild Guild { get; set; }
@@ -835,7 +835,7 @@ namespace DiscordBot.Services.Rules
                 return;
 
             var matches = rgx.Matches(message.Content);
-            var srv = Program.Services.GetRequiredService<MaliciousLinkService>();
+            var srv = Program.GlobalServices.GetRequiredService<MaliciousLinkService>();
             foreach(Match match in matches)
             {
                 if(Uri.TryCreate(match.Value, UriKind.Absolute, out var uri))

@@ -19,7 +19,7 @@ namespace DiscordBot.MLAPI.Modules
         public OauthCallbackService Callback { get; set; }
         public Login(APIContext c) : base(c, "login") 
         {
-            Callback = Program.Services.GetRequiredService<OauthCallbackService>();
+            Callback = c.Services.GetRequiredService<OauthCallbackService>();
         }
 
         void handleDiscordOAuth(object sender, object[] stateArgs)
@@ -122,7 +122,7 @@ namespace DiscordBot.MLAPI.Modules
             var result = Context.BotDB.AttemptLoginAsync(username, password).Result;
             if(!result.Success)
             {
-                RespondRedirect($"#username={Uri.EscapeDataString(username)}&fbl={Uri.EscapeDataString(result.ErrorMessage)}");
+                await RespondRedirect($"#username={Uri.EscapeDataString(username)}&fbl={Uri.EscapeDataString(result.ErrorMessage)}");
                 return;
             }
             setSessionTokens(result.Value); // essentially logs them in
@@ -136,7 +136,7 @@ namespace DiscordBot.MLAPI.Modules
                 await RespondRaw("Error: you are already logged in", 400);
                 return;
             }
-            var result = Context.BotDB.AttemptRegisterAsync(username, password).Result;
+            var result = Context.BotDB.AttemptRegisterAsync(username, password, Context.Services).Result;
             if (!result.Success)
             {
                 await RespondRedirect($"/login#username={Uri.EscapeDataString(username)}&fbr={Uri.EscapeDataString(result.ErrorMessage)}");
@@ -232,7 +232,7 @@ namespace DiscordBot.MLAPI.Modules
         [RequireAuthentication]
         public async Task OauthTrakt(string code = null)
         {
-            var srv = Program.Services.GetRequiredService<TraktService>();
+            var srv = Context.Services.GetRequiredService<TraktService>();
             if(string.IsNullOrWhiteSpace(code))
             {
                 await RespondRedirect(srv.OAuthRedirectUri.ToString());
@@ -261,7 +261,7 @@ namespace DiscordBot.MLAPI.Modules
                 await RespondRaw($"Password must be between 8 and 32 charactors in length", 400);
                 return;
             }
-            if(Program.IsPasswordLeaked(pwd).Result)
+            if(Program.IsPasswordLeaked(Context.Services.GetRequiredService<BotHttpClient>(), pwd).Result)
             {
                 await RespondRaw($"Password is known to be compromised; it cannot be used.", 400);
                 return;
@@ -279,7 +279,7 @@ namespace DiscordBot.MLAPI.Modules
         public async Task ForceVerify()
         {
             Context.User.Verified = true;
-            var service = Program.Services.GetRequiredService<EnsureLevelEliteness>();
+            var service = Context.Services.GetRequiredService<EnsureLevelEliteness>();
             foreach(var guild in Program.Client.Guilds)
             {
                 if (!service.Guilds.TryGetValue(guild.Id, out var save))

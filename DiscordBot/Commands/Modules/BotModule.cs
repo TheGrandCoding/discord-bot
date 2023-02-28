@@ -199,8 +199,8 @@ namespace DiscordBot.Commands.Modules
         [RequireOwner]
         public async Task<RuntimeResult> SeeMessageHistory(ulong messageId)
         {
-            var db = Program.Services.GetRequiredService<MsgService>();
-            using var DB = Program.Services.GetRequiredService<LogContext>();
+            var db = Services.GetRequiredService<MsgService>();
+            using var DB = Services.GetRequiredService<LogContext>();
             var dbMsg = DB.Messages.FirstOrDefault(x => x.MessageId == db.cast(messageId));
             if (dbMsg == null)
                 return new BotResult("Message is not in database.");
@@ -234,7 +234,7 @@ namespace DiscordBot.Commands.Modules
         [Summary("Gets invite to logging guild")]
         public async Task GetLogInvite()
         {
-            var srv = Program.Services.GetRequiredService<LoggingService>();
+            var srv = Services.GetRequiredService<LoggingService>();
             var chnl = await srv.LogGuild.GetDefaultChannelAsync();
             var inv = await chnl.CreateInviteAsync(maxAge: 60 * 5, maxUses: 1);
             await ReplyAsync(inv.ToString());
@@ -245,7 +245,7 @@ namespace DiscordBot.Commands.Modules
         [RequireOwner]
         public async Task ToggleAdmin()
         {
-            var srv = Program.Services.GetRequiredService<LoggingService>();
+            var srv = Services.GetRequiredService<LoggingService>();
             var usr = (SocketGuildUser)Context.User;
             var role = srv.LogGuild.Roles.First(x => x.Name == "Log Master");
             if (usr.Roles.Any(x => x.Name == "Log Master"))
@@ -282,7 +282,7 @@ namespace DiscordBot.Commands.Modules
         [RequireContext(ContextType.Guild)]
         public async Task VerifyRole(IRole role)
         {
-            var sv = Program.Services.GetRequiredService<EnsureLevelEliteness>();
+            var sv = Services.GetRequiredService<EnsureLevelEliteness>();
             if(!sv.Guilds.TryGetValue(Context.Guild.Id, out var save))
             {
                 save = new EnsureLevelEliteness.GuildSave();

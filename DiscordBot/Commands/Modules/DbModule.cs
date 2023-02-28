@@ -63,7 +63,7 @@ namespace DiscordBot.Commands.Modules
         [Command("export")]
         public async Task Export(ulong channel, string format = "simple", ulong after = ulong.MinValue, ulong before = ulong.MaxValue)
         {
-            using var db = Program.Services.GetRequiredService<LogContext>();
+            using var db = Services.GetRequiredService<LogContext>();
             var chnlId = cast(channel);
             var messages = db.Messages.AsQueryable()
                 .Where(x => x.ChannelId == chnlId)

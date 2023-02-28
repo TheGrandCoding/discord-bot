@@ -82,7 +82,7 @@ namespace DiscordBot.Services
         public override void OnReady()
         {
             instance = this;
-            Permissions = Program.Services.GetRequiredService<PermissionsService>();
+            Permissions = Program.GlobalServices.GetRequiredService<PermissionsService>();
             Messages = Program.Deserialise<Dictionary<ulong, RolesSetup>>(ReadSave());
             RegisterPermissions();
         }
@@ -113,6 +113,7 @@ namespace DiscordBot.Services
 
         static async System.Threading.Tasks.Task<BotResult> runReactions(string state, string rid, SocketMessageComponent e)
         {
+            using var scope = Program.GlobalServices.CreateScope();
             if (!(ulong.TryParse(state, out var guildId)))
                 return new BotResult($"Failed to parse '{state}' as ulong.");
             if (!(instance.Messages.TryGetValue(guildId, out var setup)))
@@ -126,7 +127,7 @@ namespace DiscordBot.Services
                 return new BotResult($"Role {roleId} does not exist.");
             var perm = $"roles.{role.Guild.Id}.{role.Id}";
             var user = await txt.Guild.GetUserAsync(e.User.Id);
-            using var db = BotDbContext.Get("RolesRunReacts");
+            using var db = scope.ServiceProvider.GetBotDb("RolesRunReacts");
             var result = await db.GetUserFromDiscord(user, true);
             if (!result.Success)
                 return new BotResult($"Failed to fetch user from database.");

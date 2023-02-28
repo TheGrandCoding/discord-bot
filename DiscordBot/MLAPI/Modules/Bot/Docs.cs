@@ -84,7 +84,7 @@ namespace DiscordBot.MLAPI.Modules
         string getInfoBoxes(ModuleInfo module)
         {
             string text = "";
-            disable ??= Program.Services.GetRequiredService<CmdDisableService>();
+            disable ??= Context.Services.GetRequiredService<CmdDisableService>();
             if(disable.IsDisabled(module, out var reason))
             {
                 text += $"<div class='msgBox error'><p><strong>This module has been disabled</strong></p>" +
@@ -100,7 +100,7 @@ namespace DiscordBot.MLAPI.Modules
         string getInfoBoxes(CommandInfo cmd)
         {
             string text = "";
-            disable ??= Program.Services.GetRequiredService<CmdDisableService>();
+            disable ??= Context.Services.GetRequiredService<CmdDisableService>();
             if (disable.IsDisabled(cmd, out var reason))
             {
                 text += $"<div class='msgBox error'><p><strong>This command has been disabled</strong></p>" +

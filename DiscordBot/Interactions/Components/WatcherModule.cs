@@ -122,7 +122,7 @@ namespace DiscordBot.Interactions.Components
             {
                 var ts = TimeSpan.ParseExact(modal.Duration, new[] { @"mm\:ss", @"h\:mm\:ss" }, System.Globalization.CultureInfo.InvariantCulture);
                 var ticks = (ulong)(ts.TotalMilliseconds * 10_000);
-                var srv = Program.Services.GetRequiredService<WatcherService>();
+                var srv = Program.GlobalServices.GetRequiredService<WatcherService>();
                 var itemId = srv.GetItemIdFromUrl(embed.Url);
                 var auth = await WatcherService.JellyfinAuth.Parse(embed.Url, Context.User.Id, srv);
                 string playSessionId = null;

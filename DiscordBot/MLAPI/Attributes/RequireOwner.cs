@@ -12,7 +12,7 @@ namespace DiscordBot.MLAPI
             return false;
         }
 
-        public override PreconditionResult Check(APIContext context)
+        public override PreconditionResult Check(APIContext context, IServiceProvider services)
         {
             return (context.User?.Id ?? 0) == (Program.AppInfo?.Owner?.Id ?? 1) 
                 ? PreconditionResult.FromSuccess() 

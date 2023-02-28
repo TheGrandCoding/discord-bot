@@ -60,7 +60,7 @@ namespace DiscordBot.Services
             var sv = Program.Deserialise<TraktSave>(ReadSave());
             Users = sv.Users ?? new Dictionary<ulong, TraktUserSave>();
             CachedShowNetworks = sv.shows ?? new Dictionary<int, string>();
-            HTTP = Program.Services.GetRequiredService<BotHttpClient>()
+            HTTP = Program.GlobalServices.GetRequiredService<BotHttpClient>()
                 .Child(Name, debug: true);
             HTTP.DefaultRequestHeaders.Add("trakt-api-version", "2");
             HTTP.DefaultRequestHeaders.Add("trakt-api-key", ClientId);

@@ -45,7 +45,7 @@ Changed how permissions worked for bot.
 ";
         public static DiscordSocketClient Client { get; set; }
         public static IConfigurationRoot Configuration { get; set; }
-        public static ServiceProvider Services { get; set; }
+        public static ServiceProvider GlobalServices { get; set; }
         public static CommandService Commands { get; set; }
         public static char Prefix { get; set; }
         private static CancellationTokenSource endToken;
@@ -136,7 +136,7 @@ Changed how permissions worked for bot.
 
         static HttpResponseMessage fetchAuthedRequest(string url, string passwd)
         {
-            var client = Services.GetRequiredService<BotHttpClient>();
+            var client = GlobalServices.GetRequiredService<BotHttpClient>();
             var request = new HttpRequestMessage(HttpMethod.Get, url);
             var authValue = new AuthenticationHeaderValue("Basic",
                 Convert.ToBase64String(Encoding.UTF8.GetBytes($"bot:{passwd}")));
@@ -191,7 +191,7 @@ Changed how permissions worked for bot.
             
             return;
 #endif
-            var client = Services.GetRequiredService<BotHttpClient>();
+            var client = GlobalServices.GetRequiredService<BotHttpClient>();
             bool success = false;
             try
             {
@@ -265,13 +265,13 @@ Changed how permissions worked for bot.
                 Console.ReadLine();
                 return 1;
             }
-            using (Services = ConfigureServices())
+            using (GlobalServices = ConfigureServices())
             {
-                var client = Services.GetRequiredService<DiscordSocketClient>();
+                var client = GlobalServices.GetRequiredService<DiscordSocketClient>();
                 Program.Client = client;
                 client.Log += LogAsync;
                 client.Ready += ClientReady;
-                Commands = Services.GetRequiredService<CommandService>();
+                Commands = GlobalServices.GetRequiredService<CommandService>();
                 Commands.Log += LogAsync;
 
                 var slsh = new Discord.Interactions.InteractionService(client, new Discord.Interactions.InteractionServiceConfig()
@@ -296,8 +296,8 @@ Changed how permissions worked for bot.
                 await client.StartAsync();
 
                 // Here we initialize the logic required to register our commands.
-                await Services.GetRequiredService<CommandHandlingService>().InitializeAsync(slsh);
-                await slsh.AddModulesAsync(Assembly.GetEntryAssembly(), Services);
+                await GlobalServices.GetRequiredService<CommandHandlingService>().InitializeAsync(slsh);
+                await slsh.AddModulesAsync(Assembly.GetEntryAssembly(), GlobalServices);
 
                 try
                 {
@@ -465,7 +465,7 @@ Changed how permissions worked for bot.
             coll.AddDbContext<CalenderDb>(ServiceLifetime.Transient);
             coll.AddDbContext<FoodDbContext>(ServiceLifetime.Transient);
             coll.AddDbContext<HoursDbContext>(ServiceLifetime.Transient);
-            coll.AddDbContext<BotDbContext>(ServiceLifetime.Transient);
+            coll.AddDbContext<BotDbContext>(ServiceLifetime.Scoped);
 
             var yClient = new Google.Apis.YouTube.v3.YouTubeService(new Google.Apis.Services.BaseClientService.Initializer()
             {
@@ -551,7 +551,7 @@ Changed how permissions worked for bot.
             var services = new List<Service>();
             foreach (var type in servicesTypes)
             {
-                var req = (Service)Program.Services.GetRequiredService(type);
+                var req = (Service)Program.GlobalServices.GetRequiredService(type);
                 services.Add(req);
             }
             fetchServiceFiles(services);
@@ -566,28 +566,29 @@ Changed how permissions worked for bot.
                 Environment.Exit(1);
                 return;
             }
-            var db = BotDbContext.Get("ProgramReady"); // disposed in finally
-            try
+            using (var _scope = GlobalServices.CreateScope())
             {
-                var owner = Client.GetApplicationInfoAsync().Result.Owner;
-                var bUser = db.GetUserFromDiscord(owner, true).Result.Value;
-                if(bUser != null)
+                var db = _scope.ServiceProvider.GetBotDb("ProgramReady"); // disposed by scope
+                try
                 {
-                    bUser.Approved = true;
-                    bUser.Verified = true;
-                    var perm = Perm.Parse(Perms.Bot.All);
-                    if(!PermChecker.UserHasPerm(bUser, perm))
+                    var owner = Client.GetApplicationInfoAsync().Result.Owner;
+                    var bUser = db.GetUserFromDiscord(owner, true).Result.Value;
+                    if (bUser != null)
                     {
-                        bUser.WithPerm(perm);
+                        bUser.Approved = true;
+                        bUser.Verified = true;
+                        var perm = Perm.Parse(Perms.Bot.All);
+                        if (!PermChecker.UserHasPerm(bUser, perm))
+                        {
+                            bUser.WithPerm(perm);
+                        }
+                        db.SaveChanges();
                     }
-                    db.SaveChanges();
                 }
-            } catch (Exception ex)
-            {
-                LogError(ex, "SetOwnerDev");
-            } finally
-            {
-                db.Dispose();
+                catch (Exception ex)
+                {
+                    LogError(ex, "SetOwnerDev");
+                }
             }
             Service.SendLoad();
             try

@@ -29,11 +29,11 @@ namespace DiscordBot.MLAPI.Attributes
             return true;
         }
 
-        public override PreconditionResult Check(APIContext context)
+        public override PreconditionResult Check(APIContext context, IServiceProvider services)
         {
             foreach(var type in _services)
             {
-                var service = Program.Services.GetRequiredService(type) as Service;
+                var service = services.GetRequiredService(type) as Service;
                 if(service.IsEnabled == false)
                     return PreconditionResult.FromError("Relies on " + service.Name + ", but that service is not enabled.");
                 if (service.HasFailed)

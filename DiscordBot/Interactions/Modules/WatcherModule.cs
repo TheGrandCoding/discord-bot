@@ -78,7 +78,7 @@ namespace DiscordBot.Interactions.Modules
         public async Task Search(string code)
         {
             await RespondAsync("Searching...", ephemeral: true);
-            using var db = Program.Services.GetRequiredService<TimeTrackDb>();
+            using var db = Services.GetRequiredService<TimeTrackDb>();
             var video = db.GetVideo(User.Id, code);
             if(video == null)
             {

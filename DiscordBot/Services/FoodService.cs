@@ -41,7 +41,7 @@ namespace DiscordBot.Services
 
         public FoodDbContext DB()
         {
-            return Program.Services.GetRequiredService<FoodDbContext>();
+            return Program.GlobalServices.GetRequiredService<FoodDbContext>();
         }
 
         public Product GetProduct(string id)
@@ -705,7 +705,7 @@ namespace DiscordBot.Services
 
         public string Describe(FoodService serv = null)
         {
-            serv ??= Program.Services.GetRequiredService<FoodService>();
+            serv ??= Program.GlobalServices.GetRequiredService<FoodService>();
             var v = new StringBuilder();
             var m = serv.GetManufacturor(ProductId);
             if (!string.IsNullOrWhiteSpace(m))
@@ -727,7 +727,7 @@ namespace DiscordBot.Services
             jobj["frozen"] = Frozen;
             if(withManufacturer)
             {
-                srv ??= Program.Services.GetRequiredService<FoodService>();
+                srv ??= Program.GlobalServices.GetRequiredService<FoodService>();
                 var m = srv.GetManufacturor(ProductId);
                 jobj["manu"] = m;
             }

@@ -23,7 +23,7 @@ namespace DiscordBot.MLAPI.Modules
         [Method("POST"), Path("webhooks/sonarr")]
         public async Task Sonarr()
         {
-            var srv = Program.Services.GetRequiredService<SonarrWebhooksService>();
+            var srv = Context.Services.GetRequiredService<SonarrWebhooksService>();
             if(srv.HasFailed)
             {
                 await RespondRaw("Internal error occurer; service has failed.", 500);
@@ -44,7 +44,7 @@ namespace DiscordBot.MLAPI.Modules
         [Method("POST"), Path("webhooks/radarr")]
         public async Task Radarr()
         {
-            var srv = Program.Services.GetRequiredService<RadarrWebhookService>();
+            var srv = Context.Services.GetRequiredService<RadarrWebhookService>();
             if (srv.HasFailed)
             {
                 await RespondRaw("Internal error occurer; service has failed.", 500);
@@ -71,7 +71,7 @@ namespace DiscordBot.MLAPI.Modules
 #endif
         public async Task GithubCatch()
         {
-            var srv = Program.Services.GetRequiredService<GithubTestService>();
+            var srv = Context.Services.GetRequiredService<GithubTestService>();
             var data = new DiscordBot.Services.JsonWebhook()
             {
                 EventName = Context.Headers["X-GitHub-Event"],

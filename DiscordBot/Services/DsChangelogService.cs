@@ -139,7 +139,7 @@ namespace DiscordBot.Services
         public async Task execute()
         {
             if (!Data.ChannelIds.Any()) return;
-            var http = Program.Services.GetRequiredService<BotHttpClient>()
+            var http = Program.GlobalServices.GetRequiredService<BotHttpClient>()
                 .Child("DsChangelog");
             var meta = await getMinVersions(http, ChangelogPlatform.Desktop);
 

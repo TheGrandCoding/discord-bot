@@ -16,7 +16,7 @@ namespace DiscordBot.MLAPI.Modules
         const string FilterIdRegex = "[a-zA-Z0-9]{8,}";
         public FilterLists(APIContext context) : base(context, "filters")
         {
-            Service = Program.Services.GetRequiredService<FilterListService>();
+            Service = Context.Services.GetRequiredService<FilterListService>();
         }
         public FilterListService Service { get; set; }
 

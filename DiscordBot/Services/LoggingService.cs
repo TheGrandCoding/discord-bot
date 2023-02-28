@@ -254,7 +254,7 @@ namespace DiscordBot.Services
 
         async Task<(EmbedBuilder, DbMsg)> getEmbedForDeletedMessage(Cacheable<IMessage, ulong> arg1, ITextChannel txt)
         {
-            var service = Program.Services.GetRequiredService<MsgService>();
+            var service = Program.GlobalServices.GetRequiredService<MsgService>();
             var content = service.GetLatestContent(arg1.Id);
             var dbMsg = await service.GetMessageAsync(arg1.Id);
             var builder = new EmbedBuilder()
@@ -384,7 +384,7 @@ namespace DiscordBot.Services
                 return;
             if (arg2.Author.IsBot || arg2.Author.IsWebhook)
                 return;
-            var service = Program.Services.GetRequiredService<MsgService>();
+            var service = Program.GlobalServices.GetRequiredService<MsgService>();
             var contents = service.GetContents(arg1.Id);
             var latest = contents.OrderBy(x => x.Timestamp).Where(x => x.Content != arg2.Content).LastOrDefault();
             var latestContent = latest?.Content ?? null;

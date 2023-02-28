@@ -16,7 +16,7 @@ namespace DiscordBot.MLAPI.Modules
         public LegislationService Service { get; set; }
         public Legislation(APIContext context) : base(context, "laws") 
         {
-            Service = Program.Services.GetRequiredService<LegislationService>();
+            Service = Context.Services.GetRequiredService<LegislationService>();
         }
 
         [Method("GET")]

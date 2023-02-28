@@ -16,7 +16,7 @@ namespace DiscordBot.Interactions.Components
         [ComponentInteraction("gjoin:*:*")]
         public async Task handleButton(string uId, string action)
         {
-            var This = Program.Services.GetRequiredService<GuildJoinService>();
+            var This = Services.GetRequiredService<GuildJoinService>();
             ulong guildId = Context.Guild.Id;
             if (!ulong.TryParse(uId, out var userId))
                 return;

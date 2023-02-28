@@ -35,8 +35,8 @@ namespace DiscordBot.Websockets
                 return;
             }
             var guild = Program.Client.GetGuild(id);
-            Service = Program.Services.GetRequiredService<BanAppealsService>();
-            MService = Program.Services.GetRequiredService<MsgService>();
+            Service = Services.GetRequiredService<BanAppealsService>();
+            MService = Services.GetRequiredService<MsgService>();
             Appeal = Service.GetAppeal(guild, User.Id);
             if(Appeal == null)
             {

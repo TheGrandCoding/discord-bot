@@ -17,7 +17,7 @@ namespace DiscordBot.Interactions
         [ComponentInteraction("selectmoveservice:*")]
         public async Task Handle(string msgId, string[] arr)
         {
-            var srv = Program.Services.GetRequiredService<SelectMoveService>();
+            var srv = Program.GlobalServices.GetRequiredService<SelectMoveService>();
             var id = ulong.Parse(msgId);
             var sv = srv.UserCycles.Values.FirstOrDefault(x => x.Message.Id == id);
             if (sv == null)
