@@ -29,7 +29,7 @@ namespace DiscordBot.Services
         }
 
 #if !DEBUG
-        public override void OnLoaded() => OnDailyTick();
+        public override void OnLoaded(IServiceProvider services) => OnDailyTick();
 #endif
 
         public class XkcdInfo
