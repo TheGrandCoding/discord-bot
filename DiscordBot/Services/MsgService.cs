@@ -517,7 +517,7 @@ namespace DiscordBot.Services
 
         public async Task<IAttachment> GetSavedAttachment(IGuild guild, ulong originalId)
         {
-            downloadLock.WaitOne();
+            await downloadLock.WaitAsync();
             try
             {
                 var service = Program.GlobalServices.GetRequiredService<LoggingService>();
@@ -541,7 +541,7 @@ namespace DiscordBot.Services
             }
         }
 
-        Semaphore downloadLock = new Semaphore(1, 1);
+        SemaphoreSlim downloadLock = new(1);
         void downloadAttachmentThread(object arg)
         {
             if (!(arg is imageData data))
@@ -553,7 +553,7 @@ namespace DiscordBot.Services
             {
                 using var scope = Program.GlobalServices.CreateScope();
                 Info($"Getting lock on thread {Thread.CurrentThread.Name} | {Thread.CurrentThread.ManagedThreadId}");
-                downloadLock.WaitOne();
+                downloadLock.Wait();
                 Info($"Got lock on thread {Thread.CurrentThread.Name} | {Thread.CurrentThread.ManagedThreadId}");
                 Info($"Downloading {data.Attachment.Url}", "Attch");
                 using var cl = new WebClient();
@@ -613,29 +613,38 @@ namespace DiscordBot.Services
                 return;
             if (arg.Author.IsBot || arg.Author.IsWebhook)
                 return;
-            var content = new MsgContent()
+            try
             {
-                Message = umsg.Id,
-                Content = umsg.Content,
-                Timestamp = umsg.Timestamp.DateTime,
-            };
-            _db_.Contents.Add(content);
-            _db_.SaveChanges();
-            var msg = new MsgModel(umsg);
-            msg.ContentId = content.Id;
-            _db_.Messages.Add(msg);
-            await _db_.SaveChangesAsync();
-            Console.ForegroundColor = ConsoleColor.Black;
-            Console.BackgroundColor = ConsoleColor.White;
-            Console.WriteLine($"{getWhere(umsg)}: {arg.Author.Username}: {arg.Content}");
-            Console.ForegroundColor = ConsoleColor.White;
-            Console.BackgroundColor = ConsoleColor.Black;
-            Info($"Starting attachment handle for {arg.Id} on thread {Thread.CurrentThread.Name} | {Thread.CurrentThread.ManagedThreadId}");
-            foreach(var attch in umsg.Attachments)
-            {
-                HandleAttachment(attch, guildChannel.Guild, umsg.Id);
+                await downloadLock.WaitAsync();
+                var content = new MsgContent()
+                {
+                    Message = umsg.Id,
+                    Content = umsg.Content,
+                    Timestamp = umsg.Timestamp.DateTime,
+                };
+                _db_.Contents.Add(content);
+                _db_.SaveChanges();
+                var msg = new MsgModel(umsg);
+                msg.ContentId = content.Id;
+                _db_.Messages.Add(msg);
+                await _db_.SaveChangesAsync();
+                Console.ForegroundColor = ConsoleColor.Black;
+                Console.BackgroundColor = ConsoleColor.White;
+                Console.WriteLine($"{getWhere(umsg)}: {arg.Author.Username}: {arg.Content}");
+                Console.ForegroundColor = ConsoleColor.White;
+                Console.BackgroundColor = ConsoleColor.Black;
+                Info($"Starting attachment handle for {arg.Id} on thread {Thread.CurrentThread.Name} | {Thread.CurrentThread.ManagedThreadId}");
+                foreach(var attch in umsg.Attachments)
+                {
+                    HandleAttachment(attch, guildChannel.Guild, umsg.Id);
+                }
+                Info($"Ended attachment handle for {arg.Id} on thread {Thread.CurrentThread.Name} | {Thread.CurrentThread.ManagedThreadId}");
             }
-            Info($"Ended attachment handle for {arg.Id} on thread {Thread.CurrentThread.Name} | {Thread.CurrentThread.ManagedThreadId}");
+            finally
+            {
+                downloadLock.Release();
+            }
+
         }
 
         private async Task Client_MessageUpdated(Cacheable<IMessage, ulong> arg1, SocketMessage arg2, ISocketMessageChannel arg3)
@@ -754,6 +763,7 @@ namespace DiscordBot.Services
                     }
                 }
             }
+            List<Task> parallel = new();
             foreach(var ds in dsMessages)
             {
                 if (!(ds is IUserMessage umsg))
@@ -762,10 +772,11 @@ namespace DiscordBot.Services
                 {
                     total.Add(new DiscordMsg(this, umsg));
 #if !DEBUG
-                    await Task.Run(async () => await AddMessage(umsg));
+                    parallel.Add(Task.Run(async () => await AddMessage(umsg, _db_)));
 #endif
                 }
             }
+            await Task.WhenAll(parallel.ToArray());
             if (changes)
                 await _db_.SaveChangesAsync();
             return total;
