@@ -33,6 +33,7 @@ namespace DiscordBot.Websockets
             Program.Log -= Handle;
             if(User != null)
                 Program.LogInfo($"{User.Name} is no longer watching the logs via WS", IP);
+            base.OnClose(e);
         }
         protected override void OnOpen()
         {
