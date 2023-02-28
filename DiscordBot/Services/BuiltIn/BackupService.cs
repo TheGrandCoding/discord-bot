@@ -47,7 +47,7 @@ namespace DiscordBot.Services.BuiltIn
         }
 
         static bool doneOnce = false;
-        public override void OnReady()
+        public override void OnReady(IServiceProvider services)
         {
             if (doneOnce)
                 return;

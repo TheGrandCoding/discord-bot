@@ -40,7 +40,7 @@ namespace DiscordBot.Services.arr
             public Dictionary<ulong, string> users { get; set; } = new();
         }
 
-        public override void OnReady()
+        public override void OnReady(IServiceProvider services)
         {
             JellyfinApiKey = EnsureConfiguration("tokens:jellyfin");
             BaseUrl = EnsureConfiguration("urls:jellyfin");

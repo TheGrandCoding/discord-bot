@@ -74,7 +74,7 @@ namespace DiscordBot.Services
             return Program.Serialise(sv);
         }
 
-        public override void OnReady()
+        public override void OnReady(IServiceProvider services)
         {
             var sv = ReadSave();
             var lg = Program.Deserialise<logSave>(sv);
@@ -95,7 +95,7 @@ namespace DiscordBot.Services
             }
         }
 
-        public override void OnLoaded()
+        public override void OnLoaded(IServiceProvider services)
         {
             Program.Client.MessageDeleted += Client_MessageDeleted;
             Program.Client.MessagesBulkDeleted += Client_MessagesBulkDeleted;
@@ -254,9 +254,10 @@ namespace DiscordBot.Services
 
         async Task<(EmbedBuilder, DbMsg)> getEmbedForDeletedMessage(Cacheable<IMessage, ulong> arg1, ITextChannel txt)
         {
-            var service = Program.GlobalServices.GetRequiredService<MsgService>();
-            var content = service.GetLatestContent(arg1.Id);
-            var dbMsg = await service.GetMessageAsync(arg1.Id);
+            using var scope = Program.GlobalServices.CreateScope();
+            var service = scope.ServiceProvider.GetRequiredService<MsgService>();
+            var content = service.GetLatestContent(arg1.Id, scope.ServiceProvider);
+            var dbMsg = await service.GetMessageAsync(arg1.Id, scope.ServiceProvider);
             var builder = new EmbedBuilder()
                 .WithTitle("Message Deleted")
                 .WithColor(Color.Red)
@@ -384,8 +385,9 @@ namespace DiscordBot.Services
                 return;
             if (arg2.Author.IsBot || arg2.Author.IsWebhook)
                 return;
-            var service = Program.GlobalServices.GetRequiredService<MsgService>();
-            var contents = service.GetContents(arg1.Id);
+            using var scope = Program.GlobalServices.CreateScope();
+            var service = scope.ServiceProvider.GetRequiredService<MsgService>();
+            var contents = service.GetContents(arg1.Id, scope.ServiceProvider);
             var latest = contents.OrderBy(x => x.Timestamp).Where(x => x.Content != arg2.Content).LastOrDefault();
             var latestContent = latest?.Content ?? null;
             if (latestContent == arg2.Content)

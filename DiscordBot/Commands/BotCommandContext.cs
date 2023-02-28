@@ -3,6 +3,7 @@ using Discord.Commands;
 using Discord.WebSocket;
 using DiscordBot.Classes;
 using DiscordBot.Permissions;
+using DiscordBot.Utils;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
@@ -21,9 +22,8 @@ namespace DiscordBot.Commands
         }
         public void Dispose()
         {
-            _scope?.Dispose();
             _db?.SaveChanges();
-            _db?.Dispose();
+            _scope?.Dispose();
         }
         private BotDbUser _user;
         public BotDbUser BotDbUser 

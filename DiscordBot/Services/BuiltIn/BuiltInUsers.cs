@@ -11,7 +11,7 @@ namespace DiscordBot.Services.BuiltIn
         public const ulong ChessAI = 15;
 
 
-        public override void OnLoaded()
+        public override void OnLoaded(IServiceProvider services)
         {
         }
     }

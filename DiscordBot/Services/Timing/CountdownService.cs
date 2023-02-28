@@ -32,7 +32,7 @@ namespace DiscordBot.Services.Timing
             }
         }
 
-        public override void OnLoaded()
+        public override void OnLoaded(IServiceProvider services)
         {
             Countdowns = Program.Deserialise<List<Countdown>>(ReadSave("[]"));
             var th = new Thread(thread);

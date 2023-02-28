@@ -3,6 +3,7 @@ using Discord.Commands;
 using DiscordBot.Classes;
 using DiscordBot.Permissions;
 using DiscordBot.Services;
+using DiscordBot.Utils;
 using HttpMultipartParser;
 using Microsoft.Extensions.DependencyInjection;
 using System;
@@ -185,7 +186,6 @@ namespace DiscordBot.MLAPI
             if(_db != null)
             {
                 _db.SaveChanges();
-                _db.Dispose();
             }
         }
         public BotDbUser User { get; set; }

@@ -42,7 +42,7 @@ namespace DiscordBot.Services
                 purgeOldCache(dir);
         }
 
-        public override void OnReady()
+        public override void OnReady(IServiceProvider services)
         {
             foreach(var cinema in new ICinema[] {new OdeonCinema()})
             {

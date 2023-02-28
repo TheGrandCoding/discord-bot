@@ -13,9 +13,9 @@ namespace DiscordBot.Services
     public class CloudDNSService : SavedClassService<CloudSave>
     {
         bool croned = false;
-        public override void OnReady()
+        public override void OnReady(IServiceProvider services)
         {
-            base.OnReady();
+            base.OnReady(services);
 
             if (croned || Data.CurrentIpMethod != "router") return;
             croned = true;

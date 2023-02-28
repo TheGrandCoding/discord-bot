@@ -494,7 +494,7 @@ namespace DiscordBot.Services
         
         
         
-        public override void OnReady()
+        public override void OnReady(IServiceProvider services)
         {
             var sv = Program.Deserialise<foodSave>(ReadSave(), new InventoryItemConverter());
             Manufacturers = new ConcurrentDictionary<string, List<string>>(sv.manufacturerPrefixes ?? new Dictionary<string, List<string>>());

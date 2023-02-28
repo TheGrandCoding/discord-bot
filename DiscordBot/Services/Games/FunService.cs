@@ -42,7 +42,7 @@ namespace DiscordBot.Services
             return Program.Serialise(ImageTriggers);
         }
 
-        public override void OnReady()
+        public override void OnReady(IServiceProvider services)
         {
             Program.Client.MessageReceived += Client_MessageReceived;
         }

@@ -21,7 +21,7 @@ namespace DiscordBot.Services
 
         public string getMediaType(IUser user, string type) => Path.Combine(getUserFolder(user), type + ".mp3");
 
-        public override void OnReady()
+        public override void OnReady(IServiceProvider services)
         {
             Program.Client.UserVoiceStateUpdated += Client_UserVoiceStateUpdated;
         }

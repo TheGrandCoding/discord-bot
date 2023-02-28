@@ -21,7 +21,7 @@ namespace DiscordBot.Services
             return Program.GlobalServices.GetRequiredService<HoursDbContext>();
         }
 
-        public override void OnReady()
+        public override void OnReady(IServiceProvider services)
         {
             Program.Client.PresenceUpdated += Client_PresenceUpdated;
         }

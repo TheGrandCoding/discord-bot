@@ -13,7 +13,7 @@ namespace DiscordBot.Services.Games
     {
         public List<TTTGame> Games { get; set; } = new List<TTTGame>();
         public const string RoleName = "TicTacToe";
-        public override void OnReady()
+        public override void OnReady(IServiceProvider services)
         {
             Program.Client.UserVoiceStateUpdated += Client_UserVoiceStateUpdated;
             Program.Client.ReactionAdded += Client_ReactionAdded;

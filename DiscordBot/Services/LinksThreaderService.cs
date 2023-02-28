@@ -63,7 +63,7 @@ namespace DiscordBot.Services
             return Program.Serialise(sv);
         }
 
-        public override void OnReady()
+        public override void OnReady(IServiceProvider services)
         {
             EnsureConfiguration("tokens:smmry");
             save sv;

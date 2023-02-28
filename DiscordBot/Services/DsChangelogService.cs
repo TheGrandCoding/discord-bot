@@ -31,9 +31,9 @@ namespace DiscordBot.Services
             });
         }
 #if DEBUG
-        public override void OnReady()
+        public override void OnReady(IServiceProvider services)
         {
-            base.OnReady();
+            base.OnReady(services);
             OnDailyTick();
         }
 #endif

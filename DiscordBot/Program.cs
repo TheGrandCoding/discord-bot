@@ -445,7 +445,8 @@ Changed how permissions worked for bot.
                     RunOnGateway = false,
                     DefaultTimeout = TimeSpan.FromSeconds(30)
                 });
-            coll.AddDbContext<LogContext>(ServiceLifetime.Transient);
+            coll.AddDbContext<LogContext>(ServiceLifetime.Scoped);
+            coll.AddDbContext<BotDbContext>(ServiceLifetime.Scoped);
 #if INCLUDE_CHESS
             coll.AddDbContext<ChessDbContext>(options =>
             {
@@ -465,7 +466,6 @@ Changed how permissions worked for bot.
             coll.AddDbContext<CalenderDb>(ServiceLifetime.Transient);
             coll.AddDbContext<FoodDbContext>(ServiceLifetime.Transient);
             coll.AddDbContext<HoursDbContext>(ServiceLifetime.Transient);
-            coll.AddDbContext<BotDbContext>(ServiceLifetime.Scoped);
 
             var yClient = new Google.Apis.YouTube.v3.YouTubeService(new Google.Apis.Services.BaseClientService.Initializer()
             {

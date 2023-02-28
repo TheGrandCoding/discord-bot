@@ -22,7 +22,7 @@ namespace DiscordBot.Services
         const string appIdConfig = "tokens:gh-catch:app_id";
         const string clientIdConfig = "tokens:gh-catch:client_id";
         const string clientSecretConfig = "tokens:gh-catch:client_secret";
-        public override void OnReady()
+        public override void OnReady(IServiceProvider services)
         {
             EnsureConfiguration(appIdConfig);
             EnsureConfiguration(clientIdConfig);

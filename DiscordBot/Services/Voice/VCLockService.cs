@@ -19,7 +19,7 @@ namespace DiscordBot.Services
         {
             return Program.Serialise(LockedChannels);
         }
-        public override void OnReady()
+        public override void OnReady(IServiceProvider services)
         {
             Program.Client.UserVoiceStateUpdated += Client_UserVoiceStateUpdated;
             var save = ReadSave();

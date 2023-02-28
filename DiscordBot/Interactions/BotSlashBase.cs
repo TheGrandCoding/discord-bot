@@ -2,6 +2,7 @@
 using Discord.Interactions;
 using Discord.WebSocket;
 using DiscordBot.Classes;
+using DiscordBot.Utils;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
@@ -61,7 +62,6 @@ namespace DiscordBot.Interactions
         {
             await base.AfterExecuteAsync(command);
             await _db?.SaveChangesAsync();
-            _db?.Dispose();
             _scope?.Dispose();
         }
     }

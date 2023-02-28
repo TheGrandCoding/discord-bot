@@ -24,9 +24,31 @@ namespace DiscordBot.Services
     {
         public LogContext()
         {
-            Program.LogInfo($"Creating LogContext", "Log-DB");
         }
 
+
+        static int _id = 0;
+        int Id = 0;
+        string _reason;
+        public void SetReason(string reason)
+        {
+            if (Id == 0)
+            {
+                Id = System.Threading.Interlocked.Increment(ref _id);
+                Program.LogDebug($"Created DB {Id}/{reason}", "LogContext");
+                _reason = reason;
+            }
+            else
+            {
+                _reason = (_reason ?? "") + "+" + reason;
+                Program.LogDebug($"Re-used DB {Id}/{_reason}", "LogContext");
+            }
+        }
+        public override void Dispose()
+        {
+            Program.LogWarning($"Disposing DB {Id}/{_reason}", "LogContext");
+            base.Dispose();
+        }
 
         public DbSet<MsgModel> Messages { get; set; }
         public DbSet<NameTimestamps> Names { get; set; }
@@ -247,16 +269,16 @@ namespace DiscordBot.Services
     }
     public class DbMsg : ReturnedMsg
     {
-        public DbMsg(MsgService s, MsgModel model) : base(s)
+        public DbMsg(IServiceProvider provider, MsgModel model) : base(provider.GetRequiredService<MsgService>())
         {
             Id = model.Message;
-            Content = s.GetLatestContent(Id)?.Content.TrimEnd();
+            Content = service.GetLatestContent(Id, provider)?.Content.TrimEnd();
             Author = Program.Client.GetGuild(model.Guild)?.GetUser(model.Author) ?? null;
             Author ??= Program.Client.GetUser(model.Author);
             if(Author == null)
             {
                 var dbu = new DbUser(model.Author);
-                dbu.Username = s.GetNamesFor(model.Author).LastOrDefault()?.Name;
+                dbu.Username = service.GetNamesFor(model.Author, provider).LastOrDefault()?.Name;
                 Author = dbu;
             }
             Attachments = model.Attachments;
@@ -336,7 +358,7 @@ namespace DiscordBot.Services
     {
         public override bool IsCritical => true;
         public override int DefaultTimeout => base.DefaultTimeout * 100;
-        public override void OnReady()
+        public override void OnReady(IServiceProvider services)
         {
 #if !DEBUG
             Program.Client.PresenceUpdated += Client_PresenceUpdated;
@@ -344,11 +366,11 @@ namespace DiscordBot.Services
             Program.Client.MessageUpdated += Client_MessageUpdated;
             Program.Client.ChannelUpdated += Client_ChannelUpdated;
             Program.Client.GuildUpdated += Client_GuildUpdated;
-            Catchup().Wait();
+            Catchup(services).Wait();
 #endif
 
 #if DEBUG
-            //Catchup().Wait();
+            //Catchup(services).Wait();
 #endif
         }
 
@@ -366,7 +388,8 @@ namespace DiscordBot.Services
                 _presCache[arg1.Id] = now;
                 if(process)
                 {
-                    using var db = DB();
+                    using var scope = Program.GlobalServices.CreateScope();
+                    var db = scope.ServiceProvider.GetMsgDb("Presence");
                     var state = new StatusLog()
                     {
                         Author = arg1.Id,
@@ -379,16 +402,10 @@ namespace DiscordBot.Services
             }
         }
 
-        public static LogContext DB()
-        {
-            Program.LogInfo(Program.GetStackTrace(), $"Log-_db_");
-            return Program.GlobalServices.GetRequiredService<LogContext>();
-        }
-
         #region Startup catchup
-        async Task Catchup()
+        async Task Catchup(IServiceProvider services)
         {
-            using var _db_ = DB();
+            var _db_ = services.GetMsgDb("catchup");
             foreach (var guild in Program.Client.Guilds)
             {
                 if (guild.Id != 365230804734967840)
@@ -534,6 +551,7 @@ namespace DiscordBot.Services
 #endif
             try
             {
+                using var scope = Program.GlobalServices.CreateScope();
                 Info($"Getting lock on thread {Thread.CurrentThread.Name} | {Thread.CurrentThread.ManagedThreadId}");
                 downloadLock.WaitOne();
                 Info($"Got lock on thread {Thread.CurrentThread.Name} | {Thread.CurrentThread.ManagedThreadId}");
@@ -551,7 +569,7 @@ namespace DiscordBot.Services
                 Info($"Uploading {data.Attachment.Url}");
                 var message = chnl.SendFileAsync(path, $"{data.Guild.Id}-{data.MessageId}").Result;
                 Info($"Uploaded {data.Attachment.Url}");
-                using var _db_ = DB();
+                var _db_ = scope.ServiceProvider.GetMsgDb($"attachment-{data.MessageId}");
                 MsgModel dbMsg;
                 int tries = 0;
                 do
@@ -587,7 +605,7 @@ namespace DiscordBot.Services
 
 #endregion
 
-        async Task AddMessage(IMessage arg, LogContext _db_ = null)
+        async Task AddMessage(IMessage arg, LogContext _db_)
         {
             if (!(arg is IUserMessage umsg))
                 return;
@@ -601,44 +619,31 @@ namespace DiscordBot.Services
                 Content = umsg.Content,
                 Timestamp = umsg.Timestamp.DateTime,
             };
-            bool dispose = false;
-            if(_db_ == null)
+            _db_.Contents.Add(content);
+            _db_.SaveChanges();
+            var msg = new MsgModel(umsg);
+            msg.ContentId = content.Id;
+            _db_.Messages.Add(msg);
+            await _db_.SaveChangesAsync();
+            Console.ForegroundColor = ConsoleColor.Black;
+            Console.BackgroundColor = ConsoleColor.White;
+            Console.WriteLine($"{getWhere(umsg)}: {arg.Author.Username}: {arg.Content}");
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.BackgroundColor = ConsoleColor.Black;
+            Info($"Starting attachment handle for {arg.Id} on thread {Thread.CurrentThread.Name} | {Thread.CurrentThread.ManagedThreadId}");
+            foreach(var attch in umsg.Attachments)
             {
-                dispose = true;
-                _db_ = DB();
+                HandleAttachment(attch, guildChannel.Guild, umsg.Id);
             }
-            try
-            {
-                _db_.Contents.Add(content);
-                _db_.SaveChanges();
-                var msg = new MsgModel(umsg);
-                msg.ContentId = content.Id;
-                _db_.Messages.Add(msg);
-                await _db_.SaveChangesAsync();
-                Console.ForegroundColor = ConsoleColor.Black;
-                Console.BackgroundColor = ConsoleColor.White;
-                Console.WriteLine($"{getWhere(umsg)}: {arg.Author.Username}: {arg.Content}");
-                Console.ForegroundColor = ConsoleColor.White;
-                Console.BackgroundColor = ConsoleColor.Black;
-                Info($"Starting attachment handle for {arg.Id} on thread {Thread.CurrentThread.Name} | {Thread.CurrentThread.ManagedThreadId}");
-                foreach(var attch in umsg.Attachments)
-                {
-                    HandleAttachment(attch, guildChannel.Guild, umsg.Id);
-                }
-                Info($"Ended attachment handle for {arg.Id} on thread {Thread.CurrentThread.Name} | {Thread.CurrentThread.ManagedThreadId}");
-            }
-            finally
-            {
-                if (dispose)
-                    _db_.Dispose();
-            }
+            Info($"Ended attachment handle for {arg.Id} on thread {Thread.CurrentThread.Name} | {Thread.CurrentThread.ManagedThreadId}");
         }
 
         private async Task Client_MessageUpdated(Cacheable<IMessage, ulong> arg1, SocketMessage arg2, ISocketMessageChannel arg3)
         {
             if (arg2.Author.IsBot || arg2.Author.IsWebhook)
                 return;
-            using var _db_ = DB();
+            using var scope = Program.GlobalServices.CreateScope();
+            var _db_ = scope.ServiceProvider.GetMsgDb("messageUpdt");
             var origMsg = await _db_.Messages.AsQueryable().FirstOrDefaultAsync(x => x.MessageId == cast(arg1.Id));
             if (origMsg == null)
                 return; // TODO: add the message in
@@ -670,42 +675,42 @@ namespace DiscordBot.Services
             }
         }
 
-        public List<MsgContent> GetContents(ulong message)
+        public List<MsgContent> GetContents(ulong message, IServiceProvider services)
         {
-            using var _db_ = DB();
+            var _db_ = services.GetMsgDb("getcontents");
             var t = _db_.Contents.AsQueryable().Where(x => x.MessageId == cast(message));
             return t.ToList();
         }
-        public MsgContent GetLatestContent(ulong message)
+        public MsgContent GetLatestContent(ulong message, IServiceProvider service)
         {
-            return GetContents(message).LastOrDefault();
+            return GetContents(message, service).LastOrDefault();
         }
 
-        public async Task<List<DbMsg>> GetMessagesAsync(ulong guild, ulong channel, ulong before = ulong.MaxValue, int limit = 25)
+        public async Task<List<DbMsg>> GetMessagesAsync(ulong guild, ulong channel, IServiceProvider service, ulong before = ulong.MaxValue, int limit = 25)
         {
-            using var _db_ = DB();
+            var _db_ = service.GetMsgDb("getMsg");
             var query = _db_.Messages.AsQueryable().Where(x => x.GuildId == cast(guild) && x.ChannelId == cast(channel));
             var msgs = query.AsAsyncEnumerable()
                 .Where(x => x.Message < before)
                 .OrderByDescending(x => x.Message)
                 .Take(limit);
             var result = await msgs.ToListAsync();
-            return result.Select(x => new DbMsg(this, x)).ToList();
+            return result.Select(x => new DbMsg(service, x)).ToList();
         }
 
-        public async Task<DbMsg> GetMessageAsync(ulong messageId)
+        public async Task<DbMsg> GetMessageAsync(ulong messageId, IServiceProvider service)
         {
-            using var _db_ = DB();
+            var _db_ = service.GetMsgDb("getMsg");
             var model = await _db_.Messages.AsQueryable().FirstOrDefaultAsync(x => x.MessageId == cast(messageId));
             if (model == null)
                 return null;
-            return new DbMsg(this, model);
+            return new DbMsg(service, model);
         }
 
-        public async Task<List<ReturnedMsg>> GetCombinedMsgs(ulong guild, ulong channel, ulong before = ulong.MaxValue, int limit = 25)
+        public async Task<List<ReturnedMsg>> GetCombinedMsgs(ulong guild, ulong channel, IServiceProvider service, ulong before = ulong.MaxValue, int limit = 25)
         {
-            using var _db_ = DB();
-            var fromDb = await GetMessagesAsync(guild, channel, before, limit);
+            var _db_ = service.GetMsgDb("getCmbMsg");
+            var fromDb = await GetMessagesAsync(guild, channel, service, before, limit);
             var total = new List<ReturnedMsg>();
             foreach (var x in fromDb)
                 total.Add(x);
@@ -778,7 +783,8 @@ namespace DiscordBot.Services
                 Timestamp = DateTime.Now,
                 Name = arg2.Name
             };
-            using var _db_ = DB();
+            using var scope = Program.GlobalServices.CreateScope();
+            var _db_ = scope.ServiceProvider.GetMsgDb("gldUpdt");
             _db_.Names.Add(stamp);
             await _db_.SaveChangesAsync();
         }
@@ -797,19 +803,19 @@ namespace DiscordBot.Services
                 Timestamp = DateTime.Now,
                 Name = chnl2.Name
             };
-            using var _db_ = DB();
+            using var scope = Program.GlobalServices.CreateScope();
+            var _db_ = scope.ServiceProvider.GetMsgDb("chnlUpdt");
             _db_.Names.Add(stamp);
             await _db_.SaveChangesAsync();
         }
 
-        public List<NameTimestamps> GetNamesFor(ulong id)
+        public List<NameTimestamps> GetNamesFor(ulong id, IServiceProvider service)
         {
-            using var _db_ = DB();
-            return _db_.Names.AsQueryable().Where(x => x.ObjectId == cast(id)).ToList();
+            return service.GetMsgDb("getNames").Names.AsQueryable().Where(x => x.ObjectId == cast(id)).ToList();
         }
-        public string GetNameForAndAt(ulong id, DateTime time)
+        public string GetNameForAndAt(ulong id, DateTime time, IServiceProvider service)
         {
-            var stamps = GetNamesFor(id);
+            var stamps = GetNamesFor(id, service);
             foreach(var x in stamps)
             {
                 if (x.Timestamp > time)
@@ -820,7 +826,10 @@ namespace DiscordBot.Services
 
         private async System.Threading.Tasks.Task Client_MessageReceived(SocketMessage arg)
         {
-            await Task.Run(async () => await AddMessage(arg));
+            await Task.Run(async () => {
+                using var scope = Program.GlobalServices.CreateScope();
+                await AddMessage(arg, scope.ServiceProvider.GetMsgDb("newMessage")); 
+            });
         }
 
         string getWhere(IUserMessage m)

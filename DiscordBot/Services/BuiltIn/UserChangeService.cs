@@ -14,7 +14,7 @@ namespace DiscordBot.Services.BuiltIn
         public event RoleAddedArgs RolesAdded;
         public event RoleRemovedArgs RolesRemoved;
 
-        public override void OnReady()
+        public override void OnReady(IServiceProvider services)
         {
             Program.Client.GuildMemberUpdated += Client_GuildMemberUpdated;
         }

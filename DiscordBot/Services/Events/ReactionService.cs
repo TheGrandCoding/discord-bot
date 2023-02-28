@@ -28,13 +28,13 @@ namespace DiscordBot.Services
             return Program.Serialise(srv);
         }
 
-        public override void OnReady()
+        public override void OnReady(IServiceProvider services)
         {
             Program.Client.ReactionAdded += Client_ReactionAdded;
             Program.Client.ReactionRemoved += Client_ReactionRemoved;
         }
 
-        public override void OnLoaded()
+        public override void OnLoaded(IServiceProvider services)
         {
             var content = ReadSave();
             messages = Program.Deserialise<Dictionary<ulong, ReactionMessage>>(content);

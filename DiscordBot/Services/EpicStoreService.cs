@@ -27,7 +27,7 @@ namespace DiscordBot.Services
             sv.games = Games;
             return Program.Serialise(sv);
         }
-        public override void OnReady()
+        public override void OnReady(IServiceProvider services)
         {
             var sv = Program.Deserialise<EpicSave>(ReadSave());
             Channels = sv.channels ?? new Dictionary<ulong, ulong>();
@@ -71,7 +71,7 @@ namespace DiscordBot.Services
             return JsonConvert.DeserializeObject<EpicGamesPromotions>(body);
         }
 
-        public override void OnLoaded()
+        public override void OnLoaded(IServiceProvider services)
         {
             OnDailyTick();
         }

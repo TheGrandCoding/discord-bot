@@ -37,13 +37,13 @@ namespace DiscordBot.Services.Radarr
             };
             return Program.Serialise(save);
         }
-        public override void OnReady()
+        public override void OnReady(IServiceProvider services)
         {
             var save = Program.Deserialise<Save>(ReadSave("{}"));
             Channels = save.Channels ?? new List<SaveChannel>();
             Trakt = Program.GlobalServices.GetRequiredService<TraktService>();
         }
-        public override void OnLoaded()
+        public override void OnLoaded(IServiceProvider services)
         {
             var parent = Program.GlobalServices.GetRequiredService<BotHttpClient>();
             HTTP = parent.Child("RadarrAPI");

@@ -113,7 +113,7 @@ namespace DiscordBot.Services
                 SaveAct(act);
         }
 
-        public override void OnLoaded()
+        public override void OnLoaded(IServiceProvider services)
         {
             if (!Directory.Exists(StorageFolder))
                 Directory.CreateDirectory(StorageFolder);

@@ -38,7 +38,7 @@ namespace DiscordBot.Services.Sonarr
             };
             return Program.Serialise(save);
         }
-        public override void OnReady()
+        public override void OnReady(IServiceProvider services)
         {
             var save = Program.Deserialise<Save>(ReadSave("{}"));
             Channels = new List<SaveChannel>();
@@ -51,7 +51,7 @@ namespace DiscordBot.Services.Sonarr
         }
 
         const string CONFIG_API_KEY = "tokens:sonarr";
-        public override void OnLoaded()
+        public override void OnLoaded(IServiceProvider services)
         {
             EnsureConfiguration(CONFIG_API_KEY);
             var parent = Program.GlobalServices.GetRequiredService<BotHttpClient>();

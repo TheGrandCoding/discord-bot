@@ -4,6 +4,7 @@ using Discord.WebSocket;
 using DiscordBot.Classes;
 using DiscordBot.Classes.Attributes;
 using DiscordBot.Services;
+using DiscordBot.Utils;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using System;
@@ -197,7 +198,7 @@ namespace DiscordBot.Commands.Modules
             return Program.Serialise(VoteItems, TypeNameHandling.Auto);
         }
 
-        public override void OnLoaded()
+        public override void OnLoaded(IServiceProvider services)
         {
             var loaded = Program.Deserialise<Dictionary<ulong, VoteItem>>(ReadSave());
             foreach(var item in loaded)
@@ -420,7 +421,7 @@ namespace DiscordBot.Commands.Modules
             else
                 await Target?.RemoveRoleAsync(Role, new RequestOptions() { AuditLogReason = "Voted" });
             using var scope = Program.GlobalServices.CreateScope();
-            using var db = scope.ServiceProvider.GetBotDb("DemocracyAction");
+            var db = scope.ServiceProvider.GetBotDb("DemocracyAction");
             var bUser = (await db.GetUserFromDiscord(Target, true)).Value;
             bUser.Verified = Adding;
             bUser.Approved = (bUser.Approved ?? false) || Adding;

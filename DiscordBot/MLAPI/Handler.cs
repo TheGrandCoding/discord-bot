@@ -249,6 +249,63 @@ namespace DiscordBot.MLAPI
                 || str.Contains("::1");
         }
 
+        static async Task innerLoop(HttpListenerContext req)
+        {
+            using var scopedServices = Program.GlobalServices.CreateScope();
+            var context = parseContext(req, scopedServices);
+            if (req.Request.RawUrl == "/favicon.ico")
+            {
+                req.Response.StatusCode = 301;
+                req.Response.Close();
+                return;
+            }
+            if (context.Headers.TryGetValue("Origin", out var origin))
+            {
+                if (origin != LocalAPIUrl && (context.Path.StartsWith("/api/tracker") || context.Path.StartsWith("/ocr")))
+                {
+                    foreach (string key in req.Request.Headers.Keys)
+                    {
+                        var val = req.Request.Headers[key];
+                        if (key.StartsWith("Access-Control-"))
+                        {
+                            req.Response.AddHeader(key.Replace("Request", "Allow"), val);
+                        }
+                    }
+                    req.Response.AddHeader("Access-Control-Allow-Origin", "*");
+                    if (context.Method == "OPTIONS")
+                    {
+                        req.Response.StatusCode = 200;
+                        req.Response.Close();
+                        return;
+                    }
+                }
+            }
+            if (!isValidConnection(req.Request.LocalEndPoint))
+            {
+                Program.LogWarning($"Invalid REST connection: {req.Request.LocalEndPoint}: {req.Request.Url.PathAndQuery}", "RESTHandler");
+                req.Response.StatusCode = 400;
+                req.Response.Close();
+                return;
+            }
+            if (context.Session != null && context.Session.Approved == false)
+            {
+                Program.LogDebug($"Unapproved session access: {req.Request.LocalEndPoint}: {req.Request.Url.PathAndQuery}", "REST-" + context.IP);
+                var bytes = System.Text.Encoding.UTF8.GetBytes("You are logging in from a new IP address.\r\n" +
+                    "You will need to approve this session through the DM the bot has just sent you.");
+                req.Response.StatusCode = 200;
+                req.Response.Close(bytes, false);
+                return;
+            }
+            try
+            {
+                await handleRequest(context);
+            }
+            catch (Exception ex)
+            {
+                Program.LogError(ex, "HandleRequest");
+            }
+        }
+
         static async Task listenLoop()
         {
             int exceptions = 0;
@@ -259,65 +316,18 @@ namespace DiscordBot.MLAPI
                 try
                 {
                     req = await Server.GetContextAsync().WaitAsync(token);
-                    var scopedServices = Program.GlobalServices.CreateScope();
-                    var context = parseContext(req, scopedServices);
-                    if (req.Request.RawUrl == "/favicon.ico")
-                    {
-                        req.Response.StatusCode = 301;
-                        req.Response.Close();
-                        continue;
-                    }
-                    if(context.Headers.TryGetValue("Origin", out var origin))
-                    {
-                        if (origin != LocalAPIUrl && (context.Path.StartsWith("/api/tracker") || context.Path.StartsWith("/ocr")))
-                        {
-                            foreach (string key in req.Request.Headers.Keys)
-                            {
-                                var val = req.Request.Headers[key];
-                                if (key.StartsWith("Access-Control-"))
-                                {
-                                    req.Response.AddHeader(key.Replace("Request", "Allow"), val);
-                                }
-                            }
-                            req.Response.AddHeader("Access-Control-Allow-Origin", "*");
-                            if(context.Method == "OPTIONS")
-                            {
-                                req.Response.StatusCode = 200;
-                                req.Response.Close();
-                                continue;
-                            }
-                        }
-                    }
-                    if (!isValidConnection(req.Request.LocalEndPoint))
-                    {
-                        Program.LogWarning($"Invalid REST connection: {req.Request.LocalEndPoint}: {req.Request.Url.PathAndQuery}", "RESTHandler");
-                        req.Response.StatusCode = 400;
-                        req.Response.Close();
-                        continue;
-                    }
-                    if(context.Session != null && context.Session.Approved == false)
-                    {
-                        Program.LogDebug($"Unapproved session access: {req.Request.LocalEndPoint}: {req.Request.Url.PathAndQuery}", "REST-" + context.IP);
-                        var bytes = System.Text.Encoding.UTF8.GetBytes("You are logging in from a new IP address.\r\n" +
-                            "You will need to approve this session through the DM the bot has just sent you.");
-                        req.Response.StatusCode = 200;
-                        req.Response.Close(bytes, false);
-                        continue;
-                    }
                     _ = Task.Run(async () =>
                     {
                         try
                         {
-                            await handleRequest(context);
+                            await innerLoop(req);
+                            exceptions = 0;
                         } catch(Exception ex)
                         {
-                            Program.LogError(ex, "HandleRequest");
-                        } finally
-                        {
-                            scopedServices?.Dispose();
+                            Program.LogError(ex, "REST-Execute");
+                            exceptions++;
                         }
                     });
-                    exceptions = 0;
                 }
                 catch (OperationCanceledException)
                 {

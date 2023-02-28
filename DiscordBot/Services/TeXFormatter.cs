@@ -17,7 +17,7 @@ namespace DiscordBot.Services
         Classes.BotHttpClient Client { get; set; }
         const string API = "https://en.wikipedia.org/api/rest_v1";
 
-        public override void OnReady()
+        public override void OnReady(IServiceProvider services)
         {
             Client = Program.GlobalServices.GetRequiredService<Classes.BotHttpClient>();
             Program.Client.MessageReceived += Client_MessageReceived;

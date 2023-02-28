@@ -204,7 +204,7 @@ namespace DiscordBot.Commands.Modules
             var dbMsg = DB.Messages.FirstOrDefault(x => x.MessageId == db.cast(messageId));
             if (dbMsg == null)
                 return new BotResult("Message is not in database.");
-            var contents = db.GetContents(messageId).OrderBy(x => x.Timestamp);
+            var contents = db.GetContents(messageId, Services).OrderBy(x => x.Timestamp);
             
             var url = $"https://discord.com/channels/{dbMsg.Guild}/{dbMsg.Channel}/{dbMsg.Message}";
             var paginator = new StaticPaginatorBuilder()
@@ -290,7 +290,7 @@ namespace DiscordBot.Commands.Modules
             }
             save.VerifyRole = role;
             sv.OnSave();
-            await sv.Catchup();
+            await sv.Catchup(Services);
             await ReplyAsync("Set.");
         }
     

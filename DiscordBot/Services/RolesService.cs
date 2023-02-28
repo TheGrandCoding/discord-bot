@@ -79,7 +79,7 @@ namespace DiscordBot.Services
             }
         }
 
-        public override void OnReady()
+        public override void OnReady(IServiceProvider services)
         {
             instance = this;
             Permissions = Program.GlobalServices.GetRequiredService<PermissionsService>();
@@ -87,7 +87,7 @@ namespace DiscordBot.Services
             RegisterPermissions();
         }
 
-        public override void OnLoaded()
+        public override void OnLoaded(IServiceProvider services)
         {
             OnDailyTick();
         }
@@ -127,7 +127,7 @@ namespace DiscordBot.Services
                 return new BotResult($"Role {roleId} does not exist.");
             var perm = $"roles.{role.Guild.Id}.{role.Id}";
             var user = await txt.Guild.GetUserAsync(e.User.Id);
-            using var db = scope.ServiceProvider.GetBotDb("RolesRunReacts");
+            var db = scope.ServiceProvider.GetBotDb("RolesRunReacts");
             var result = await db.GetUserFromDiscord(user, true);
             if (!result.Success)
                 return new BotResult($"Failed to fetch user from database.");

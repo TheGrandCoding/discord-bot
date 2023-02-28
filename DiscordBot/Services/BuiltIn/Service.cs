@@ -3,6 +3,7 @@ using Discord.WebSocket;
 using DiscordBot.Classes.Attributes;
 using DiscordBot.Services.BuiltIn;
 using DiscordBot.Utils;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
@@ -37,8 +38,8 @@ namespace DiscordBot.Services
 
         public static DateTime? lastDailyTick = null;
 
-        public virtual void OnReady() { }
-        public virtual void OnLoaded() { }
+        public virtual void OnReady(IServiceProvider services) { }
+        public virtual void OnLoaded(IServiceProvider services) { }
         public virtual void OnSave() { }
         public virtual void OnDailyTick() { }
         public virtual void OnClose() { }
@@ -125,6 +126,7 @@ namespace DiscordBot.Services
             var name = $"On{state}";
             try
             {
+                using var scope = Program.GlobalServices.CreateScope();
                 var stop = new Stopwatch();
                 foreach (var srv in zza_services)
                 {
@@ -150,7 +152,13 @@ namespace DiscordBot.Services
                             {
                                 try
                                 {
-                                    method.Invoke(srv, null);
+                                    if(method.GetParameters().Length == 0)
+                                    {
+                                        method.Invoke(srv, null);
+                                    } else
+                                    {
+                                        method.Invoke(srv, new[] { scope.ServiceProvider });
+                                    }
                                 }
                                 catch (Exception exception)
                                 {

@@ -11,31 +11,27 @@ using System.Threading.Tasks;
 
 namespace DiscordBot.Classes
 {
-    public static class BotDbExtensions
-    {
-        public static BotDbContext GetBotDb(this IServiceProvider services, string reason)
-        {
-            var d = services.GetRequiredService<BotDbContext>();
-            d.Create(reason);
-            return d;
-        }
-    }
     public class BotDbContext : DbContext
     {
         static int _id = 0;
-        static int _disposed = 0;
         int Id = 0;
         string _reason;
-        public void Create(string reason)
+        public void SetReason(string reason)
         {
-            Id = System.Threading.Interlocked.Increment(ref _id);
-            _reason = reason;
-            Program.LogDebug($"Created DB {Id}/{reason}", "BotDbCtx");
+            if(Id == 0)
+            {
+                Id = System.Threading.Interlocked.Increment(ref _id);
+                Program.LogDebug($"Created DB {Id}/{reason}", "BotDbCtx");
+                _reason = reason;
+            } else
+            {
+                _reason = (_reason ?? "") + "+" + reason;
+                Program.LogDebug($"Re-used DB {Id}/{_reason}", "BotDbCtx");
+            }
         }
         public override void Dispose()
         {
-            int count = System.Threading.Interlocked.Increment(ref _disposed);
-            Program.LogWarning($"Disposing DB {Id}/{_reason}; count: {count}", "BotDbCtx");
+            Program.LogWarning($"Disposing DB {Id}/{_reason}", "BotDbCtx");
             base.Dispose();
         }
         public static SemaphoreSlim _lock = new(1);

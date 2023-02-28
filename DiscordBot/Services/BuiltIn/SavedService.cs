@@ -50,9 +50,9 @@ namespace DiscordBot.Services
             var sv = base.ReadSave(typeof(IEnumerable<>).IsAssignableFrom(typeof(T)) ? "[]" : "{}");
             return Program.Deserialise<T>(sv, conv);
         }
-        public override void OnReady()
+        public override void OnReady(IServiceProvider services)
         {
-            base.OnReady();
+            base.OnReady(services);
             Data = ReadSave();
         }
         public override string GenerateSave()

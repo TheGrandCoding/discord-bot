@@ -239,7 +239,7 @@ namespace DiscordBot.Services
             return false;
         }
 
-        public override void OnReady()
+        public override void OnReady(IServiceProvider services)
         {
             var sv = Program.Deserialise<serviceSave>(ReadSave("{}"));
             foreach(var exp in (sv.experiments ?? new List<Experiment>()))

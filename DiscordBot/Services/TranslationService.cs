@@ -24,7 +24,7 @@ namespace DiscordBot.Services
         {
             return Program.Serialise(Watched);
         }
-        public override void OnReady()
+        public override void OnReady(IServiceProvider services)
         {
             var sv = ReadSave();
             Watched = Program.Deserialise<Dictionary<ulong, List<ulong>>>(sv);

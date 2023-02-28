@@ -22,7 +22,7 @@ namespace DiscordBot.Services.Rules
 
         private PublicSuffixList suffixList;
 
-        public override void OnReady()
+        public override void OnReady(IServiceProvider services)
         {
             if (!Directory.Exists(data_dir))
                 Directory.CreateDirectory(data_dir);

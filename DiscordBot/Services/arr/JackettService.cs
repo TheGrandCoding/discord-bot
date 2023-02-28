@@ -18,7 +18,7 @@ namespace DiscordBot.Services
             var apikey = Program.Configuration[tokens_jackett];
             return baseUrl + $"api/v2.0/indexers/{site}/results/torznab/api?apikey={apikey}&t=search&cat={categories}&q={query}";
         }
-        public override void OnReady()
+        public override void OnReady(IServiceProvider services)
         {
             EnsureConfiguration(urls_jackett);
             EnsureConfiguration(tokens_jackett);

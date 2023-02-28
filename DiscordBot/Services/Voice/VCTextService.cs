@@ -30,7 +30,7 @@ namespace DiscordBot.Services
             return Program.Serialise(save);
         }
 
-        public override void OnLoaded()
+        public override void OnLoaded(IServiceProvider services)
         {
             var sv = Program.Deserialise<syncSave>(ReadSave());
             Threads = new ConcurrentDictionary<SocketVoiceChannel, IThreadChannel>();
@@ -39,7 +39,7 @@ namespace DiscordBot.Services
             PairedChannels = new ConcurrentDictionary<SocketVoiceChannel, ITextChannel>();
             foreach (var keypair in (sv.texts ?? new Dictionary<ulong, ITextChannel>()))
                 PairedChannels[Program.Client.GetChannel(keypair.Key) as SocketVoiceChannel] = keypair.Value;
-            catchup().Wait();
+            catchup(services).Wait();
             Program.Client.UserVoiceStateUpdated += Client_UserVoiceStateUpdated;
             Program.Client.ThreadUpdated += Client_ThreadUpdated;
         }
@@ -60,7 +60,7 @@ namespace DiscordBot.Services
 
                 int hasEnabledPair = 0;
                 using var scope = Program.GlobalServices.CreateScope();
-                using var db = scope.ServiceProvider.GetBotDb("VCThreadUpdate");
+                var db = scope.ServiceProvider.GetBotDb("VCThreadUpdate");
                 foreach (var usr in vc.Users)
                 {
                     var b = hasEnabledPairing(usr, usr.IsSelfMuted, db);
@@ -124,7 +124,7 @@ namespace DiscordBot.Services
             if (pairedChannel == null)
                 return;
             using var scope = Program.GlobalServices.CreateScope();
-            using var db = scope.ServiceProvider.GetBotDb("VCuserJoin");
+            var db = scope.ServiceProvider.GetBotDb("VCuserJoin");
             if(Threads.TryGetValue(voice, out var thread))
             {
             } else if(hasEnabledPairing(user, state.IsSelfMuted, db))
@@ -185,7 +185,7 @@ namespace DiscordBot.Services
             if(Threads.TryGetValue(voice, out var thread))
             {
                 using var scope = Program.GlobalServices.CreateScope();
-                using var db = scope.ServiceProvider.GetBotDb("VCuserLeft");
+                var db = scope.ServiceProvider.GetBotDb("VCuserLeft");
                 var pairings = voice.Users.Count(x => x.Id != user.Id && hasEnabledPairing(x, state.IsSelfMuted, db));
                 var embed = new EmbedBuilder();
                 embed.Title = $"User Left Paired VC";
@@ -224,7 +224,7 @@ namespace DiscordBot.Services
             if(Threads.TryGetValue(from, out var thread))
             {
                 using var scope = Program.GlobalServices.CreateScope();
-                using var db = scope.ServiceProvider.GetBotDb("VCUserMoved");
+                var db = scope.ServiceProvider.GetBotDb("VCUserMoved");
                 var pairings = from.Users.Count(x => x.Id != user.Id && hasEnabledPairing(x, fState.IsSelfMuted || tState.IsSelfMuted, db));
                 if (pairings == 0)
                 {
@@ -242,12 +242,11 @@ namespace DiscordBot.Services
             await UserJoinedVc(user, tState);
         }
 
-        async Task catchup()
+        async Task catchup(IServiceProvider service)
         {
             var shouldSave = false;
             var toRemove = new List<SocketVoiceChannel>();
-            using var scope = Program.GlobalServices.CreateScope();
-            using var db = scope.ServiceProvider.GetBotDb("VCCatchup");
+            var db = service.GetBotDb("VCCatchup");
             foreach (var keypair in Threads)
             {
                 var voice = keypair.Key;

@@ -16,7 +16,7 @@ namespace DiscordBot.Services
         {
             return Program.Serialise(Rules);
         }
-        public override void OnReady()
+        public override void OnReady(IServiceProvider services)
         {
             var sv = ReadSave();
             Rules = Program.Deserialise<Dictionary<ulong, RuleSet>>(sv);

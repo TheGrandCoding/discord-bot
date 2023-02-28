@@ -20,7 +20,7 @@ namespace DiscordBot.Services
 {
     public class TimeTrackService : Service
     {
-        public override void OnReady()
+        public override void OnReady(IServiceProvider services)
         {
 #if DEBUG
             return;

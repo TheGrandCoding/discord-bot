@@ -19,7 +19,7 @@ namespace DiscordBot.Services.Events
         public override string GenerateSave()
             => Program.Serialise(GuildData);
 
-        public override void OnLoaded()
+        public override void OnLoaded(IServiceProvider services)
         {
             var sv = ReadSave();
             GuildData = Program.Deserialise<ConcurrentDictionary<ulong, GuildSave>>(sv);

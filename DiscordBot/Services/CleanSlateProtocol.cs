@@ -9,7 +9,7 @@ namespace DiscordBot.Services
 {
     public class CleanSlateProtocol : Service
     {
-        public override void OnLoaded() => CleanTheSlate().Wait();
+        public override void OnLoaded(IServiceProvider services) => CleanTheSlate().Wait();
         public override void OnDailyTick() => CleanTheSlate().Wait();
 
         public async Task CleanTheSlate()

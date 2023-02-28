@@ -1,6 +1,7 @@
 ﻿using DiscordBot.Classes;
 using DiscordBot.MLAPI;
 using DiscordBot.Services;
+using DiscordBot.Utils;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json.Linq;
 using System;
@@ -123,7 +124,6 @@ namespace DiscordBot.Websockets
         protected override void OnClose(CloseEventArgs e)
         {
             base.OnClose(e);
-            _db?.Dispose();
             _scope?.Dispose();
         }
     }

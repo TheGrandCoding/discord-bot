@@ -21,7 +21,7 @@ namespace DiscordBot.Services
         public int LatestComic { get; set; }
         public string JsonUrl = "https://xkcd.com/{0}/info.0.json";
         public string NormalUrl = "https://xkcd.com/{0}";
-        public override void OnReady()
+        public override void OnReady(IServiceProvider services)
         {
             var save = JsonConvert.DeserializeObject<saveInfo>(ReadSave());
             Channels = save.channels;

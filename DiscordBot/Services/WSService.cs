@@ -15,7 +15,7 @@ namespace DiscordBot.Services
     {
         public static WebSocketServer Server { get; set; }
 
-        public override void OnLoaded()
+        public override void OnLoaded(IServiceProvider services)
         {
             if (Server != null)
                 return;

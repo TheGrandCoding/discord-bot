@@ -1,6 +1,7 @@
 ﻿using Discord;
 using Discord.Commands;
 using DiscordBot.Classes;
+using DiscordBot.Utils;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,7 +14,7 @@ namespace DiscordBot.TypeReaders
     {
         public async override Task<TypeReaderResult> ReadAsync(ICommandContext context, string input, IServiceProvider services)
         {
-            using var db = services.GetBotDb("BotDbTypeReader");
+            var db = services.GetBotDb("BotDbTypeReader");
             if(uint.TryParse(input, out var dbId))
             {
                 var dbUser = await db.GetUserAsync(dbId);

@@ -15,7 +15,7 @@ namespace DiscordBot.Services
 
         public override string GenerateSave()
             => Program.Serialise(Appeals);
-        public override void OnLoaded()
+        public override void OnLoaded(IServiceProvider services)
         {
             Appeals = Program.Deserialise<Dictionary<ulong, GuildAppeals>>(ReadSave());
         }

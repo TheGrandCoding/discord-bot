@@ -21,16 +21,15 @@ namespace DiscordBot.Services
         public Dictionary<ulong, GuildSave> Guilds { get; set; }
 
 
-        public override void OnReady()
+        public override void OnReady(IServiceProvider services)
         {
             var sv = ReadSave();
             Guilds = Program.Deserialise<Dictionary<ulong, GuildSave>>(sv);
         }
 
-        public async Task Catchup()
+        public async Task Catchup(IServiceProvider service)
         {
-            using var scope = Program.GlobalServices.CreateScope();
-            using var db = scope.ServiceProvider.GetBotDb("EnsureLvlCatchup");
+            var db = service.GetBotDb("EnsureLvlCatchup");
             foreach(var keypair in Guilds)
             {
                 var id = keypair.Key;
@@ -47,9 +46,9 @@ namespace DiscordBot.Services
             }
         }
 
-        public override void OnLoaded()
+        public override void OnLoaded(IServiceProvider services)
         {
-            Catchup().Wait();
+            Catchup(services).Wait();
             Program.Client.GuildMemberUpdated += async (Cacheable<SocketGuildUser, ulong> c1, SocketGuildUser arg2) =>
             {
                 var arg1 = await c1.GetOrDownloadAsync();
@@ -59,8 +58,7 @@ namespace DiscordBot.Services
                 {
                     if(arg1.Roles.Any(x => x.Id == save.VerifyRole.Id) == false)
                     {
-                        using var scope = Program.GlobalServices.CreateScope();
-                        using var db = scope.ServiceProvider.GetBotDb("EnsureLvlMemberUpd");
+                        var db = services.GetBotDb("EnsureLvlMemberUpd");
                         await HandleNewLevel7(save, arg2, db);
                     }
                 }

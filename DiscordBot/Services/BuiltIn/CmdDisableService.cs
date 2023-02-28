@@ -74,7 +74,7 @@ namespace DiscordBot.Services.BuiltIn
             return JsonConvert.SerializeObject(disabled);
         }
         public override bool IsCritical => true;
-        public override void OnLoaded()
+        public override void OnLoaded(IServiceProvider services)
         {
             disabled = JsonConvert.DeserializeObject<Dictionary<string, string>>(ReadSave());
         }

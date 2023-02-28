@@ -111,7 +111,7 @@ namespace DiscordBot.Services.Rules
             }
         }
 
-        public override void OnReady()
+        public override void OnReady(IServiceProvider services)
         {
             execute(() =>
             {
