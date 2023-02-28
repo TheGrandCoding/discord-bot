@@ -28,9 +28,12 @@ namespace DiscordBot.Services
             LatestComic = save.latestComic;
         }
 
+        public override void OnLoaded(IServiceProvider services)
+        {
 #if !DEBUG
-        public override void OnLoaded(IServiceProvider services) => OnDailyTick();
+            OnDailyTick();
 #endif
+        }
 
         public class XkcdInfo
         {
