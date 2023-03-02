@@ -32,7 +32,8 @@ namespace DiscordBot.Interactions
         public override async Task AfterExecuteAsync(ICommandInfo command)
         {
             await base.AfterExecuteAsync(command);
-            await _db?.SaveChangesAsync();
+            if(_db != null)
+                await _db.SaveChangesAsync();
             _scope?.Dispose();
         }
     }
