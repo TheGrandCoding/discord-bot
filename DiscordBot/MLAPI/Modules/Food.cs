@@ -747,6 +747,7 @@ namespace DiscordBot.MLAPI.Modules
                         {
                             data.WithTag("ondragover", "onDragOver(event)");
                             data.WithTag("ondrop", "onDrop(event)");
+                            data.WithTag("onclick", "setText(event)");
                         }
                         foreach (var item in ls)
                         {
@@ -766,6 +767,7 @@ namespace DiscordBot.MLAPI.Modules
                             {
                                 data.WithTag("ondragover", "onDragOver(event)");
                                 data.WithTag("ondrop", "onDrop(event)");
+                                data.WithTag("onclick", "setText(event)");
                             }
                             if (day.Text.TryGetValue(group, out var x))
                                 data.Children.Add(new StrongText(x));
@@ -1734,7 +1736,19 @@ namespace DiscordBot.MLAPI.Modules
             Service.OnSave();
             await RespondRaw("OK");
         }
-    
+        [Method("PATCH"), Path("/api/food/menu/text")]
+        public async Task SetMenuDayManual(int day, string group, string text = null)
+        {
+            var d = Service.WorkingMenu.Days[day];
+            if(string.IsNullOrEmpty(text) || text == "none")
+                d.Text.Remove(group);
+            else
+                d.Text[group] = text;
+            d.ManualOverride = true;
+            Service.OnSave();
+            await RespondRaw("OK");
+        }
+
         [Method("DELETE"), Path("/api/food/menu/item")]
         public async Task DeleteMenuItem(string group, int day, int id)
         {

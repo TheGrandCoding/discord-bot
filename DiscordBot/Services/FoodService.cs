@@ -219,7 +219,7 @@ namespace DiscordBot.Services
             Recipes = new ConcurrentBag<SavedRecipe>(ls);
         }
 
-        async Task<IMessageChannel> getLogChannel()
+        public async Task<IMessageChannel> getLogChannel()
         {
             IMessageChannel channel;
             if (ulong.TryParse(Program.Configuration["settings:foodnotify"], out var channelId))
@@ -792,9 +792,6 @@ namespace DiscordBot.Services
             service.Menus.TryGetValue(NextComingUp, out var menu);
             using var db = service.DB();
 
-
-
-
             var _now = DateTime.UtcNow.Date;
             int removed = Days.RemoveAll(x => (_now - x.Date).TotalDays > 7);
             log.AppendLine($"- Removed {removed} old days.");
@@ -836,12 +833,24 @@ namespace DiscordBot.Services
                 foreach (var keypair in menuDay.Items)
                 {
                     log.AppendLine($"  {keypair.Key}: ");
+                    if (!workingDay.Items.TryGetValue(keypair.Key, out var existing))
+                        existing = new List<WorkingMenuItem>();
                     foreach (var item in keypair.Value)
                     {
-                        log.AppendLine($"   - {item.Type}");
+                        log.Append($"   - {item.Type}");
+                        var amended = item.AmendFulfilled(existing);
+                        if(amended == null)
+                        {
+                            log.Append(" (already done)");
+                            continue;
+                        } else
+                        {
+                            log.Append($" (x{amended.AmountUsed})");
+                        }
+                        log.Append("\n");
                         var d = new orderData()
                         {
-                            Item = item,
+                            Item = amended,
                             Group = keypair.Key,
                             Day = workingDay
                         };
@@ -928,6 +937,10 @@ namespace DiscordBot.Services
             foreach(var x in Days)
             {
                 foreach(var key in x.Items.Keys)
+                {
+                    if (key != "*" && ls.Contains(key) == false) ls.Add(key);
+                }
+                foreach (var key in x.Text.Keys)
                 {
                     if (key != "*" && ls.Contains(key) == false) ls.Add(key);
                 }
@@ -1021,7 +1034,11 @@ namespace DiscordBot.Services
             finally
             {
                 if(forceLog || added > 0)
-                    Program.LogOwner(log);
+                {
+                    var p = Program.GetTempPath("log.txt");
+                    System.IO.File.WriteAllText(p, log.ToString());
+                    Program.SendLogFileAsync(p, channel: service.getLogChannel().Result).Wait();
+                }
             }
         }
 
@@ -1103,6 +1120,8 @@ namespace DiscordBot.Services
         public abstract List<InventoryItem> CollectValid(List<InventoryItem> items);
 
         public abstract JObject ToJson();
+
+        public abstract SavedMenuItem AmendFulfilled(List<WorkingMenuItem> existing);
     }
 
     public class SavedMenuIdItem : SavedMenuItem
@@ -1114,6 +1133,22 @@ namespace DiscordBot.Services
         public override string Type => "Id";
 
         public List<string> Ids { get; set; }
+
+        public override SavedMenuItem AmendFulfilled(List<WorkingMenuItem> existing)
+        {
+            if (existing.Count == 0) return this;
+            var needed = this.AmountUsed;
+            foreach (var item in existing)
+                if(Ids.Contains(item.Item?.Id.ToString() ?? ""))
+                    needed -= item.Uses;
+            if(needed == 0) return null; // already fulfilled everything
+            return new SavedMenuIdItem()
+            {
+                AmountUsed = needed,
+                Ids = Ids,
+                Priority = Priority
+            };
+        }
 
         public override List<InventoryItem> CollectValid(List<InventoryItem> items)
         {
@@ -1135,6 +1170,33 @@ namespace DiscordBot.Services
         public override string Type => "Tag";
 
         public List<string> Tags { get; set; }
+
+        public override SavedMenuItem AmendFulfilled(List<WorkingMenuItem> existing)
+        {
+            if (existing.Count == 0) return this;
+            var needed = this.AmountUsed;
+            foreach (var item in existing)
+            {
+                var inv = item.Item;
+                if (string.IsNullOrWhiteSpace(inv.Product?.Tags ?? ""))
+                    continue;
+                foreach (var t in inv.Product?.Tags.Split(';'))
+                {
+                    if (Tags.Contains(t))
+                    {
+                        needed -= item.Uses;
+                        continue;
+                    }
+                }
+            }
+            if (needed == 0) return null; // already fulfilled everything
+            return new SavedMenuTagItem()
+            {
+                AmountUsed = needed,
+                Tags = Tags,
+                Priority = Priority
+            };
+        }
 
         public override List<InventoryItem> CollectValid(List<InventoryItem> items)
         {
