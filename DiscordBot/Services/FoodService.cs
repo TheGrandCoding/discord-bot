@@ -780,11 +780,12 @@ namespace DiscordBot.Services
             return d;
         }
 
-        struct orderData
+        class orderData
         {
             public SavedMenuItem Item { get; set; }
             public string Group { get; set; }
             public WorkingMenuDay Day { get; set; }
+            public int AmountFulfilled { get; set; }
         }
         public void AttemptToFill(FoodService service, string inventoryId, StringBuilder log, out int added)
         {
@@ -920,8 +921,20 @@ namespace DiscordBot.Services
                         Uses = data.Item.AmountUsed
                     };
                     data.Day.Items.AddInner(data.Group, working);
-                    data.Day.ManualOverride = true; // since we've already automatically sorted it, we'll hand it over for manual use
+                    data.AmountFulfilled += data.Item.AmountUsed;
                     added += 1;
+                }
+            }
+            log.AppendLine("");
+            log.AppendLine($"Checking done:");
+            foreach(var grouping in items.GroupBy(x => x.Day))
+            {
+                var day = grouping.Key;
+                var isFulfilled = grouping.All(x => x.AmountFulfilled >= x.Item.AmountUsed);
+                log.AppendLine($"Day {day.Date}: {isFulfilled}");
+                if(isFulfilled)
+                {
+                    day.ManualOverride = true;
                 }
             }
         }
