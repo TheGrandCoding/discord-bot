@@ -30,7 +30,7 @@ namespace DiscordBot.MLAPI.Modules.Republisher
         }
         async Task<HttpResponseMessage> getAsync(string endpoint)
         {
-            var http = Context.Services.GetRequiredService<BotHttpClient>();
+            var http = Context.Services.GetRequiredService<BotHttpClient>().Child("insta", debug: true);
             char c = endpoint.IndexOf('?') >= 0 ? '&' : '?';
             var response = await http.GetAsync($"https://graph.instagram.com/v16.0{endpoint}{c}access_token={Uri.EscapeDataString(Context.User.Instagram.AccessToken)}");
             return response;
@@ -143,11 +143,19 @@ namespace DiscordBot.MLAPI.Modules.Republisher
             data.Add("code", code);
             data.Add("grant_type", "authorization_code");
             data.Add("redirect_uri", $"{getUriBase}/oauth/instagram");
-            var http = Context.Services.GetRequiredService<BotHttpClient>();
+            var http = Context.Services.GetRequiredService<BotHttpClient>().Child("insta", debug: true);
             var response = await http.PostAsync("https://api.instagram.com/oauth/access_token", new FormUrlEncodedContent(data));
             var content = await response.Content.ReadAsStringAsync();
             var shortResponse = JObject.Parse(content);
-            string id = shortResponse["user_id"].ToObject<string>();
+            string id;
+            if(shortResponse.TryGetValue("user_id", out var token))
+            {
+                id = token.ToObject<strnig>();
+            } else
+            {
+                RespondRaw(shortResponse.ToString(Formatting.Indented), 400);
+                return;
+            }
             if(Context.User == null)
             {
                 Context.User = await Context.BotDB.GetUserByInstagram(id, true);
