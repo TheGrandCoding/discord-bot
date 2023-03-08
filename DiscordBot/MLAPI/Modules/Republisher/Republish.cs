@@ -150,7 +150,7 @@ namespace DiscordBot.MLAPI.Modules.Republisher
             string id;
             if(shortResponse.TryGetValue("user_id", out var token))
             {
-                id = token.ToObject<strnig>();
+                id = token.ToObject<string>();
             } else
             {
                 RespondRaw(shortResponse.ToString(Formatting.Indented), 400);
