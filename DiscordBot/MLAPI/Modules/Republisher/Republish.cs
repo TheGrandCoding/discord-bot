@@ -153,7 +153,7 @@ namespace DiscordBot.MLAPI.Modules.Republisher
                 id = token.ToObject<string>();
             } else
             {
-                RespondRaw(shortResponse.ToString(Formatting.Indented), 400);
+                await RespondRaw(shortResponse.ToString(Formatting.Indented), 400);
                 return;
             }
             if(Context.User == null)
