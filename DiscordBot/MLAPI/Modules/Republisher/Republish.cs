@@ -142,7 +142,7 @@ namespace DiscordBot.MLAPI.Modules.Republisher
             data.Add("client_secret", Program.Configuration["tokens:instagram:app_secret"]);
             data.Add("code", code);
             data.Add("grant_type", "authorization_code");
-            data.Add("redirect_uri", $"{getUriBase}/oauth/instagram");
+            data.Add("redirect_uri", $"{getUriBase()}/oauth/instagram");
             var http = Context.Services.GetRequiredService<BotHttpClient>().Child("insta", debug: true);
             var response = await http.PostAsync("https://api.instagram.com/oauth/access_token", new FormUrlEncodedContent(data));
             var content = await response.Content.ReadAsStringAsync();
