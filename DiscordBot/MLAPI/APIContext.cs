@@ -189,16 +189,5 @@ namespace DiscordBot.MLAPI
             }
         }
         public BotDbUser User { get; set; }
-
-
-        /// <summary>
-        /// Generates a new session from this context
-        /// </summary>
-        /// <returns></returns>
-        public BotDbAuthSession GenerateNewSession(BotDbUser user, bool? forceApproved = null, bool logoutOthers = false)
-        {
-            return Handler.GenerateNewSession(user, IP, this.Request.UserAgent ?? "none", BotDB, forceApproved, logoutOthers).Result;
-        }
-    
     }
 }

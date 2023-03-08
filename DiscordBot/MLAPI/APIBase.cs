@@ -24,6 +24,7 @@ namespace DiscordBot.MLAPI
     [RequireServerName(null)]
     public class APIBase
     {
+        /// <param name="path">Path WITHOUT start slash</param>
         public APIBase(APIContext context, string path)
         {
             if(path.StartsWith('/') && path != "/")

@@ -182,6 +182,26 @@ namespace DiscordBot.Classes
                 return new("Could not find user in DB");
             });
         }
+        
+        public Task<BotDbUser> GetUserByInstagram(string instagramId, bool createIfNotExists)
+        {
+            return WithLock(async () =>
+            {
+                var existing = await Users.FirstOrDefaultAsync(x => x.Instagram.AccountId == instagramId);
+                if (existing != null) return existing;
+
+                existing = new BotDbUser();
+                existing.Name = "ig_" + instagramId;
+                existing.Connections = new();
+                existing.Instagram = new BotDbInstagram()
+                {
+                    AccountId = instagramId
+                };
+                await Users.AddAsync(existing);
+                return existing;
+            });
+        }
+        
         public Task<BotDbAuthSession> GetSessionAsync(string token)
         {
             return WithLock(async () => {
@@ -261,6 +281,7 @@ namespace DiscordBot.Classes
         public BotDbConnections Connections { get; set; } = new();
         [Required]
         public BotDbUserOptions Options { get; set; } = new();
+        public BotDbInstagram Instagram { get; set; }
 
         public virtual List<BotDbAuthSession> AuthSessions { get; set; } = new();
         public virtual List<BotDbAuthToken> AuthTokens { get; set; } = new();
@@ -313,6 +334,19 @@ namespace DiscordBot.Classes
                 if (DiscordId == null) return null;
                 return _discord ??= Program.Client.GetUser(ulong.Parse(DiscordId));
             } }
+    }
+
+    [Owned]
+    public class BotDbInstagram
+    {
+        public string AccountId { get; set; }
+        public string AccessToken { get; set; }
+        public DateTime ExpiresAt { get; set; }
+
+        public bool IsInvalid()
+        {
+            return string.IsNullOrWhiteSpace(AccountId) || string.IsNullOrWhiteSpace(AccessToken) || ExpiresAt < DateTime.UtcNow;
+        }
     }
 
 

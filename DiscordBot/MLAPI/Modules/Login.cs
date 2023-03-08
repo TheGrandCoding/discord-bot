@@ -36,7 +36,7 @@ namespace DiscordBot.MLAPI.Modules
                     return;
                 }
                 var usr = result.Value;
-                setSessionTokens(usr);
+                setSessionTokens(usr).Wait();
                 string redirectTo = Context.Request.Cookies["redirect"]?.Value;
                 if (string.IsNullOrWhiteSpace(redirectTo))
                     redirectTo = Context.User?.RedirectUrl ?? "/";
@@ -125,7 +125,7 @@ namespace DiscordBot.MLAPI.Modules
                 await RespondRedirect($"#username={Uri.EscapeDataString(username)}&fbl={Uri.EscapeDataString(result.ErrorMessage)}");
                 return;
             }
-            setSessionTokens(result.Value); // essentially logs them in
+            await setSessionTokens(result.Value); // essentially logs them in
             await RespondRedirect("/");
         }
         [Method("POST"), Path("/register")]
@@ -142,7 +142,7 @@ namespace DiscordBot.MLAPI.Modules
                 await RespondRedirect($"/login#username={Uri.EscapeDataString(username)}&fbr={Uri.EscapeDataString(result.ErrorMessage)}");
                 return;
             }
-            setSessionTokens(result.Value); // essentially logs them in
+            await setSessionTokens(result.Value); // essentially logs them in
             await RespondRedirect("/");
             try
             {
@@ -175,18 +175,8 @@ namespace DiscordBot.MLAPI.Modules
             }
         }
 
-        public static void SetLoginSession(APIContext context, BotDbUser user, bool purgeOtherSessions = false)
-        {
-            // password valid, we need to log them in.
-            var session = context.GenerateNewSession(user, logoutOthers: purgeOtherSessions);
-            // to prevent logging out any other devices, we'll maintain the same token value.
-            context.HTTP.Response.Cookies.Add(new Cookie(BotDbAuthSession.CookieName, session.Token, "/")
-            {
-                Expires = DateTime.Now.AddDays(60)
-            });
-        }
 
-        void setSessionTokens(BotDbUser user) => SetLoginSession(Context, user);
+        Task setSessionTokens(BotDbUser user) => Handler.SetNewLoginSession(Context, user);
 
         async Task<HttpResponseMessage> postJson(JObject json, BotHttpClient client, string url)
         {
@@ -267,7 +257,7 @@ namespace DiscordBot.MLAPI.Modules
                 return;
             }
             Context.User.Connections.PasswordHash = PasswordHash.HashPassword(pwd);
-            SetLoginSession(Context, Context.User, true);
+            await Handler.SetNewLoginSession(Context, Context.User, true);
             await RespondRedirect(Context.User.RedirectUrl ?? "/");
         }
     

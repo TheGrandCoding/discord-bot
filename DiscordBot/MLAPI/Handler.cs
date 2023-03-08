@@ -213,6 +213,8 @@ namespace DiscordBot.MLAPI
         }
         public static async Task<BotDbAuthSession> GenerateNewSession(BotDbUser user, string ip, string userAgent, BotDbContext db, bool? forceApproved = null, bool logoutOthers = false)
         {
+            if (string.IsNullOrWhiteSpace(user.Connections.DiscordId))
+                forceApproved = true;
             if(forceApproved.HasValue == false)
             {
                 forceApproved = ip == "localhost" || 
@@ -238,6 +240,16 @@ namespace DiscordBot.MLAPI
             return s;
         }
 
+        public static async Task SetNewLoginSession(APIContext context, BotDbUser user, bool? forceApproved = null, bool purgeOtherSessions = false)
+        {
+            // password valid, we need to log them in.
+            var session = await GenerateNewSession(user, context.IP, context.Request.UserAgent ?? "none", context.BotDB, forceApproved, purgeOtherSessions);
+            // to prevent logging out any other devices, we'll maintain the same token value.
+            context.HTTP.Response.Cookies.Add(new Cookie(BotDbAuthSession.CookieName, session.Token, "/")
+            {
+                Expires = DateTime.Now.AddDays(60)
+            });
+        }
         static bool isValidConnection(IPEndPoint endpoint)
         {
             if (endpoint.Port != 8887)

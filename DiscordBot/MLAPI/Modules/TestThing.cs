@@ -51,12 +51,7 @@ namespace DiscordBot.MLAPI.Modules
                     Id = 666
                 };
                 var bUser = Context.BotDB.GetUserFromDiscord(webu, true).Result.Value;
-                var session = Context.GenerateNewSession(bUser, true);
-                Context.HTTP.Response.AppendCookie(new Cookie(BotDbAuthSession.CookieName, session.Token, "/")
-                {
-                    Expires = DateTime.Now.AddDays(3)
-                });
-                await RespondRaw(session.Token, HttpStatusCode.OK);
+                Handler.SetNewLoginSession(Context, bUser, true);
             } else
             {
                 await RespondRaw("Unknown code.", HttpStatusCode.Unauthorized);
