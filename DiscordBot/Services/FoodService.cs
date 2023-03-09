@@ -514,6 +514,7 @@ namespace DiscordBot.Services
                 }
             }
 #if DEBUG
+            //OnDailyTick();
 #endif
 
         }
@@ -1046,12 +1047,9 @@ namespace DiscordBot.Services
             } 
             finally
             {
-                if(forceLog || added > 0)
-                {
-                    var p = Program.GetTempPath("log.txt");
-                    System.IO.File.WriteAllText(p, log.ToString());
-                    Program.SendLogFileAsync(p, channel: service.getLogChannel().Result).Wait();
-                }
+                var p = Program.GetTempPath("log.txt");
+                System.IO.File.WriteAllText(p, log.ToString());
+                Program.SendLogFileAsync(p, channel: service.getLogChannel().Result).Wait();
             }
         }
 
