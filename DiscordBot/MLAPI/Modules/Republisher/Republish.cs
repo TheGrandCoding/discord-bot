@@ -29,11 +29,13 @@ namespace DiscordBot.MLAPI.Modules.Republisher
         {
             var cookie = Context.Request.Cookies["current-post"];
             if (cookie == null) return null;
-            return JsonConvert.DeserializeObject<PublishPost>(cookie.Value);
+            var str = Uri.UnescapeDataString(cookie.Value);
+            return JsonConvert.DeserializeObject<PublishPost>(str);
         }
         public void SetCurrentPost(PublishPost post)
         {
-            var cookie = new System.Net.Cookie("current-post", JsonConvert.SerializeObject(post));
+            var str = JsonConvert.SerializeObject(post);
+            var cookie = new System.Net.Cookie("current-post", Uri.EscapeDataString(str));
             cookie.Expires = DateTime.Now.AddDays(1);
             cookie.Secure = true;
             cookie.HttpOnly = false;
@@ -67,7 +69,7 @@ namespace DiscordBot.MLAPI.Modules.Republisher
         async Task<Div> getInstagramRow(RepublishService service, HttpClient http)
         {
             var main = new Div();
-            if(!service.IsInstagramValid() && Program.BOT_DEBUG) // TODO: REMOVE WHEN DONE
+            if(!service.IsInstagramValid() && false) // TODO: REMOVE WHEN DONE
             {
                 var url = getFacebookUrl();
                 main.WithTag("data-url", url);
@@ -119,13 +121,18 @@ namespace DiscordBot.MLAPI.Modules.Republisher
             sel.WithTag("for", "instagram");
             sel.Add("Do not publish", $"{PublishKind.DoNotPublish}", current.Instagram.Kind == PublishKind.DoNotPublish);
             sel.Add("Publish with the following information", $"{PublishKind.PublishWithText}", current.Instagram.Kind == PublishKind.PublishWithText);
+            sel.WithTag("onchange", "setKind()");
             right.Children.Add(sel);
 
-            var form = new Form();
+            var form = new Form(id: "instagram");
             if (current.Instagram.Kind == PublishKind.DoNotPublish)
                 form.Style = "display: none";
-            form.AddLabeledInput("caption", "Caption: ", "text", "Caption", current.Instagram.Caption ?? current.defaultText);
-            form.AddLabeledInput("media", "Media url: ", "url", "URL", current.Instagram.MediaUrl ?? current.defaultMediaUrl);
+            var onC = "setValue()";
+            var onI = "setDirty()";
+            form.AddLabeledInput("caption", "Caption: ", "text", "Caption", current.Instagram.Caption ?? current.defaultText,
+                onChange: onC, onInput: onI);
+            form.AddLabeledInput("media", "Media url: ", "url", "URL", current.Instagram.MediaUrl ?? current.defaultMediaUrl,
+                onChange: onC, onInput: onI);
             right.Children.Add(form);
 
 
@@ -140,25 +147,29 @@ namespace DiscordBot.MLAPI.Modules.Republisher
             var service = Context.Services.GetRequiredService<RepublishService>();
             var http = Context.Services.GetRequiredService<HttpClient>();
 
+
             var main = new Div();
             main.Children.Add(new H1("Instagram"));
             main.Children.Add(await getInstagramRow(service, http));
 
             rep.Add("content", main);
-
             await ReplyFile("select.html", 200, rep);
         }
 
         public Div ToHtml(IGMedia media, bool selected = false)
         {
             var div = new Div(id: $"ig_{media.Id}", cls: "ig_media");
+            div.OnClick = "igSelectPost(event)";
             if (selected) div.ClassList.Add("selected");
             var img = new Img(media.MediaUrl)
             {
                 Style = "width: 32px"
             };
             div.Children.Add(img);
-            var anchor = new Anchor(media.Permalink, media.Caption);
+            var anchor = new Anchor(media.Permalink, media.Caption)
+            {
+                OnClick = "igSelectPost(event)"
+            };
             div.Children.Add(anchor);
             return div;
         }
@@ -181,9 +192,6 @@ namespace DiscordBot.MLAPI.Modules.Republisher
             }
             await RespondRaw(ig, 200);
         }
-        
-        
-        
         
         [Method("GET"), Path("/oauth/instagram")]
         public async Task HandleIGOauth(string code = null, string state = null, 

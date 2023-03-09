@@ -79,6 +79,11 @@ namespace DiscordBot.Classes
                 b.Navigation(p => p.AuthTokens).AutoInclude();
                 b.Navigation(p => p.ApprovedIPs).AutoInclude();
                 b.Navigation(p => p.Permissions).AutoInclude();
+
+                b.HasIndex(p => p.Name).IsUnique();
+
+                b.OwnsOne(p => p.Facebook).HasIndex(i => i.AccountId).IsUnique();
+                b.OwnsOne(p => p.Instagram).HasIndex(i => i.AccountId).IsUnique();
             });
         }
         protected override void OnConfiguring(DbContextOptionsBuilder options)

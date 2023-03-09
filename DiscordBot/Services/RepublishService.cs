@@ -34,10 +34,14 @@ namespace DiscordBot.Services
     }
     public class PublishInstagram
     {
+        [JsonProperty("originalId")]
         public string OriginalId { get; set; }
+        [JsonProperty("caption")]
         public string Caption { get; set; }
+        [JsonProperty("mediaUrl")]
         public string MediaUrl { get; set; }
 
+        [JsonProperty("kind")]
         public PublishKind Kind { get; set; }
     }
     public class RepublishSave

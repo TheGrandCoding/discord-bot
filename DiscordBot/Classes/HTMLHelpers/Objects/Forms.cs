@@ -9,13 +9,19 @@ namespace DiscordBot.Classes.HTMLHelpers.Objects
         public Form(string id = null, string cls = null) : base("form", id, cls)
         {
         }
-        public void AddLabeledInput(string id, string labelText, string inputType, string inputPlaceHolder = null, string inputValue = null)
+        public void AddLabeledInput(string id, string labelText, string inputType, 
+            string inputPlaceHolder = null, string inputValue = null,
+            string onChange = null, string onInput = null)
         {
             var lbl = new Label(labelText)
                 .WithTag("for", id);
             var inp = new Input(inputType, inputValue, id);
             if (inputPlaceHolder != null)
                 inp.WithTag("placeholder", inputPlaceHolder);
+            if (onChange != null)
+                inp.WithTag("onchange", onChange);
+            if (onInput != null)
+                inp.WithTag("oninput", onInput);
             Children.Add(lbl);
             Children.Add(inp);
         }

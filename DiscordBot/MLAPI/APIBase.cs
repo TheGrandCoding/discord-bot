@@ -272,6 +272,7 @@ tryagain:
         {
             var ls = new List<StreamReplacement>(replacements);
             ls.Add(new($"[$<]REPLACE id=['\"]?['\"][ ]/[>$]", reps));
+            ls.Add(new($"//![$<]REPLACE id=['\"]?['\"][ ]/[>$]", reps));
             await copyStreamReplacing(fromStream, toStream, ls.ToArray());
         }
         bool equalChar(char lookingFor, char next)
