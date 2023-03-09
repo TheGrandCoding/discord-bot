@@ -478,9 +478,13 @@ Changed how permissions worked for bot.
             {
                 AutomaticDecompression = System.Net.DecompressionMethods.All
             };
-            var http = new HttpClient(httpHandler);
-            var botHttp = new BotHttpClient(http);
+            var botHttp = new BotHttpClient(httpHandler);
             coll.AddSingleton(typeof(BotHttpClient), botHttp);
+            coll.AddSingleton<HttpClient>((p) =>
+            {
+                var h = p.GetRequiredService<BotHttpClient>();
+                return new HttpClient(h.Child("scoped"));
+            });
             foreach(var service in ReflectiveEnumerator.GetEnumerableOfType<Service>(null))
                 coll.AddSingleton(service.GetType());
             return coll.BuildServiceProvider();

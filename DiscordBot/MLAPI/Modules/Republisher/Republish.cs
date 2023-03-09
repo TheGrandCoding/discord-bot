@@ -1,11 +1,14 @@
 ﻿using DiscordBot.Classes;
 using DiscordBot.Classes.HTMLHelpers.Objects;
 using DiscordBot.Utils;
+using FacebookAPI;
+using FacebookAPI.Instagram;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
@@ -13,120 +16,82 @@ using System.Threading.Tasks;
 
 namespace DiscordBot.MLAPI.Modules.Republisher
 {
-
+    // The actual interactions with Instagram's API has been relocated to the 'FacebookAPI' project.
     public class Republish : APIBase
     {
         public Republish(APIContext c) : base(c, "republisher") 
         {
         }
 
+        [DebuggerStepThrough]
         string getUriBase()
         {
 #if DEBUG
-            return "https://ngrok uri here";
+            return "https://e58a-88-107-8-97.ngrok.io";
 #else
             return Handler.LocalAPIUrl;
 #endif
         }
-        async Task<HttpResponseMessage> getAsync(string endpoint)
-        {
-            var http = Context.Services.GetRequiredService<BotHttpClient>().Child("insta", debug: true);
-            char c = endpoint.IndexOf('?') >= 0 ? '&' : '?';
-            var response = await http.GetAsync($"https://graph.instagram.com/v16.0{endpoint}{c}access_token={Uri.EscapeDataString(Context.User.Instagram.AccessToken)}");
-            return response;
-        }
 
-        class InstagramPagerCursors
+        string getInstaUrl()
         {
-            public string Before { get; set; }
-            public string After { get; set; }
+            return InstagramClient.GetBasicRedirectUri(Program.Configuration["tokens:instagram:app_id"],
+                $"{getUriBase()}/oauth/instagram",
+                FacebookAPI.Instagram.BasicAPIScopes.All).ToString();
         }
-        class InstagramPager
-        {
-            public InstagramPagerCursors Cursors { get; set; }
-        }
-        class InstagramMedia
-        {
-            public string Id { get; set; }
-            public string Caption { get; set; }
-            [JsonProperty("media_type")]
-            public string MediaType { get; set; }
-            [JsonProperty("media_url")]
-            public string MediaUrl { get; set; }
-            public string Permalink { get; set; }
-            public DateTime Timestamp { get; set; }
-            public string Username { get; set; }
-
-            public Div ToHtml()
-            {
-                var div = new Div(id: $"ig_{Id}", cls: "ig_media");
-                var img = new Img(MediaUrl)
-                {
-                    Style = "width: 32px"
-                };
-                div.Children.Add(img);
-                var anchor = new Anchor(Permalink, Caption);
-                div.Children.Add(anchor);
-                return div;
-            }
-        }
-        class InstagramMediaPager
-        {
-            public InstagramMedia[] Data { get; set; }
-            public InstagramMediaPager Paging { get; set; }
-        }
-        class InstagramUser
-        {
-            public string Id { get; set; }
-            public string Username { get; set; }
-            [JsonProperty("account_type")]
-            public string AccountType { get; set; }
-            [JsonProperty("media_count")]
-            public int MediaCount { get; set; }
-            public InstagramMediaPager Media { get; set; }
-        }
-
-
 
         [Method("GET"), Path("/republisher")]
-        public async Task ViewInstaItems()
+        public async Task View()
+        {
+            var rep = new Replacements();
+
+            if(Context.User?.Instagram?.IsInvalid() ?? true)
+            {
+                var url = getInstaUrl();
+                rep.Add("instagram", $"<div data-url='{url}' onclick='redirectErr(event)' class='error'>Not logged in. Please click anywhere in this box to login to instagram</div>");
+            } else
+            {
+                rep.Add("instagram", $"<input type='button' value='Search for Instagram post' onclick='igSearch()'><div id='instaPosts'></div>");
+            }
+
+            await ReplyFile("select.html", 200, rep);
+        }
+
+        public Div ToHtml(IGMedia media)
+        {
+            var div = new Div(id: $"ig_{media.Id}", cls: "ig_media");
+            var img = new Img(media.MediaUrl)
+            {
+                Style = "width: 32px"
+            };
+            div.Children.Add(img);
+            var anchor = new Anchor(media.Permalink, media.Caption);
+            div.Children.Add(anchor);
+            return div;
+        }
+        [Method("GET"), Path("/api/republisher/ig")]
+        public async Task APIGetInstaItems()
         {
             if(Context.User?.Instagram?.IsInvalid() ?? true)
             {
-                var url = new UrlBuilder("https://api.instagram.com/oauth/authorize");
-                url.Add("client_id", Program.Configuration["tokens:instagram:app_id"]);
-                url.Add("redirect_uri", $"{getUriBase()}/oauth/instagram");
-                url.Add("scope", "user_profile,user_media");
-                url.Add("response_type", "code");
-                url.Add("state", "123");
-                await RespondRedirect(url);
+                await RespondRedirect(getInstaUrl());
                 return;
             }
-            var resp = await getAsync($"/me?fields=id,username,account_type,media_count,media");
-            var content = await resp.Content.ReadAsStringAsync();
-            if(resp.IsSuccessStatusCode)
+            var http = Context.Services.GetRequiredService<HttpClient>();
+            var insta = InstagramClient.Create(Context.User.Instagram.AccessToken, Context.User.Instagram.AccountId, http);
+            var user = await insta.GetMeAsync(IGUserFields.Id | IGUserFields.Username | IGUserFields.AccountType | IGUserFields.MediaCount | IGUserFields.Media);
+            string ig = "";
+            foreach(var media in user.MediaIds)
             {
-                var ig = "";
-                var j = JObject.Parse(content);
-                var arr = new JArray();
-                var user = j.ToObject<InstagramUser>();
-                foreach(var media in user.Media.Data)
-                {
-                    var full = await getAsync($"/{media.Id}?fields=caption,id,media_type,media_url,permalink,thumbnail_url,timestamp,username");
-                    var body = await full.Content.ReadAsStringAsync();
-                    var fullMedia = JsonConvert.DeserializeObject<InstagramMedia>(body);
-                    arr.Add(JObject.Parse(body));
-                    ig += fullMedia.ToHtml() + "\n";
-                }
-                j["_full"] = arr;
-                await ReplyFile("select.html", 200, new Replacements()
-                    .Add("instagramPosts", ig)
-                    .Add("rawcode", j.ToString(Formatting.Indented)));
-            } else
-            {
-                await RespondRaw($"Error {resp.StatusCode} {resp.ReasonPhrase}: {content}");
+                var full = await insta.GetMediaAsync(media, IGMediaFields.All);
+                ig += ToHtml(full) + "\n";
             }
+            await RespondRaw(ig, 200);
         }
+        
+        
+        
+        
         [Method("GET"), Path("/oauth/instagram")]
         public async Task HandleOauth(string code = null, string state = null, 
                                       string error = null, string error_reason = null, string error_description = null)
@@ -136,35 +101,22 @@ namespace DiscordBot.MLAPI.Modules.Republisher
                 await RespondRaw($"Error: {error}, {error_reason}: {error_description}");
                 return;
             }
+            var http = Context.Services.GetRequiredService<HttpClient>();
+            var insta = await InstagramClient.CreateOAuthAsync(code,
+                Program.Configuration["tokens:instagram:app_id"],
+                Program.Configuration["tokens:instagram:app_secret"],
+                $"{getUriBase()}/oauth/instagram",
+                http);
 
-            var data = new Dictionary<string, string>();
-            data.Add("client_id", Program.Configuration["tokens:instagram:app_id"]);
-            data.Add("client_secret", Program.Configuration["tokens:instagram:app_secret"]);
-            data.Add("code", code);
-            data.Add("grant_type", "authorization_code");
-            data.Add("redirect_uri", $"{getUriBase()}/oauth/instagram");
-            var http = Context.Services.GetRequiredService<BotHttpClient>().Child("insta", debug: true);
-            var response = await http.PostAsync("https://api.instagram.com/oauth/access_token", new FormUrlEncodedContent(data));
-            var content = await response.Content.ReadAsStringAsync();
-            var shortResponse = JObject.Parse(content);
-            string id;
-            if(shortResponse.TryGetValue("user_id", out var token))
-            {
-                id = token.ToObject<string>();
-            } else
-            {
-                await RespondRaw(shortResponse.ToString(Formatting.Indented), 400);
-                return;
-            }
             if(Context.User == null)
             {
-                Context.User = await Context.BotDB.GetUserByInstagram(id, true);
+                Context.User = await Context.BotDB.GetUserByInstagram(insta.oauth.user_id.ToString(), true);
                 await Handler.SetNewLoginSession(Context, Context.User, true, true);
             }
             Context.User.Instagram = new BotDbInstagram()
             {
-                AccountId = id,
-                AccessToken = shortResponse["access_token"].ToObject<string>(),
+                AccountId = insta.oauth.user_id.ToString(),
+                AccessToken = insta.oauth.access_token,
                 ExpiresAt = DateTime.UtcNow.AddHours(1)
             };
             await RespondRedirect("/republisher");

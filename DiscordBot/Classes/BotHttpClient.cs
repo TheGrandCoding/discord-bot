@@ -12,22 +12,22 @@ using System.Threading.Tasks;
 
 namespace DiscordBot.Classes
 {
-    public class BotHttpClient
+    public class BotHttpClient : DelegatingHandler
     {
         public static bool ForceDebug { get; set; } = false;
-        private HttpClient http;
         protected static SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
-        public BotHttpClient(HttpClient client, string source = null, bool? debug = null, 
+        public BotHttpClient(HttpClientHandler client, string source = null, bool? debug = null, 
             IRateLimiter ratelimiter = null,
-            bool storeCookies = false)
+            bool storeCookies = false) : base(client)
         {
-            http = client;
+            _client = client;
             _source = source;
             _debug = debug ?? Program.BOT_DEBUG;
             _ratelimiter = ratelimiter ?? new DefaultRateLimiter();
             _storeCookies = storeCookies;
         }
 
+        private HttpClientHandler _client;
         private string _source;
         private bool _debug;
         private IRateLimiter _ratelimiter;
@@ -43,7 +43,7 @@ namespace DiscordBot.Classes
 
         public BotHttpClient Child(string source, bool debug = false, IRateLimiter rateLimiter = null, bool storeCookies = false)
         {
-            var x = new BotHttpClient(http, source, debug, rateLimiter, storeCookies);
+            var x = new BotHttpClient(_client, source, debug, rateLimiter, storeCookies);
             return x;
         }
         public BotHttpClient WithCookie(Cookie cookie)
@@ -81,7 +81,7 @@ namespace DiscordBot.Classes
         async Task<string> full(HttpRequestMessage message)
         {
             var builder = new StringBuilder();
-            builder.Append($"{message.Method} {message.RequestUri.PathAndQuery} HTTP/{http.DefaultRequestVersion}\n");
+            builder.Append($"{message.Method} {message.RequestUri.PathAndQuery} HTTP/{message.Version}\n");
             builder.Append($"Host: {message.RequestUri.Host}\n");
             foreach (var h in message.Headers)
                 builder.Append($"{h.Key}: {string.Join(", ", h.Value)}\n");
@@ -138,13 +138,13 @@ namespace DiscordBot.Classes
                 File.WriteAllText(path, await full(message));
             }
             await _lock.WaitAsync();
-            var ct = Program.GetToken();
-            await _ratelimiter?.BeforeRequest(message);
             try
             {
+                var ct = Program.GetToken();
+                await _ratelimiter?.BeforeRequest(message);
                 Program.LogDebug(str(message), source);
                 var sw = Stopwatch.StartNew();
-                var response = await http.SendAsync(message, ct);
+                var response = await base.SendAsync(message, ct);
                 sw.Stop();
                 _lastSent = DateTimeOffset.Now;
                 Program.LogInfo($"{str(message)} {sw.ElapsedMilliseconds}ms", source);
@@ -171,6 +171,7 @@ namespace DiscordBot.Classes
 
         public Task<HttpResponseMessage> SendAsync(HttpRequestMessage message, string source = null, CancellationToken? token = null)
             => InternalSendAsync(message, source ?? getSource(), token);
+
 
         public Task<HttpResponseMessage> GetAsync(Uri uri, string source = null, CancellationToken? token = null)
             => SendAsync(new HttpRequestMessage(HttpMethod.Get, uri), source, token);
@@ -200,6 +201,9 @@ namespace DiscordBot.Classes
             }
             return Task.CompletedTask;
         }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+            => SendAsync(request, null, cancellationToken);
 
         public class DefaultRateLimiter : IRateLimiter
         {
