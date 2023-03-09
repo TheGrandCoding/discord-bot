@@ -226,7 +226,7 @@ namespace DiscordBot.MLAPI.Modules
                 var div = new Div();
                 if(OwnPath.Length > 0)
                 {
-                    div.Children.Add(new Header(OwnPath.Length).WithRawText(String.Join('/', OwnPath)));
+                    div.Children.Add(new Header(OwnPath.Length, String.Join('/', OwnPath)));
                 }
                 if(Items.Count > 0)
                 {

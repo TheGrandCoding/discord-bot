@@ -201,7 +201,25 @@ namespace DiscordBot.Classes
                 return existing;
             });
         }
-        
+        public Task<BotDbUser> GetUserByFacebook(string facebookId, bool createIfNotExists)
+        {
+            return WithLock(async () =>
+            {
+                var existing = await Users.FirstOrDefaultAsync(x => x.Facebook.AccountId == facebookId);
+                if (existing != null) return existing;
+
+                existing = new BotDbUser();
+                existing.Name = "fb_" + facebookId;
+                existing.Connections = new();
+                existing.Facebook = new BotDbFacebook()
+                {
+                    AccountId = facebookId
+                };
+                await Users.AddAsync(existing);
+                return existing;
+            });
+        }
+
         public Task<BotDbAuthSession> GetSessionAsync(string token)
         {
             return WithLock(async () => {
@@ -282,6 +300,7 @@ namespace DiscordBot.Classes
         [Required]
         public BotDbUserOptions Options { get; set; } = new();
         public BotDbInstagram Instagram { get; set; }
+        public BotDbFacebook Facebook { get; set; }
 
         public virtual List<BotDbAuthSession> AuthSessions { get; set; } = new();
         public virtual List<BotDbAuthToken> AuthTokens { get; set; } = new();
@@ -347,6 +366,19 @@ namespace DiscordBot.Classes
         {
             return string.IsNullOrWhiteSpace(AccountId) || string.IsNullOrWhiteSpace(AccessToken) || ExpiresAt < DateTime.UtcNow;
         }
+    }
+
+    [Owned]
+    public class BotDbFacebook
+    {
+        public string AccountId { get; set; }
+        public string AccessToken { get; set; }
+        public DateTime ExpiresAt { get; set; }
+        public bool IsInvalid()
+        {
+            return string.IsNullOrWhiteSpace(AccountId) || string.IsNullOrWhiteSpace(AccessToken) || ExpiresAt < DateTime.UtcNow;
+        }
+
     }
 
 

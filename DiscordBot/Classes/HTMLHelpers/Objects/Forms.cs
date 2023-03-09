@@ -4,6 +4,22 @@ using System.Text;
 
 namespace DiscordBot.Classes.HTMLHelpers.Objects
 {
+    public class Form : DOMBase
+    {
+        public Form(string id = null, string cls = null) : base("form", id, cls)
+        {
+        }
+        public void AddLabeledInput(string id, string labelText, string inputType, string inputPlaceHolder = null, string inputValue = null)
+        {
+            var lbl = new Label(labelText)
+                .WithTag("for", id);
+            var inp = new Input(inputType, inputValue, id);
+            if (inputPlaceHolder != null)
+                inp.WithTag("placeholder", inputPlaceHolder);
+            Children.Add(lbl);
+            Children.Add(inp);
+        }
+    }
     public abstract class FormBase : DOMBase
     {
         public FormBase(string tag, string id = null, string cls = null) : base(tag, id, cls)
@@ -57,9 +73,12 @@ namespace DiscordBot.Classes.HTMLHelpers.Objects
         {
             tagValues["name"] = name;
         }
-        public Select Add(string content, string value = null, string id = null, string cls = null)
+        public Select Add(string content, string value = null, bool selected = false, string id = null, string cls = null)
         {
-            Children.Add(new Option(content, value, id, cls));
+            var opt = new Option(content, value, id, cls);
+            if (selected)
+                opt.WithTag("selected", "");
+            Children.Add(opt);
             return this;
         }
         public Select AddGroup(string label, string id = null, string cls = null)

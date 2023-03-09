@@ -4,7 +4,7 @@ using System.Text.Json;
 
 namespace FacebookAPI
 {
-    public class OAuthResponse
+    public class IGOAuthResponse
     {
         public ulong user_id { get; set; }
         public string access_token { get; set; }
@@ -12,30 +12,15 @@ namespace FacebookAPI
     public class InstagramClient
     {
         private HttpClient http;
-        public OAuthResponse? oauth;
+        public IGOAuthResponse? oauth;
         private string baseAddress = "https://graph.instagram.com";
         internal InstagramClient(HttpClient httpClient)
         {
             http = httpClient;
         }
-        static List<string> convertFlags<T>(T value) where T: struct, Enum 
-        {
-            var ls = new List<string>();
-            foreach(var name in Enum.GetNames<T>())
-            {
-                if (name == "All") continue;
-                T _flagV = (T)Enum.Parse(typeof(T), name);
-                if(value.HasFlag(_flagV))
-                {
-                    ls.Add(name.ToSnakeCase());
-                }
-            }
-            return ls;
-        }
-
         public static Uri GetBasicRedirectUri(string client_id, string redirect_url, Instagram.BasicAPIScopes scopes, string? state = null)
         {
-            var sc = convertFlags(scopes | BasicAPIScopes.UserProfile);
+            var sc = (scopes | BasicAPIScopes.UserProfile).ToFlagList();
             var url = new UriBuilder("https://api.instagram.com/oauth/authorize")
                 .WithQuery("client_id", client_id)
                 .WithQuery("redirect_uri", redirect_url)
@@ -74,13 +59,13 @@ namespace FacebookAPI
             var response = await http.PostAsync("https://api.instagram.com/oauth/access_token", new FormUrlEncodedContent(data));
             if(!response.IsSuccessStatusCode) throw await HttpException.FromResponse(response);
             var content = await response.Content.ReadAsStringAsync();
-            oauth = JsonSerializer.Deserialize<OAuthResponse>(content)!;
+            oauth = JsonSerializer.Deserialize<IGOAuthResponse>(content)!;
         }
 
         public async Task<IGUser> GetMeAsync(IGUserFields fields)
         {
             CheckLogin();
-            var f = convertFlags(fields);
+            var f = fields.ToFlagList();
             var response = await getAsync("/me?fields=" + Uri.EscapeDataString(String.Join(",", f)));
             if(!response.IsSuccessStatusCode) throw await HttpException.FromResponse(response);
             var content = await response.Content.ReadAsStringAsync();
@@ -90,7 +75,7 @@ namespace FacebookAPI
         public async Task<IGMedia> GetMediaAsync(string mediaId, IGMediaFields fields)
         {
             CheckLogin();
-            var f = convertFlags(fields);
+            var f = fields.ToFlagList();
             var response = await getAsync($"/{mediaId}?fields=" + Uri.EscapeDataString(String.Join(",", f)));
             if (!response.IsSuccessStatusCode) throw await HttpException.FromResponse(response);
             var content = await response.Content.ReadAsStringAsync();

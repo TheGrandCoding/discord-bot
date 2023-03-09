@@ -72,8 +72,8 @@ namespace DiscordBot.Classes.Legislation
             {
                 Children =
                 {
-                    new H1(cls: "LegTitle") {RawText = ShortTitle},
-                    new H1(cls: "LegNo") {RawText = PathName},
+                    new H1(ShortTitle, cls: "LegTitle"),
+                    new H1(PathName, cls: "LegNo"),
                     new HTMLHelpers.Objects.Paragraph(LongTitle, cls: "LegLongTitle"),
                     new HTMLHelpers.Objects.Paragraph(
                         //EnactedDate.HasValue

@@ -164,7 +164,7 @@ namespace DiscordBot.MLAPI.Modules
         public static HTMLBase linkHeader(int order, string text, string id = null, string cls = null, string linkText = null)
         {
             id ??= escapeForUrl(text);
-            var html = new Header(order, id, cls);
+            var html = new Header(order, null, id, cls);
             if (order == 1)
                 html.ClassList.Add("h1-E4giPK");
             else if (order == 2)
@@ -397,6 +397,8 @@ namespace DiscordBot.MLAPI.Modules
                 summary = $"must be executed by the developer of this bot";
             else if (attribute is RequireScopeAttribute rs)
                 return new Div();
+            else if (attribute is RequireNoExcessQuery rneq)
+                summary = rneq.Required ? $"requires exactly the query parmaters requested" : "will ignore any additional query parmaters";
             else
                 summary = attribute.GetType().Name.Replace("Attribute", "");
             return warn(type + summary);
@@ -531,9 +533,9 @@ namespace DiscordBot.MLAPI.Modules
                 {
                     Children =
                     {
-                        new TableData(p.Name + (p.IsOptional ? "?" : "")),
+                        new TableData((Nullable.GetUnderlyingType(p.ParameterType) != null ? "?" : "") + p.Name + (p.IsOptional ? "?" : "")),
                         new TableData(typeText),
-                        new TableData(summary)
+                        new TableData(null) {RawHTML = summary}
                     }
                 });
             }

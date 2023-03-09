@@ -51,7 +51,7 @@ namespace DiscordBot.Classes.Legislation
             if(Group)
             {
                 parent.Children.Add(new Div(cls: "LegClearPblock"));
-                parent.Children.Add(new H2(cls: "LegPblock")
+                parent.Children.Add(new H2(null, cls: "LegPblock")
                 {
                     Children =
                     {
@@ -62,7 +62,7 @@ namespace DiscordBot.Classes.Legislation
             }
             var LHS = new Span(cls: $"LegDS LegP{depth}No") { RawText = Number };
             var RHS = new Span(cls: $"LegDS LegP{depth}GroupTitle") { RawText = getAmendedText(builder) };
-            var header = new H3($"section-{Number}", $"LegClearFix LegP{depth}Container{(Number == "1" ? "First" : "")}")
+            var header = new H3(null, $"section-{Number}", $"LegClearFix LegP{depth}Container{(Number == "1" ? "First" : "")}")
             {
                 Children =
                 {

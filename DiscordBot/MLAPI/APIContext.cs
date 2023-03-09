@@ -162,7 +162,7 @@ namespace DiscordBot.MLAPI
             query.AddRange(Request.QueryString.AllKeys);
             if(paramaters != null)
                 query.AddRange(paramaters.Keys);
-            return query;
+            return query.Where(x => x != null).Distinct().ToList();
         }
 
         public BotDbAuthSession Session { get; set; }

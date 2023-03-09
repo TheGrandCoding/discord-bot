@@ -25,10 +25,21 @@ namespace DiscordBot.Classes.HTMLHelpers
         private string _rawText;
         public string RawText { get
             {
-                return _rawText;
+                return _rawText == null ? null : System.Web.HttpUtility.HtmlDecode(_rawText);
             } set
             {
                 _rawText = System.Web.HttpUtility.HtmlEncode(value);
+            }
+        }
+        public string RawHTML
+        {
+            get
+            {
+                return _rawText;
+            }
+            set
+            {
+                _rawText = value;
             }
         }
         protected Dictionary<string, string> tagValues { get; set; } = new Dictionary<string, string>();
@@ -85,11 +96,11 @@ namespace DiscordBot.Classes.HTMLHelpers
 
         protected virtual void WriteContent(StringBuilder sb, int tab = -1)
         {
-            if (RawText == null)
+            if (_rawText == null)
                 return;
             if (tab > -1)
                 sb.Append(new string(' ', tab * 4));
-            sb.Append(RawText);
+            sb.Append(_rawText);
             if (tab > -1)
                 sb.Append("\r\n");
         }

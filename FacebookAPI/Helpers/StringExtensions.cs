@@ -37,5 +37,21 @@ namespace FacebookAPI.Helpers
             }
             return sb.ToString();
         }
+
+        [DebuggerStepThrough]
+        public static List<string> ToFlagList<T>(this T value) where T : struct, Enum
+        {
+            var ls = new List<string>();
+            foreach (var name in Enum.GetNames<T>())
+            {
+                if (name == "All") continue;
+                T _flagV = (T)Enum.Parse(typeof(T), name);
+                if (value.HasFlag(_flagV))
+                {
+                    ls.Add(name.ToSnakeCase());
+                }
+            }
+            return ls;
+        }
     }
 }

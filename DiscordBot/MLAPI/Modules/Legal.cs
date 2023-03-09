@@ -32,12 +32,12 @@ namespace DiscordBot.MLAPI.Modules
         HTMLBase getDataServices()
         {
             var div = new Div();
-            div.Children.Add(new H2().WithRawText("Services"));
+            div.Children.Add(new H2("Services"));
             foreach(var service in Service.GetServices<ISARProvider>())
             {
                 var sv = (Service)service;
                 var para = new Paragraph(null);
-                para.Children.Add(new H3().WithRawText(sv.Name));
+                para.Children.Add(new H3(sv.Name));
                 var jobj = service.GetSARDataFor(Context.User.Id);
                 string data;
                 if (jobj == null)

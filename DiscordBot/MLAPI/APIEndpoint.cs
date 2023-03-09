@@ -147,11 +147,15 @@ namespace DiscordBot.MLAPI
                 .WithHeader("Notes"));
             foreach(var x in Function.GetParameters())
             {
-                var row = new TableRow()
-                    .WithCell($"<code class='inline'>{x.Name}</code>")
-                    .WithCell(typeName(x.ParameterType))
-                    .WithCell("");
-                if(x.IsOptional)
+                var row = new TableRow();
+                row.Children.Add(new Code(x.Name, cls: "inline"));
+                row.WithCell(typeName(x.ParameterType));
+                row.WithCell("");
+                if (Nullable.GetUnderlyingType(x.ParameterType) != null)
+                {
+                    row.Children[0].RawText = "?" + row.Children[0].RawText;
+                }
+                if (x.IsOptional)
                 {
                     row.Children[0].RawText += "?";
                     row.Children[2].RawText = $"Default: {x.DefaultValue}";
