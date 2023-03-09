@@ -654,8 +654,6 @@ Changed how permissions worked for bot.
 
         public static async Task<IUserMessage> SendLogFileAsync(string path, string content = null, Embed embed = null, IMessageChannel channel = null)
         {
-            if (content == null && embed == null)
-                throw new ArgumentException("One of content or embed must be provided");
             channel ??= await getLogChannel();
             return await channel.SendFileAsync(path, text: content, embed: embed);
         }

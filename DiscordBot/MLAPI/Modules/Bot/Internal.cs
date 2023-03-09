@@ -43,8 +43,7 @@ namespace DiscordBot.MLAPI.Modules.Bot
         [RequireGithubSignatureValid("bot:build")]
         public Task GithubWebhook()
         {
-            Program.Close(69); // closing with a non-zero code restarts it.
-            return Task.CompletedTask;
+            return RestartBot();
         }
         
         static string Bash(string cmd)

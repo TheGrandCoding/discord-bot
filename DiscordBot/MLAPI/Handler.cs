@@ -509,9 +509,11 @@ namespace DiscordBot.MLAPI
                 return;
             }
             commandBase.Context.Endpoint = found.Command;
+            var token = Program.GetToken();
             try
             {
-                await commandBase.BeforeExecute().ConfigureAwait(false);
+                var task = commandBase.BeforeExecute();
+                await task.WaitAsync(token);
             }
             catch (RedirectException ex)
             {
@@ -534,7 +536,7 @@ namespace DiscordBot.MLAPI
             try
             {
                 var task = found.Command.Function.Invoke(commandBase, found.Arguments.ToArray()) as Task;
-                await task.WaitAsync(Program.GetToken()).ConfigureAwait(false);
+                await task.WaitAsync(token).ConfigureAwait(false);
                 logger.End((HttpStatusCode)commandBase.StatusSent);
             } catch(OperationCanceledException)
             {
