@@ -62,12 +62,14 @@ namespace FacebookAPI
             oauth = JsonSerializer.Deserialize<IGOAuthResponse>(content)!;
         }
 
-        public async Task<IGUser> GetMeAsync(IGUserFields fields)
+        public Task<IGUser> GetMeAsync(IGUserFields fields)
+            => GetUserAsync("me", fields);
+        public async Task<IGUser> GetUserAsync(string userId, IGUserFields fields)
         {
             CheckLogin();
             var f = fields.ToFlagList();
-            var response = await getAsync("/me?fields=" + Uri.EscapeDataString(String.Join(",", f)));
-            if(!response.IsSuccessStatusCode) throw await HttpException.FromResponse(response);
+            var response = await getAsync($"/{userId}?fields=" + Uri.EscapeDataString(String.Join(",", f)));
+            if (!response.IsSuccessStatusCode) throw await HttpException.FromResponse(response);
             var content = await response.Content.ReadAsStringAsync();
             return JsonSerializer.Deserialize<IGUser>(content)!;
         }

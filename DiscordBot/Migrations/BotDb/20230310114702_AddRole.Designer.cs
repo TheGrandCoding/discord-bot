@@ -3,6 +3,7 @@ using System;
 using DiscordBot.Classes;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DiscordBot.Migrations.BotDb
 {
     [DbContext(typeof(BotDbContext))]
-    partial class BotDbContextModelSnapshot : ModelSnapshot
+    [Migration("20230310114702_AddRole")]
+    partial class AddRole
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -29,7 +32,7 @@ namespace DiscordBot.Migrations.BotDb
 
                     b.HasKey("UserId", "IP");
 
-                    b.ToTable("BotDbApprovedIP", (string)null);
+                    b.ToTable("BotDbApprovedIP");
                 });
 
             modelBuilder.Entity("DiscordBot.Classes.BotDbAuthSession", b =>
@@ -59,7 +62,7 @@ namespace DiscordBot.Migrations.BotDb
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("AuthSessions", (string)null);
+                    b.ToTable("AuthSessions");
                 });
 
             modelBuilder.Entity("DiscordBot.Classes.BotDbAuthToken", b =>
@@ -79,7 +82,7 @@ namespace DiscordBot.Migrations.BotDb
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("AuthTokens", (string)null);
+                    b.ToTable("AuthTokens");
                 });
 
             modelBuilder.Entity("DiscordBot.Classes.BotDbPermission", b =>
@@ -93,7 +96,7 @@ namespace DiscordBot.Migrations.BotDb
 
                     b.HasKey("UserId", "PermNode");
 
-                    b.ToTable("BotDbPermission", (string)null);
+                    b.ToTable("BotDbPermission");
                 });
 
             modelBuilder.Entity("DiscordBot.Classes.BotDbUser", b =>
@@ -104,9 +107,6 @@ namespace DiscordBot.Migrations.BotDb
 
                     b.Property<bool?>("Approved")
                         .HasColumnType("tinyint(1)");
-
-                    b.Property<string>("DisplayName")
-                        .HasColumnType("longtext");
 
                     b.Property<string>("Name")
                         .HasMaxLength(32)
@@ -131,7 +131,7 @@ namespace DiscordBot.Migrations.BotDb
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("Users", (string)null);
+                    b.ToTable("Users");
                 });
 
             modelBuilder.Entity("DiscordBot.Classes.BotDbApprovedIP", b =>
@@ -180,7 +180,7 @@ namespace DiscordBot.Migrations.BotDb
 
             modelBuilder.Entity("DiscordBot.Classes.BotDbUser", b =>
                 {
-                    b.OwnsOne("DiscordBot.Classes.BotDbUser.Connections#DiscordBot.Classes.BotDbConnections", "Connections", b1 =>
+                    b.OwnsOne("DiscordBot.Classes.BotDbConnections", "Connections", b1 =>
                         {
                             b1.Property<uint>("BotDbUserId")
                                 .HasColumnType("int unsigned");
@@ -195,13 +195,13 @@ namespace DiscordBot.Migrations.BotDb
 
                             b1.HasKey("BotDbUserId");
 
-                            b1.ToTable("Users", (string)null);
+                            b1.ToTable("Users");
 
                             b1.WithOwner()
                                 .HasForeignKey("BotDbUserId");
                         });
 
-                    b.OwnsOne("DiscordBot.Classes.BotDbUser.Facebook#DiscordBot.Classes.BotDbFacebook", "Facebook", b1 =>
+                    b.OwnsOne("DiscordBot.Classes.BotDbFacebook", "Facebook", b1 =>
                         {
                             b1.Property<uint>("BotDbUserId")
                                 .HasColumnType("int unsigned");
@@ -220,13 +220,13 @@ namespace DiscordBot.Migrations.BotDb
                             b1.HasIndex("AccountId")
                                 .IsUnique();
 
-                            b1.ToTable("Users", (string)null);
+                            b1.ToTable("Users");
 
                             b1.WithOwner()
                                 .HasForeignKey("BotDbUserId");
                         });
 
-                    b.OwnsOne("DiscordBot.Classes.BotDbUser.Instagram#DiscordBot.Classes.BotDbInstagram", "Instagram", b1 =>
+                    b.OwnsOne("DiscordBot.Classes.BotDbInstagram", "Instagram", b1 =>
                         {
                             b1.Property<uint>("BotDbUserId")
                                 .HasColumnType("int unsigned");
@@ -245,13 +245,13 @@ namespace DiscordBot.Migrations.BotDb
                             b1.HasIndex("AccountId")
                                 .IsUnique();
 
-                            b1.ToTable("Users", (string)null);
+                            b1.ToTable("Users");
 
                             b1.WithOwner()
                                 .HasForeignKey("BotDbUserId");
                         });
 
-                    b.OwnsOne("DiscordBot.Classes.BotDbUser.Options#DiscordBot.Classes.BotDbUserOptions", "Options", b1 =>
+                    b.OwnsOne("DiscordBot.Classes.BotDbUserOptions", "Options", b1 =>
                         {
                             b1.Property<uint>("BotDbUserId")
                                 .HasColumnType("int unsigned");
@@ -264,7 +264,7 @@ namespace DiscordBot.Migrations.BotDb
 
                             b1.HasKey("BotDbUserId");
 
-                            b1.ToTable("Users", (string)null);
+                            b1.ToTable("Users");
 
                             b1.WithOwner()
                                 .HasForeignKey("BotDbUserId");

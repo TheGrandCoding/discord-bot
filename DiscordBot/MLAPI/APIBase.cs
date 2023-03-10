@@ -272,7 +272,6 @@ tryagain:
         {
             var ls = new List<StreamReplacement>(replacements);
             ls.Add(new($"[$<]REPLACE id=['\"]?['\"][ ]/[>$]", reps));
-            ls.Add(new($"//![$<]REPLACE id=['\"]?['\"][ ]/[>$]", reps));
             await copyStreamReplacing(fromStream, toStream, ls.ToArray());
         }
         bool equalChar(char lookingFor, char next)
@@ -468,28 +467,7 @@ tryagain:
         }
         public virtual Task AfterExecute() => Task.CompletedTask;
 
-        protected string RelativeLink(MethodInfo method, params object[] args)
-            => Handler.RelativeLink(method, args);
-        protected string RelativeLink(Action method, params object[] args)
-            => RelativeLink(method.Method, args);
-        protected string RelativeLink<T>(Action<T> method, params object[] args)
-            => RelativeLink(method.Method, args);
-        protected string RelativeLink<T1, T2>(Action<T1, T2> method, params object[] args)
-            => RelativeLink(method.Method, args);
-        protected string RelativeLink<T1, T2, T3>(Action<T1, T2, T3> method, params object[] args)
-            => RelativeLink(method.Method, args);
-        protected string RelativeLink<T1, T2, T3, T4>(Action<T1, T2, T3, T4> method, params object[] args)
-            => RelativeLink(method.Method, args);
-
-        protected string RelativeLink<T>(Func<T> method, params object[] args)
-            => RelativeLink(method.Method, args);
-        protected string RelativeLink<T1, T2>(Func<T1, T2> method, params object[] args)
-            => RelativeLink(method.Method, args);
-        protected string RelativeLink<T1, T2, T3>(Func<T1, T2, T3> method, params object[] args)
-            => RelativeLink(method.Method, args);
-        protected string RelativeLink<T1, T2, T3, T4>(Func<T1, T2, T3, T4> method, params object[] args)
-            => RelativeLink(method.Method, args);
-    }
+        }
 
     [RequireScope(null)] // scope is determined per-request.
     [RequireApproval]

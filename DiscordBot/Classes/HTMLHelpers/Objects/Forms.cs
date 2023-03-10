@@ -33,6 +33,17 @@ namespace DiscordBot.Classes.HTMLHelpers.Objects
         }
 
         public string Name { get => get("name"); set => set("name", value); }
+        public string OnChange
+        {
+            get
+            {
+                return get("onchange");
+            }
+            set
+            {
+                set("onchange", value);
+            }
+        }
     }
     public class Input : FormBase
     {

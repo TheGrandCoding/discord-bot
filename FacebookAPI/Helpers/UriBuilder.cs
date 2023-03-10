@@ -16,5 +16,10 @@ namespace FacebookAPI.Helpers
                 builder.Query += "&" + Uri.EscapeDataString(key) + "=" + Uri.EscapeDataString(value);
             return builder;
         }
+
+        public static async Task EnsureSuccess(this HttpResponseMessage response)
+        {
+            if (!response.IsSuccessStatusCode) throw await HttpException.FromResponse(response);
+        }
     }
 }

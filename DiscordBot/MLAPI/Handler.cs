@@ -36,6 +36,9 @@ namespace DiscordBot.MLAPI
                 return;
             Server = new HttpListener();
             Server.Prefixes.Add("http://+:8887/");
+#if DEBUG
+            Server.Prefixes.Add("http://192.168.1.8:8887/");
+#endif
             Server.Start();
             m_listening = true;
             buildEndpoints();
@@ -591,7 +594,7 @@ namespace DiscordBot.MLAPI
             }
             return null;
         }
-        public static string RelativeLink(MethodInfo method, params object[] args)
+        public static string RelativeLink(MethodInfo method, params string[] args)
         {
             APIEndpoint endpoint = find(method);
             var path = endpoint.GetFormattablePath();

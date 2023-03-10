@@ -1,7 +1,10 @@
-﻿using Newtonsoft.Json;
+﻿using FacebookAPI;
+using Microsoft.Extensions.DependencyInjection;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -12,6 +15,25 @@ namespace DiscordBot.Services
         public bool IsInstagramValid()
         {
             return Data.Facebook?.IsValid() ?? false;
+        }
+        public override void OnReady(IServiceProvider services)
+        {
+            base.OnReady(services);
+            /*if(IsInstagramValid())
+            {
+                Task.Run(async () =>
+                {
+                    var http = services.GetRequiredService<HttpClient>();
+                    var fb = FacebookClient.Create(Data.Facebook.Token, Data.Facebook.ExpiresAt, http);
+                    var media = await fb.GetUserMediaAsync(Data.Facebook.InstagramId);
+                    var us = await fb.GetMeAsync();
+
+                    var container = await fb.CreateIGMediaContainer(Data.Facebook.InstagramId, "https://i.imgur.com/vFv4k6x.png", "test post");
+                    var mediaId = await fb.PublishIGMediaContainer(Data.Facebook.InstagramId, container);
+
+                    await Task.CompletedTask;
+                });
+            }*/
         }
     }
     public enum PublishKind
@@ -68,5 +90,7 @@ namespace DiscordBot.Services
         {
             return base.IsValid() && !(string.IsNullOrWhiteSpace(PageId) || string.IsNullOrWhiteSpace(InstagramId));
         }
+        public FacebookClient CreateClient(HttpClient http)
+            => FacebookClient.Create(Token, ExpiresAt, http);
     }
 }

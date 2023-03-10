@@ -132,7 +132,13 @@ namespace DiscordBot.Classes
             });
         }
 
-
+        public Task<BotDbUser[]> GetUsersWithExternal()
+        {
+            return WithLock(async () =>
+            {
+                return await Users.Where(x => x.Facebook.AccountId != null || x.Instagram.AccountId != null).ToArrayAsync();
+            });
+        }
         public Task<BotDbUser> GetUserAsync(uint id)
         {
             return WithLock(async () => await Users.FindAsync(id));
@@ -281,6 +287,20 @@ namespace DiscordBot.Classes
         [MaxLength(32)]
         public string Name { get; set; }
 
+        private string _displayName;
+
+        [BackingField(nameof(_displayName))]
+        public string DisplayName { get
+            {
+                return _displayName ?? Name ?? $"({Id})";
+            } set
+            {
+                _displayName = value;
+            }
+        }
+        [NotMapped]
+        public bool HasDisplayName => _displayName != null;
+
         /// <summary>
         /// Whether MLAPI's owner has authorised this user to access the website
         /// </summary>
@@ -306,6 +326,8 @@ namespace DiscordBot.Classes
         public BotDbUserOptions Options { get; set; } = new();
         public BotDbInstagram Instagram { get; set; }
         public BotDbFacebook Facebook { get; set; }
+
+        public BotRepublishRoles RepublishRole { get; set; } = BotRepublishRoles.None;
 
         public virtual List<BotDbAuthSession> AuthSessions { get; set; } = new();
         public virtual List<BotDbAuthToken> AuthTokens { get; set; } = new();
@@ -488,5 +510,11 @@ namespace DiscordBot.Classes
         [MaxLength(64)]
         public Perm PermNode { get; set; }
     }
-
+    public enum BotRepublishRoles
+    {
+        None        = 0b000,
+        Provider    = 0b001, // 1
+        Approver    = 0b010, // 2
+        Admin       = 0b111  // 7
+    }
 }

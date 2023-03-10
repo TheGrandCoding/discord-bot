@@ -59,7 +59,6 @@ namespace DiscordBot.MLAPI
                 Children =
                 {
                     new PageHeader()
-                        .WithStyle("docs.css")
                 }
             };
             var body = new PageBody();

@@ -73,7 +73,7 @@ namespace FacebookAPI
             if (!response.IsSuccessStatusCode) throw await HttpException.FromResponse(response);
             var content = await response.Content.ReadAsStringAsync();
             var obj = JsonObject.Parse(content)!;
-            oauth = new((int)obj["expires_in"]!)
+            oauth = new((int?)obj["expires_in"] ?? 3600)
             {
                 access_token = obj["access_token"]!.ToString()
             };
@@ -82,15 +82,30 @@ namespace FacebookAPI
         public async Task<FBUser> GetMeAsync()
         {
             var response = await getAsync("/me?fields=" + Uri.EscapeDataString("id,name"));
-            if (!response.IsSuccessStatusCode) throw await HttpException.FromResponse(response);
+            await response.EnsureSuccess();
             var content = await response.Content.ReadAsStringAsync();
             return JsonSerializer.Deserialize<FBUser>(content)!;
+        }
+
+        public async Task<IReadOnlyCollection<string>> GetUserMediaAsync(string userId)
+        {
+            var response = await getAsync($"/{userId}/media");
+            await response.EnsureSuccess();
+            var content = await response.Content.ReadAsStringAsync();
+            var json = JsonObject.Parse(content)!;
+            var d = json["data"] as JsonArray;
+            return d.Select(x =>
+            {
+                var child = x as JsonObject;
+                var id = child["id"];
+                return id.ToString();
+            }).ToArray();
         }
 
         public async Task<IReadOnlyCollection<FBPage>> GetMyAccountsAsync()
         {
             var response = await getAsync("/me/accounts");
-            if (!response.IsSuccessStatusCode) throw await HttpException.FromResponse(response);
+            await response.EnsureSuccess();
             var content = await response.Content.ReadAsStringAsync();
             var data = JsonSerializer.Deserialize<FBPageList>(content)!;
             return data.Data;
@@ -99,11 +114,62 @@ namespace FacebookAPI
         public async Task<string?> GetPageInstagramAccountAsync(string pageId)
         {
             var response = await getAsync($"/{pageId}?fields=instagram_business_account");
-            if (!response.IsSuccessStatusCode) throw await HttpException.FromResponse(response);
+            await response.EnsureSuccess();
             var content = await response.Content.ReadAsStringAsync();
             var j = JsonObject.Parse(content);
             var obj = j["instagram_business_account"] as JsonObject;
             return obj?["id"]?.ToString() ?? null;
+        }
+
+        #region Instagram Media Publishing
+        public async Task<string> CreateIGMediaContainer(string userId, string image_url, string caption)
+        {
+            var query = new Dictionary<string, string>();
+            query["image_url"] = image_url;
+            query["caption"] = caption;
+            var response = await postAsync($"/{userId}/media", query);
+            await response.EnsureSuccess();
+            var content = await response.Content.ReadAsStringAsync();
+            var json = JsonObject.Parse(content) as JsonObject;
+            return json["id"].ToString();
+        }
+        public async Task<string> PublishIGMediaContainer(string userId, string containerId)
+        {
+            var q = new Dictionary<string, string>()
+            {
+                { "creation_id", containerId }
+            };
+            var response = await postAsync($"/{userId}/media_publish", q);
+            await response.EnsureSuccess();
+            var content = await response.Content.ReadAsStringAsync();
+            var json = JsonObject.Parse(content) as JsonObject;
+            return json["id"].ToString();
+        }
+
+
+        #endregion
+
+        Task<HttpResponseMessage> postAsync(string endpoint, Dictionary<string, string> queryParams)
+        {
+            queryParams["access_token"] = oauth!.access_token!;
+            bool start = !endpoint.Contains('?');
+            var sb = new StringBuilder(endpoint);
+            foreach((var key, var value) in queryParams)
+            {
+                if (start)
+                {
+                    sb.Append('?');
+                    start = false;
+                }
+                else
+                {
+                    sb.Append('&');
+                }
+                sb.Append(Uri.EscapeDataString(key));
+                sb.Append('=');
+                sb.Append(Uri.EscapeDataString(value));
+            }
+            return http.PostAsync(baseAddress + sb.ToString(), null);
         }
 
 

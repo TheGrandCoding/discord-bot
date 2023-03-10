@@ -26,9 +26,12 @@ namespace DiscordBot.MLAPI
         public bool Search()
         {
             var match = new Dictionary<APIEndpoint, Match>();
+            var path = Request.Url.AbsolutePath;
+            if(path.EndsWith('/') && path.Length > 1)
+                path = path.Substring(0, path.Length - 1);
             foreach(var method in methodCmds)
             {
-                if(method.IsMatch(Request.Url.AbsolutePath, out var mtch))
+                if(method.IsMatch(path, out var mtch))
                     match[method] = mtch;
             }
             if (match.Count == 0)

@@ -76,8 +76,10 @@ namespace DiscordBot.Utils
         }
 
         const string baseUrl = "https://discord.com/api";
-        public DiscordOauth(string scope, string code = null)
+        private string redirectUri;
+        public DiscordOauth(string scope, string redirectUrl, string code = null)
         {
+            redirectUri = redirectUrl;
             Scope = scope;
             client = Program.GlobalServices.GetRequiredService<Classes.BotHttpClient>();
             if (code != null)
@@ -89,7 +91,7 @@ namespace DiscordBot.Utils
             return UrlBuilder.Discord()
                 .Add("response_type", "code")
                 .Add("scope", Scope)
-                .Add("redirect_uri", Handler.LocalAPIUrl + "/oauth2/discord")
+                .Add("redirect_uri",  redirectUri)
                 .Add("state", state);
         }
 
@@ -112,7 +114,7 @@ namespace DiscordBot.Utils
             getToken["client_secret"] = Program.Configuration["tokens:appSecret"];
             getToken["grant_type"] = "authorization_code";
             getToken["code"] = code;
-            getToken["redirect_uri"] = $"{Handler.LocalAPIUrl}/oauth2/discord";
+            getToken["redirect_uri"] = redirectUri;
             getToken["scope"] = Scope;
             var response = await postJson(getToken, "/oauth2/token");
             var content = await response.Content.ReadAsStringAsync();

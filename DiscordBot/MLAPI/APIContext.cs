@@ -12,8 +12,10 @@ using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using System.Web;
 
 namespace DiscordBot.MLAPI
@@ -189,5 +191,28 @@ namespace DiscordBot.MLAPI
             }
         }
         public BotDbUser User { get; set; }
+    
+        
+        public string GetFullPath(string relative)
+        {
+            var host = Request.UserHostName;
+            if (host.StartsWith("mlapitest")) 
+            {
+                host = $"https://mlapitest.cheale14.com";
+                return host + (relative.StartsWith('/') ? "" : "/") + relative;
+            }
+            else
+            {
+                var b = new UriBuilder(Request.Url);
+                b.Path = relative;
+                return b.ToString();
+            }
+        }
+        public delegate Task APIMethod(params object[] args);
+        private string RelativeLink(MethodInfo method, params string[] args)
+            => Handler.RelativeLink(method, args);
+        public string RelativeLink(APIMethod method)
+            => RelativeLink(method.Method, null);
+
     }
 }

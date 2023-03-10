@@ -32,8 +32,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using DiscordBot.Classes.Calender;
 using System.ComponentModel;
+using System.Runtime.InteropServices;
 
 [assembly: AssemblyVersion(DiscordBot.Program.VERSION)]
+[assembly: Guid("747a6b5a-9564-4b19-980c-2ae52688a1ec")]
 namespace DiscordBot
 {
     public partial class Program
