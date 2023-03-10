@@ -196,9 +196,9 @@ namespace DiscordBot.MLAPI
         public string GetFullPath(string relative)
         {
             var host = Request.UserHostName;
-            if (host.StartsWith("mlapitest")) 
+            if (host.StartsWith("mlapi")) 
             {
-                host = $"https://mlapitest.cheale14.com";
+                host = $"https://{host}";
                 return host + (relative.StartsWith('/') ? "" : "/") + relative;
             }
             else
