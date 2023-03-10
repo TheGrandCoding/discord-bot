@@ -78,7 +78,7 @@ namespace DiscordBot.MLAPI.Modules
                 foreach(var sender in recipient.EnumerateDirectories())
                 {
                     var sendName = getName(sender);
-                    foreach(var date in sender.EnumerateDirectories())
+                    foreach (var date in sender.EnumerateDirectories())
                     {
                         var dateName = getName(date);
                         var tr = new TableRow()
@@ -92,6 +92,17 @@ namespace DiscordBot.MLAPI.Modules
                     }
                 }
             }
+            table.OrderChildrenDescending(x =>
+            {
+                if (x is not TableRow tr)
+                    return DateTime.MaxValue;
+                if (tr.Children[0].Tag == "th")
+                    return DateTime.MaxValue;
+                if (tr.Children.Count < 3)
+                    return DateTime.MaxValue.AddSeconds(-2);
+                var date = tr.Children[2].RawText;
+                return DateTime.ParseExact(date, "yyyy-MM-dd", System.Threading.Thread.CurrentThread.CurrentCulture);
+            });
             await ReplyFile("folder.html", 200,
                 new Replacements().Add("table", table));
         }
@@ -156,7 +167,7 @@ namespace DiscordBot.MLAPI.Modules
             {
                 using (var fs = File.OpenRead(path))
                 {
-                    ReplyStream(fs, 200);
+                    await ReplyStream(fs, 200);
                 }
             } catch(FileNotFoundException)
             {

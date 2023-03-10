@@ -9,6 +9,15 @@ namespace DiscordBot.Classes.HTMLHelpers.Objects
     {
         public Table(string id = null, string cls = null) : base("table", id, cls) { }
 
+        public void OrderChildren<T>(Func<HTMLBase, T> keySelector)
+        {
+            Children = Children.OrderBy(keySelector).ToList();
+        }
+        public void OrderChildrenDescending<T>(Func<HTMLBase, T> keySelector)
+        {
+            Children = Children.OrderByDescending(keySelector).ToList();
+        }
+
         public TableRow HeaderRow
         {
             get
