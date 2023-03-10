@@ -1,5 +1,7 @@
-﻿using DiscordBot.Classes;
+﻿using Discord;
+using DiscordBot.Classes;
 using DiscordBot.Classes.HTMLHelpers.Objects;
+using DiscordBot.MLAPI.Attributes;
 using DiscordBot.Services;
 using DiscordBot.Utils;
 using FacebookAPI;
@@ -34,9 +36,18 @@ namespace DiscordBot.MLAPI.Modules.Republisher
         }
         public void SetCurrentPost(PublishPost post)
         {
-            var str = JsonConvert.SerializeObject(post);
-            var cookie = new System.Net.Cookie("current-post", Uri.EscapeDataString(str));
-            cookie.Expires = DateTime.Now.AddDays(1);
+            System.Net.Cookie cookie;
+            if(post == null)
+            {
+                cookie = new("current-post", "");
+                cookie.Expires = DateTime.Now.AddDays(-1); // ensure it expires, essentially removes it
+            } else
+            {
+                var str = JsonConvert.SerializeObject(post);
+                cookie = new("current-post", Uri.EscapeDataString(str));
+                cookie.Expires = DateTime.Now.AddDays(1);
+            }
+            cookie.Path = "/";
             cookie.Secure = true;
             cookie.HttpOnly = false;
             Context.HTTP.Response.Cookies.Add(cookie);
@@ -86,7 +97,7 @@ namespace DiscordBot.MLAPI.Modules.Republisher
                     "You may need to wait for someone to approve your account.";
                 return main;
             }
-            var insta = InstagramClient.Create(Context.User.Instagram.AccessToken, Context.User.Instagram.AccountId, http);
+            var insta = Context.User.Instagram.CreateClient(http);
             main.Class = "container";
             var left = new Div(cls: "column left");
             main.Children.Add(left);
@@ -130,7 +141,7 @@ namespace DiscordBot.MLAPI.Modules.Republisher
             var onI = "setDirty()";
             form.AddLabeledInput("caption", "Caption: ", "text", "Caption", current.Instagram.Caption ?? current.defaultText,
                 onChange: onC, onInput: onI);
-            form.AddLabeledInput("media", "Media url: ", "url", "URL", current.Instagram.MediaUrl ?? current.defaultMediaUrl,
+            form.AddLabeledInput("mediaUrl", "Media url: ", "url", "URL", current.Instagram.MediaUrl ?? current.defaultMediaUrl,
                 onChange: onC, onInput: onI);
             right.Children.Add(form);
 
@@ -150,8 +161,16 @@ namespace DiscordBot.MLAPI.Modules.Republisher
             var main = new Div();
             main.Children.Add(new H1("Instagram"));
             main.Children.Add(await getInstagramRow(service, http));
-
             rep.Add("content", main);
+
+            if(Context.User?.RepublishRole.HasFlag(BotRepublishRoles.Provider) ?? false)
+            {
+                rep.Add("actions", new Input("button", "Publish!")
+                {
+                    OnClick = "tryPublish(event)"
+                });
+            }
+
             await ReplyFile("select.html", 200, rep);
         }
 
@@ -175,7 +194,8 @@ namespace DiscordBot.MLAPI.Modules.Republisher
                 row.WithCell(user.Facebook?.AccountId ?? "null");
                 var td = new TableData(null);
                 var select = new Select();
-                select.OnChange = "updateAccess()";
+                select.OnChange = "return updateAccess()";
+                select.OnFocus = "setPrev()";
                 select.Add($"No access", $"{(int)BotRepublishRoles.None}", user.RepublishRole == BotRepublishRoles.None);
                 select.Add($"Provide information only", $"{(int)BotRepublishRoles.Provider}", user.RepublishRole == BotRepublishRoles.Provider);
                 select.Add($"Approve for publish", $"{(int)BotRepublishRoles.Approver}", user.RepublishRole == BotRepublishRoles.Approver);
@@ -279,7 +299,7 @@ namespace DiscordBot.MLAPI.Modules.Republisher
                 return;
             }
             var http = Context.Services.GetRequiredService<HttpClient>();
-            var insta = InstagramClient.Create(Context.User.Instagram.AccessToken, Context.User.Instagram.AccountId, http);
+            var insta = Context.User.Instagram.CreateClient(http);
             var user = await insta.GetMeAsync(IGUserFields.Id | IGUserFields.Username | IGUserFields.AccountType | IGUserFields.MediaCount | IGUserFields.Media);
             string ig = "";
             foreach(var media in user.MediaIds)
@@ -290,17 +310,119 @@ namespace DiscordBot.MLAPI.Modules.Republisher
             await RespondRaw(ig, 200);
         }
         
-        [Method("GET"), Path("/oauth/instagram")]
-        public async Task HandleIGOauth(string code = null, string state = null, 
-                                      string error = null, string error_reason = null, string error_description = null)
+        public struct PatchUserData
         {
-            if(error != null)
+            public int? role;
+        }
+
+        [Method("PATCH"), Path("/api/republisher/admin")]
+        [RequireRepublishRole(BotRepublishRoles.Admin)]
+        public async Task APIPatchUser(uint user, [FromBody]PatchUserData data)
+        {
+            if(user == Context.User.Id)
             {
-                await RespondRaw($"Error: {error}, {error_reason}: {error_description}");
+                await RespondRaw("You cannot modify your own roles", 400);
                 return;
             }
+            if(!data.role.HasValue)
+            {
+                await RespondRaw("No role value privded.", 400);
+                return;
+            }
+            var db = Context.Services.GetBotDb(nameof(APIPatchUser));
+            var usr = await db.GetUserAsync(user);
+            if (usr == null)
+            {
+                await RespondRaw($"Unknown user", 400);
+                return;
+            }
+            var enumValue = (BotRepublishRoles)data.role.Value;
+            BotRepublishRoles[] possible = new[] {
+                BotRepublishRoles.None,
+                BotRepublishRoles.Provider,
+                BotRepublishRoles.Approver,
+                BotRepublishRoles.Admin
+            };
+            if(possible.Contains(enumValue))
+            {
+                usr.RepublishRole = enumValue;
+            } else {
+                await RespondRaw("Enum value is invalid.", 400);
+                return;
+            }
+            await RespondRaw("");
+        }
+
+        [Method("POST"), Path("/api/republisher/post")]
+        [RequireRepublishRole(BotRepublishRoles.Provider)]
+        public async Task APISchedulePublish()
+        {
+            var service = Context.Services.GetRequiredService<RepublishService>();
+            var post = GetCurrentPost();
+            if(post == null)
+            {
+                await RespondRaw($"You do not have a post pending, or do not have cookies enabled.");
+                return;
+            }
+            var errors = post.GetErrors();
+            if(errors != null)
+            {
+                await RespondError(errors);
+                return;
+            }
+            errors ??= new();
+            if((post.Instagram?.Kind ?? PublishKind.DoNotPublish) != PublishKind.DoNotPublish)
+            {
+                if (!service.IsInstagramValid())
+                {
+                    await RespondError(errors.Child("instagram").EndRequired("Instagram has not been set up or authorization has expired."));
+                    return;
+                }
+                var http = Context.Services.GetRequiredService<HttpClient>();
+                var insta = Context.User.Instagram.CreateClient(http);
+                var instaMe = await insta.GetMeAsync(IGUserFields.Username);
+                var api = service.Data.Facebook.CreateClient(http);
+                var container = await api.CreateIGMediaContainer(service.Data.Facebook.InstagramId,
+                    post.Instagram.MediaUrl ?? post.defaultMediaUrl,
+                    (post.Instagram.Caption ?? post.defaultText) + "\r\nVia @" + instaMe.Username,
+                    new[] { instaMe.Username });
+                var id = await api.PublishIGMediaContainer(service.Data.Facebook.InstagramId, container);
+                var full = await api.GetMediaAsync(id, IGMediaFields.All);
+                SetCurrentPost(null);
+                await RespondRaw($"Published. Here's a link: {full.Permalink}");
+                return;
+            }
+            await RespondRaw("OK");
+        }
+
+        public struct OAuthError
+        {
+            public string error { get; set; }
+            public Optional<string> error_reason { get; set; }
+            public Optional<string> error_description { get; set; }
+        }
+        public class OAuthSuccess
+        {
+            public string code { get; set; }
+            public Optional<string> state { get; set; }
+        }
+        public class FBOAuthSuccess : OAuthSuccess
+        {
+            public string granted_scopes { get; set; }
+            public Optional<string> denied_scopes { get; set; }
+        }
+
+        [Method("GET"), Path("/oauth/instagram")]
+        public async Task HandleIGOAuthFail([FromQuery]OAuthError errData)
+        {
+            await RespondRaw($"Error: {errData.error}, {errData.error_reason}: {errData.error_description}");
+        }
+
+        [Method("GET"), Path("/oauth/instagram")]
+        public async Task HandleIGOauthSuccess([FromQuery]OAuthSuccess success)
+        {
             var http = Context.Services.GetRequiredService<HttpClient>();
-            var insta = await InstagramClient.CreateOAuthAsync(code,
+            var insta = await InstagramClient.CreateOAuthAsync(success.code,
                 Program.Configuration["tokens:instagram:app_id"],
                 Program.Configuration["tokens:instagram:app_secret"],
                 Context.GetFullPath("/oauth/instagram"),
@@ -316,12 +438,15 @@ namespace DiscordBot.MLAPI.Modules.Republisher
                 var me = await insta.GetMeAsync(IGUserFields.Username);
                 Context.User.DisplayName = me.Username;
             }
+            var result = await insta.GetLongLivedAccessToken(Program.Configuration["tokens:instagram:app_secret"]);
             Context.User.Instagram = new BotDbInstagram()
             {
                 AccountId = insta.oauth.user_id.ToString(),
-                AccessToken = insta.oauth.access_token,
-                ExpiresAt = DateTime.UtcNow.AddHours(1)
+                AccessToken = result.access_token,
+                ExpiresAt = DateTime.UtcNow.AddSeconds(result.expires_in.Value)
             };
+            await Context.BotDB.SaveChangesAsync();
+
             await RespondRedirect("/republisher");
         }
 
@@ -360,26 +485,29 @@ namespace DiscordBot.MLAPI.Modules.Republisher
         }
         
         [Method("GET"), Path("/oauth/facebook")]
-        public async Task HandleFBOauth(string code = null, string state = null, string granted_scopes = null, string denied_scopes = null,
-                                      string error = null, string error_reason = null, string error_description = null)
+        public async Task HandleFBOauth([FromQuery]FBOAuthSuccess success)
         {
-            if (error != null)
+            if(!string.IsNullOrWhiteSpace(success.denied_scopes.GetValueOrDefault(null)))
             {
-                await RespondRaw($"Error: {error}, {error_reason}: {error_description}");
-                return;
-            }
-            if(!string.IsNullOrWhiteSpace(denied_scopes))
-            {
-                await RespondRaw("Error: you denied the following permissions that are required to proceed: " + denied_scopes, 400);
+                await RespondRaw("Error: you denied the following permissions that are required to proceed: " + success.denied_scopes, 400);
                 return;
             }
             var http = Context.Services.GetRequiredService<HttpClient>();
-            var fb = await FacebookClient.CreateOAuthAsync(code,
-                Program.Configuration["tokens:facebook:app_id"],
-                Program.Configuration["tokens:facebook:app_secret"],
-                Context.GetFullPath("/oauth/facebook"),
-                http);
-
+            FacebookClient fb = null;
+            try
+            {
+                fb = await FacebookClient.CreateOAuthAsync(success.code,
+                    Program.Configuration["tokens:facebook:app_id"],
+                    Program.Configuration["tokens:facebook:app_secret"],
+                    Context.GetFullPath("/oauth/facebook"), 
+                    http);
+            } catch(HttpException ex)
+            {
+                var err = ex._content;
+                var json = JObject.Parse(err);
+                await RespondJson(json, 400);
+                return;
+            }
             var me = await fb.GetMeAsync();
             if (Context.User == null)
             {
@@ -390,14 +518,15 @@ namespace DiscordBot.MLAPI.Modules.Republisher
             {
                 Context.User.DisplayName = me.Name;
             }
+            var result = await fb.GetLongLivedAccessToken(Program.Configuration["tokens:facebook:app_id"], Program.Configuration["tokens:facebook:app_secret"]);
             Context.User.Facebook = new BotDbFacebook()
             {
                 AccountId = me.Id,
-                AccessToken = fb.oauth.access_token,
-                ExpiresAt = DateTime.UtcNow.AddHours(1)
+                AccessToken = result.access_token,
+                ExpiresAt = DateTime.UtcNow.AddSeconds(result.expires_in.Value)
             };
             await Context.BotDB.SaveChangesAsync();
-            if(granted_scopes.Contains("pages_show_list") && Context.User.RepublishRole.HasFlag(BotRepublishRoles.Admin))
+            if(success.granted_scopes.Contains("pages_show_list") && Context.User.RepublishRole.HasFlag(BotRepublishRoles.Admin))
             { // they're authorizing to give admin access.
                 await handleManagedPages(fb, me);
             } else
@@ -406,6 +535,11 @@ namespace DiscordBot.MLAPI.Modules.Republisher
             }
         }
 
+        [Method("GET"), Path("/oauth/facebook")]
+        public async Task HandleFBOAuthFail([FromQuery]OAuthError errData)
+        {
+            await RespondRaw($"Error: {errData.error}, {errData.error_reason}: {errData.error_description}");
+        }
 
 
 

@@ -17,6 +17,7 @@ using System.Threading.Tasks;
 
 namespace DiscordBot
 {
+    [DebuggerStepThrough]
     public partial class Program
     {
         public static string GetStackTrace(string sep = "\r\n- ")
@@ -440,6 +441,8 @@ namespace DiscordBot
                 underlying = Nullable.GetUnderlyingType(type);
             return isNullable;
         }
+    
+        
         public static string GetTypeName(Type type, bool specifyEnumName = false)
         {
             if (type == typeof(int))

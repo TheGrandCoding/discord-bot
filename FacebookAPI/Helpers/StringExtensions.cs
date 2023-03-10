@@ -7,9 +7,9 @@ using System.Threading.Tasks;
 
 namespace FacebookAPI.Helpers
 {
+    [DebuggerStepThrough]
     public static class StringExtensions
     {
-        [DebuggerStepThrough]
         public static string ToSnakeCase(this string text)
         {
             if (text == null)
@@ -38,7 +38,6 @@ namespace FacebookAPI.Helpers
             return sb.ToString();
         }
 
-        [DebuggerStepThrough]
         public static List<string> ToFlagList<T>(this T value) where T : struct, Enum
         {
             var ls = new List<string>();
@@ -52,6 +51,28 @@ namespace FacebookAPI.Helpers
                 }
             }
             return ls;
+        }
+    
+        public static string ToQueryString(this Dictionary<string, string> queryParams, string? endPoint = null)
+        {
+            bool start = true;
+            var sb = new StringBuilder(endPoint);
+            foreach ((var key, var value) in queryParams)
+            {
+                if (start)
+                {
+                    sb.Append('?');
+                    start = false;
+                }
+                else
+                {
+                    sb.Append('&');
+                }
+                sb.Append(Uri.EscapeDataString(key));
+                sb.Append('=');
+                sb.Append(Uri.EscapeDataString(value));
+            }
+            return sb.ToString();
         }
     }
 }

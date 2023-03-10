@@ -1,6 +1,8 @@
 ﻿using Discord.Commands;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Net;
 using System.Reflection;
@@ -169,51 +171,112 @@ namespace DiscordBot.MLAPI
 
             var args = new List<object>();
             var paramaters = cmd.Function.GetParameters();
+            var alreadyUsedParams = new List<string>();
+
             foreach (var param in paramaters)
             {
-                string value = null;
-                if(cmd.Regexs.TryGetValue(param.Name, out var pattern))
+                if(param.GetCustomAttribute<Attributes.FromBodyAttribute>() != null)
                 {
-                    var match = rgxMatch.Groups[param.Name];
-                    value = match.Value;
+                    try
+                    {
+                        var jsonParsed = JsonConvert.DeserializeObject(context.Body, param.ParameterType);
+                        args.Add(jsonParsed);
+                    } catch(Exception ex)
+                    { 
+                        return final.WithError($"Json parsed eror on {param.Name}: {ex.Message}");
+                    }
+                } else if(param.GetCustomAttribute<Attributes.FromQueryAttribute>() != null)
+                {
+                    var instance = Activator.CreateInstance(param.ParameterType);
+                    foreach(var para in param.ParameterType.GetProperties())
+                    {
+                        var isOptional = isPropertyOptional(para, out var type);
+                        var r = para.GetCustomAttribute<RequiredAttribute>();
+                        var result = getValue(para.Name, para.PropertyType, isOptional, null, cmd, rgxMatch, context);
+                        if (!result.Success)
+                            return final.WithError($"For {param.Name} in Query: {result.ErrorMessage}");
+                        try
+                        {
+                            r?.Validate(result.Value, para.Name);
+                        } catch(ValidationException invalid)
+                        {
+                            return final.WithError($"For {param.Name}:{para.Name}: {invalid.Message}");
+                        }
+                        alreadyUsedParams.Add(para.Name);
+                        if (result.Value != null)
+                            para.SetValue(instance, result.Value);
+                    }
+                    args.Add(instance);
                 } else
                 {
-                    value = context.GetQuery(param.Name);
-                }
-                if (value == null && param.IsOptional == false)
-                    return final.WithError($"No argument specified for required item {param.Name}");
-                if (value == null)
-                {
-                    args.Add(param.DefaultValue);
-                    continue;
-                }
-                if (param.ParameterType == typeof(string))
-                {
-                    args.Add(Uri.UnescapeDataString(value));
-                }
-                else
-                {
-                    var typeResult = Program.AttemptParseInput(value, param.ParameterType);
-                    if (typeResult.IsSuccess)
-                    {
-                        args.Add(typeResult.BestMatch);
-                    }
-                    else
-                    {
-                        return final.WithError($"Could not parse value for {param.Name} as {param.ParameterType.Name}: {typeResult.ErrorReason}");
-                    }
+                    var result = getValue(param.Name, param.ParameterType, param.IsOptional, param.DefaultValue, cmd, rgxMatch, context);
+                    if (!result.Success)
+                        return final.WithError(result.ErrorMessage);
+                    args.Add(result.Value);
                 }
             }
             weight += args.Count;
-            foreach (var key in context.GetAllKeys())
+            if(requireExcessQueryMatch)
             {
-                var para = paramaters.FirstOrDefault(x => x.Name == key);
-                if (para == null && requireExcessQueryMatch)
-                    return final.WithError($"Unknown argument specified: {key}");
+                foreach (var key in context.GetAllKeys())
+                {
+                    var para = paramaters.FirstOrDefault(x => x.Name == key);
+                    if (alreadyUsedParams.Contains(key)) continue;
+                    if (para == null)
+                        return final.WithError($"Unknown argument specified: {key}");
+                }
             }
             weight += 50;
             final.Arguments = args;
             return final;
+        }
+
+        bool isPropertyOptional(PropertyInfo property, out Type trueType)
+        {
+            var type = property.PropertyType;
+            if (Program.IsNullable(type, out trueType)) return true;
+            if(type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Discord.Optional<>))
+            {
+                trueType = type.GetGenericArguments()[0];
+                return true;
+            }
+            return false;
+        }
+
+        Classes.Result<object> getValue(string paramName, Type paramType, bool isOptional, object defaultValue, APIEndpoint cmd, Match rgxMatch, APIContext context)
+        {
+            string value = null;
+            if (cmd.Regexs.TryGetValue(paramName, out var pattern))
+            {
+                var match = rgxMatch.Groups[paramName];
+                value = match.Value;
+            }
+            else
+            {
+                value = context.GetQuery(paramName);
+            }
+            if (value == null && isOptional == false)
+                return new($"No argument specified for required item {paramName}");
+            if (value == null)
+            {
+                return new(defaultValue);
+            }
+            if (paramType == typeof(string))
+            {
+                return new((object)Uri.UnescapeDataString(value));
+            }
+            else
+            {
+                var typeResult = Program.AttemptParseInput(value, paramType);
+                if (typeResult.IsSuccess)
+                {
+                    return new ((object)typeResult.BestMatch);
+                }
+                else
+                {
+                    return new($"Could not parse value for {paramName} as {paramType.Name}: {typeResult.ErrorReason}");
+                }
+            }
         }
     }
 

@@ -44,6 +44,17 @@ namespace DiscordBot.Classes.HTMLHelpers.Objects
                 set("onchange", value);
             }
         }
+        public string OnFocus
+        {
+            get
+            {
+                return get("onfocus");
+            }
+            set
+            {
+                set("onfocus", value);
+            }
+        }
     }
     public class Input : FormBase
     {

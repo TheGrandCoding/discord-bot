@@ -68,20 +68,43 @@ namespace FacebookAPI
                 .WithQuery("client_id", app_id)
                 .WithQuery("client_secret", app_secret)
                 .WithQuery("code", oauthcode)
-                .WithQuery("redirect_uri", redirect_uri);
+                .WithQuery("redirect_uri", redirect_uri)
+                .WithQuery("fields", "expires_in,access_token");
             var response = await http.GetAsync(uri.Uri);
             if (!response.IsSuccessStatusCode) throw await HttpException.FromResponse(response);
             var content = await response.Content.ReadAsStringAsync();
-            var obj = JsonObject.Parse(content)!;
-            oauth = new((int?)obj["expires_in"] ?? 3600)
+            var result = JsonSerializer.Deserialize<LongLivedToken>(content);
+            oauth = new(result.expires_in.GetValueOrDefault(3600))
             {
-                access_token = obj["access_token"]!.ToString()
+                access_token = result.access_token
             };
         }
 
+        public async Task<LongLivedToken> GetLongLivedAccessToken(string app_id, string app_secret, string? access_token = null)
+        {
+            CheckLogin();
+            var response = await getAsync("/oauth/access_token", new()
+            {
+                { "grant_type", "fb_exchange_token" },
+                { "client_secret", app_secret },
+                { "client_id", app_id },
+                { "fb_exchange_token", access_token ?? oauth!.access_token! },
+                { "fields", "expires_in,access_token"}
+            }, withToken: false);
+            await response.EnsureSuccess();
+            var content = await response.Content?.ReadAsStringAsync()!;
+            var result = JsonSerializer.Deserialize<LongLivedToken>(content)!;
+            result.expires_in ??= 3600 * 24 * 60;
+            if (access_token == null)
+            { // we updated our own oauth
+                oauth!.access_token = result.access_token;
+            }
+            return result;
+        }
         public async Task<FBUser> GetMeAsync()
         {
-            var response = await getAsync("/me?fields=" + Uri.EscapeDataString("id,name"));
+            CheckLogin();
+            var response = await getAsync("/me", new() { { "fields", "id,name" } });
             await response.EnsureSuccess();
             var content = await response.Content.ReadAsStringAsync();
             return JsonSerializer.Deserialize<FBUser>(content)!;
@@ -101,6 +124,13 @@ namespace FacebookAPI
                 return id.ToString();
             }).ToArray();
         }
+        public async Task<Instagram.IGMedia> GetMediaAsync(string mediaId, Instagram.IGMediaFields fields)
+        {
+            var response = await getAsync($"/{mediaId}", new() { { "fields", string.Join(',', fields.ToFlagList())} });
+            await response.EnsureSuccess();
+            var content = await response.Content.ReadAsStringAsync();
+            return JsonSerializer.Deserialize<Instagram.IGMedia>(content)!;
+        }
 
         public async Task<IReadOnlyCollection<FBPage>> GetMyAccountsAsync()
         {
@@ -113,7 +143,7 @@ namespace FacebookAPI
 
         public async Task<string?> GetPageInstagramAccountAsync(string pageId)
         {
-            var response = await getAsync($"/{pageId}?fields=instagram_business_account");
+            var response = await getAsync($"/{pageId}", new() { { "fields", "instagram_business_account" } });
             await response.EnsureSuccess();
             var content = await response.Content.ReadAsStringAsync();
             var j = JsonObject.Parse(content);
@@ -122,11 +152,24 @@ namespace FacebookAPI
         }
 
         #region Instagram Media Publishing
-        public async Task<string> CreateIGMediaContainer(string userId, string image_url, string caption)
+        public async Task<string> CreateIGMediaContainer(string userId, string image_url, string caption, string[] userTags = null)
         {
             var query = new Dictionary<string, string>();
             query["image_url"] = image_url;
             query["caption"] = caption;
+            if(userTags != null)
+            {
+                var tags = new JsonArray();
+                foreach(var username in tags)
+                {
+                    var obj = new JsonObject();
+                    obj["username"] = username;
+                    obj["x"] = 0.0;
+                    obj["y"] = 0.0;
+                    tags.Add(obj);
+                }
+                query["userTags"] = tags.ToString(); 
+            }
             var response = await postAsync($"/{userId}/media", query);
             await response.EnsureSuccess();
             var content = await response.Content.ReadAsStringAsync();
@@ -149,34 +192,20 @@ namespace FacebookAPI
 
         #endregion
 
-        Task<HttpResponseMessage> postAsync(string endpoint, Dictionary<string, string> queryParams)
+        Task<HttpResponseMessage> postAsync(string endpoint, Dictionary<string, string> queryParams, bool withToken = true)
         {
-            queryParams["access_token"] = oauth!.access_token!;
-            bool start = !endpoint.Contains('?');
-            var sb = new StringBuilder(endpoint);
-            foreach((var key, var value) in queryParams)
-            {
-                if (start)
-                {
-                    sb.Append('?');
-                    start = false;
-                }
-                else
-                {
-                    sb.Append('&');
-                }
-                sb.Append(Uri.EscapeDataString(key));
-                sb.Append('=');
-                sb.Append(Uri.EscapeDataString(value));
-            }
-            return http.PostAsync(baseAddress + sb.ToString(), null);
+            if (!queryParams.ContainsKey("access_token") && withToken)
+                queryParams["access_token"] = oauth!.access_token!;
+            return http.PostAsync(baseAddress + queryParams.ToQueryString(endpoint), null);
         }
 
 
-        Task<HttpResponseMessage> getAsync(string endpoint)
+        Task<HttpResponseMessage> getAsync(string endpoint, Dictionary<string, string>? queryParams = null, bool withToken = true)
         {
-            char sep = endpoint.Contains('?') ? '&' : '?';
-            return http.GetAsync(baseAddress + endpoint + sep + "access_token=" + oauth!.access_token);
+            queryParams ??= new();
+            if (!queryParams.ContainsKey("access_token") && withToken)
+                queryParams["access_token"] = oauth!.access_token!;
+            return http.GetAsync(baseAddress + queryParams.ToQueryString(endpoint));
         }
 
         private void CheckLogin()

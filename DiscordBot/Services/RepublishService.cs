@@ -1,4 +1,5 @@
-﻿using FacebookAPI;
+﻿using DiscordBot.Classes;
+using FacebookAPI;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using System;
@@ -53,6 +54,21 @@ namespace DiscordBot.Services
         public string defaultMediaUrl { get; set; }
         [JsonProperty("instagram")]
         public PublishInstagram Instagram { get; set; } = new();
+
+        public APIErrorResponse GetErrors()
+        {
+            var errors = new APIErrorResponse();
+            if (string.IsNullOrWhiteSpace(defaultText))
+                return errors.Child(nameof(defaultText)).EndRequired();
+            if (string.IsNullOrWhiteSpace(defaultMediaUrl))
+                return errors.Child(nameof(defaultMediaUrl)).EndRequired();
+            var insta = errors.Child(nameof(Instagram));
+            if (string.IsNullOrWhiteSpace(Instagram.Caption))
+                return insta.Child("caption").EndRequired();
+            if (string.IsNullOrWhiteSpace(Instagram.MediaUrl))
+                return insta.Child("mediaUrl").EndRequired();
+            return null;
+        }
     }
     public class PublishInstagram
     {
