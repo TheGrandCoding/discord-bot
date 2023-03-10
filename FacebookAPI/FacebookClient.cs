@@ -97,7 +97,9 @@ namespace FacebookAPI
             result.expires_in ??= 3600 * 24 * 60;
             if (access_token == null)
             { // we updated our own oauth
-                oauth!.access_token = result.access_token;
+                oauth = new(result.expires_in.Value);
+                oauth.token_type = result.token_type;
+                oauth.access_token = result.access_token;
             }
             return result;
         }
