@@ -75,11 +75,11 @@ namespace DiscordBot.MLAPI
                 .Add("return", returnTo ?? "false"));
         }
 
-        public virtual async Task RedirectTo(string functionName, params string[] pathParams)
+        public virtual async Task RedirectTo(string functionName, bool withQuery = false, params string[] pathParams)
         {
             var ep = Handler.GetEndpoint(functionName);
             if (ep == null) throw new ArgumentException($"Unknown redirect function: {functionName}");
-            var redirect = string.Format(ep.GetFormattablePath(), pathParams);
+            var redirect = string.Format(ep.GetFormattablePath(withQuery), pathParams);
             await RespondRedirect(redirect);
         }
 

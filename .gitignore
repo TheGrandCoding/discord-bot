@@ -353,4 +353,3 @@ MigrationBackup/
 # Custom
 *.pem
 DiscordBot/Services/Acts/*.cs
-DiscordBot/Services/BuiltIn/ConfigUpdateService.cs

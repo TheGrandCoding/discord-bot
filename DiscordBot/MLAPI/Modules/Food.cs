@@ -631,7 +631,7 @@ namespace DiscordBot.MLAPI.Modules
         {
             if(Service.OngoingRecipes.Count > 0)
             {
-                await RedirectTo(nameof(ViewOngoingRecipe), Service.OngoingRecipes.First().Key.ToString());
+                await RedirectTo(nameof(ViewOngoingRecipe), true, Service.OngoingRecipes.First().Key.ToString());
                 return;
             } else
             {
@@ -1162,7 +1162,7 @@ namespace DiscordBot.MLAPI.Modules
             if (extends > 0)
                 e = extends;
             var p = Service.AddProduct(productId, productName, "", e, uses, "");
-            await RedirectTo(nameof(NewFood), productId, redirect);
+            await RedirectTo(nameof(NewFood), true, productId, redirect);
         }
         [Method("POST"),   Path("/api/food/inventory")]
         public async Task NewInventory(string redirect, string productId, string expires, string frozen = "off")
