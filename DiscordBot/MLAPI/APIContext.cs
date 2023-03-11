@@ -198,7 +198,7 @@ namespace DiscordBot.MLAPI
         {
             var endpoint = Handler.GetEndpoint(funcName);
             if (endpoint == null) throw new ArgumentException($"Unknown MLAPI endpoint: {funcName}");
-            var relative = string.Format(endpoint.GetFormattablePath(), pathParams);
+            var relative = string.Format(endpoint.GetFormattablePath(false), pathParams);
             var host = Request.UserHostName;
             if (host.EndsWith(".com")) 
             {
@@ -212,11 +212,5 @@ namespace DiscordBot.MLAPI
                 return b.ToString();
             }
         }
-        public delegate Task APIMethod(params object[] args);
-        private string RelativeLink(MethodInfo method, params string[] args)
-            => Handler.RelativeLink(method, args);
-        public string RelativeLink(APIMethod method)
-            => RelativeLink(method.Method, null);
-
     }
 }

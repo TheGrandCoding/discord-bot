@@ -619,26 +619,5 @@ namespace DiscordBot.MLAPI
             }
             Console.WriteLine($"{context.Id}: Returned {commandBase.StatusSent}");
         }
-
-        static APIEndpoint find(MethodInfo method)
-        {
-            foreach (var verbKp in Handler.Endpoints)
-            {
-                foreach (var ep in verbKp.Value)
-                {
-                    if (ep.Function.Equals(method))
-                        return ep;
-                }
-            }
-            return null;
-        }
-        public static string RelativeLink(MethodInfo method, params string[] args)
-        {
-            APIEndpoint endpoint = find(method);
-            var path = endpoint.GetFormattablePath();
-            return string.Format(path, args);
-
-        }
-
     }
 }

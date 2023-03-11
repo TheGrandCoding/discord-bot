@@ -557,7 +557,7 @@ namespace DiscordBot.MLAPI.Modules
             foreach (var x in module.Endpoints)
             {
                 var paramaters = x.Function.GetParameters();
-                var link = Handler.RelativeLink(x.Function, paramaters.Select(x => x.Name).ToArray());
+                var link = string.Format(x.GetFormattablePath(), paramaters.Select(x => x.Name));
                 var req = new HttpReqUrl(x.Method, x.Name, link: link);
                 var path = x.GetNicePath().Split('/', StringSplitOptions.RemoveEmptyEntries);
                 var pathParams = new List<string>();
