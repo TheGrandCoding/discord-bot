@@ -499,7 +499,33 @@ tryagain:
         }
         public virtual Task AfterExecute() => Task.CompletedTask;
 
+
+        private const string csrfCookie = "_csrf";
+        public virtual string SetState()
+        {
+            var state = DiscordBot.Classes.PasswordHash.RandomToken(16);
+            var cookie = new Cookie(csrfCookie, state);
+            Context.HTTP.Response.SetCookie(cookie);
+            return state;
         }
+        public virtual async Task<bool> CheckState(string state)
+        {
+            var cookie = Context.HTTP.Request.Cookies[csrfCookie];
+            if(cookie == null)
+            {
+                await RespondRaw("Error: you do not have a cross-site request forgery cookie set.", 400);
+                return false;
+            }
+            if(cookie.Value != state)
+            {
+                cookie.Expires = DateTime.Now.AddDays(-1);
+                Context.HTTP.Response.SetCookie(cookie);
+                await RespondRaw($"Error: CSRF mismatch", 400);
+                return false;
+            }
+            return true;
+        }
+    }
 
     [RequireScope(null)] // scope is determined per-request.
     [RequireApproval]

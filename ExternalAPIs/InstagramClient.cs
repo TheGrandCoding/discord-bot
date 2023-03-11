@@ -15,7 +15,7 @@ namespace ExternalAPIs
         }
         public static Uri GetBasicRedirectUri(string client_id, string redirect_url, Instagram.BasicAPIScopes scopes, string? state = null)
         {
-            var sc = (scopes | BasicAPIScopes.UserProfile).ToFlagList();
+            var sc = (scopes | BasicAPIScopes.UserProfile).ToSnakeCaseList();
             var url = new UriBuilder("https://api.instagram.com/oauth/authorize")
                 .WithQuery("client_id", client_id)
                 .WithQuery("redirect_uri", redirect_url)
@@ -98,7 +98,7 @@ namespace ExternalAPIs
         public async Task<IGUser> GetUserAsync(string userId, IGUserFields fields)
         {
             CheckLogin();
-            var f = fields.ToFlagList();
+            var f = fields.ToSnakeCaseList();
             var response = await getAsync($"/{userId}", new() { 
                 { "fields", String.Join(",", f) } 
             });
@@ -110,7 +110,7 @@ namespace ExternalAPIs
         public async Task<IGMedia> GetMediaAsync(string mediaId, IGMediaFields fields)
         {
             CheckLogin();
-            var f = fields.ToFlagList();
+            var f = fields.ToSnakeCaseList();
             var response = await getAsync($"/{mediaId}", new()
             {
                 { "fields", String.Join(",", f) }

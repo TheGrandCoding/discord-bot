@@ -396,7 +396,7 @@ namespace DiscordBot.Classes
     
         public ExternalAPIs.InstagramClient CreateClient(System.Net.Http.HttpClient http)
         {
-            return ExternalAPIs.InstagramClient.Create(AccessToken, AccountId, http);
+            return ExternalAPIs.InstagramClient.Create(AccessToken, AccountId, ExpiresAt, http);
         }
     }
 

@@ -25,6 +25,7 @@
   "prefix": "<string>",
   "settings": {
     "admin": "<ulong>",
+    "foodnotify": "<ulong>",
     "log": "<Critical|Error|Warning|Info|Verbose|Debug>",
     "logchannel": "<ulong>"
   },
@@ -37,10 +38,16 @@
       "access": "<string>",
       "secret": "<string>"
     },
-    "db": "<string>",
+    "dbdev": "<string>",
+    "dbprod": "<string>",
     "discord": "<string>",
     "download": "<string>",
     "email": "<string>",
+    "facebook": {
+      "app_id": "<ulong>",
+      "app_secret": "<string>"
+    },
+    "foodnotify": "<string>",
     "gh-catch": {
       "app_id": "<int>",
       "client_id": "<string>",
@@ -52,9 +59,12 @@
         "webhook": "<string>"
       },
       "webhooks": {
-        "gh-flask": "<string>",
-        "gh-mlapibot": "<string>"
+        "gh-catch": "<string>"
       }
+    },
+    "instagram": {
+      "app_id": "<ulong>",
+      "app_secret": "<string>"
     },
     "internal-bot": "<string>",
     "jackett": "<string>",
@@ -76,6 +86,11 @@
     "smmry": "<string>",
     "sonarr": "<string>",
     "tgc-github": "<string>",
+    "tiktok": {
+      "app_id": "<ulong>",
+      "app_key": "<string>",
+      "app_secret": "<string>"
+    },
     "trakt": {
       "client_id": "<string>",
       "client_secret": "<string>"
@@ -85,7 +100,8 @@
   "urls": {
     "download": "<uri>",
     "jackett": "<uri>",
-    "jellyfin": "<uri>"
+    "jellyfin": "<uri>",
+    "ocrdir": "<string>"
   },
   "vote": {
     "adminEmail": "<string>"

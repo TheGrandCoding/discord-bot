@@ -185,9 +185,9 @@ namespace DiscordBot.MLAPI
                     var instance = Activator.CreateInstance(param.ParameterType);
                     foreach(var para in param.ParameterType.GetProperties())
                     {
-                        var isOptional = isPropertyOptional(para, out var type);
+                        var isOptional = isTypeOptional(para.PropertyType, out var type, out var usesDiscordOptional);
                         var r = para.GetCustomAttribute<RequiredAttribute>();
-                        var result = getValue(para.Name, para.PropertyType, isOptional, null, cmd, rgxMatch, context);
+                        var result = getValue(para.Name, type, isOptional, null, cmd, rgxMatch, context);
                         if (!result.Success)
                             return final.WithError($"For {param.Name} in Query: {result.ErrorMessage}");
                         try
@@ -199,12 +199,22 @@ namespace DiscordBot.MLAPI
                         }
                         alreadyUsedParams.Add(para.Name);
                         if (result.Value != null)
-                            para.SetValue(instance, result.Value);
+                        {
+                            if (usesDiscordOptional)
+                            {
+                                var optInstance = Activator.CreateInstance(para.PropertyType, new[] { result.Value });
+                                para.SetValue(instance, optInstance);
+                            } else
+                            {
+                                para.SetValue(instance, result.Value);
+                            }
+                        }
                     }
                     args.Add(instance);
                 } else
                 {
-                    var result = getValue(param.Name, param.ParameterType, param.IsOptional, param.DefaultValue, cmd, rgxMatch, context);
+                    bool isOpt = isTypeOptional(param.ParameterType, out var underlyingType, out bool usesDiscordOptional);
+                    var result = getValue(param.Name, underlyingType, isOpt, param.DefaultValue, cmd, rgxMatch, context);
                     if (!result.Success)
                         return final.WithError(result.ErrorMessage);
                     args.Add(result.Value);
@@ -226,12 +236,14 @@ namespace DiscordBot.MLAPI
             return final;
         }
 
-        bool isPropertyOptional(PropertyInfo property, out Type trueType)
+        bool isTypeOptional(Type type, out Type trueType, out bool usesOptional)
         {
-            var type = property.PropertyType;
+            usesOptional = false;
             if (Program.IsNullable(type, out trueType)) return true;
+            trueType = type;
             if(type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Discord.Optional<>))
             {
+                usesOptional = true;
                 trueType = type.GetGenericArguments()[0];
                 return true;
             }

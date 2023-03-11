@@ -78,7 +78,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\FacebookAPI\ExternalAPIs.csproj" />
+    <ProjectReference Include="..\ExternalAPIs\ExternalAPIs.csproj" />
     <ProjectReference Include="..\qBitApi\qBitApi.csproj" />
   </ItemGroup>
 

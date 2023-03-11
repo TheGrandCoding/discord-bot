@@ -45,4 +45,17 @@ namespace ExternalAPIs
         [JsonPropertyName("user_id")]
         public ulong UserId { get; set; }
     }
+    public class TikTokOAuthToken : OAuthToken
+    {
+        public TikTokOAuthToken(string access_token, DateTime expires_at, string? token_type = null) : base(access_token, expires_at, token_type)
+        {
+        }
+        public TikTokOAuthToken(string access_token, int expires_in, string? token_type = null) : base(access_token, expires_in, token_type)
+        {
+        }
+        public string OpenId { get; set; }
+        public string Scope { get; set; }
+        public string RefreshToken { get; set; }
+        public int RefreshExpiresIn { get; set; }
+    }
 }

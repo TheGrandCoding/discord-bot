@@ -19,7 +19,7 @@ namespace ExternalAPIs
 
         public static Uri GetRedirectUri(string client_id, string redirect_url, Facebook.OAuthScopes scopes, string? state = null)
         {
-            var sc = (scopes | Facebook.OAuthScopes.PublicProfile).ToFlagList();
+            var sc = (scopes | Facebook.OAuthScopes.PublicProfile).ToSnakeCaseList();
             var url = new UriBuilder("https://www.facebook.com/v16.0/dialog/oauth")
                 .WithQuery("client_id", client_id)
                 .WithQuery("redirect_uri", redirect_url)
@@ -103,7 +103,7 @@ namespace ExternalAPIs
         }
         public async Task<Instagram.IGMedia> GetMediaAsync(string mediaId, Instagram.IGMediaFields fields)
         {
-            var response = await getAsync($"/{mediaId}", new() { { "fields", string.Join(',', fields.ToFlagList())} });
+            var response = await getAsync($"/{mediaId}", new() { { "fields", string.Join(',', fields.ToSnakeCaseList())} });
             await response.EnsureSuccess();
             var content = await response.Content.ReadAsStringAsync();
             return JsonSerializer.Deserialize<Instagram.IGMedia>(content)!;
@@ -147,7 +147,7 @@ namespace ExternalAPIs
                 }
                 query["userTags"] = tags.ToString(); 
             }
-            var response = await postWithQueryAsync($"/{userId}/media", query);
+            var response = await postAsync($"/{userId}/media", queryParams: query);
             await response.EnsureSuccess();
             var content = await response.Content.ReadAsStringAsync();
             var json = JsonObject.Parse(content) as JsonObject;
@@ -159,7 +159,7 @@ namespace ExternalAPIs
             {
                 { "creation_id", containerId }
             };
-            var response = await postWithQueryAsync($"/{userId}/media_publish", q);
+            var response = await postAsync($"/{userId}/media_publish", queryParams: q);
             await response.EnsureSuccess();
             var content = await response.Content.ReadAsStringAsync();
             var json = JsonObject.Parse(content) as JsonObject;

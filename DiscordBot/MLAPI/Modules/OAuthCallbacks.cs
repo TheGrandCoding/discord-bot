@@ -46,6 +46,7 @@ namespace DiscordBot.MLAPI.Modules
         [Method("GET"), Path("/instagram")]
         public async Task HandleIGOauthSuccess([FromQuery] OAuthSuccess success)
         {
+            if (await CheckState(success.state.GetValueOrDefault(null)) == false) return;
             var http = Context.Services.GetRequiredService<HttpClient>();
             var insta = await InstagramClient.CreateOAuthAsync(success.code,
                 Program.Configuration["tokens:instagram:app_id"],
@@ -55,7 +56,7 @@ namespace DiscordBot.MLAPI.Modules
 
             if (Context.User == null)
             {
-                Context.User = await Context.BotDB.GetUserByInstagram(insta.oauth.user_id.ToString(), true);
+                Context.User = await Context.BotDB.GetUserByInstagram(insta.oauth.UserId.ToString(), true);
                 await Handler.SetNewLoginSession(Context, Context.User, true, true);
             }
             if (!Context.User.HasDisplayName)
@@ -66,9 +67,9 @@ namespace DiscordBot.MLAPI.Modules
             var result = await insta.GetLongLivedAccessToken(Program.Configuration["tokens:instagram:app_secret"]);
             Context.User.Instagram = new BotDbInstagram()
             {
-                AccountId = insta.oauth.user_id.ToString(),
+                AccountId = insta.oauth.UserId.ToString(),
                 AccessToken = result.AccessToken,
-                ExpiresAt = DateTime.UtcNow.AddSeconds(result.expires_in.Value)
+                ExpiresAt = result.ExpiresAt.Value
             };
             await Context.BotDB.SaveChangesAsync();
 
@@ -99,7 +100,7 @@ namespace DiscordBot.MLAPI.Modules
             var srv = Context.Services.GetRequiredService<RepublishService>();
             srv.Data.Facebook = new()
             {
-                ExpiresAt = client.oauth.ExpiresAt,
+                ExpiresAt = client.oauth.ExpiresAt.Value,
                 Id = user.Id,
                 PageId = page.Id,
                 Token = client.oauth.AccessToken,
@@ -112,6 +113,7 @@ namespace DiscordBot.MLAPI.Modules
         [Method("GET"), Path("/facebook")]
         public async Task HandleFBOauth([FromQuery] FBOAuthSuccess success)
         {
+            if (await CheckState(success.state.GetValueOrDefault(null)) == false) return;
             if (!string.IsNullOrWhiteSpace(success.denied_scopes.GetValueOrDefault(null)))
             {
                 await RespondRaw("Error: you denied the following permissions that are required to proceed: " + success.denied_scopes, 400);
@@ -149,7 +151,7 @@ namespace DiscordBot.MLAPI.Modules
             {
                 AccountId = me.Id,
                 AccessToken = result.AccessToken,
-                ExpiresAt = DateTime.UtcNow.AddSeconds(result.expires_in.Value)
+                ExpiresAt = result.ExpiresAt.Value
             };
             await Context.BotDB.SaveChangesAsync();
             if (success.granted_scopes.Contains("pages_show_list") && Context.User.RepublishRole.HasFlag(BotRepublishRoles.Admin))

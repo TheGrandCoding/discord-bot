@@ -63,7 +63,8 @@ namespace DiscordBot.MLAPI.Modules.Republisher
         {
             return InstagramClient.GetBasicRedirectUri(Program.Configuration["tokens:instagram:app_id"],
                 Context.GetFullUrl(nameof(Modules.OAuthCallbacks.HandleIGOauthSuccess)),
-                ExternalAPIs.Instagram.BasicAPIScopes.All).ToString();
+                ExternalAPIs.Instagram.BasicAPIScopes.All,
+                SetState()).ToString();
         }
 
         string getFacebookUrl()
@@ -72,7 +73,8 @@ namespace DiscordBot.MLAPI.Modules.Republisher
                 Context.GetFullUrl(nameof(Modules.OAuthCallbacks.HandleFBOauth)), 
                 ExternalAPIs.Facebook.OAuthScopes.InstagramBasic 
                 | OAuthScopes.InstagramContentPublish
-                | ExternalAPIs.Facebook.OAuthScopes.PagesShowList).ToString();
+                | ExternalAPIs.Facebook.OAuthScopes.PagesShowList,
+                SetState()).ToString();
         }
 
         async Task<Div> getInstagramRow(RepublishService service, HttpClient http)

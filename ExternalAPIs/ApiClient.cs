@@ -18,19 +18,41 @@ namespace ExternalAPIs
             this.http = http;
         }
 
-        protected virtual Task<HttpResponseMessage> postWithQueryAsync(string endpoint, Dictionary<string, string> queryParams, bool withToken = true)
+        protected virtual Task<HttpResponseMessage> sendAsync(HttpRequestMessage request, bool withToken = true)
         {
-            if (!queryParams.ContainsKey("access_token") && withToken)
+            if(withToken)
+            {
+                var uri = new UriBuilder(request.RequestUri!);
+                uri.WithQuery("access_token", oauth!.AccessToken);
+                request.RequestUri = uri.Uri;
+            }
+            return http.SendAsync(request);
+        }
+
+        protected virtual Task<HttpResponseMessage> postAsync(string endpoint, Dictionary<string, string>? queryParams = null, bool withToken = true)
+        {
+            queryParams ??= new();
+            var req = new HttpRequestMessage(HttpMethod.Post, baseAddress + queryParams.ToQueryString(endpoint));
+            return sendAsync(req, withToken);
+        }
+        protected virtual Task<HttpResponseMessage> postAsync<TBody>(string endpoint, TBody body, Dictionary<string, string>? queryParams = null, bool withToken = true)
+        {
+            queryParams ??= new();
+            if (withToken && !queryParams.ContainsKey("access_token"))
                 queryParams["access_token"] = oauth!.AccessToken!;
-            return http.PostAsync(baseAddress + queryParams.ToQueryString(endpoint), null);
+            HttpContent? content = null;
+            if (body != null)
+                content = new StringContent(System.Text.Json.JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
+            var req = new HttpRequestMessage(HttpMethod.Post, baseAddress + queryParams.ToQueryString(endpoint));
+            req.Content = content;
+            return sendAsync(req, withToken);
         }
 
         protected virtual Task<HttpResponseMessage> getAsync(string endpoint, Dictionary<string, string>? queryParams = null, bool withToken = true)
         {
             queryParams ??= new();
-            if (!queryParams.ContainsKey("access_token") && withToken)
-                queryParams["access_token"] = oauth!.AccessToken!;
-            return http.GetAsync(baseAddress + queryParams.ToQueryString(endpoint));
+            var req = new HttpRequestMessage(HttpMethod.Get, baseAddress + queryParams.ToQueryString(endpoint));
+            return sendAsync(req, withToken);
         }
 
         [System.Diagnostics.DebuggerStepThrough]

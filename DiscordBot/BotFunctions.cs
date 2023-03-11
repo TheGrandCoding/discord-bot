@@ -167,8 +167,7 @@ namespace DiscordBot
                 }
                 return TypeReaderResult.FromSuccess(array);
             }
-            var nullableType = Nullable.GetUnderlyingType(desired);
-            if(nullableType != null)
+            if(Program.IsNullable(desired, out var underlying))
             {
                 // it's a nullable type, so we'll try to parse if the text isn't null or empty.
                 if (string.IsNullOrWhiteSpace(input))
@@ -177,8 +176,8 @@ namespace DiscordBot
                 }
                 else
                 {
-                    Program.LogInfo($"Recursing to parse {input} to {desired.FullName}; now nullable {nullableType.FullName}", "Program.AttemptParse");
-                    return AttemptParseInput(input, nullableType);
+                    Program.LogInfo($"Recursing to parse {input} to {desired.FullName}; now nullable {underlying.FullName}", "Program.AttemptParse");
+                    return AttemptParseInput(input, underlying);
                 }
             }
 
