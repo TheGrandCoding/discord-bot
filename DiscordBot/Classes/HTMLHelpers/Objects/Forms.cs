@@ -19,7 +19,7 @@ namespace DiscordBot.Classes.HTMLHelpers.Objects
             if (inputType == "textarea")
             {
                 inp = new TextArea(Id);
-                inp.WithTag("value", inputValue);
+                inp.RawText = inputValue;
             } else
             {
                 inp = new Input(inputType, inputValue, id);
