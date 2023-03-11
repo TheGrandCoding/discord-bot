@@ -55,6 +55,8 @@ namespace DiscordBot.Services
         public string defaultMediaUrl { get; set; }
         [JsonProperty("instagram")]
         public PublishInstagram Instagram { get; set; } = new();
+        [JsonProperty("discord")]
+        public PublishDiscord Discord { get; set; } = new();
 
         public APIErrorResponse GetErrors()
         {
@@ -63,18 +65,29 @@ namespace DiscordBot.Services
                 return errors.Child(nameof(defaultText)).EndRequired();
             if (string.IsNullOrWhiteSpace(defaultMediaUrl))
                 return errors.Child(nameof(defaultMediaUrl)).EndRequired();
-            var insta = errors.Child(nameof(Instagram));
-            if (string.IsNullOrWhiteSpace(Instagram.Caption))
-                return insta.Child("caption").EndRequired();
-            if (string.IsNullOrWhiteSpace(Instagram.MediaUrl))
-                return insta.Child("mediaUrl").EndRequired();
+            if(Instagram.Kind != PublishKind.DoNotPublish)
+            {
+                var insta = errors.Child(nameof(Instagram));
+                if (string.IsNullOrWhiteSpace(Instagram.Caption ?? defaultText))
+                    return insta.Child("caption").EndRequired();
+                if (string.IsNullOrWhiteSpace(Instagram.MediaUrl ?? defaultMediaUrl))
+                    return insta.Child("mediaUrl").EndRequired();
+            }
+            if(Discord.Kind != PublishKind.DoNotPublish)
+            {
+                var ds = errors.Child(nameof(Discord));
+                if (string.IsNullOrWhiteSpace(Discord.Caption ?? defaultText))
+                    return ds.Child("caption").EndRequired();
+                if (string.IsNullOrWhiteSpace(Discord.MediaUrl ?? defaultMediaUrl))
+                    return ds.Child("mediaUrl").EndRequired();
+            }
+
+
             return null;
         }
     }
-    public class PublishInstagram
+    public class PublishBase
     {
-        [JsonProperty("originalId")]
-        public string OriginalId { get; set; }
         [JsonProperty("caption")]
         public string Caption { get; set; }
         [JsonProperty("mediaUrl")]
@@ -82,6 +95,14 @@ namespace DiscordBot.Services
 
         [JsonProperty("kind")]
         public PublishKind Kind { get; set; }
+    }
+    public class PublishInstagram : PublishBase
+    {
+        [JsonProperty("originalId")]
+        public string OriginalId { get; set; }
+    }
+    public class PublishDiscord : PublishBase
+    {
     }
     public class RepublishSave
     {

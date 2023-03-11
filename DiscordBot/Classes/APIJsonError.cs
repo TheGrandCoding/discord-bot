@@ -38,22 +38,45 @@ namespace DiscordBot.Classes
             return new APIErrorResponse("", "Invalid Query Paramaters");
         }
 
-        public APIErrorResponse EndError(string code, string message)
+
+
+        public APIErrorResponse WithError(string code, string message)
         {
             Errors.Add(new APIErrorResponse(code, message));
+            return this;
+        }
+        public APIErrorResponse EndError(string code, string message)
+        {
+            WithError(code, message);
             return Build();
         }
-        public APIErrorResponse EndRequired(string customText = null) => EndError("REQUIRED", "This field is required" + (customText == null ? "" : (": " + customText)));
-        public APIErrorResponse EndChoices(params string[] possibleV) => EndError("CHOICES", "Value must be one of '" + string.Join("', '", possibleV) + "'");
+        public APIErrorResponse WithRequired(string customText = null) => WithError("REQUIRED", "This field is required" + (customText == null ? "" : (": " + customText)));
+        public APIErrorResponse WithChoices(params string[] possibleV) => WithError("CHOICES", "Value must be one of '" + string.Join("', '", possibleV) + "'");
+        public APIErrorResponse WithRange(int v1, int v2) => WithError("RANGE", $"Value must be between {v1} and {v2}");
 
-        public APIErrorResponse EndRange(int v1, int v2) => EndError("RANGE", $"Value must be between {v1} and {v2}");
-        
+        public APIErrorResponse EndRequired(string customText = null)
+        {
+            WithRequired(customText);
+            return Build();
+        }
+        public APIErrorResponse EndChoices(params string[] possibleV)
+        {
+            WithChoices(possibleV);
+            return Build();
+        }
+        public APIErrorResponse EndRange(int v1, int v2)
+        {
+            WithRange(v1, v2);
+            return Build();
+        }
+
+
         private string _parentKey;
         public APIErrorResponse Child(string key)
         {
             var c = new APIErrorResponse(this, null, null);
             c._parentKey = key;
-            //Children[key] = c;
+            Children[key] = c;
             return c;
         }
         public APIErrorResponse Child(int key) => Child(key.ToString());
@@ -100,5 +123,9 @@ namespace DiscordBot.Classes
         }
         public override string ToString() => ToJson().ToString(Newtonsoft.Json.Formatting.Indented);
 
+        internal bool HasAnyErrors()
+        {
+            return Errors.Count > 0 || Children.Values.Any(x => x.HasAnyErrors());
+        }
     }
 }

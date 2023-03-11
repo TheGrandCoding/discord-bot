@@ -57,7 +57,7 @@ namespace DiscordBot.MLAPI.Modules
             if (Context.User == null)
             {
                 Context.User = await Context.BotDB.GetUserByInstagram(insta.oauth.UserId.ToString(), true);
-                await Handler.SetNewLoginSession(Context, Context.User, true, true);
+                await Handler.SetNewLoginSession(Context, Context.User, true);
             }
             if (!Context.User.HasDisplayName)
             {
@@ -140,7 +140,7 @@ namespace DiscordBot.MLAPI.Modules
             if (Context.User == null)
             {
                 Context.User = await Context.BotDB.GetUserByFacebook(me.Id, true);
-                await Handler.SetNewLoginSession(Context, Context.User, true, true);
+                await Handler.SetNewLoginSession(Context, Context.User, true);
             }
             if (!Context.User.HasDisplayName)
             {
