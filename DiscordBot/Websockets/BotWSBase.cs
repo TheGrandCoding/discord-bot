@@ -43,7 +43,7 @@ namespace DiscordBot.Websockets
         {
             get
             {
-                _ip ??= Program.GetIP(Context.Headers["X-Fowarded-For"], Context.UserEndPoint.Address);
+                _ip ??= Program.GetIP(Context.Headers, Context.UserEndPoint.Address);
                 return _ip;
             }
         }

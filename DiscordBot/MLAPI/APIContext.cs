@@ -45,7 +45,8 @@ namespace DiscordBot.MLAPI
 
         static PermissionsService pService;
 
-        public string IP => Program.GetIP(Request.Headers["X-Forwarded-For"], Request.RemoteEndPoint.Address);
+        public string IP 
+            => Program.GetIP(Request.Headers, Request.RemoteEndPoint.Address);
 
         public bool isInNetwork => IP.StartsWith("192.168.1.");
 

@@ -55,7 +55,7 @@ namespace DiscordBot.MLAPI.Modules
             {
                 fs.Close();
             }
-            await RedirectTo(nameof(EditFilter), id);
+            await RedirectTo(nameof(EditFilter), false, id);
         }
 
         [Method("GET"), Path("/filters/{filterId}")]

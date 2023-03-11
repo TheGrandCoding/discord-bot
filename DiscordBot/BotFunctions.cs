@@ -484,14 +484,20 @@ namespace DiscordBot
         public static Task LogOwner(StringBuilder builder)
             => LogOwner(builder.Length > 4000 ? builder.ToString() : $"```\r\n{builder}\r\n```");
     
-        public static string GetIP(string forwardedHeader, IPAddress addr)
+        public static string GetIP(string cfConnectingIp, string forwardedHeader, IPAddress addr)
         {
+            if (!string.IsNullOrWhiteSpace(cfConnectingIp))
+                return cfConnectingIp;
             if (string.IsNullOrWhiteSpace(forwardedHeader)) return addr.ToString();
             var comma = forwardedHeader.IndexOf(',');
             if (comma > -1)
                 return forwardedHeader.Substring(0, comma);
             return forwardedHeader;
         }
+        public static string GetIP(System.Collections.Specialized.NameValueCollection headers, IPAddress addr)
+            => GetIP(headers["Cf-Connecting-Ip"],
+                     headers["X-Forwarded-For"],
+                     addr);
     
     
         public static string GetTempPath(string filename)
