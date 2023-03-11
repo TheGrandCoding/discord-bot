@@ -34,7 +34,7 @@ namespace DiscordBot.MLAPI.Modules
             string redirectTo = Context.Request.Cookies["redirect"]?.Value;
             if (string.IsNullOrWhiteSpace(redirectTo))
             {
-                if(Context.User.RedirectUrl != null)
+                if(Context.User?.RedirectUrl != null)
                 {
                     redirectTo = Context.User.RedirectUrl;
                     Context.User.RedirectUrl = null;
@@ -44,7 +44,7 @@ namespace DiscordBot.MLAPI.Modules
                 }
             } else
             {
-                Context.HTTP.Response.SetCookie(new("redirect", "")
+                Context.HTTP.Response.SetCookie(new("redirect", "/")
                 {
                     Expires = DateTime.Now.AddDays(-1)
                 });
@@ -82,7 +82,8 @@ namespace DiscordBot.MLAPI.Modules
                         .AddField("Origin", Context.Request.Headers["Origin"] ?? "none", true)
                         .Build());
                 }
-                RespondRedirect(getRedirectReturn()).Wait();
+                // redirect by javascript, workaround two cookies not working properly.
+                RespondRedirect(getRedirectReturn(), code: 200).Wait();
             }
             catch (Exception ex)
             {
@@ -146,7 +147,7 @@ namespace DiscordBot.MLAPI.Modules
                 return;
             }
             await setSessionTokens(result.Value); // essentially logs them in
-            await RespondRedirect(getRedirectReturn());
+            await RespondRedirect(getRedirectReturn(), code: 200);
         }
         [Method("POST"), Path("/register")]
         public async Task RegisterWithPassword(string username, string password)
@@ -163,7 +164,7 @@ namespace DiscordBot.MLAPI.Modules
                 return;
             }
             await setSessionTokens(result.Value); // essentially logs them in
-            await RespondRedirect(getRedirectReturn());
+            await RespondRedirect(getRedirectReturn(), code: 200);
             try
             {
                 var embed = new EmbedBuilder()

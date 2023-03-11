@@ -69,11 +69,14 @@ namespace DiscordBot.MLAPI
         {
             if(!delayed)
             {
-                Context.HTTP.Response.Headers["Location"] = url;
                 code ??= (int)HttpStatusCode.Redirect;
             } else
             {
                 code ??= (int)HttpStatusCode.OK;
+            }
+            if(code == (int)HttpStatusCode.Redirect || code == (int)HttpStatusCode.RedirectKeepVerb)
+            {
+                Context.HTTP.Response.Headers["Location"] = url;
             }
 
             using var fs = LoadFile("_redirect.html");
