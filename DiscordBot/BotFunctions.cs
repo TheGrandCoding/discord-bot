@@ -17,7 +17,7 @@ using System.Threading.Tasks;
 
 namespace DiscordBot
 {
-    [DebuggerStepThrough]
+    //[DebuggerStepThrough]
     public partial class Program
     {
         public static string GetStackTrace(string sep = "\r\n- ")

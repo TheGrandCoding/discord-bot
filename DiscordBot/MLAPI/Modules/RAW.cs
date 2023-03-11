@@ -55,7 +55,7 @@ namespace DiscordBot.RESTAPI.Functions.HTML
         [Path(@"/_/{bracket}/{filePath}")]
         [Regex("bracket", "(js|css|img|assets)")]
         [Regex("filePath", @"[a-zA-Z0-9\/._-]*.\.(js|css|png|jpeg|svg|woff|mp3)")]
-        [RequireServerName(null)]
+        [HostAttribute(null)]
         public async Task BackgroundWork([Summary("Folder of item")]string bracket, string filePath)
         {
             if(Context.Endpoint == null)
@@ -108,7 +108,6 @@ namespace DiscordBot.RESTAPI.Functions.HTML
         static Dictionary<string, bool> sent = new Dictionary<string, bool>();
         [Method("GET")]
         [Path("/whitelist")]
-        [RequireServerName(null)]
         public async Task WhitelistLessons()
         {
             if (!sent.ContainsKey(Context.IP))
@@ -127,7 +126,7 @@ namespace DiscordBot.RESTAPI.Functions.HTML
                     if (embed.Fields.Count >= 25)
                         break;
                 }
-                usr.SendMessageAsync(embed: embed.Build());
+                await usr.SendMessageAsync(embed: embed.Build());
             }
             await ReplyFile("_whitelist.html", HttpStatusCode.OK);
         }

@@ -300,7 +300,7 @@ namespace DiscordBot.MLAPI.Modules
         [Method("GET"), Path("/food")]
         [RequireApproval(false)]
         [RequireAuthentication(false, false)]
-        public async Task Base(bool grouped = false, bool full = false)
+        public async Task ViewFood(bool grouped = false, bool full = false)
         {
             var s = grouped
                 ? getGroupedInfo(full)
@@ -613,7 +613,7 @@ namespace DiscordBot.MLAPI.Modules
         {
             if(!Service.OngoingRecipes.TryGetValue(id, out var _))
             { // no recipe
-                await RespondRedirect("/food/recipes");
+                await RedirectTo(nameof(ViewRecipes));
             } else
             {
                 await ReplyFile("new_ongoing.html", 200, new Replacements().Add("id", id));
@@ -631,7 +631,7 @@ namespace DiscordBot.MLAPI.Modules
         {
             if(Service.OngoingRecipes.Count > 0)
             {
-                await RespondRedirect($"/food/ongoing-recipe?id={Service.OngoingRecipes.First().Key}");
+                await RedirectTo(nameof(ViewOngoingRecipe), Service.OngoingRecipes.First().Key.ToString());
                 return;
             } else
             {
@@ -1100,7 +1100,7 @@ namespace DiscordBot.MLAPI.Modules
         [Method("GET"), Path("/api/food/calendar")]
         [RequireApproval(false)]
         [RequireAuthentication(false, false)]
-        public async Task APIGetWeek(DateTime start, DateTime end)
+        public async Task APIGetWeekFood(DateTime start, DateTime end)
         {
             start = start.ToUniversalTime();
             end = end.ToUniversalTime();
@@ -1162,7 +1162,7 @@ namespace DiscordBot.MLAPI.Modules
             if (extends > 0)
                 e = extends;
             var p = Service.AddProduct(productId, productName, "", e, uses, "");
-            await RespondRedirect($"/food/new?code={productId}&redirect={redirect}");
+            await RedirectTo(nameof(NewFood), productId, redirect);
         }
         [Method("POST"),   Path("/api/food/inventory")]
         public async Task NewInventory(string redirect, string productId, string expires, string frozen = "off")
@@ -1737,7 +1737,7 @@ namespace DiscordBot.MLAPI.Modules
             await RespondRaw("OK");
         }
         [Method("PATCH"), Path("/api/food/menu/text")]
-        public async Task SetMenuDayManual(int day, string group, string text = null)
+        public async Task SetMenuDayText(int day, string group, string text = null)
         {
             var d = Service.WorkingMenu.Days[day];
             if(string.IsNullOrEmpty(text) || text == "none")

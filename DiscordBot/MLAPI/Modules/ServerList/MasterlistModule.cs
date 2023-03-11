@@ -16,7 +16,7 @@ namespace DiscordBot.MLAPI.Modules.ServerList
         public MasterlistService Service { get; set; }
 
         [Method("GET"), Path("/masterlist")]
-        public async Task Base()
+        public async Task ViewMasterlist()
         {
             await ReplyFile("base.html", 200);
         }

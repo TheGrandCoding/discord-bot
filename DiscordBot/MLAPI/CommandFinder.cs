@@ -1,4 +1,5 @@
 ﻿using Discord.Commands;
+using DiscordBot.Utils;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -31,9 +32,15 @@ namespace DiscordBot.MLAPI
             var path = Request.Url.AbsolutePath;
             if(path.EndsWith('/') && path.Length > 1)
                 path = path.Substring(0, path.Length - 1);
+            string hostNoPort;
+            int portPos = Request.UserHostName.IndexOf(':');
+            if (portPos >= 0)
+                hostNoPort = Request.UserHostName.Substring(0, portPos);
+            else
+                hostNoPort = Request.UserHostName;
             foreach(var method in methodCmds)
             {
-                if(method.IsMatch(path, out var mtch))
+                if(method.IsMatch(path, hostNoPort, out var mtch))
                     match[method] = mtch;
             }
             if (match.Count == 0)
@@ -85,15 +92,7 @@ namespace DiscordBot.MLAPI
 
             var ORS = new Dictionary<string, List<PreconditionResult>>();
             var ANDS = new Dictionary<string, List<PreconditionResult>>();
-            var building = new List<APIPrecondition>();
-            building.AddRange(cmd.Preconditions);
-            Type parent = commandBase.GetType();
-            do
-            {
-                var attrs = parent.GetCustomAttributes<APIPrecondition>();
-                building.AddRange(attrs);
-                parent = parent.BaseType;
-            } while (parent != null);
+            var building = cmd.Function.GetAttributesInParents<APIPrecondition>();
             building.Reverse();
             foreach(var nextThing in building)
             {
@@ -164,10 +163,6 @@ namespace DiscordBot.MLAPI
             }
 
             weight += 5;
-
-            var serverName = (RequireServerName)preconditions.Last(x => x is RequireServerName);
-            if (serverName.Domain == context.Host)
-                weight += 5;
 
             var args = new List<object>();
             var paramaters = cmd.Function.GetParameters();

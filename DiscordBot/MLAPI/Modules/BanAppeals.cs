@@ -49,7 +49,7 @@ namespace DiscordBot.MLAPI.Modules
 
 
         [Method("GET"), Path("/bans")]
-        public async Task Base()
+        public async Task ViewBans()
         {
             var table = new Table();
             table.Children.Add(new TableRow()

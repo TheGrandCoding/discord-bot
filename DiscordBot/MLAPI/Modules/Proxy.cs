@@ -46,7 +46,7 @@ namespace DiscordBot.MLAPI.Modules
                 //var stack = new StringStack("https://".Length);
                 var buffer = new StringStack("xhttps://".Length);
                 using var reader = new StreamReader(responseStream, Encoding.UTF8);
-                string repUrl = Context.GetFullPath("/proxy/");
+                string repUrl = Context.GetFullUrl(nameof(ProxyGetWebsite));
                 int urlLength = repUrl.Length;
                 while(!reader.EndOfStream)
                 {

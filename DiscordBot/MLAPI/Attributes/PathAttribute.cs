@@ -7,6 +7,7 @@ using System.Text;
 
 namespace DiscordBot.MLAPI
 {
+    [AttributeUsage(AttributeTargets.Method | AttributeTargets.Class)]
     public class PathAttribute : Attribute
     {
         protected PathAttribute()

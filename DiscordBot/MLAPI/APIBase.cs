@@ -14,14 +14,11 @@ using System.Threading.Tasks;
 
 namespace DiscordBot.MLAPI
 {
-/*#if LINUX
-    [RequireServerName("ml-api." + Handler.LocalAPIDomain, OR = "domain")]
-    [RequireServerName("mlapi.cheale14.com", OR = "domain")]
-    [RequireServerName("mlapi.cheale14.com:8887", OR = "domain")]
+#if LINUX
+    [Host("mlapi.cheale14.com")]
 #else
-    [RequireServerName("localhost")]
-#endif*/
-    [RequireServerName(null)]
+    [Host("mlapitest.cheale14.com")]
+#endif
     public class APIBase
     {
         /// <param name="path">Path WITHOUT start slash</param>
@@ -76,6 +73,14 @@ namespace DiscordBot.MLAPI
             await respondStreamReplacing(fs, code, new Replacements()
                 .Add("url", url)
                 .Add("return", returnTo ?? "false"));
+        }
+
+        public virtual async Task RedirectTo(string functionName, params string[] pathParams)
+        {
+            var ep = Handler.GetEndpoint(functionName);
+            if (ep == null) throw new ArgumentException($"Unknown redirect function: {functionName}");
+            var redirect = string.Format(ep.GetFormattablePath(), pathParams);
+            await RespondRedirect(redirect);
         }
 
         [DebuggerDisplay($"{{{nameof(GetDebuggerDisplay)}(),nq}}")]

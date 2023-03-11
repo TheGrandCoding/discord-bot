@@ -55,7 +55,7 @@ namespace DiscordBot.MLAPI.Modules
             {
                 fs.Close();
             }
-            await RespondRedirect($"/filters/{id}");
+            await RedirectTo(nameof(EditFilter), id);
         }
 
         [Method("GET"), Path("/filters/{filterId}")]
@@ -71,7 +71,7 @@ namespace DiscordBot.MLAPI.Modules
         {
             if(Service.TryDelete(Context.User.Id, filterId))
             {
-                await RespondRedirect("/filters");
+                await RedirectTo(nameof(ListFilters));
             } else
             {
                 await RespondRaw("Failed to delete", 500);

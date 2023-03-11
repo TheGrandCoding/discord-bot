@@ -12,7 +12,7 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("GET"), Path("/game")]
-        public async Task Base()
+        public async Task ViewGame()
         {
             await ReplyFile("groupgame.html", 200);
         }

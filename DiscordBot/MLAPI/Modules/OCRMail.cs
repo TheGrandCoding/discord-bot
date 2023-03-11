@@ -160,7 +160,7 @@ namespace DiscordBot.MLAPI.Modules
         [Regex("send", RegexAttribute.Alpha)]
         [Regex("date", RegexAttribute.Date + "[a-z]?")]
         [Regex("file", RegexAttribute.Filename)]
-        public async Task FetchRaw(string rec, string send, string date, string file)
+        public async Task FetchMailRaw(string rec, string send, string date, string file)
         {
             var path = Path.Combine(BaseDir.FullName, rec, send, date, Program.GetSafePath(file));
             try

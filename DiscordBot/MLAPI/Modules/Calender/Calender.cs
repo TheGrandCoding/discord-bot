@@ -32,11 +32,11 @@ namespace DiscordBot.MLAPI.Modules
         [Method("GET"), Path("/calender")]
         public async Task RedirectBase()
         {
-            await RespondRedirect("/calendar");
+            await RedirectTo(nameof(ViewCalender));
         }
 
         [Method("GET"), Path("/calendar")]
-        public async Task Base()
+        public async Task ViewCalender()
         {
             InjectObjects = new List<Classes.HTMLHelpers.HTMLBase>();
             await ReplyFile("base.html", 200);
@@ -129,7 +129,7 @@ namespace DiscordBot.MLAPI.Modules
                 // we're deleting it
                 DB.Events.Remove(existing);
                 DB.SaveChanges();
-                await RespondRedirect("/calendar");
+                await RedirectTo(nameof(ViewCalender));
                 return;
             }
 
@@ -166,7 +166,7 @@ namespace DiscordBot.MLAPI.Modules
                 DB.Events.Update(existing);
 
             DB.SaveChanges();
-            await RespondRedirect("/calendar");
+            await RedirectTo(nameof(ViewCalender));
         }
 
         [Method("POST"), Path("/api/calendar/series")]
@@ -235,9 +235,7 @@ namespace DiscordBot.MLAPI.Modules
             }
 
             db.SaveChanges();
-            await RespondRedirect("/calendar");
-
-
+            await RedirectTo(nameof(ViewCalender));
         }
 
 

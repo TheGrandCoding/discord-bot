@@ -1,7 +1,9 @@
 ﻿using DiscordBot.Classes.HTMLHelpers.Objects;
+using DiscordBot.MLAPI.Attributes;
 using DiscordBot.Utils;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -10,11 +12,34 @@ namespace DiscordBot.MLAPI
 {
     public class APIEndpoint
     {
-        public APIEndpoint(string method, PathAttribute path)
+        public APIEndpoint(string method, IEnumerable<PathAttribute> paths, HostAttribute host)
         {
             Method = method;
-            m_path = path;
-            IsRegex = path.Text.Contains("{");
+            var arr = paths.ToArray();
+            if(arr.Length == 1)
+            {
+                m_path = arr[0];
+            } else
+            {
+                var sb = new StringBuilder();
+                foreach(var path in paths.Reverse())
+                {
+                    if(path.Text.StartsWith("/api/"))
+                    {
+                        sb.Insert(0, "/api");
+                        sb.Append(path.Text.Substring("/api".Length));
+                    } else
+                    {
+                        sb.Append(path.Text);
+                    }
+                }
+                if (sb.Length > 1 && sb[sb.Length - 1] == '/')
+                    sb.Remove(sb.Length - 1, 1);
+                m_path = new PathAttribute(sb.ToString());
+            }
+
+            IsRegex = m_path.Text.Contains("{");
+            m_host = host;
         }
         public string Method { get; set; }
         public string Name { get; set; }
@@ -25,7 +50,9 @@ namespace DiscordBot.MLAPI
         public APIModule Module { get; set; }
         public bool IsRegex { get; }
 
+
         private PathAttribute m_path;
+        private HostAttribute m_host { get; set; }
         string getGroupConstruct(string name, string pattern)
         {
             return $"(?<{name}>{pattern})";
@@ -67,6 +94,8 @@ namespace DiscordBot.MLAPI
             var http = new UrlBuilder(path);
             foreach(var pra in paras)
             {
+                if (pra.GetCustomAttribute<FromQueryAttribute>() != null) continue;
+                if(pra.GetCustomAttribute<FromBodyAttribute>() != null) continue;
                 var bef = "{" + pra.Name + "}";
                 var text = "{" + i.ToString() + "}";
                 if(http.Base.Contains(bef))
@@ -81,9 +110,14 @@ namespace DiscordBot.MLAPI
             return http;
         }
 
-        public bool IsMatch(string path, out Match match)
+        public bool IsMatch(string path, string host, out Match match)
         {
             match = null;
+            if (m_host != null)
+            {
+                if (!m_host.IsMatch(host))
+                    return false;
+            }
             if (!IsRegex)
                 return GetNicePath() == path;
             var rgx = new Regex(GetRegexPattern());

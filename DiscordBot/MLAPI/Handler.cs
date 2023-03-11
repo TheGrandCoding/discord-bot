@@ -3,6 +3,7 @@ using Discord.Commands;
 using DiscordBot.Classes;
 using DiscordBot.MLAPI.Exceptions;
 using DiscordBot.Services;
+using DiscordBot.Utils;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Concurrent;
@@ -87,6 +88,20 @@ namespace DiscordBot.MLAPI
         public static Dictionary<string, List<APIEndpoint>> Endpoints = new Dictionary<string, List<APIEndpoint>>();
         public static List<APIModule> Modules { get; set; } = new List<APIModule>();
 
+        public static APIEndpoint GetEndpoint(string funcName)
+        {
+            foreach((var _, var ls) in Endpoints)
+            {
+                foreach(var endpoint in ls)
+                {
+                    if (endpoint.Function.Name == funcName)
+                        return endpoint;
+                }
+            }
+            return null;
+        }
+
+
         static void buildEndpoints()
         {
             Endpoints = new Dictionary<string, List<APIEndpoint>>();
@@ -94,6 +109,7 @@ namespace DiscordBot.MLAPI
                     where t.IsClass  && t.IsSubclassOf(typeof(APIBase))
                     select t;
             bool failed = false;
+            var usedNames = new HashSet<string>();
             foreach(var module in q)
             {
                 var mod = new APIModule();
@@ -107,17 +123,39 @@ namespace DiscordBot.MLAPI
                 {
 
                     var method = func.GetCustomAttribute<MethodAttribute>();
-                    var path = func.GetCustomAttribute<PathAttribute>();
-                    if (method == null || path == null)
+                    var paths = func.GetAttributesInParents<PathAttribute>().ToArray();
+                    if (method == null || paths == null || paths.Length == 0)
                         continue;
+                    HostAttribute host;
+                    try
+                    {
+                        var hosts = func.GetAttributesInParents<HostAttribute>().ToList();
+                        host = hosts.First();
+                    } catch(Exception ex)
+                    {
+                        continue;
+                    }
+                    if(host == null)
+                    {
+                        Program.LogError($"MLAPI method {module.Name}.{func.Name} has no Host attribute.", "Handler");
+                        failed = true;
+                        continue;
+                    }
                     if(!func.ReturnType.IsAssignableTo(typeof(Task)))
                     {
                         Program.LogError($"MLAPI method {module.Name}.{func.Name}({string.Join(", ", func.GetParameters().Select(x => x.Name))}) does not return Task", "Handler");
                         failed = true;
                         continue;
                     }
+                    if(usedNames.Contains(func.Name))
+                    {
+                        Program.LogWarning($"MLAPI method {module.Name}.{func.Name} has a duplicate name.", "Handler");
+                    } else
+                    {
+                        usedNames.Add(func.Name);
+                    }
                     var name = func.GetCustomAttribute<NameAttribute>();
-                    var api = new APIEndpoint(method.Method.Method, path);
+                    var api = new APIEndpoint(method.Method.Method, paths, host);
                     var regexs = func.GetCustomAttributes<RegexAttribute>();
                     foreach (var keypair in regexs)
                         api.Regexs[keypair.Name] = keypair.Regex;

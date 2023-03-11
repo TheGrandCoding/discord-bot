@@ -383,8 +383,6 @@ namespace DiscordBot.MLAPI.Modules
                 summary = explainAuthentication(ra);
             else if (attribute is RequireApprovalAttribute raa)
                 summary = raa._require ? "must be executed by a user who has been approved to use this website" : "does not need any approval";
-            else if (attribute is RequireServerName rsn)
-                summary = $"must be performed on the <code>{rsn.Domain}</code> domain";
             else if (attribute is RequireValidHTTPAgent rvh)
                 summary = $"must send a User-Agent containing one of:<br/>" + listWithCode(rvh.ValidAgents);
             else if (attribute is RequirePermNode rpn)
@@ -643,7 +641,7 @@ namespace DiscordBot.MLAPI.Modules
 
         [Method("GET"), Path("/docs")]
         [Name("View documentation")]
-        public async Task Base()
+        public async Task ViewDocs()
         {
             await ReplyFile("docs.html", 200, rep(null, null)
                 .Add("mainContent", "<strong>Please select an item on the left!</strong>"));

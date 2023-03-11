@@ -193,8 +193,11 @@ namespace DiscordBot.MLAPI
         public BotDbUser User { get; set; }
     
         
-        public string GetFullPath(string relative)
+        public string GetFullUrl(string funcName, params string[] pathParams)
         {
+            var endpoint = Handler.GetEndpoint(funcName);
+            if (endpoint == null) throw new ArgumentException($"Unknown MLAPI endpoint: {funcName}");
+            var relative = string.Format(endpoint.GetFormattablePath(), pathParams);
             var host = Request.UserHostName;
             if (host.StartsWith("mlapi")) 
             {

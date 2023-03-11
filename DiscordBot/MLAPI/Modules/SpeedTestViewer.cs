@@ -45,8 +45,8 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("GET"), Path("/")]
-        [RequireServerName("c:speedtest")]
-        public async Task Base()
+        [Host("c:speedtest")]
+        public async Task ViewSpeedrun()
         {
             var WEEKLY = new Table();
             WEEKLY.Children.Add(getHeader("Date"));
@@ -104,7 +104,7 @@ namespace DiscordBot.MLAPI.Modules
         }
 
         [Method("GET"), Path("/speed")]
-        public Task MLBase() => Base();
+        public Task MLBase() => ViewSpeedrun();
     
     
     

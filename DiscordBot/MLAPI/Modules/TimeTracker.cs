@@ -28,7 +28,7 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
         public TimeTrackDb DB { get; }
 
         [Method("GET"), Path("/tracker")]
-        public async Task Base()
+        public async Task ViewTracker()
         {
             var existing = Context.User.AuthTokens.FirstOrDefault(x => x.Name == BotDbAuthToken.TimeToken);
             if(existing == null)

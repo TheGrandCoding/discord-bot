@@ -25,7 +25,7 @@ namespace DiscordBot.MLAPI.Modules
         void handleDiscordOAuth(object sender, object[] stateArgs)
         {
             // Funky C#8, disposed at end of this function
-            var oauth = new DiscordOauth("identify", Context.GetFullPath("/oauth2/discord"), Context.GetQuery("code"));
+            var oauth = new DiscordOauth("identify", Context.GetFullUrl(nameof(OauthLogin)), Context.GetQuery("code"));
             var userInfo = oauth.GetUserInformation().Result;
             try
             {
@@ -101,7 +101,7 @@ namespace DiscordBot.MLAPI.Modules
         {
             var state = Callback.Register(handleDiscordOAuth, Context.User);
             var uri = UrlBuilder.Discord()
-                .Add("redirect_uri", Context.GetFullPath("/oauth2/discord"))
+                .Add("redirect_uri", Context.GetFullUrl(nameof(OauthLogin)))
                 .Add("response_type", "code")
                 .Add("scope", "identify")
                 .Add("state", state);
@@ -152,7 +152,7 @@ namespace DiscordBot.MLAPI.Modules
                     .AddField("ID", result.Value.Id.ToString(), true)
                     .AddField("IP", Context.IP)
                     .AddField("User-Agent", Context.HTTP.Request.UserAgent, true)
-                    .WithDescription($"Go [here to approve]({Context.GetFullPath("/bot/approve")}");
+                    .WithDescription($"Go [here to approve]({Context.GetFullUrl(nameof(Modules.Bot.Users.ApproveList))}");
                 await Program.SendLogMessageAsync(embed: embed.Build());
             } catch { }
         }
