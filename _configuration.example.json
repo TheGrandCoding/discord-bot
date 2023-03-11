@@ -88,8 +88,8 @@
     "tgc-github": "<string>",
     "tiktok": {
       "app_id": "<ulong>",
-      "app_key": "<string>",
-      "app_secret": "<string>"
+      "client_key": "<string>",
+      "client_secret": "<string>"
     },
     "trakt": {
       "client_id": "<string>",

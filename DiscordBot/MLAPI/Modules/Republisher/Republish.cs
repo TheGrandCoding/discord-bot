@@ -87,10 +87,16 @@ namespace DiscordBot.MLAPI.Modules.Republisher
 
             var main = new Div();
             var post = GetCurrentPost() ?? new();
-            foreach(var row in new[] {new InstagramRow(SetState, post, Context)})
+            var platforms = new List<SocialMediaRow>()
+            {
+                new InstagramRow(SetState, post, Context),
+                new TikTokRow(SetState, post, Context)
+            };
+            foreach (var row in platforms)
             {
                 var div = await row.GetDivAsync();
                 main.Children.Add(div);
+                main.Children.Add(new RawObject(null) { RawHTML = "<hr/>" });
             }
 
 
@@ -497,4 +503,48 @@ namespace DiscordBot.MLAPI.Modules.Republisher
         }
     }
 
+    public class TikTokRow : SocialMediaRow
+    {
+        public TikTokRow(Func<string> stateSetter, PublishPost post, APIContext c) : base("TikTok", stateSetter, post, c)
+        {
+        }
+
+        public override Task addLeftcolumn(Div left)
+        {
+            left.Children.Add(new StrongText("Not yet implemented!"));
+            return Task.CompletedTask;
+        }
+
+        public override Task addRightColumn(Div right)
+        {
+            right.Children.Add(new StrongText("Not yet implemented!"));
+            return Task.CompletedTask;
+        }
+
+        public override string AdminRedirectUri()
+        {
+            return TikTokClient.GetRedirectUri(Program.Configuration["tokens:tiktok:client_key"],
+                TikTokClient.TikTokAuthScopes.All, 
+                Context.GetFullUrl(nameof(OAuthCallbacks.HandleFBOauth)),
+                SetState());
+        }
+        public override string ProviderRedirectUri()
+        {
+            return TikTokClient.GetRedirectUri(Program.Configuration["tokens:tiktok:client_key"],
+                TikTokClient.TikTokAuthScopes.UserInfoBasic | TikTokClient.TikTokAuthScopes.VideoList,
+                Context.GetFullUrl(nameof(OAuthCallbacks.HandleFBOauth)),
+                SetState());
+        }
+
+        public override bool IsSetup(out bool expired)
+        {
+            return expired = false;
+        }
+
+        public override bool IsUserAuthenticated(out bool expired)
+        {
+            return expired = false;
+        }
+
+    }
 }
