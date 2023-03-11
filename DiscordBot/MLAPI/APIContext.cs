@@ -199,7 +199,7 @@ namespace DiscordBot.MLAPI
             if (endpoint == null) throw new ArgumentException($"Unknown MLAPI endpoint: {funcName}");
             var relative = string.Format(endpoint.GetFormattablePath(), pathParams);
             var host = Request.UserHostName;
-            if (host.StartsWith("mlapi")) 
+            if (host.EndsWith(".com")) 
             {
                 host = $"https://{host}";
                 return host + (relative.StartsWith('/') ? "" : "/") + relative;
