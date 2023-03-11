@@ -508,7 +508,7 @@ tryagain:
         {
             var state = DiscordBot.Classes.PasswordHash.RandomToken(16);
             var cookie = new Cookie(csrfCookie, state);
-            Context.HTTP.Response.SetCookie(cookie);
+            Context.HTTP.Response.Cookies.Add(cookie);
             return state;
         }
         public virtual async Task<bool> CheckState(string state)
