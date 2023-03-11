@@ -49,7 +49,7 @@ namespace DiscordBot.MLAPI
         protected List<Classes.HTMLHelpers.HTMLBase> InjectObjects { get; set; } = new List<Classes.HTMLHelpers.HTMLBase>()
         {
             new Classes.HTMLHelpers.Objects.PageLink("stylesheet", "text/css", "/_/css/common.css"),
-            new Classes.HTMLHelpers.Objects.Script("/_/js/common.js")
+            new Classes.HTMLHelpers.Objects.Script("/_/js/common.js?cache=0")
         };
 
         public int StatusSent { get; set; } = 0;
@@ -265,6 +265,8 @@ tryagain:
             }
         }
 
+        class EndpointRep { }
+
         async Task respondStreamReplacing(Stream fromStream, int code, Replacements reps, params StreamReplacement[] streamReplacements)
         {
             reps.Add("user", Context.User);
@@ -277,6 +279,7 @@ tryagain:
         {
             var ls = new List<StreamReplacement>(replacements);
             ls.Add(new($"[$<]REPLACE id=['\"]?['\"][ ]/[>$]", reps));
+            ls.Add(new($"[$<]ENDPOINT ['\"]?['\"][ ]/[>$]", new EndpointRep()));
             await copyStreamReplacing(fromStream, toStream, ls.ToArray());
         }
         bool equalChar(char lookingFor, char next)
@@ -342,6 +345,19 @@ tryagain:
                                 var id = rep.Groups.FirstOrDefault(x => x.Format == "?");
                                 if (r.TryGetValue(id.Captured.ToString(), out var o))
                                     await writer.WriteAsync(o?.ToString() ?? "");
+                            } else if(rep.Value is EndpointRep)
+                            {
+                                var name = rep.Groups.FirstOrDefault(x => x.Format == "?").Captured.ToString();
+                                var spl = name.Split(',');
+                                var args = spl.Skip(1).Select(x => Uri.UnescapeDataString(x)).ToArray();
+                                var ep = Handler.GetEndpoint(spl[0]);
+                                if (ep != null)
+                                {
+                                    if (args.Length > 0)
+                                        await writer.WriteAsync(string.Format(ep.GetFormattablePath(), args));
+                                    else
+                                        await writer.WriteAsync(ep.GetFormattablePath());
+                                }
                             }
                             else
                             {

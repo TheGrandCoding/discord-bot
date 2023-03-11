@@ -55,6 +55,7 @@ namespace DiscordBot.RESTAPI.Functions.HTML
         [Path(@"/_/{bracket}/{filePath}")]
         [Regex("bracket", "(js|css|img|assets)")]
         [Regex("filePath", @"[a-zA-Z0-9\/._-]*.\.(js|css|png|jpeg|svg|woff|mp3)")]
+        [RequireNoExcessQuery(false)]
         [HostAttribute(null)]
         public async Task BackgroundWork([Summary("Folder of item")]string bracket, string filePath)
         {
