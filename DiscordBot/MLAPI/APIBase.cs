@@ -65,14 +65,22 @@ namespace DiscordBot.MLAPI
         }
         public Task RespondRaw(string obj, HttpStatusCode code)
             => RespondRaw(obj, (int)code);
-        public virtual async Task RespondRedirect(string url, string returnTo = null, int code = 302)
+        public virtual async Task RespondRedirect(string url, string returnTo = null, bool delayed = false, int? code = null)
         {
-            Context.HTTP.Response.Headers["Location"] = url;
-            using var fs = LoadFile("_redirect.html");
+            if(!delayed)
+            {
+                Context.HTTP.Response.Headers["Location"] = url;
+                code ??= (int)HttpStatusCode.Redirect;
+            } else
+            {
+                code ??= (int)HttpStatusCode.OK;
+            }
 
-            await respondStreamReplacing(fs, code, new Replacements()
+            using var fs = LoadFile("_redirect.html");
+            await respondStreamReplacing(fs, code.Value, new Replacements()
                 .Add("url", url)
-                .Add("return", returnTo ?? "false"));
+                .Add("return", returnTo ?? "false")
+                .Add("delay", delayed ? "true" : "false"));
         }
 
         public virtual async Task RedirectTo(string functionName, bool withQuery = false, params string[] pathParams)

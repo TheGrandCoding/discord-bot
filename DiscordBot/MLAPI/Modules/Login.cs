@@ -22,7 +22,37 @@ namespace DiscordBot.MLAPI.Modules
             Callback = c.Services.GetRequiredService<OauthCallbackService>();
         }
 
-        void handleDiscordOAuth(object sender, object[] stateArgs)
+        string getRedirectReturn()
+        {
+            if(Context.User != null)
+            {
+                if (Context.User.Approved.HasValue == false)
+                    return "/login/approval";
+                else if (Context.User.Connections.PasswordHash == null)
+                    return "/login/setpassword";
+            }
+            string redirectTo = Context.Request.Cookies["redirect"]?.Value;
+            if (string.IsNullOrWhiteSpace(redirectTo))
+            {
+                if(Context.User.RedirectUrl != null)
+                {
+                    redirectTo = Context.User.RedirectUrl;
+                    Context.User.RedirectUrl = null;
+                } else
+                {
+                    redirectTo = "/";
+                }
+            } else
+            {
+                Context.HTTP.Response.SetCookie(new("redirect", "")
+                {
+                    Expires = DateTime.Now.AddDays(-1)
+                });
+            }
+            return redirectTo;
+        }
+
+            void handleDiscordOAuth(object sender, object[] stateArgs)
         {
             // Funky C#8, disposed at end of this function
             var oauth = new DiscordOauth("identify", Context.GetFullUrl(nameof(OauthLogin)), Context.GetQuery("code"));
@@ -37,12 +67,9 @@ namespace DiscordBot.MLAPI.Modules
                 }
                 var usr = result.Value;
                 setSessionTokens(usr).Wait();
-                string redirectTo = Context.Request.Cookies["redirect"]?.Value;
-                if (string.IsNullOrWhiteSpace(redirectTo))
-                    redirectTo = Context.User?.RedirectUrl ?? "/";
-                if (usr.Approved.HasValue == false)
+                Context.User = usr;
+                if (Context.User.Approved.HasValue == false)
                 {
-                    redirectTo = "/login/approval";
                     var admin_id = ulong.Parse(Program.Configuration["settings:admin"]);
                     string avatar = userInfo.GetAnyAvatarUrl();
                     Program.Client.GetUser(admin_id).SendMessageAsync(embed: new EmbedBuilder()
@@ -54,14 +81,8 @@ namespace DiscordBot.MLAPI.Modules
                         .AddField("IP", Context.Request.Headers["X-Forwarded-For"] ?? "localhost", true)
                         .AddField("Origin", Context.Request.Headers["Origin"] ?? "none", true)
                         .Build());
-                } else if (usr.Approved.Value == false)
-                {
-                    redirectTo = "/login/approval";
-                } else if (usr.Connections.PasswordHash == null)
-                {
-                    redirectTo = "/login/setpassword";
                 }
-                RespondRedirect(redirectTo).Wait();
+                RespondRedirect(getRedirectReturn()).Wait();
             }
             catch (Exception ex)
             {
@@ -89,7 +110,6 @@ namespace DiscordBot.MLAPI.Modules
         [Method("GET"), Path("/logout")]
         public async Task Logout(string back = "/")
         {
-            Context.HTTP.Response.Headers["Location"] = back;
             var l = Context.HTTP.Request.Cookies[BotDbAuthSession.CookieName] ?? new Cookie(BotDbAuthSession.CookieName, "null");
             l.Expires = DateTime.Now.AddDays(-1);
             Context.HTTP.Response.SetCookie(l);
@@ -126,7 +146,7 @@ namespace DiscordBot.MLAPI.Modules
                 return;
             }
             await setSessionTokens(result.Value); // essentially logs them in
-            await RespondRedirect("/");
+            await RespondRedirect(getRedirectReturn());
         }
         [Method("POST"), Path("/register")]
         public async Task RegisterWithPassword(string username, string password)
@@ -143,7 +163,7 @@ namespace DiscordBot.MLAPI.Modules
                 return;
             }
             await setSessionTokens(result.Value); // essentially logs them in
-            await RespondRedirect("/");
+            await RespondRedirect(getRedirectReturn());
             try
             {
                 var embed = new EmbedBuilder()
@@ -167,6 +187,8 @@ namespace DiscordBot.MLAPI.Modules
                 await RespondRaw("Your account is pending approval; please wait.", 200);
             } else if (Context.User.Approved.Value)
             {
+                var d = getRedirectReturn();
+                await RespondRedirect(d, delayed: true);
                 await RespondRaw("Your account is approved; please visit the main page.", 200);
             }
             else

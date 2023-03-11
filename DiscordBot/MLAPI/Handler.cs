@@ -471,7 +471,7 @@ namespace DiscordBot.MLAPI
                     Path = "/"
                 });
                 bs.Context.DisposeDB();
-                await bs.RespondRedirect(url, current, 307);
+                await bs.RespondRedirect(url, current, code: 307);
             }
             catch { }
             logger.End(HttpStatusCode.TemporaryRedirect, url);
