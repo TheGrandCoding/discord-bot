@@ -18,7 +18,7 @@ namespace DiscordBot.Classes.HTMLHelpers.Objects
             FormBase inp;
             if (inputType == "textarea")
             {
-                inp = new TextArea(Id);
+                inp = new TextArea(id);
                 inp.RawText = inputValue;
             } else
             {
