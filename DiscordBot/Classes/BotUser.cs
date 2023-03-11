@@ -383,17 +383,25 @@ namespace DiscordBot.Classes
     }
 
     [Owned]
-    public class BotDbInstagram
+    public class BotDbOAuthAccount
     {
         public string AccountId { get; set; }
         public string AccessToken { get; set; }
         public DateTime ExpiresAt { get; set; }
 
-        public bool IsInvalid()
+        public bool IsValid(out bool expired)
         {
-            return string.IsNullOrWhiteSpace(AccountId) || string.IsNullOrWhiteSpace(AccessToken) || ExpiresAt < DateTime.UtcNow;
+            expired = false;
+            if (string.IsNullOrWhiteSpace(AccountId) || string.IsNullOrWhiteSpace(AccessToken))
+                return false;
+            expired = ExpiresAt < DateTime.UtcNow;
+            return !expired;
         }
-    
+    }
+
+    [Owned]
+    public class BotDbInstagram : BotDbOAuthAccount
+    {
         public ExternalAPIs.InstagramClient CreateClient(System.Net.Http.HttpClient http)
         {
             return ExternalAPIs.InstagramClient.Create(AccessToken, AccountId, ExpiresAt, http);
@@ -401,16 +409,8 @@ namespace DiscordBot.Classes
     }
 
     [Owned]
-    public class BotDbFacebook
+    public class BotDbFacebook : BotDbOAuthAccount
     {
-        public string AccountId { get; set; }
-        public string AccessToken { get; set; }
-        public DateTime ExpiresAt { get; set; }
-        public bool IsInvalid()
-        {
-            return string.IsNullOrWhiteSpace(AccountId) || string.IsNullOrWhiteSpace(AccessToken) || ExpiresAt < DateTime.UtcNow;
-        }
-
     }
 
 

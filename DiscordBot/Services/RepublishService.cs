@@ -13,9 +13,10 @@ namespace DiscordBot.Services
 {
     public class RepublishService : SavedClassService<RepublishSave>
     {
-        public bool IsInstagramValid()
+        public bool IsInstagramValid(out bool expired)
         {
-            return Data.Facebook?.IsValid() ?? false;
+            expired = false;
+            return Data.Facebook?.IsValid(out expired) ?? false;
         }
         public override void OnReady(IServiceProvider services)
         {
@@ -92,9 +93,13 @@ namespace DiscordBot.Services
         public string Token { get; set; }
         public DateTime ExpiresAt { get; set; }
 
-        public virtual bool IsValid()
+        public virtual bool IsValid(out bool expired)
         {
-            return !(string.IsNullOrWhiteSpace(Id) || string.IsNullOrWhiteSpace(Token) || ExpiresAt < DateTime.Now);
+            expired = false;
+            if (string.IsNullOrWhiteSpace(Id) || string.IsNullOrWhiteSpace(Token))
+                return false;
+            expired = ExpiresAt < DateTime.Now;
+            return !expired;
         }
     }
     public class FacebookAccount : BaseAccount
@@ -102,9 +107,9 @@ namespace DiscordBot.Services
         public string PageId { get; set; }
         public string InstagramId { get; set; }
 
-        public override bool IsValid()
+        public override bool IsValid(out bool expired)
         {
-            return base.IsValid() && !(string.IsNullOrWhiteSpace(PageId) || string.IsNullOrWhiteSpace(InstagramId));
+            return base.IsValid(out expired) && !(string.IsNullOrWhiteSpace(PageId) || string.IsNullOrWhiteSpace(InstagramId));
         }
         public FacebookClient CreateClient(HttpClient http)
             => FacebookClient.Create(Token, ExpiresAt, http);

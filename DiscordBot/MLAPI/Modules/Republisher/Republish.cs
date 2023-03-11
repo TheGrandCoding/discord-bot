@@ -77,87 +77,6 @@ namespace DiscordBot.MLAPI.Modules.Republisher
                 SetState()).ToString();
         }
 
-        async Task<Div> getInstagramRow(RepublishService service, HttpClient http)
-        {
-            var main = new Div();
-            if(!service.IsInstagramValid())
-            {
-                var url = getFacebookUrl();
-                main.WithTag("data-url", url);
-                main.OnClick = "redirectErr(event)";
-                main.Class = "error";
-                main.RawHTML = $"This social media has not yet been set up to publish to.<br/>Please click this box if you are able to do so.";
-                return main;
-            }
-            if (Context.User?.Instagram?.IsInvalid() ?? true)
-            {
-                var url = getInstaUrl();
-                main.WithTag("data-url", url);
-                main.OnClick = "redirectErr(event)";
-                main.Class = "error";
-                main.RawHTML = $"You are not logged in to Instagram.<br/>Click this box to login";
-                return main;
-            }
-            if(Context.User != null && Context.User.RepublishRole == BotRepublishRoles.None)
-            {
-                main.Class = "error";
-                main.RawHTML = "You are logged in, however your account has not been given access to publish information.<br/>" +
-                    "You may need to wait for someone to approve your account.";
-                return main;
-            }
-            var insta = Context.User.Instagram.CreateClient(http);
-            main.Class = "container";
-            var left = new Div(cls: "column left");
-            main.Children.Add(left);
-            var current = GetCurrentPost();
-            if(current == null)
-                current = new();
-            left.Children.Add(new H2("Original"));
-            left.Children.Add(new Input("button", "Search for Instagram post")
-            {
-                OnClick = "igSearch()"
-            });
-            var result = new Div("instaPosts");
-            left.Children.Add(result);
-            if(current.Instagram.OriginalId != null)
-            {
-                var info = await insta.GetMediaAsync(current.Instagram.OriginalId, IGMediaFields.All);
-                if(info != null)
-                {
-                    result.RawHTML = ToHtml(info, true);
-                } else
-                {
-                    current.Instagram.OriginalId = null;
-                }
-            }
-
-            var right = new Div(cls: "column right");
-            main.Children.Add(right);
-            right.Children.Add(new H2("Republish as"));
-
-            var sel = new Select();
-            sel.WithTag("for", "instagram");
-            sel.Add("Do not publish", $"{PublishKind.DoNotPublish}", current.Instagram.Kind == PublishKind.DoNotPublish);
-            sel.Add("Publish with the following information", $"{PublishKind.PublishWithText}", current.Instagram.Kind == PublishKind.PublishWithText);
-            sel.WithTag("onchange", "setKind()");
-            right.Children.Add(sel);
-
-            var form = new Form(id: "instagram");
-            if (current.Instagram.Kind == PublishKind.DoNotPublish)
-                form.Style = "display: none";
-            var onC = "setValue()";
-            var onI = "setDirty()";
-            form.AddLabeledInput("caption", "Caption: ", "text", "Caption", current.Instagram.Caption ?? current.defaultText,
-                onChange: onC, onInput: onI);
-            form.AddLabeledInput("mediaUrl", "Media url: ", "url", "URL", current.Instagram.MediaUrl ?? current.defaultMediaUrl,
-                onChange: onC, onInput: onI);
-            right.Children.Add(form);
-
-
-            return main;
-        }
-
-
         [Method("GET"), Path("/")]
         public async Task ViewRepublisher()
         {
@@ -167,8 +86,14 @@ namespace DiscordBot.MLAPI.Modules.Republisher
 
 
             var main = new Div();
-            main.Children.Add(new H1("Instagram"));
-            main.Children.Add(await getInstagramRow(service, http));
+            var post = GetCurrentPost() ?? new();
+            foreach(var row in new[] {new InstagramRow(SetState, post, Context)})
+            {
+                var div = await row.GetDivAsync();
+                main.Children.Add(div);
+            }
+
+
             rep.Add("content", main);
 
             if(Context.User?.RepublishRole.HasFlag(BotRepublishRoles.Provider) ?? false)
@@ -221,7 +146,7 @@ namespace DiscordBot.MLAPI.Modules.Republisher
         {
             var service = Context.Services.GetRequiredService<RepublishService>();
             var main = new Div();
-            if (!service.IsInstagramValid())
+            if (!service.IsInstagramValid(out var expired))
             {
                 string reason;
                 if (service.Data.Facebook?.Id == null)
@@ -230,7 +155,7 @@ namespace DiscordBot.MLAPI.Modules.Republisher
                     reason = "The authorization token is invalid or has not been provided.";
                 else if (service.Data.Facebook?.InstagramId == null)
                     reason = "Whist a Facebook account has been linked, it is not correctly connected to a Instagram Business account";
-                else if ((service.Data.Facebook?.ExpiresAt ?? DateTime.MinValue) < DateTime.Now)
+                else if (expired)
                     reason = "The login has expired";
                 else
                     reason = "An unknown issue is present.";
@@ -279,29 +204,12 @@ namespace DiscordBot.MLAPI.Modules.Republisher
                 .Add("facebook", main)
                 .Add("userTable", table));
         }
-
-
-        public Div ToHtml(IGMedia media, bool selected = false)
-        {
-            var div = new Div(id: $"ig_{media.Id}", cls: "ig_media");
-            div.OnClick = "igSelectPost(event)";
-            if (selected) div.ClassList.Add("selected");
-            var img = new Img(media.MediaUrl)
-            {
-                Style = "width: 32px"
-            };
-            div.Children.Add(img);
-            var anchor = new Anchor(media.Permalink, media.Caption)
-            {
-                OnClick = "igSelectPost(event)"
-            };
-            div.Children.Add(anchor);
-            return div;
-        }
+        
+        
         [Method("GET"), Path("/api/ig")]
         public async Task APIGetInstaItems()
         {
-            if(Context.User?.Instagram?.IsInvalid() ?? true)
+            if(!(Context.User?.Instagram?.IsValid(out _) ?? false))
             {
                 await RespondRedirect(getInstaUrl());
                 return;
@@ -313,7 +221,7 @@ namespace DiscordBot.MLAPI.Modules.Republisher
             foreach(var media in user.MediaIds)
             {
                 var full = await insta.GetMediaAsync(media, IGMediaFields.All);
-                ig += ToHtml(full) + "\n";
+                ig += full.ToHtml() + "\n";
             }
             await RespondRaw(ig, 200);
         }
@@ -381,7 +289,7 @@ namespace DiscordBot.MLAPI.Modules.Republisher
             errors ??= new();
             if((post.Instagram?.Kind ?? PublishKind.DoNotPublish) != PublishKind.DoNotPublish)
             {
-                if (!service.IsInstagramValid())
+                if (!service.IsInstagramValid(out var expired))
                 {
                     await RespondError(errors.Child("instagram").EndRequired("Instagram has not been set up or authorization has expired."));
                     return;
@@ -403,7 +311,190 @@ namespace DiscordBot.MLAPI.Modules.Republisher
             await RespondRaw("OK");
         }
 
-
-
     }
+
+    public static class Extensions
+    {
+        public static Div ToHtml(this IGMedia media, bool selected = false)
+        {
+            var div = new Div(id: $"ig_{media.Id}", cls: "ig_media");
+            div.OnClick = "igSelectPost(event)";
+            if (selected) div.ClassList.Add("selected");
+            var img = new Img(media.MediaUrl)
+            {
+                Style = "width: 32px"
+            };
+            div.Children.Add(img);
+            var anchor = new Anchor(media.Permalink, media.Caption)
+            {
+                OnClick = "igSelectPost(event)"
+            };
+            div.Children.Add(anchor);
+            return div;
+        }
+    }
+
+    public abstract class SocialMediaRow
+    {
+        public string Name { get; }
+        protected APIContext Context { get; }
+        protected PublishPost Post { get; }
+        protected Func<string> SetState { get; }
+        protected RepublishService Service { get; }
+
+        public SocialMediaRow(string name, Func<string> stateSetter, PublishPost post, APIContext c)
+        {
+            Service = c.Services.GetRequiredService<RepublishService>();
+            Name = name;
+            SetState = stateSetter;
+            Post = post;
+            Context = c;
+        }
+
+        public abstract string AdminRedirectUri();
+        public abstract string ProviderRedirectUri();
+        public abstract bool IsSetup(out bool expired);
+        public abstract bool IsUserAuthenticated(out bool expired);
+
+        public abstract Task addLeftcolumn(Div left);
+        public abstract Task addRightColumn(Div right);
+
+        public async Task<Div> GetDivAsync()
+        {
+            var container = new Div();
+            container.Children.Add(new H1(Name));
+            var main = new Div();
+            container.Children.Add(main);
+            if (!IsSetup(out bool expired))
+            {
+                var url = AdminRedirectUri();
+                main.WithTag("data-url", url);
+                main.OnClick = "redirectErr(event)";
+                main.Class = "error";
+                main.RawHTML = (expired ? 
+                      "The administrative access token for this social media has expired." 
+                    : $"This social media has not yet been set up to publish to.") +  
+                    "<br/>Please click this box if you are able to do so.";
+                return container;
+            }
+            if (!IsUserAuthenticated(out expired))
+            {
+                var url = ProviderRedirectUri();
+                main.WithTag("data-url", url);
+                main.OnClick = "redirectErr(event)";
+                main.Class = "error";
+                main.RawHTML = (expired ?
+                      $"The access token for your {Name} account has expired."
+                    : $"You have not yet linked your {Name} account to this website") +
+                    "<br/>Please click this box to login";
+                return container;
+            }
+            if (Context.User != null && Context.User.RepublishRole == BotRepublishRoles.None)
+            {
+                main.Class = "error";
+                main.RawHTML = "You are logged in, however your account has not been given access to publish information.<br/>" +
+                    "You may need to wait for someone to approve your account.";
+                return container;
+            }
+            main.Class = "container";
+            var left = new Div(cls: "column left");
+            main.Children.Add(left);
+            left.Children.Add(new H2("Original"));
+            await addLeftcolumn(left);
+
+
+            var right = new Div(cls: "column right");
+            main.Children.Add(right);
+            right.Children.Add(new H2("Republish as"));
+            await addRightColumn(right);
+
+
+            return container;
+        }
+    }
+
+    public class InstagramRow : SocialMediaRow
+    {
+        public InstagramRow(Func<string> stateSetter, PublishPost post, APIContext c) : base("Instagram", stateSetter, post, c)
+        {
+        }
+        private InstagramClient _ic;
+        public InstagramClient insta {  get
+            {
+                return _ic ??= Context.User.Instagram.CreateClient(Context.Services.GetRequiredService<HttpClient>());
+            } }
+
+        public override string AdminRedirectUri()
+        {
+            return FacebookClient.GetRedirectUri(Program.Configuration["tokens:facebook:app_id"],
+                Context.GetFullUrl(nameof(Modules.OAuthCallbacks.HandleFBOauth)),
+                ExternalAPIs.Facebook.OAuthScopes.InstagramBasic
+                | OAuthScopes.InstagramContentPublish
+                | ExternalAPIs.Facebook.OAuthScopes.PagesShowList,
+                SetState()).ToString();
+        }
+
+        public override string ProviderRedirectUri()
+        {
+            return InstagramClient.GetBasicRedirectUri(Program.Configuration["tokens:instagram:app_id"],
+                Context.GetFullUrl(nameof(Modules.OAuthCallbacks.HandleIGOauthSuccess)),
+                ExternalAPIs.Instagram.BasicAPIScopes.UserMedia | BasicAPIScopes.UserProfile,
+                SetState()).ToString();
+        }
+
+        public override bool IsSetup(out bool expired)
+        {
+            expired = false;
+            return Service?.IsInstagramValid(out expired) ?? false;
+        }
+
+        public override bool IsUserAuthenticated(out bool expired)
+        {
+            expired = false;
+            return Context?.User?.Instagram?.IsValid(out expired) ?? false;
+        }
+        public override async Task addLeftcolumn(Div left)
+        {
+            left.Children.Add(new Input("button", "Search for Instagram post")
+            {
+                OnClick = "igSearch()"
+            });
+            var result = new Div("instaPosts");
+            left.Children.Add(result);
+            if (Post.Instagram.OriginalId != null)
+            {
+                var info = await insta.GetMediaAsync(Post.Instagram.OriginalId, IGMediaFields.All);
+                if (info != null)
+                {
+                    result.RawHTML = info.ToHtml(true);
+                }
+                else
+                {
+                    Post.Instagram.OriginalId = null;
+                }
+            }
+        }
+        public override Task addRightColumn(Div right)
+        {
+            var sel = new Select();
+            sel.WithTag("for", "instagram");
+            sel.Add("Do not publish", $"{PublishKind.DoNotPublish}", Post.Instagram.Kind == PublishKind.DoNotPublish);
+            sel.Add("Publish with the following information", $"{PublishKind.PublishWithText}", Post.Instagram.Kind == PublishKind.PublishWithText);
+            sel.WithTag("onchange", "setKind()");
+            right.Children.Add(sel);
+
+            var form = new Form(id: "instagram");
+            if (Post.Instagram.Kind == PublishKind.DoNotPublish)
+                form.Style = "display: none";
+            var onC = "setValue()";
+            var onI = "setDirty()";
+            form.AddLabeledInput("caption", "Caption: ", "text", "Caption", Post.Instagram.Caption ?? Post.defaultText,
+                onChange: onC, onInput: onI);
+            form.AddLabeledInput("mediaUrl", "Media url: ", "url", "URL", Post.Instagram.MediaUrl ?? Post.defaultMediaUrl,
+                onChange: onC, onInput: onI);
+            right.Children.Add(form);
+            return Task.CompletedTask;
+        }
+    }
+
 }
