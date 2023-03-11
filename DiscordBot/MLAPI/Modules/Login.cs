@@ -22,7 +22,7 @@ namespace DiscordBot.MLAPI.Modules
             Callback = c.Services.GetRequiredService<OauthCallbackService>();
         }
 
-        string getRedirectReturn()
+        string getRedirectReturn(bool clearCookie = false)
         {
             if(Context.User != null)
             {
@@ -42,7 +42,7 @@ namespace DiscordBot.MLAPI.Modules
                 {
                     redirectTo = "/";
                 }
-            } else
+            } else if(clearCookie)
             {
                 Context.HTTP.Response.SetCookie(new("redirect", "/")
                 {
@@ -83,7 +83,7 @@ namespace DiscordBot.MLAPI.Modules
                         .Build());
                 }
                 // redirect by javascript, workaround two cookies not working properly.
-                RespondRedirect(getRedirectReturn(), code: 200).Wait();
+                RespondRedirect(getRedirectReturn(clearCookie:  false), code: 200).Wait();
             }
             catch (Exception ex)
             {
@@ -147,7 +147,7 @@ namespace DiscordBot.MLAPI.Modules
                 return;
             }
             await setSessionTokens(result.Value); // essentially logs them in
-            await RespondRedirect(getRedirectReturn(), code: 200);
+            await RespondRedirect(getRedirectReturn(clearCookie: false), code: 200);
         }
         [Method("POST"), Path("/register")]
         public async Task RegisterWithPassword(string username, string password)
@@ -164,7 +164,7 @@ namespace DiscordBot.MLAPI.Modules
                 return;
             }
             await setSessionTokens(result.Value); // essentially logs them in
-            await RespondRedirect(getRedirectReturn(), code: 200);
+            await RespondRedirect(getRedirectReturn(clearCookie: false), code: 200);
             try
             {
                 var embed = new EmbedBuilder()
