@@ -214,7 +214,7 @@ namespace DiscordBot.MLAPI
                 } else
                 {
                     bool isOpt = isTypeOptional(param.ParameterType, out var underlyingType, out bool usesDiscordOptional);
-                    var result = getValue(param.Name, underlyingType, isOpt, param.DefaultValue, cmd, rgxMatch, context);
+                    var result = getValue(param.Name, underlyingType, isOpt || param.IsOptional, param.DefaultValue, cmd, rgxMatch, context);
                     if (!result.Success)
                         return final.WithError(result.ErrorMessage);
                     args.Add(result.Value);
