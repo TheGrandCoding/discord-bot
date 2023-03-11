@@ -15,7 +15,15 @@ namespace DiscordBot.Classes.HTMLHelpers.Objects
         {
             var lbl = new Label(labelText)
                 .WithTag("for", id);
-            var inp = new Input(inputType, inputValue, id);
+            FormBase inp;
+            if (inputType == "textarea")
+            {
+                inp = new TextArea(Id);
+                inp.WithTag("value", inputValue);
+            } else
+            {
+                inp = new Input(inputType, inputValue, id);
+            }
             if (inputPlaceHolder != null)
                 inp.WithTag("placeholder", inputPlaceHolder);
             if (onChange != null)
@@ -95,6 +103,12 @@ namespace DiscordBot.Classes.HTMLHelpers.Objects
         }
     }
 
+    public class TextArea : FormBase
+    {
+        public TextArea(string id = null, string cls = null) : base("textarea", id, cls)
+        {
+        }
+    }
     public class Select : FormBase
     {
         public Select(string id = null, string name = null, string cls = null) : base("select", id, cls)

@@ -151,6 +151,13 @@ namespace DiscordBot.Classes.HTMLHelpers
         }
     }
 
+    public class LineBreak : HTMLBase
+    {
+        public LineBreak() : base("br", null, null)
+        {
+        }
+    }
+
     public abstract class DOMBase : HTMLBase
     {
         public DOMBase(string tag, string id, string cls) : base(tag, id, cls)
@@ -185,4 +192,6 @@ namespace DiscordBot.Classes.HTMLHelpers
         public string OnMouseLeave { get => get(nameof(OnMouseLeave)); set => set(nameof(OnMouseLeave), value); }
         public string OnMouseOut { get => get(nameof(OnMouseOut)); set => set(nameof(OnMouseOut), value); }
     }
+
+
 }

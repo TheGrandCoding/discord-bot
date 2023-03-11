@@ -443,8 +443,9 @@ namespace DiscordBot.MLAPI.Modules.Republisher
                 form.Style = "display: none";
             var onC = "setValue()";
             var onI = "setDirty()";
-            form.AddLabeledInput("caption", "Caption: ", "text", "Caption", ThisData.Caption ?? Post.defaultText,
+            form.AddLabeledInput("caption", "Caption: ", "textarea", "Caption", ThisData.Caption ?? Post.defaultText,
                 onChange: onC, onInput: onI);
+            form.Children.Add(new Classes.HTMLHelpers.LineBreak());
             form.AddLabeledInput("mediaUrl", "Media url: ", "url", "URL", ThisData.MediaUrl ?? Post.defaultMediaUrl,
                 onChange: onC, onInput: onI);
             right.Children.Add(form);
