@@ -504,12 +504,16 @@ tryagain:
 
 
         private const string csrfCookie = "_csrf";
+        private string _state = null;
         public virtual string SetState()
         {
-            var state = DiscordBot.Classes.PasswordHash.RandomToken(16);
-            var cookie = new Cookie(csrfCookie, state);
-            Context.HTTP.Response.Cookies.Add(cookie);
-            return state;
+            if(_state == null)
+            {
+                _state = DiscordBot.Classes.PasswordHash.RandomToken(16);
+                var cookie = new Cookie(csrfCookie, _state);
+                Context.HTTP.Response.Cookies.Add(cookie);
+            }
+            return _state;
         }
         public virtual async Task<bool> CheckState(string state)
         {
