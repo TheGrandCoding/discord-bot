@@ -170,5 +170,17 @@ namespace DiscordBot.MLAPI.Modules
             await RespondRaw($"Error: {errData.error}, {errData.error_reason}: {errData.error_description}");
         }
 
+        [Method("GET"), Path("/tiktok")]
+        [RequireNoExcessQuery(false)]
+        public async Task HandleTiktokOAuth()
+        {
+            var d = new Dictionary<string, string>();
+            foreach(var key in Context.GetAllKeys())
+            {
+                var q = Context.GetQuery(key);
+                d[key] = q;
+            }
+            await RespondJson(JObject.FromObject(d));
+        }
     }
 }

@@ -425,6 +425,7 @@ tryagain:
         {
             if(path.EndsWith(".html"))
             {
+                replace ??= new();
                 using var fs = LoadFile(path);
                 string injectedText = "";
                 foreach (var x in InjectObjects)
@@ -434,22 +435,24 @@ tryagain:
                 string sidebar = null;
                 if (!string.IsNullOrWhiteSpace(sN))
                 {
-                    using (var sidefs = LoadFile(sN))
-                    using (StreamReader sr = new StreamReader(sidefs))
-                        sidebar = sr.ReadToEnd();
+                    using var sidebarFs = LoadFile(sN);
+                    using var tempMemory = new MemoryStream();
+                    await copyStreamReplacing(sidebarFs, tempMemory, replace);
+                    byte[] buff = tempMemory.ToArray();
+                    sidebar = Encoding.UTF8.GetString(buff, 0, buff.Length);
                 }
                 Context.HTTP.Response.ContentType = "text/html";
                 if(sidebar != null)
                 {
                     await respondStreamReplacing(fs, code,
-                        replace ?? new(),
+                        replace,
                         new StreamReplacement("</head>", injectedText + "</head>"),
                         new StreamReplacement("<body>", $"<body>{sidebar}")
                         );
                 } else
                 {
                     await respondStreamReplacing(fs, code,
-                        replace ?? new(),
+                        replace,
                         new StreamReplacement("</head>", injectedText + "</head>")
                         );
                 }

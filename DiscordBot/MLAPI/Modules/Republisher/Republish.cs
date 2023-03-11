@@ -31,6 +31,7 @@ namespace DiscordBot.MLAPI.Modules.Republisher
     {
         public Republish(APIContext c) : base(c, "republisher") 
         {
+            Sidebar = SidebarType.Local;
         }
 
         public PublishPost GetCurrentPost()
@@ -90,7 +91,8 @@ namespace DiscordBot.MLAPI.Modules.Republisher
             var platforms = new List<SocialMediaRow>()
             {
                 new InstagramRow(SetState, post, Context),
-                new TikTokRow(SetState, post, Context)
+                new TikTokRow(SetState, post, Context),
+                new DiscordWebhookRow(SetState, post, Context)
             };
             foreach (var row in platforms)
             {
@@ -98,7 +100,6 @@ namespace DiscordBot.MLAPI.Modules.Republisher
                 main.Children.Add(div);
                 main.Children.Add(new RawObject(null) { RawHTML = "<hr/>" });
             }
-
 
             rep.Add("content", main);
 
@@ -210,7 +211,18 @@ namespace DiscordBot.MLAPI.Modules.Republisher
                 .Add("facebook", main)
                 .Add("userTable", table));
         }
-        
+
+
+        Task noSidebar(string file)
+        {
+            Sidebar = SidebarType.None;
+            return ReplyFile(file + ".html", 200);
+        }
+        [Method("GET"), Path("/terms")]
+        public Task RepTerms() => noSidebar("terms");
+        [Method("GET"), Path("/privacy")]
+        public Task RepPrivacy() => noSidebar("privacy");
+
         
         [Method("GET"), Path("/api/ig")]
         public async Task APIGetInstaItems()
@@ -525,14 +537,14 @@ namespace DiscordBot.MLAPI.Modules.Republisher
         {
             return TikTokClient.GetRedirectUri(Program.Configuration["tokens:tiktok:client_key"],
                 TikTokClient.TikTokAuthScopes.All, 
-                Context.GetFullUrl(nameof(OAuthCallbacks.HandleFBOauth)),
+                Context.GetFullUrl(nameof(OAuthCallbacks.HandleTiktokOAuth)),
                 SetState());
         }
         public override string ProviderRedirectUri()
         {
             return TikTokClient.GetRedirectUri(Program.Configuration["tokens:tiktok:client_key"],
                 TikTokClient.TikTokAuthScopes.UserInfoBasic | TikTokClient.TikTokAuthScopes.VideoList,
-                Context.GetFullUrl(nameof(OAuthCallbacks.HandleFBOauth)),
+                Context.GetFullUrl(nameof(OAuthCallbacks.HandleTiktokOAuth)),
                 SetState());
         }
 
@@ -544,6 +556,44 @@ namespace DiscordBot.MLAPI.Modules.Republisher
         public override bool IsUserAuthenticated(out bool expired)
         {
             return expired = false;
+        }
+
+    }
+
+    public class DiscordWebhookRow : SocialMediaRow
+    {
+        public DiscordWebhookRow(Func<string> stateSetter, PublishPost post, APIContext c) : base("Discord", stateSetter, post, c)
+        {
+        }
+
+        public override Task addLeftcolumn(Div left)
+        {
+            left.Children.Add(new StrongText("N/A. Publish-only through the power of webhooks."));
+            return Task.CompletedTask;
+        }
+
+        public override Task addRightColumn(Div right)
+        {
+            right.Children.Add(new StrongText("Not yet implemented"));
+            return Task.CompletedTask;
+        }
+
+        public override string AdminRedirectUri()
+        {
+            return Context.GetFullUrl(nameof(Republish.ViewAdmin));
+        }
+        public override string ProviderRedirectUri() => null;
+
+        public override bool IsSetup(out bool expired)
+        {
+            expired = false;
+            return Service.Data?.Discord?.IsValid(out expired) ?? false;
+        }
+
+        public override bool IsUserAuthenticated(out bool expired)
+        { // discord is publish-only, so users can't be authenticated (there's no OAuth to get a Discord message)
+            expired = false;
+            return true;
         }
 
     }

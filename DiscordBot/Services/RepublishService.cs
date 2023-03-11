@@ -86,6 +86,7 @@ namespace DiscordBot.Services
     public class RepublishSave
     {
         public FacebookAccount Facebook { get; set; } = new();
+        public DiscordWebhook Discord { get; set; } = new();
     }
     public class BaseAccount
     {
@@ -113,5 +114,19 @@ namespace DiscordBot.Services
         }
         public FacebookClient CreateClient(HttpClient http)
             => FacebookClient.Create(Token, ExpiresAt, http);
+    }
+    public class DiscordWebhook : BaseAccount
+    {
+        public override bool IsValid(out bool expired)
+        {
+            expired = false;
+            // token has webhook URL
+            // everything else is irrelevant
+            return !string.IsNullOrWhiteSpace(Token);
+        }
+        public Discord.Webhook.DiscordWebhookClient CreateClient()
+        {
+            return new(Token);
+        }
     }
 }
