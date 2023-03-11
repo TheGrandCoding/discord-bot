@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace FacebookAPI.Instagram
+namespace ExternalAPIs.Instagram
 {
     [Flags]
     public enum BasicAPIScopes

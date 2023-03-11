@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace FacebookAPI.Facebook
+namespace ExternalAPIs.Facebook
 {
     [Flags]
     public enum OAuthScopes

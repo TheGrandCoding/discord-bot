@@ -4,9 +4,9 @@ using DiscordBot.Classes.HTMLHelpers.Objects;
 using DiscordBot.MLAPI.Attributes;
 using DiscordBot.Services;
 using DiscordBot.Utils;
-using FacebookAPI;
-using FacebookAPI.Facebook;
-using FacebookAPI.Instagram;
+using ExternalAPIs;
+using ExternalAPIs.Facebook;
+using ExternalAPIs.Instagram;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -63,16 +63,16 @@ namespace DiscordBot.MLAPI.Modules.Republisher
         {
             return InstagramClient.GetBasicRedirectUri(Program.Configuration["tokens:instagram:app_id"],
                 Context.GetFullUrl(nameof(Modules.OAuthCallbacks.HandleIGOauthSuccess)),
-                FacebookAPI.Instagram.BasicAPIScopes.All).ToString();
+                ExternalAPIs.Instagram.BasicAPIScopes.All).ToString();
         }
 
         string getFacebookUrl()
         {
             return FacebookClient.GetRedirectUri(Program.Configuration["tokens:facebook:app_id"],
                 Context.GetFullUrl(nameof(Modules.OAuthCallbacks.HandleFBOauth)), 
-                FacebookAPI.Facebook.OAuthScopes.InstagramBasic 
+                ExternalAPIs.Facebook.OAuthScopes.InstagramBasic 
                 | OAuthScopes.InstagramContentPublish
-                | FacebookAPI.Facebook.OAuthScopes.PagesShowList).ToString();
+                | ExternalAPIs.Facebook.OAuthScopes.PagesShowList).ToString();
         }
 
         async Task<Div> getInstagramRow(RepublishService service, HttpClient http)

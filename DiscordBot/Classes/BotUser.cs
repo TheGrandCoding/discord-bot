@@ -394,9 +394,9 @@ namespace DiscordBot.Classes
             return string.IsNullOrWhiteSpace(AccountId) || string.IsNullOrWhiteSpace(AccessToken) || ExpiresAt < DateTime.UtcNow;
         }
     
-        public FacebookAPI.InstagramClient CreateClient(System.Net.Http.HttpClient http)
+        public ExternalAPIs.InstagramClient CreateClient(System.Net.Http.HttpClient http)
         {
-            return FacebookAPI.InstagramClient.Create(AccessToken, AccountId, http);
+            return ExternalAPIs.InstagramClient.Create(AccessToken, AccountId, http);
         }
     }
 

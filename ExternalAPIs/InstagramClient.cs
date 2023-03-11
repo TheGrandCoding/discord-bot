@@ -1,22 +1,17 @@
-﻿using FacebookAPI.Helpers;
-using FacebookAPI.Instagram;
+﻿using ExternalAPIs.Helpers;
+using ExternalAPIs.Instagram;
 using System.Text.Json;
 
-namespace FacebookAPI
+namespace ExternalAPIs
 {
-    public class IGOAuthResponse
+    public partial class InstagramClient : ApiClient<IGOAuthToken>
     {
-        public ulong user_id { get; set; }
-        public string access_token { get; set; }
-    }
-    public partial class InstagramClient
-    {
-        private HttpClient http;
-        public IGOAuthResponse? oauth;
-        private string baseAddress = "https://graph.instagram.com";
-        internal InstagramClient(HttpClient httpClient)
+        private class IGOAuthResponse : OAuthResponse
         {
-            http = httpClient;
+            public ulong user_id { get; set; }
+        }
+        internal InstagramClient(HttpClient httpClient) : base("https://graph.instagram.com", httpClient)
+        {
         }
         public static Uri GetBasicRedirectUri(string client_id, string redirect_url, Instagram.BasicAPIScopes scopes, string? state = null)
         {
@@ -36,15 +31,11 @@ namespace FacebookAPI
             await client.ExchangeAuthorisationCode(oauthCode, app_id, app_secret, redirect_uri);
             return client;
         }
-        public static InstagramClient Create(string access_token, string user_id, HttpClient http)
+        public static InstagramClient Create(string access_token, string user_id, DateTime expires_at, HttpClient http)
         {
             if (!ulong.TryParse(user_id, out var id)) throw new ArgumentException("Must be ulong", nameof(user_id));
             var client = new InstagramClient(http);
-            client.oauth = new()
-            {
-                access_token = access_token,
-                user_id = id
-            };
+            client.oauth = new(access_token, expires_at, null) { UserId = ulong.Parse(user_id) };
             return client;
         }
 
@@ -59,43 +50,47 @@ namespace FacebookAPI
             var response = await http.PostAsync("https://api.instagram.com/oauth/access_token", new FormUrlEncodedContent(data));
             if(!response.IsSuccessStatusCode) throw await HttpException.FromResponse(response);
             var content = await response.Content.ReadAsStringAsync();
-            oauth = JsonSerializer.Deserialize<IGOAuthResponse>(content)!;
+            var result = JsonSerializer.Deserialize<IGOAuthResponse>(content)!;
+            oauth = new(result.AccessToken!, 3600, null) { UserId = result.user_id };
         }
-        public async Task<LongLivedToken> GetLongLivedAccessToken(string app_secret, string? access_token = null)
+        public async Task<OAuthToken> GetLongLivedAccessToken(string app_secret, string? access_token = null)
         {
             CheckLogin();
             var response = await getAsync("/access_token", new()
             {
                 { "grant_type", "ig_exchange_token" },
                 { "client_secret", app_secret },
-                { "access_token", access_token ?? oauth!.access_token }
+                { "access_token", access_token ?? oauth!.AccessToken }
             });
             await response.EnsureSuccess();
             var content = await response.Content?.ReadAsStringAsync()!;
-            var result = JsonSerializer.Deserialize<LongLivedToken>(content)!;
-            result.expires_in ??= 3600 * 24 * 60;
+            var result = JsonSerializer.Deserialize<OAuthResponse>(content)!;
+            var token = new IGOAuthToken(result.AccessToken!, result.expires_in ?? 3600 * 24 * 60, result.TokenType);
             if(access_token == null)
             { // we updated our own oauth
-                oauth!.access_token = result.access_token;
+                token.UserId = oauth!.UserId;
+                oauth = token;
             }
-            return result;
+            return token;
         }
-        public async Task<LongLivedToken> RefreshLongLivedAccessToken(string? access_token = null)
+        public async Task<OAuthToken> RefreshLongLivedAccessToken(string? access_token = null)
         {
             CheckLogin();
             var response = await getAsync("/access_token", new()
             {
                 { "grant_type", "ig_refresh_token" },
-                { "access_token", access_token ?? oauth!.access_token }
+                { "access_token", access_token ?? oauth!.AccessToken }
             });
             await response.EnsureSuccess();
             var content = await response.Content?.ReadAsStringAsync()!;
-            var result = JsonSerializer.Deserialize<LongLivedToken>(content)!;
+            var result = JsonSerializer.Deserialize<OAuthResponse>(content)!;
+            var token = new IGOAuthToken(result.AccessToken!, result.expires_in ?? 3600 * 24 * 60, result.TokenType);
             if (access_token == null)
             { // we updated our own oauth
-                oauth!.access_token = result.access_token;
+                token.UserId = oauth!.UserId;
+                oauth = token;
             }
-            return result;
+            return token;
         }
 
         public Task<IGUser> GetMeAsync(IGUserFields fields)
@@ -123,27 +118,6 @@ namespace FacebookAPI
             if (!response.IsSuccessStatusCode) throw await HttpException.FromResponse(response);
             var content = await response.Content.ReadAsStringAsync();
             return JsonSerializer.Deserialize<IGMedia>(content)!;
-        }
-
-        Task<HttpResponseMessage> postAsync(string endpoint, Dictionary<string, string> queryParams)
-        {
-            if(!queryParams.ContainsKey("access_token"))
-                queryParams["access_token"] = oauth!.access_token!;
-            return http.PostAsync(baseAddress + queryParams.ToQueryString(endpoint), null);
-        }
-
-        Task<HttpResponseMessage> getAsync(string endpoint, Dictionary<string, string>? queryParams = null)
-        {
-            queryParams ??= new();
-            if (!queryParams.ContainsKey("access_token"))
-                queryParams["access_token"] = oauth!.access_token!;
-            return http.GetAsync(baseAddress + queryParams.ToQueryString(endpoint));
-        }
-
-        private void CheckLogin()
-        {
-            if (oauth == null || string.IsNullOrWhiteSpace(oauth.access_token))
-                throw new Exception($"Client was used before it was logged in.");
         }
     }
 }

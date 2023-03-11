@@ -2,8 +2,8 @@
 using DiscordBot.Classes;
 using DiscordBot.MLAPI.Attributes;
 using DiscordBot.Services;
-using FacebookAPI;
-using FacebookAPI.Facebook;
+using ExternalAPIs;
+using ExternalAPIs.Facebook;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json.Linq;
 using System;
@@ -60,14 +60,14 @@ namespace DiscordBot.MLAPI.Modules
             }
             if (!Context.User.HasDisplayName)
             {
-                var me = await insta.GetMeAsync(FacebookAPI.Instagram.IGUserFields.Username);
+                var me = await insta.GetMeAsync(ExternalAPIs.Instagram.IGUserFields.Username);
                 Context.User.DisplayName = me.Username;
             }
             var result = await insta.GetLongLivedAccessToken(Program.Configuration["tokens:instagram:app_secret"]);
             Context.User.Instagram = new BotDbInstagram()
             {
                 AccountId = insta.oauth.user_id.ToString(),
-                AccessToken = result.access_token,
+                AccessToken = result.AccessToken,
                 ExpiresAt = DateTime.UtcNow.AddSeconds(result.expires_in.Value)
             };
             await Context.BotDB.SaveChangesAsync();
@@ -99,10 +99,10 @@ namespace DiscordBot.MLAPI.Modules
             var srv = Context.Services.GetRequiredService<RepublishService>();
             srv.Data.Facebook = new()
             {
-                ExpiresAt = client.oauth.expires_at,
+                ExpiresAt = client.oauth.ExpiresAt,
                 Id = user.Id,
                 PageId = page.Id,
-                Token = client.oauth.access_token,
+                Token = client.oauth.AccessToken,
                 InstagramId = connected
             };
             srv.OnSave();
@@ -148,7 +148,7 @@ namespace DiscordBot.MLAPI.Modules
             Context.User.Facebook = new BotDbFacebook()
             {
                 AccountId = me.Id,
-                AccessToken = result.access_token,
+                AccessToken = result.AccessToken,
                 ExpiresAt = DateTime.UtcNow.AddSeconds(result.expires_in.Value)
             };
             await Context.BotDB.SaveChangesAsync();

@@ -7,7 +7,7 @@ using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
-namespace FacebookAPI.Converters
+namespace ExternalAPIs.Converters
 {
     public class IGMediaConverter : JsonConverter<string[]>
     {

@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace FacebookAPI.Helpers
+namespace ExternalAPIs.Helpers
 {
     [DebuggerStepThrough]
     public static class StringExtensions

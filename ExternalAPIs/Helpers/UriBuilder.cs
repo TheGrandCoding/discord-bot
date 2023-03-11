@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace FacebookAPI.Helpers
+namespace ExternalAPIs.Helpers
 {
     public static class UriHelpers
     {

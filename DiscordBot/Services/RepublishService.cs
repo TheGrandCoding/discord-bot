@@ -1,5 +1,5 @@
 ﻿using DiscordBot.Classes;
-using FacebookAPI;
+using ExternalAPIs;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using System;
