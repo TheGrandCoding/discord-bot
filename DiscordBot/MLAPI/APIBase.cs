@@ -17,7 +17,7 @@ namespace DiscordBot.MLAPI
 #if LINUX
     [Host("mlapi.cheale14.com")]
 #else
-    [Host("mlapitest.cheale14.com")]
+    [Host("mlapitest.cheale14.com", "localhost")]
 #endif
     public class APIBase
     {

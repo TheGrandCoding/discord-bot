@@ -207,7 +207,7 @@ namespace DiscordBot.MLAPI
             }
             else
             {
-                var b = new UriBuilder(Request.Url);
+                var b = new UriBuilder(Request.Url.Scheme, Request.Url.Host, Request.Url.Port);
                 b.Path = relative;
                 return b.ToString();
             }

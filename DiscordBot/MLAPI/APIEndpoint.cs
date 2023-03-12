@@ -101,11 +101,12 @@ namespace DiscordBot.MLAPI
                 if(http.Base.Contains(bef))
                 {
                     http.Base = http.Base.Replace("{" + pra.Name + "}", text);
-                } else if(withQuery)
+                    i++;
+                } else if (withQuery)
                 {
                     http.Add(pra.Name, text, escape: false);
+                    i++;
                 }
-                i++;
             }
             return http;
         }

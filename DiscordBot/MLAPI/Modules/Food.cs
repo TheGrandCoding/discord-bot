@@ -15,6 +15,7 @@ using System.Threading.Tasks;
 
 namespace DiscordBot.MLAPI.Modules
 {
+    [Path("/food")]
     public class Food : AuthedAPIBase
     {
         public Food(APIContext c) : base(c, "food")
@@ -297,7 +298,7 @@ namespace DiscordBot.MLAPI.Modules
             return grouped.ToHTML(full, Context.User != null, getRow);
         }
 
-        [Method("GET"), Path("/food")]
+        [Method("GET"), Path("/")]
         [RequireApproval(false)]
         [RequireAuthentication(false, false)]
         public async Task ViewFood(bool grouped = false, bool full = false)
@@ -332,19 +333,19 @@ namespace DiscordBot.MLAPI.Modules
                 .Add("links", links));
         }
 
-        [Method("GET"), Path("/food/scan")]
+        [Method("GET"), Path("/scan")]
         public async Task Scan()
         {
             await ReplyFile("scan.html", 200);
         }
 
-        [Method("GET"), Path("/food/enter")]
+        [Method("GET"), Path("/enter")]
         public async Task Enter()
         {
             await ReplyFile("enter.html", 200);
         }
 
-        [Method("GET"), Path("/food/new")]
+        [Method("GET"), Path("/new")]
         public async Task NewFood(string code = null, string redirect = null)
         {
             if(code == null)
@@ -438,7 +439,7 @@ namespace DiscordBot.MLAPI.Modules
         }
 
 
-        [Method("GET"), Path("/food/calendar")]
+        [Method("GET"), Path("/calendar")]
         [RequireApproval(false)]
         [RequireAuthentication(false, false)]
         public async Task Calendar()
@@ -494,7 +495,7 @@ namespace DiscordBot.MLAPI.Modules
             return ls;
         }
 
-        [Method("GET"), Path("/food/recipes")]
+        [Method("GET"), Path("/recipes")]
         public async Task ViewRecipes()
         {
             var table = new Table()
@@ -602,13 +603,13 @@ namespace DiscordBot.MLAPI.Modules
             await ReplyFile("recipe.html", 200, new Replacements().Add("table", table).Add("ongoing", str));
         }
         
-        [Method("GET"), Path("/food/add-recipe")]
+        [Method("GET"), Path("/add-recipe")]
         public async Task NewRecipe(int? modifyId = null)
         {
             await ReplyFile("new_recipe.html", 200, new Replacements().Add("modifying", modifyId));
         }
         
-        [Method("GET"), Path("/food/ongoing-recipe")]
+        [Method("GET"), Path("/ongoing-recipe")]
         public async Task ViewOngoingRecipe(int id)
         {
             if(!Service.OngoingRecipes.TryGetValue(id, out var _))
@@ -626,7 +627,7 @@ namespace DiscordBot.MLAPI.Modules
             await ReplyFile("new_ongoing.html", 200);
         }
 
-        [Method("GET"), Path("/food/ongoing-any")]
+        [Method("GET"), Path("/ongoing-any")]
         public async Task ViewFirstOngoing()
         {
             if(Service.OngoingRecipes.Count > 0)
@@ -639,13 +640,13 @@ namespace DiscordBot.MLAPI.Modules
             }
         }
 
-        [Method("GET"), Path("/food/next")]
+        [Method("GET"), Path("/next")]
         public async Task ViewFutures()
         {
             await ReplyFile("next.html", 200);
         }
 
-        [Method("GET"), Path("/food/products")]
+        [Method("GET"), Path("/products")]
         public async Task ViewProducts()
         {
             var table = new Table()
@@ -808,13 +809,13 @@ namespace DiscordBot.MLAPI.Modules
             await ReplyFile("menu.html", 200, replacements.Add("table", table.ToString(true)));
         }
 
-        [Method("GET"), Path("/food/menu")]
+        [Method("GET"), Path("/menu")]
         public async Task ViewCurrentMenu()
         {
             await viewMenuActual(true);
         }
 
-        [Method("GET"), Path("/food/menu/readonly")]
+        [Method("GET"), Path("/menu/readonly")]
         [RequireAuthentication(false)]
         [RequireApproval(false)]
         public async Task ViewCurrentMenuReadonly()
@@ -822,7 +823,7 @@ namespace DiscordBot.MLAPI.Modules
             await viewMenuActual(false);
         }
 
-        [Method("GET"), Path("/food/menu/new")]
+        [Method("GET"), Path("/menu/new")]
         public async Task ViewNewMenu(int? overwrite = null)
         {
             await ReplyFile("new_menu.html", 200, 
@@ -830,11 +831,15 @@ namespace DiscordBot.MLAPI.Modules
                 .Add("modify", overwrite.HasValue ? overwrite.Value.ToString() : ""));
         }
 
+        [Method("GET"), Path("/compare")]
+        public Task ViewFoodCompare()
+        {
+            return ReplyFile("compare.html", 200);
+        }
 
 
 
-
-        [Method("POST"), Path("/api/food/scanned")]
+        [Method("POST"), Path("/api/scanned")]
         [RequireApproval(false)]
         [RequireAuthentication(false)]
         public async Task APIScannedCode(string code, string token)
@@ -958,7 +963,7 @@ namespace DiscordBot.MLAPI.Modules
 
         }
 
-        [Method("GET"), Path("/api/food/future")]
+        [Method("GET"), Path("/api/future")]
         public async Task APIFutures(DateTime date, DateTime prev)
         {
             var inventory = Service.GetInventoryItems("default");
@@ -1097,7 +1102,7 @@ namespace DiscordBot.MLAPI.Modules
         }
 
 
-        [Method("GET"), Path("/api/food/calendar")]
+        [Method("GET"), Path("/api/calendar")]
         [RequireApproval(false)]
         [RequireAuthentication(false, false)]
         public async Task APIGetWeekFood(DateTime start, DateTime end)
@@ -1128,7 +1133,7 @@ namespace DiscordBot.MLAPI.Modules
         }
 
 
-        [Method("POST"), Path("/api/food/products")]
+        [Method("POST"), Path("/api/products")]
         public async Task NewProduct(string redirect, string productId, string productName, int extends, int uses)
         {
             var _error = APIErrorResponse.InvalidFormBody();
@@ -1164,7 +1169,7 @@ namespace DiscordBot.MLAPI.Modules
             var p = Service.AddProduct(productId, productName, "", e, uses, "");
             await RedirectTo(nameof(NewFood), true, productId, redirect);
         }
-        [Method("POST"),   Path("/api/food/inventory")]
+        [Method("POST"),   Path("/api/inventory")]
         public async Task NewInventory(string redirect, string productId, string expires, string frozen = "off")
         {
             if (redirect != "enter" && redirect != "scan")
@@ -1182,7 +1187,7 @@ namespace DiscordBot.MLAPI.Modules
             await RespondRedirect($"/food/{redirect}");
         }
 
-        [Method("DELETE"), Path("/api/food/inventory")]
+        [Method("DELETE"), Path("/api/inventory")]
         public async Task DeleteInventoryUses(int invId, int? uses = null)
         {
             if(!uses.HasValue)
@@ -1199,7 +1204,7 @@ namespace DiscordBot.MLAPI.Modules
             }
         }
 
-        [Method("POST"), Path("/api/food/query")]
+        [Method("POST"), Path("/api/query")]
         public async Task SearchInventory(string query, string sort = null)
         {
             var items = new List<InventoryItem>();
@@ -1224,7 +1229,7 @@ namespace DiscordBot.MLAPI.Modules
             await RespondJson(jarr);
         }
 
-        [Method("PATCH"), Path("/api/food/inventory")]
+        [Method("PATCH"), Path("/api/inventory")]
         public async Task EditInventory(int invId, bool frozen)
         {
             using var db = Service.DB();
@@ -1239,7 +1244,7 @@ namespace DiscordBot.MLAPI.Modules
             await RespondRaw("", 200);
         }
 
-        [Method("GET"), Path("/api/food/product")]
+        [Method("GET"), Path("/api/product")]
         public async Task SearchProducts(string query)
         {
             List<Product> products;
@@ -1281,7 +1286,7 @@ namespace DiscordBot.MLAPI.Modules
             return saved;
         }
 
-        [Method("POST"), Path("/api/food/recipes")]
+        [Method("POST"), Path("/api/recipes")]
         public async Task AddRecipe(int? overwrite = null)
         {
             var jobj = JObject.Parse(Context.Body);
@@ -1402,14 +1407,14 @@ namespace DiscordBot.MLAPI.Modules
             await RespondRaw("OK");
         }
 
-        [Method("DELETE"), Path("/api/food/recipe")]
+        [Method("DELETE"), Path("/api/recipe")]
         public async Task DeleteRecipe(int id)
         {
             Service.DeleteRecipe(id);
             await RespondRaw("OK", 200);
         }
 
-        [Method("GET"), Path("/api/food/recipe")]
+        [Method("GET"), Path("/api/recipe")]
         public async Task GetRecipe(int id)
         {
             var recipe = Service.Recipes.FirstOrDefault(x => x.Id == id);
@@ -1463,7 +1468,7 @@ namespace DiscordBot.MLAPI.Modules
             await RespondJson(jobj);
         }
 
-        [Method("PUT"), Path("/api/food/recipes")]
+        [Method("PUT"), Path("/api/recipes")]
         public async Task StartRecipe()
         {
             var dict = Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<int, int>>(Context.Body);
@@ -1518,7 +1523,7 @@ namespace DiscordBot.MLAPI.Modules
         }
 
 
-        [Method("POST"), Path("/api/food/menus")]
+        [Method("POST"), Path("/api/menus")]
         public async Task AddMenu(int? modify = null)
         {
             var body = JObject.Parse(Context.Body);
@@ -1625,7 +1630,7 @@ namespace DiscordBot.MLAPI.Modules
             await RespondRaw("{}", 200);
         }
 
-        [Method("POST"), Path("/api/food/menu")]
+        [Method("POST"), Path("/api/menu")]
         public async Task SelectMenu(int id)
         {
             if(Service.WorkingMenu != null)
@@ -1643,7 +1648,7 @@ namespace DiscordBot.MLAPI.Modules
             await RespondRaw("Ok", 200);
         }
 
-        [Method("GET"), Path("/api/food/menu")]
+        [Method("GET"), Path("/api/menu")]
         public async Task ApiGetMenu(int id)
         {
             if(!Service.Menus.TryGetValue(id, out var menu))
@@ -1664,7 +1669,7 @@ namespace DiscordBot.MLAPI.Modules
             public int? Uses;
         }
 
-        [Method("POST"), Path("/api/food/menu/shared")]
+        [Method("POST"), Path("/api/menu/shared")]
         public async Task MenuToggleShare(int day)
         {
             if (Service.WorkingMenu == null)
@@ -1692,7 +1697,7 @@ namespace DiscordBot.MLAPI.Modules
             await RespondRaw("", 200);
         }
 
-        [Method("POST"), Path("/api/food/menu/move")]
+        [Method("POST"), Path("/api/menu/move")]
         public async Task MoveMenuItem()
         {
             if(Service.WorkingMenu == null)
@@ -1728,7 +1733,7 @@ namespace DiscordBot.MLAPI.Modules
             await RespondRaw("OK");
         }
 
-        [Method("PATCH"), Path("/api/food/menu/manual")]
+        [Method("PATCH"), Path("/api/menu/manual")]
         public async Task SetMenuDayManual(int day, bool manual)
         {
             var d = Service.WorkingMenu.Days[day];
@@ -1736,7 +1741,7 @@ namespace DiscordBot.MLAPI.Modules
             Service.OnSave();
             await RespondRaw("OK");
         }
-        [Method("PATCH"), Path("/api/food/menu/text")]
+        [Method("PATCH"), Path("/api/menu/text")]
         public async Task SetMenuDayText(int day, string group, string text = null)
         {
             var d = Service.WorkingMenu.Days[day];
@@ -1749,7 +1754,7 @@ namespace DiscordBot.MLAPI.Modules
             await RespondRaw("OK");
         }
 
-        [Method("DELETE"), Path("/api/food/menu/item")]
+        [Method("DELETE"), Path("/api/menu/item")]
         public async Task DeleteMenuItem(string group, int day, int id)
         {
             if (Service.WorkingMenu == null)
@@ -1764,7 +1769,7 @@ namespace DiscordBot.MLAPI.Modules
             await RespondRaw("OK");
         }
 
-        [Method("PATCH"), Path("/api/food/menu/item")]
+        [Method("PATCH"), Path("/api/menu/item")]
         public async Task EditMenuItem(string group, int day, int id, int uses)
         {
             if (Service.WorkingMenu == null)
