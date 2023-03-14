@@ -27,11 +27,24 @@ namespace ExternalAPIs
         }
 
         [JsonPropertyName("access_token")]
-        public string AccessToken { get; }
+        public string AccessToken { get; set; }
         [JsonPropertyName("token_type")]
-        public string? TokenType { get; }
+        public string? TokenType { get; set; }
         [JsonPropertyName("expires_at")]
-        public DateTime? ExpiresAt { get; }
+        public DateTime? ExpiresAt { get; internal set; }
+
+        private int? expires_in;
+        [JsonPropertyName("expires_in")]
+        public int? ExpiresIn { get
+            {
+                return expires_in;
+            } set
+            {
+                expires_in = value;
+                if (value.HasValue)
+                    ExpiresAt = DateTime.Now.AddSeconds(value.Value);
+            }
+        }
     }
     public class IGOAuthToken : OAuthToken
     {

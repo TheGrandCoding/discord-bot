@@ -78,16 +78,23 @@ namespace DiscordBot.MLAPI.Modules.Republisher
                 SetState()).ToString();
         }
 
-        [Method("GET"), Path("/")]
-        public async Task ViewRepublisher()
+        async Task viewPost(PublishPost post)
         {
             var rep = new Replacements();
             var service = Context.Services.GetRequiredService<RepublishService>();
             var http = Context.Services.GetRequiredService<HttpClient>();
-
-
             var main = new Div();
-            var post = GetCurrentPost() ?? new();
+
+            if(post.ApprovedById.HasValue)
+            {
+                main.Children.Add(new Div(cls: "warn").WithRawText("This post has already been approved and cannot be edited."));
+            }
+            else if (post.AuthorId.HasValue)
+            {
+                main.Children.Add(new Div(cls: "warn").WithRawText("This post has already been submitted for approval, but it can be edited until it is published"));
+            }
+
+
             var platforms = new List<SocialMediaPlatform>()
             {
                 new InstagramRow(SetState, post, Context),
@@ -103,24 +110,65 @@ namespace DiscordBot.MLAPI.Modules.Republisher
 
             rep.Add("content", main);
 
-            if(Context.User?.RepublishRole.HasFlag(BotRepublishRoles.Provider) ?? false)
+            if(post.ApprovedById.HasValue)
             {
-                rep.Add("actions", new Input("button", "Publish!")
+                rep.Add("actions", "<p>This post has been submitted and approved. It is now live.</p>");
+            } else
+            {
+                var container = new Div();
+                if (Context.User?.RepublishRole.HasFlag(BotRepublishRoles.Approver) ?? false)
                 {
-                    OnClick = "tryPublish(event)"
-                });
+                    container.Children.Add(new Input("button", "Approve and publish")
+                    {
+                        OnClick = "tryApprove(event)"
+                    });
+                }
+                if (Context.User?.RepublishRole.HasFlag(BotRepublishRoles.Provider) ?? false)
+                {
+                    container.Children.Add(new Input("button", "Submit for approval")
+                    {
+                        OnClick = "tryPublish(event)"
+                    });
+                }
+                rep.Add("actions", container);
             }
+            
+
 
             await ReplyFile("select.html", 200, rep);
+        }
+
+        [Method("GET"), Path("/")]
+        public Task ViewRepublisher()
+        {
+            return viewPost(GetCurrentPost() ?? new());
+        }
+        [Method("GET"), Path("/post/{id}")]
+        [Regex("id", "[0-9]+")]
+        [RequireRepublishRole(BotRepublishRoles.Provider, OR = "perm")]
+        [RequireRepublishRole(BotRepublishRoles.Approver, OR = "perm")]
+        public async Task ViewRepublisherPost(uint id)
+        {
+            var post = await Context.BotDB.GetPost(id);
+            if(post == null)
+            {
+                await RespondRaw($"Error: no post found by ID '{id}'", 404);
+                return;
+            }
+            if (!canModify(post))
+            {
+                await RespondRaw("Error: you cannot access this post", 400);
+                return;
+            }
+            SetCurrentPost(post); // make sure cookie is correct
+            await viewPost(post);
         }
 
         async Task<Table> getUserManageTable(RepublishService service)
         {
             BotDbUser[] users;
-            using(var db = Context.Services.GetBotDb("RepublishTable"))
-            {
-                users = await db.GetUsersWithExternal();
-            }
+            var db = Context.Services.GetBotDb("RepublishTable");
+            users = await db.GetUsersWithExternal();
             var table = new Table();
             table.WithHeaderColumn("Name");
             table.WithHeaderColumn("Instagram");
@@ -142,6 +190,43 @@ namespace DiscordBot.MLAPI.Modules.Republisher
                 select.Add($"Full Administrator", $"{(int)BotRepublishRoles.Admin}", user.RepublishRole == BotRepublishRoles.Admin);
                 td.Children.Add(select);
                 row.Children.Add(td);
+                table.Children.Add(row);
+            }
+            return table;
+        }
+
+        async Task<Table> getPostManageTable()
+        {
+            var table = new Table()
+                .WithHeaderColumn("Post ID")
+                .WithHeaderColumn("Submitted by")
+                .WithHeaderColumn("Sends to Instagram")
+                .WithHeaderColumn("Sends to Discord");
+            var unapprovedPosts = Context.BotDB.GetAllPosts().ToList();
+            foreach(var post in unapprovedPosts)
+            {
+                var row = new TableRow(post.Id.ToString(), cls: "post link");
+                row.OnClick = $"gotoPost(event)";
+                row.WithCell(post.Id.ToString());
+                var author = await Context.BotDB.GetUserAsync(post.AuthorId.Value);
+                row.WithCell(author.DisplayName);
+                if ((post.Instagram?.Kind ?? PublishKind.DoNotPublish) == PublishKind.DoNotPublish)
+                    row.WithCell("No");
+                else
+                    row.WithCell("Yes");
+                if ((post.Discord?.Kind ?? PublishKind.DoNotPublish) == PublishKind.DoNotPublish)
+                    row.WithCell("No");
+                else
+                    row.WithCell("Yes");
+                table.Children.Add(row);
+            }
+            if (unapprovedPosts.Count == 0)
+            {
+                var row = new TableRow();
+                row.Children.Add(new TableData("No posts pending approval.")
+                {
+                    ColSpan = "4"
+                });
                 table.Children.Add(row);
             }
             return table;
@@ -206,10 +291,12 @@ namespace DiscordBot.MLAPI.Modules.Republisher
                 }
                 main.Children.Add(ul);
             }
-            var table = await getUserManageTable(service);
+            var userTable = await getUserManageTable(service);
+            var postTable = await getPostManageTable();
             await ReplyFile("admin.html", 200, new Replacements()
                 .Add("facebook", main)
-                .Add("userTable", table)
+                .Add("userTable", userTable)
+                .Add("postTable", postTable)
                 .Add("dsWebhook", service.Data.Discord?.Token ?? ""));
         }
 
@@ -261,7 +348,7 @@ namespace DiscordBot.MLAPI.Modules.Republisher
             }
             if(!data.role.HasValue)
             {
-                await RespondRaw("No role value privded.", 400);
+                await RespondRaw("No role value provided.", 400);
                 return;
             }
             var db = Context.Services.GetBotDb(nameof(APIPatchUser));
@@ -303,6 +390,87 @@ namespace DiscordBot.MLAPI.Modules.Republisher
             await RespondRaw("");
         }
 
+        [Method("POST"), Path("/api/approve")]
+        [RequireRepublishRole(BotRepublishRoles.Approver)]
+        public async Task APIApproveAndExecutePost(uint id)
+        {
+            var doPost = new List<SocialMediaPlatform>();
+            var post = await Context.BotDB.GetPost(id);
+            if(post.ApprovedById.HasValue)
+            {
+                await RespondRaw("Error: this post has already been approved", 400);
+                return;
+            }
+            var errors = new APIErrorResponse();
+            if ((post.Instagram?.Kind ?? PublishKind.DoNotPublish) != PublishKind.DoNotPublish)
+            {
+                var instagram = new InstagramRow(SetState, post, Context);
+                if (!instagram.IsSetup(out var expired))
+                {
+                    errors.Child("instagram").WithRequired(expired ? "The instagram auth token has expired" : "Instagram has not been setup");
+                }
+                else
+                {
+                    doPost.Add(instagram);
+                }
+            }
+            if ((post.Discord?.Kind ?? PublishKind.DoNotPublish) != PublishKind.DoNotPublish)
+            {
+                var ds = new DiscordWebhookRow(SetState, post, Context);
+                if (!ds.IsSetup(out var expired))
+                {
+                    errors.Child("discord").WithRequired("The webhook URL has not been setup");
+                }
+                else
+                {
+                    doPost.Add(ds);
+                }
+            }
+            if (errors.HasAnyErrors())
+            {
+                await RespondError(errors);
+                return;
+            }
+            var result = new StringBuilder();
+            foreach (var platform in doPost)
+            {
+                try
+                {
+                    var status = await platform.ExecuteAsync();
+                    if (!status.Success)
+                    {
+                        result.AppendLine($"Failed for {platform.Name}: {status.ErrorMessage}");
+                    }
+                    else
+                    {
+                        result.AppendLine($"{platform.Name} success: {status.Value}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Program.LogError(ex, "Publish");
+                    result.AppendLine($"Errored with {platform.Name}: {ex.Message}");
+                }
+            }
+            await RespondRaw(result.ToString());
+        }
+
+        bool canModify(PublishPost post)
+        {
+            if (post.ApprovedById.HasValue)
+            {
+                return false;
+            }
+            if (post.AuthorId.GetValueOrDefault(0) != Context.User.Id)
+            {
+                if (Context.User.RepublishRole == BotRepublishRoles.Provider)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
         [Method("POST"), Path("/api/post")]
         [RequireRepublishRole(BotRepublishRoles.Provider)]
         public async Task APISchedulePublish()
@@ -320,57 +488,30 @@ namespace DiscordBot.MLAPI.Modules.Republisher
                 await RespondError(errors);
                 return;
             }
-            var doPost = new List<SocialMediaPlatform>();
-            errors ??= new();
-            if((post.Instagram?.Kind ?? PublishKind.DoNotPublish) != PublishKind.DoNotPublish)
-            {
-                var instagram = new InstagramRow(SetState, post, Context);
-                if (!instagram.IsSetup(out var expired))
-                {
-                    errors.Child("instagram").WithRequired(expired ? "The instagram auth token has expired" : "Instagram has not been setup");
-                }
-                else
-                {
-                    doPost.Add(instagram);
-                }
-            }
-            if((post.Discord?.Kind ?? PublishKind.DoNotPublish) != PublishKind.DoNotPublish)
-            {
-                var ds = new DiscordWebhookRow(SetState, post, Context);
-                if(!ds.IsSetup(out var expired))
-                {
-                    errors.Child("discord").WithRequired("The webhook URL has not been setup");
-                } else
-                {
-                    doPost.Add(ds);
-                }
-            }
-            if(errors.HasAnyErrors())
-            {
-                await RespondError(errors);
-                return;
-            }
-            var result = new StringBuilder();
-            foreach(var platform in doPost)
-            {
-                try
-                {
-                    var status = await platform.ExecuteAsync();
-                    if(!status.Success)
-                    {
-                        result.AppendLine($"Failed for {platform.Name}: {status.ErrorMessage}");
-                    } else
-                    {
-                        result.AppendLine($"{platform.Name} success: {status.Value}");
-                    }
-                } catch(Exception ex)
-                {
-                    Program.LogError(ex, "Publish");
-                    result.AppendLine($"Errored with {platform.Name}: {ex.Message}");
-                }
-            }
             SetCurrentPost(null);
-            await RespondRaw(result.ToString());
+            if (post.Id != 0) // ID should be zero since its not been put into the database yet
+            { // so if its not zero, we might be modifying an existing post
+                // so check permissions from DB version
+                // since the 'post' variable is from the client, we can't trust it
+                var fromDb = await Context.BotDB.GetPost(post.Id);
+                if(!canModify(fromDb))
+                {
+                    await RespondRaw("Error: this post cannot be modified by you", 400);
+                    return;
+                }
+                post.Id = fromDb.Id;
+                post.AuthorId = fromDb.AuthorId;
+                post.ApprovedById = null;
+                Context.BotDB.Update(post);
+            } else
+            {
+                post.Id = 0;
+                post.AuthorId = Context.User.Id;
+                post.ApprovedById = null;
+                await Context.BotDB.CreateNewPost(post);
+            }
+            await Context.BotDB.SaveChangesAsync();
+            await RespondRedirect(Context.GetFullUrl(nameof(ViewRepublisherPost), post.Id.ToString()));
         }
 
     }
@@ -443,10 +584,10 @@ namespace DiscordBot.MLAPI.Modules.Republisher
                 form.Style = "display: none";
             var onC = "setValue()";
             var onI = "setDirty()";
-            form.AddLabeledInput("caption", "Caption: ", "textarea", "Caption", ThisData.Caption ?? Post.defaultText,
+            form.AddLabeledInput("caption", "Caption: ", "textarea", "Caption", ThisData.Caption ?? Post.DefaultText,
                 onChange: onC, onInput: onI);
             form.Children.Add(new Classes.HTMLHelpers.LineBreak());
-            form.AddLabeledInput("mediaUrl", "Media url: ", "url", "URL", ThisData.MediaUrl ?? Post.defaultMediaUrl,
+            form.AddLabeledInput("mediaUrl", "Media url: ", "url", "URL", ThisData.MediaUrl ?? Post.DefaultMediaUrl,
                 onChange: onC, onInput: onI);
             right.Children.Add(form);
             return Task.CompletedTask;
@@ -577,8 +718,8 @@ namespace DiscordBot.MLAPI.Modules.Republisher
             var instaMe = await insta.GetMeAsync(IGUserFields.Username);
             var api = Service.Data.Facebook.CreateClient(http);
             var container = await api.CreateIGMediaContainer(Service.Data.Facebook.InstagramId,
-                Post.Instagram.MediaUrl ?? Post.defaultMediaUrl,
-                (Post.Instagram.Caption ?? Post.defaultText) + "\r\nVia @" + instaMe.Username,
+                Post.Instagram.MediaUrl ?? Post.DefaultMediaUrl,
+                (Post.Instagram.Caption ?? Post.DefaultText) + "\r\nVia @" + instaMe.Username,
                 new[] { instaMe.Username });
             var id = await api.PublishIGMediaContainer(Service.Data.Facebook.InstagramId, container);
             var full = await api.GetMediaAsync(id, IGMediaFields.All);
@@ -650,7 +791,12 @@ namespace DiscordBot.MLAPI.Modules.Republisher
 
         public override string AdminRedirectUri()
         {
-            return Context.GetFullUrl(nameof(Republish.ViewAdmin));
+            var scope = DiscordOAuthScopes.WebhookIncoming;
+            if (Context.User == null)
+                scope |= DiscordOAuthScopes.Identify;
+            return DiscordOAuthClient.GetRedirectUri(Program.AppInfo.Id.ToString(),
+                Context.GetFullUrl(nameof(OAuthCallbacks.HandleDiscordOAuth)),
+                scope, "w:" + SetState()).ToString();
         }
         public override string ProviderRedirectUri() => null;
 
@@ -672,8 +818,8 @@ namespace DiscordBot.MLAPI.Modules.Republisher
             var client = Service.Data.Discord.CreateClient();
             var embed = new EmbedBuilder();
             embed.Title = $"Republished message";
-            embed.Description = Post.Discord.Caption ?? Post.defaultText;
-            embed.ImageUrl = Post.Discord.MediaUrl ?? Post.defaultMediaUrl;
+            embed.Description = Post.Discord.Caption ?? Post.DefaultText;
+            embed.ImageUrl = Post.Discord.MediaUrl ?? Post.DefaultMediaUrl;
             var msg = await client.SendMessageAsync(embeds: new[] { embed.Build() });
             return new($"Message ID {msg}");
         }

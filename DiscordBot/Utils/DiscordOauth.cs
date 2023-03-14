@@ -1,4 +1,5 @@
-﻿using Discord;
+﻿#if OLD_DS_OAUTH
+using Discord;
 using DiscordBot.MLAPI;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
@@ -158,3 +159,4 @@ namespace DiscordBot.Utils
 
     }
 }
+#endif

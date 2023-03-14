@@ -38,72 +38,7 @@ namespace DiscordBot.Services
             }*/
         }
     }
-    public enum PublishKind
-    {
-        DoNotPublish,
-        PublishWithText
-    }
-    public enum ExtendedPublishKind
-    {
-        DoNotPublish,
-        PublishWithText,
-        PublishByReference
-    }
-    public class PublishPost
-    {
-        public string defaultText { get; set; }
-        public string defaultMediaUrl { get; set; }
-        [JsonProperty("instagram")]
-        public PublishInstagram Instagram { get; set; } = new();
-        [JsonProperty("discord")]
-        public PublishDiscord Discord { get; set; } = new();
-
-        public APIErrorResponse GetErrors()
-        {
-            var errors = new APIErrorResponse();
-            if (string.IsNullOrWhiteSpace(defaultText))
-                return errors.Child(nameof(defaultText)).EndRequired();
-            if (string.IsNullOrWhiteSpace(defaultMediaUrl))
-                return errors.Child(nameof(defaultMediaUrl)).EndRequired();
-            if(Instagram.Kind != PublishKind.DoNotPublish)
-            {
-                var insta = errors.Child(nameof(Instagram));
-                if (string.IsNullOrWhiteSpace(Instagram.Caption ?? defaultText))
-                    return insta.Child("caption").EndRequired();
-                if (string.IsNullOrWhiteSpace(Instagram.MediaUrl ?? defaultMediaUrl))
-                    return insta.Child("mediaUrl").EndRequired();
-            }
-            if(Discord.Kind != PublishKind.DoNotPublish)
-            {
-                var ds = errors.Child(nameof(Discord));
-                if (string.IsNullOrWhiteSpace(Discord.Caption ?? defaultText))
-                    return ds.Child("caption").EndRequired();
-                if (string.IsNullOrWhiteSpace(Discord.MediaUrl ?? defaultMediaUrl))
-                    return ds.Child("mediaUrl").EndRequired();
-            }
-
-
-            return null;
-        }
-    }
-    public class PublishBase
-    {
-        [JsonProperty("caption")]
-        public string Caption { get; set; }
-        [JsonProperty("mediaUrl")]
-        public string MediaUrl { get; set; }
-
-        [JsonProperty("kind")]
-        public PublishKind Kind { get; set; }
-    }
-    public class PublishInstagram : PublishBase
-    {
-        [JsonProperty("originalId")]
-        public string OriginalId { get; set; }
-    }
-    public class PublishDiscord : PublishBase
-    {
-    }
+    
     public class RepublishSave
     {
         public FacebookAccount Facebook { get; set; } = new();

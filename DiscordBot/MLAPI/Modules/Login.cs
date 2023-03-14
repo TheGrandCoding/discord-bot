@@ -3,9 +3,11 @@ using DiscordBot.Classes;
 using DiscordBot.Services;
 using DiscordBot.Utils;
 using Microsoft.Extensions.DependencyInjection;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -22,75 +24,9 @@ namespace DiscordBot.MLAPI.Modules
             Callback = c.Services.GetRequiredService<OauthCallbackService>();
         }
 
-        string getRedirectReturn(bool clearCookie = false)
-        {
-            if(Context.User != null)
-            {
-                if (Context.User.Approved.HasValue == false)
-                    return "/login/approval";
-                else if (Context.User.Connections.PasswordHash == null)
-                    return "/login/setpassword";
-            }
-            string redirectTo = Context.Request.Cookies["redirect"]?.Value;
-            if (string.IsNullOrWhiteSpace(redirectTo))
-            {
-                if(Context.User?.RedirectUrl != null)
-                {
-                    redirectTo = Context.User.RedirectUrl;
-                    Context.User.RedirectUrl = null;
-                } else
-                {
-                    redirectTo = "/";
-                }
-            } else if(clearCookie)
-            {
-                Context.HTTP.Response.SetCookie(new("redirect", "/")
-                {
-                    Expires = DateTime.Now.AddDays(-1)
-                });
-            }
-            return redirectTo;
-        }
+        
 
-            void handleDiscordOAuth(object sender, object[] stateArgs)
-        {
-            // Funky C#8, disposed at end of this function
-            var oauth = new DiscordOauth("identify", Context.GetFullUrl(nameof(OauthLogin)), Context.GetQuery("code"));
-            var userInfo = oauth.GetUserInformation().Result;
-            try
-            {
-                var result = Context.BotDB.GetUserFromDiscord(userInfo, true).Result;
-                if(!result.Success)
-                {
-                    RespondRaw($"Faield: {result.ErrorMessage}", 500);
-                    return;
-                }
-                var usr = result.Value;
-                setSessionTokens(usr).Wait();
-                Context.User = usr;
-                if (Context.User.Approved.HasValue == false)
-                {
-                    var admin_id = ulong.Parse(Program.Configuration["settings:admin"]);
-                    string avatar = userInfo.GetAnyAvatarUrl();
-                    Program.Client.GetUser(admin_id).SendMessageAsync(embed: new EmbedBuilder()
-                        .WithTitle("MLAPI User")
-                        .WithDescription($"{userInfo.Username}#{userInfo.Discriminator} ({userInfo.Id}) is awaiting approval")
-                        .WithUrl(Handler.LocalAPIUrl + "/bot/approve")
-                        .WithThumbnailUrl(avatar)
-                        .AddField("User-Agent", Context.Request.Headers["User-Agent"] ?? "none", true)
-                        .AddField("IP", Context.Request.Headers["X-Forwarded-For"] ?? "localhost", true)
-                        .AddField("Origin", Context.Request.Headers["Origin"] ?? "none", true)
-                        .Build());
-                }
-                // redirect by javascript, workaround two cookies not working properly.
-                RespondRedirect(getRedirectReturn(clearCookie:  false), code: 200).Wait();
-            }
-            catch (Exception ex)
-            {
-                Program.LogError(ex, "LoginOauth");
-                HTTPError(HttpStatusCode.InternalServerError, "", ex.Message).Wait();
-            }
-        }
+        
 
         [Method("GET"), Path("/login")]
         public async Task LoginBase()
@@ -120,13 +56,11 @@ namespace DiscordBot.MLAPI.Modules
         [Method("GET"), Path("/login/discord")]
         public async Task RedirectToDiscord(string redirect = "/")
         {
-            var state = Callback.Register(handleDiscordOAuth, Context.User);
-            var uri = UrlBuilder.Discord()
-                .Add("redirect_uri", Context.GetFullUrl(nameof(OauthLogin)))
-                .Add("response_type", "code")
-                .Add("scope", "identify")
-                .Add("state", state);
-            await RespondRedirect(uri, redirect);
+            var uri = ExternalAPIs.DiscordOAuthClient.GetRedirectUri(Program.AppInfo.Id.ToString(),
+                Context.GetFullUrl(nameof(OAuthCallbacks.HandleDiscordOAuth)),
+                ExternalAPIs.DiscordOAuthScopes.Identify,
+                "l:" + SetState());
+            await RespondRedirect(uri.ToString(), redirect);
         }
 
         [Method("POST"), Path("/login")]

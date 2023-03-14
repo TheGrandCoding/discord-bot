@@ -503,14 +503,14 @@ tryagain:
         public virtual Task AfterExecute() => Task.CompletedTask;
 
 
-        private const string csrfCookie = "_csrf";
+        private const string csrfCookie = "csrf";
         private string _state = null;
         public virtual string SetState()
         {
             if(_state == null)
             {
                 _state = DiscordBot.Classes.PasswordHash.RandomToken(16);
-                var cookie = new Cookie(csrfCookie, _state);
+                var cookie = new Cookie(csrfCookie, _state, "/");
                 Context.HTTP.Response.Cookies.Add(cookie);
             }
             return _state;
@@ -531,6 +531,38 @@ tryagain:
                 return false;
             }
             return true;
+        }
+
+        protected string getRedirectReturn(bool clearCookie = false)
+        {
+            if (Context.User != null)
+            {
+                if (Context.User.Approved.HasValue == false)
+                    return "/login/approval";
+                else if (Context.User.Connections.PasswordHash == null)
+                    return "/login/setpassword";
+            }
+            string redirectTo = Context.Request.Cookies["redirect"]?.Value;
+            if (string.IsNullOrWhiteSpace(redirectTo))
+            {
+                if (Context.User?.RedirectUrl != null)
+                {
+                    redirectTo = Context.User.RedirectUrl;
+                    Context.User.RedirectUrl = null;
+                }
+                else
+                {
+                    redirectTo = "/";
+                }
+            }
+            else if (clearCookie)
+            {
+                Context.HTTP.Response.SetCookie(new("redirect", "/")
+                {
+                    Expires = DateTime.Now.AddDays(-1)
+                });
+            }
+            return redirectTo;
         }
     }
 

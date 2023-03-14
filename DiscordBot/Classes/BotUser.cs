@@ -35,34 +35,40 @@ namespace DiscordBot.Classes
             base.Dispose();
         }
         public static SemaphoreSlim _lock = new(1);
+        private int _lockCount = 0;
         public DbSet<BotDbUser> Users { get; set; } 
         public DbSet<BotDbAuthToken> AuthTokens { get; set; }
         public DbSet<BotDbAuthSession> AuthSessions { get; set; }
+
+        public DbSet<PublishPost> Posts { get; set; }
 
         public async Task<T> WithLock<T>(Func<Task<T>> action)
         {
             try
             {
-                await _lock.WaitAsync();
+                if(_lockCount == 0)
+                {
+                    await _lock.WaitAsync();
+                }
+                _lockCount++;
                 var task = action();
                 return await task;
             } finally
             {
-                _lock.Release();
+                _lockCount--;
+                if(_lockCount == 0)
+                {
+                    _lock.Release();
+                }
             }
         }
         public Task WithLock(Action action)
         {
-            try
+            return WithLock<bool>(() =>
             {
-                _lock.Wait();
                 action();
-                return Task.CompletedTask;
-            }
-            finally
-            {
-                _lock.Release();
-            }
+                return Task.FromResult(true);
+            });
         }
 
         protected override void OnModelCreating(ModelBuilder mb)
@@ -278,6 +284,33 @@ namespace DiscordBot.Classes
                 await SaveChangesAsync();
                 return auth;
             });
+        }
+    
+        public Task CreateNewPost(PublishPost post)
+        {
+            return WithLock(async () =>
+            {
+                await Posts.AddAsync(post);
+            });
+        }
+        public Task<PublishPost> GetPost(uint id)
+        {
+            return WithLock(async () =>
+            {
+                return await Posts.FindAsync(id);
+            });
+        }
+        public IEnumerable<PublishPost> GetAllPosts(bool unapprovedOnly = true)
+        {
+            var ls = new List<PublishPost>();
+            WithLock(() =>
+            {
+                if(unapprovedOnly)
+                    ls = Posts.Where(x => x.ApprovedById == null).ToList();
+                else
+                    ls = Posts.ToList();
+            });
+            return ls;
         }
     }
 
