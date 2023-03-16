@@ -382,8 +382,9 @@ namespace DiscordBot.Services.Sonarr
                 ShowsPrivate = false
             };
             Channels.Add(sv);
-            OnSave();
-            return null;
+            OnSave(); 
+            return Task.FromResult("This channel will now receieve sonarr notifications");
+
         }
 
         public Task<string> UnregisterAsync(IMessageChannel channel, IUser user)
@@ -391,7 +392,7 @@ namespace DiscordBot.Services.Sonarr
             if (Channels.RemoveAll(x => x.Channel.Id == channel.Id) > 0)
             {
                 OnSave();
-                return null;
+                return Task.FromResult("This channel will no longer receieve sonarr notifications");
             }
             return Task.FromResult("This channel was not registered to begin with.");
         }

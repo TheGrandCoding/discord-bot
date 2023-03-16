@@ -841,7 +841,7 @@ namespace DiscordBot.MLAPI.Modules
 
         [Method("POST"), Path("/api/scanned")]
         [RequireApproval(false)]
-        [RequireAuthentication(false)]
+        [RequireAuthentication(false, false)]
         public async Task APIScannedCode(string code, string token)
         {
             if(token != Program.Configuration["tokens:foodnotify"])
@@ -874,7 +874,7 @@ namespace DiscordBot.MLAPI.Modules
             } else
             {
                 await RespondRaw("Notified user", 200);
-                Service.NotifyScannedProduct(code).Wait();
+                await Service.NotifyScannedProduct(code);
             }
         }
 

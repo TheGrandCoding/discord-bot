@@ -268,15 +268,16 @@ namespace DiscordBot.Services.Radarr
             };
             Channels.Add(sv);
             OnSave();
-            return null;
+            return Task.FromResult("This channel will now receieve radarr notifications");
         }
 
         public Task<string> UnregisterAsync(IMessageChannel channel, IUser user)
         {
             if (Channels.RemoveAll(x => x.Channel.Id == channel.Id) > 0)
             {
-                OnSave();
-                return null;
+                OnSave(); 
+                return Task.FromResult("This channel will no longer receieve radarr notifications");
+
             }
             return Task.FromResult("This channel was not registered to begin with.");
         }

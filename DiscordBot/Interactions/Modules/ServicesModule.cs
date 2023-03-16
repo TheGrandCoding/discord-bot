@@ -34,7 +34,7 @@ namespace DiscordBot.Interactions.Modules
                     ephemeral: true);
                 return;
             }
-            if(!(serv is IRegisterable registerable))
+            if(serv is not IRegisterable registerable)
             {
                 await RespondAsync(":x: That service cannot be registered",
                     ephemeral: true);
