@@ -472,8 +472,14 @@ namespace DiscordBot.Services
                 await lc.SendMessageAsync(embed: yesE.Build(), components: components);
             }
 
-            doFreezerChecks();
-            OnSave();
+            try
+            {
+                doFreezerChecks();
+            }
+            finally
+            {
+                OnSave();
+            }
         }
 
 
