@@ -17,7 +17,7 @@ using System.Threading.Tasks;
 
 namespace DiscordBot.Services.Radarr
 {
-    public class RadarrWebhookService : SavedService
+    public class RadarrWebhookService : SavedService, Services.BuiltIn.IRegisterable
     {
         public List<SaveChannel> Channels { get; set; }
 
@@ -254,6 +254,31 @@ namespace DiscordBot.Services.Radarr
                 Lock.Release();
                 Info($"Released lock for {type.EventType}", "OnGrab");
             }
+        }
+
+
+        public Task<string> RegisterAsync(IMessageChannel channel, IUser user)
+        {
+            if (Channels.Any(x => x.Channel.Id == channel.Id))
+                return Task.FromResult(":x: This channel is already registered.");
+            var sv = new SaveChannel()
+            {
+                Channel = channel as ITextChannel,
+                ShowsPrivate = false
+            };
+            Channels.Add(sv);
+            OnSave();
+            return null;
+        }
+
+        public Task<string> UnregisterAsync(IMessageChannel channel, IUser user)
+        {
+            if (Channels.RemoveAll(x => x.Channel.Id == channel.Id) > 0)
+            {
+                OnSave();
+                return null;
+            }
+            return Task.FromResult("This channel was not registered to begin with.");
         }
     }
 

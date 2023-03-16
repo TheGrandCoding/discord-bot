@@ -18,7 +18,7 @@ using System.Threading.Tasks;
 namespace DiscordBot.Services.Sonarr
 {
     [RequireService(typeof(TraktService))]
-    public class SonarrWebhooksService : SavedService
+    public class SonarrWebhooksService : SavedService, Services.BuiltIn.IRegisterable
     {
         public List<SaveChannel> Channels { get; set; }
 
@@ -58,8 +58,6 @@ namespace DiscordBot.Services.Sonarr
             HTTP = parent.Child("SonarrAPI");
             var apiKey = Program.Configuration[CONFIG_API_KEY];
             HTTP.DefaultRequestHeaders.Add("X-Api-Key", apiKey);
-            var th = new Thread(loop);
-            th.Start(Program.GetToken());
             OnDownload += SonarrWebhooksService_OnDownload;
             OnGrab += SonarrWebhooksService_OnGrab;
             OnEpisodeFileDelete += SonarrWebhooksService_OnEpisodeFileDelete;
@@ -293,10 +291,12 @@ namespace DiscordBot.Services.Sonarr
         {
             if (Episodes.TryGetValue(e.Series.Id, out var ep))
             {
+                Info($"Adding to existing series information, {ep.List.Count} already there.", "OnDownload");
                 ep.Add(this, e).Wait();
             }
             else
             {
+                Info($"Creating new series information", "OnDownload");
                 var eps = new Episodes(this, e);
                 Episodes[e.Series.Id] = eps;
 #if DEBUG
@@ -306,58 +306,32 @@ namespace DiscordBot.Services.Sonarr
 
         }
 
-        void loop(object param)
+        [Cron("*", "*/15")]
+        public void checkEpisodes()
         {
             try
             {
-                if (!(param is CancellationToken token))
-                    return;
-                while (!token.IsCancellationRequested)
+                Info("Checking pending episodes", "checkEpisodes");
+                var token = Program.GetToken();
+                Lock.WaitOne();
+                var rem = new List<int>();
+                foreach (var keypair in Episodes)
                 {
-                    try
+                    var value = keypair.Value;
+                    var diff = DateTime.Now - value.Last;
+                    if (diff.TotalMinutes >= 60)
                     {
-                        Lock.WaitOne();
-                        var rem = new List<int>();
-                        foreach (var keypair in Episodes)
-                        {
-                            var value = keypair.Value;
-                            var diff = DateTime.Now - value.Last;
-                            if (diff.TotalMinutes >= 60)
-                            {
-                                rem.Add(keypair.Key);
-                                Trakt.CollectNew(keypair.Value).Wait(token);
-                            }
-                        }
-                        foreach (var x in rem)
-                            Episodes.Remove(x);
-                    }
-                    finally
-                    {
-                        Lock.Release();
-                    }
-                    try
-                    {
-#if DEBUG
-                        Task.Delay(Time.Ms.Minute * 2, token)
-#else
-                    Task.Delay(Time.Ms.Minute * 15, token)
-#endif
-                        .Wait();
-                    }
-                    catch (Exception ex)
-                    {
-                        Error(ex);
-                        return;
+                        rem.Add(keypair.Key);
+                        Trakt.CollectNew(keypair.Value).Wait(token);
                     }
                 }
-            } catch(TaskCanceledException e)
-            {
-                Error(e);
-            } finally
-            {
-                Debug("Exited loop");
+                foreach (var x in rem)
+                    Episodes.Remove(x);
             }
-
+            finally
+            {
+                Lock.Release();
+            }
         }
 
         public void SendError(Exception ex)
@@ -373,7 +347,7 @@ namespace DiscordBot.Services.Sonarr
 
         public void Handle(SonarrEvent type)
         {
-            Info($"Waiting lock for {type.EventType} | {typeof(SonarrEvent)}", "Handle");
+            Info($"Waiting lock for {type.EventType} | {type.GetType().Name}", "Handle");
             Lock.WaitOne();
             Info($"Received lock for {type.EventType}", "Handle");
             try
@@ -396,6 +370,30 @@ namespace DiscordBot.Services.Sonarr
                 Lock.Release();
                 Info($"Released lock for {type.EventType}", "OnGrab");
             }
+        }
+
+        public Task<string> RegisterAsync(IMessageChannel channel, IUser user)
+        {
+            if(Channels.Any(x => x.Channel.Id == channel.Id))
+                return Task.FromResult(":x: This channel is already registered.");
+            var sv = new SaveChannel()
+            {
+                Channel = channel as ITextChannel,
+                ShowsPrivate = false
+            };
+            Channels.Add(sv);
+            OnSave();
+            return null;
+        }
+
+        public Task<string> UnregisterAsync(IMessageChannel channel, IUser user)
+        {
+            if (Channels.RemoveAll(x => x.Channel.Id == channel.Id) > 0)
+            {
+                OnSave();
+                return null;
+            }
+            return Task.FromResult("This channel was not registered to begin with.");
         }
     }
 

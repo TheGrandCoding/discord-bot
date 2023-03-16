@@ -18,26 +18,6 @@ namespace DiscordBot.Commands.Modules.Webhook
     {
         public SonarrWebhooksService SonarrService { get; set; }
 
-        [Command("toggle sonarr")]
-        public async Task ToggleSonarr()
-        {
-            var id = Context.Channel.Id;
-            if(SonarrService.Channels.RemoveAll(x => x.Channel.Id == id) > 0)
-            {
-                await ReplyAsync("Removed.");
-            } else
-            {
-                var sv = new SaveChannel()
-                {
-                    Channel = Context.Channel as ITextChannel,
-                    ShowsPrivate = false
-                };
-                SonarrService.Channels.Add(sv);
-                await ReplyAsync("Added.");
-            }
-            SonarrService.OnSave();
-        }
-
         [Command("list sonarr")]
         public async Task ListSonarr()
         {
@@ -94,26 +74,6 @@ namespace DiscordBot.Commands.Modules.Webhook
 
         public RadarrWebhookService RadarrService { get; set; }
 
-        [Command("toggle radarr")]
-        public async Task ToggleRadarr()
-        {
-            var id = Context.Channel.Id;
-            if (RadarrService.Channels.RemoveAll(x => x.Channel.Id == id) > 0)
-            {
-                await ReplyAsync("Removed.");
-            }
-            else
-            {
-                var sv = new SaveChannel()
-                {
-                    Channel = Context.Channel as ITextChannel,
-                    ShowsPrivate = false
-                };
-                RadarrService.Channels.Add(sv);
-                await ReplyAsync("Added.");
-            }
-            RadarrService.OnSave();
-        }
 
         [Command("list radarr")]
         public async Task ListRadarr()
