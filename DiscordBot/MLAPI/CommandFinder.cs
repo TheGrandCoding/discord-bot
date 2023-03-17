@@ -93,16 +93,13 @@ namespace DiscordBot.MLAPI
             var ORS = new Dictionary<string, List<PreconditionResult>>();
             var ANDS = new Dictionary<string, List<PreconditionResult>>();
             var building = cmd.Function.GetAttributesInParents<APIPrecondition>();
-            building.Reverse();
             foreach(var nextThing in building)
             {
                 var previousThing = preconditions.FirstOrDefault(x => x.TypeId == nextThing.TypeId);
                 if(previousThing != null)
                 {
-                    if (!previousThing.CanChildOverride(nextThing))
-                    {
+                    if (previousThing.CanChildOverride(nextThing))
                         continue;
-                    }
                     preconditions.Remove(previousThing);
                 }
                 preconditions.Add(nextThing);
