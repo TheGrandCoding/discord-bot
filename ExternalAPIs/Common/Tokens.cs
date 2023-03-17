@@ -60,15 +60,35 @@ namespace ExternalAPIs
     }
     public class TikTokOAuthToken : OAuthToken
     {
-        public TikTokOAuthToken(string access_token, DateTime expires_at, string? token_type = null) : base(access_token, expires_at, token_type)
+        public TikTokOAuthToken(string access_token, DateTime expires_at, string refresh_token, DateTime refresh_expires_at, string? token_type = null) : base(access_token, expires_at, token_type)
         {
+            RefreshToken = refresh_token;
+            RefreshExpiresAt = refresh_expires_at;
         }
-        public TikTokOAuthToken(string access_token, int expires_in, string? token_type = null) : base(access_token, expires_in, token_type)
+        public TikTokOAuthToken(string access_token, int expires_in, string refresh_token, int refresh_expires_in, string? token_type = null) : base(access_token, expires_in, token_type)
         {
+            RefreshToken = refresh_token;
+            RefreshExpiresIn = refresh_expires_in;
         }
         public string OpenId { get; set; }
         public string Scope { get; set; }
         public string RefreshToken { get; set; }
-        public int RefreshExpiresIn { get; set; }
+        [JsonPropertyName("refresh_expires_at")]
+        public DateTime? RefreshExpiresAt { get; internal set; }
+        private int? refresh_expires_in;
+        [JsonPropertyName("refresh_expires_in")]
+        public int? RefreshExpiresIn
+        {
+            get
+            {
+                return refresh_expires_in;
+            }
+            set
+            {
+                refresh_expires_in = value;
+                if (value.HasValue)
+                    RefreshExpiresAt = DateTime.Now.AddSeconds(value.Value);
+            }
+        }
     }
 }

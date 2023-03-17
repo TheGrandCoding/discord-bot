@@ -43,6 +43,8 @@ namespace DiscordBot.Services
     {
         public FacebookAccount Facebook { get; set; } = new();
         public DiscordWebhook Discord { get; set; } = new();
+
+        public TiktokAccount TikTok { get; set; } = new();
     }
     public class BaseAccount
     {
@@ -59,6 +61,14 @@ namespace DiscordBot.Services
             return !expired;
         }
     }
+    public class TiktokAccount : BaseAccount
+    {
+        public string RefreshToken { get; set; }
+        public DateTime RefreshExpiresAt { get; set; }
+        public TikTokClient CreateClient(HttpClient http)
+            => TikTokClient.Create(Token, ExpiresAt, RefreshToken, RefreshExpiresAt, http);
+    }
+
     public class FacebookAccount : BaseAccount
     {
         public string PageId { get; set; }

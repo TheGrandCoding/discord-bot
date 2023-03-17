@@ -236,6 +236,24 @@ namespace DiscordBot.Classes
                 return existing;
             });
         }
+        public Task<BotDbUser> GetUserByTikTok(string tiktokId, bool createIfNotExists)
+        {
+            return WithLock(async () =>
+            {
+                var existing = await Users.FirstOrDefaultAsync(x => x.Facebook.AccountId == tiktokId);
+                if (existing != null) return existing;
+
+                existing = new BotDbUser();
+                existing.Name = "tk_" + tiktokId;
+                existing.Connections = new();
+                existing.Facebook = new BotDbFacebook()
+                {
+                    AccountId = tiktokId
+                };
+                await Users.AddAsync(existing);
+                return existing;
+            });
+        }
 
         public Task<BotDbAuthSession> GetSessionAsync(string token)
         {
@@ -359,6 +377,7 @@ namespace DiscordBot.Classes
         public BotDbUserOptions Options { get; set; } = new();
         public BotDbInstagram Instagram { get; set; }
         public BotDbFacebook Facebook { get; set; }
+        public BotDbTikTok TikTok { get; set; }
 
         public BotRepublishRoles RepublishRole { get; set; } = BotRepublishRoles.None;
 
@@ -441,6 +460,16 @@ namespace DiscordBot.Classes
         }
     }
 
+    [Owned]
+    public class BotDbTikTok : BotDbOAuthAccount
+    {
+        public string RefreshToken { get; set; }
+        public DateTime RefreshExpiresAt { get; set; }
+        public ExternalAPIs.TikTokClient CreateClient(System.Net.Http.HttpClient http)
+        {
+            return ExternalAPIs.TikTokClient.Create(AccessToken, ExpiresAt, RefreshToken, RefreshExpiresAt, http);
+        }
+    }
     [Owned]
     public class BotDbFacebook : BotDbOAuthAccount
     {

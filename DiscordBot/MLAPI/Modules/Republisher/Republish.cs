@@ -172,6 +172,7 @@ namespace DiscordBot.MLAPI.Modules.Republisher
             var table = new Table();
             table.WithHeaderColumn("Name");
             table.WithHeaderColumn("Instagram");
+            table.WithHeaderColumn("TikTok");
             table.WithHeaderColumn("Facebook");
             table.WithHeaderColumn("Role");
             foreach(var user in users.OrderByDescending(x => x.Id))
@@ -179,6 +180,7 @@ namespace DiscordBot.MLAPI.Modules.Republisher
                 var row = new TableRow(id: user.Id.ToString());
                 row.WithCell(user.DisplayName);
                 row.WithCell(user.Instagram?.AccountId ?? "null");
+                row.WithCell(user.TikTok?.AccountId ?? "null");
                 row.WithCell(user.Facebook?.AccountId ?? "null");
                 var td = new TableData(null);
                 var select = new Select();
@@ -748,26 +750,29 @@ namespace DiscordBot.MLAPI.Modules.Republisher
         public override string AdminRedirectUri()
         {
             return TikTokClient.GetRedirectUri(Program.Configuration["tokens:tiktok:client_key"],
-                TikTokClient.TikTokAuthScopes.All, 
+                ExternalAPIs.TikTok.TikTokAuthScopes.All, 
                 Context.GetFullUrl(nameof(OAuthCallbacks.HandleTiktokOAuth)),
-                SetState());
+                "a:" + SetState());
         }
         public override string ProviderRedirectUri()
         {
             return TikTokClient.GetRedirectUri(Program.Configuration["tokens:tiktok:client_key"],
-                TikTokClient.TikTokAuthScopes.UserInfoBasic | TikTokClient.TikTokAuthScopes.VideoList,
+                ExternalAPIs.TikTok.TikTokAuthScopes.UserInfoBasic | ExternalAPIs.TikTok.TikTokAuthScopes.VideoList,
                 Context.GetFullUrl(nameof(OAuthCallbacks.HandleTiktokOAuth)),
-                SetState());
+                "u:" + SetState());
         }
 
         public override bool IsSetup(out bool expired)
         {
-            return expired = false;
+            expired = false;
+            return Service.Data?.TikTok?.IsValid(out expired) ?? false;
         }
 
         public override bool IsUserAuthenticated(out bool expired)
         {
-            return expired = false;
+            expired = false;
+            if (Context.User == null) return false;
+            return Context.User.TikTok.IsValid(out expired);
         }
 
         public override Task<Result<string>> ExecuteAsync()

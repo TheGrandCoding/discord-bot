@@ -41,6 +41,11 @@ namespace DiscordBot.MLAPI.Modules
             public string granted_scopes { get; set; }
             public Optional<string> denied_scopes { get; set; }
         }
+        public class TikTokOAuthSuccess : OAuthSuccess
+        {
+            public string scope { get; set; }
+            public Optional<string> state { get; set; }
+        }
 
         [Method("GET"), Path("/instagram")]
         public async Task HandleIGOAuthFail([FromQuery] OAuthError errData)
@@ -175,17 +180,94 @@ namespace DiscordBot.MLAPI.Modules
             await RespondRaw($"Error: {errData.error}, {errData.error_reason}: {errData.error_description}");
         }
 
-        [Method("GET"), Path("/tiktok")]
-        [RequireNoExcessQuery(false)]
-        public async Task HandleTiktokOAuth()
+        async Task<TikTokClient> getTikTok(string code)
         {
-            var d = new Dictionary<string, string>();
-            foreach(var key in Context.GetAllKeys())
+            var client = await TikTokClient.CreateOAuthAsync(code,
+                Program.Configuration["tokens:tiktok:client_key"],
+                Program.Configuration["tokens:tiktok:client_secret"],
+                Context.Services.GetRequiredService<HttpClient>());
+
+            if(Context.User == null)
             {
-                var q = Context.GetQuery(key);
-                d[key] = q;
+                Context.User = await Context.BotDB.GetUserByFacebook(client.oauth.OpenId, true);
+                await Context.BotDB.SaveChangesAsync();
+                await Handler.SetNewLoginSession(Context, Context.User, true);
             }
-            await RespondJson(JObject.FromObject(d));
+            Context.User.TikTok = new()
+            {
+                AccessToken = client.oauth.AccessToken,
+                AccountId = client.oauth.OpenId,
+                ExpiresAt = client.oauth.ExpiresAt ?? DateTime.Now.AddDays(1),
+                RefreshExpiresAt = client.oauth.RefreshExpiresAt ?? DateTime.Now.AddDays(365),
+                RefreshToken = client.oauth.RefreshToken,
+            };
+            await Context.BotDB.SaveChangesAsync();
+
+            return client;
+        }
+        async Task handleTikTokAdmin(string code)
+        {
+            var client = await getTikTok(code);
+            if(Context.User.RepublishRole != BotRepublishRoles.Admin)
+            {
+                await RespondRaw("Error: you do not have permission to do that.", 403);
+                return;
+            }
+            var srv = Context.Services.GetRequiredService<RepublishService>();
+            srv.Data.TikTok = new()
+            {
+                Id = client.oauth.OpenId,
+                Token = client.oauth.AccessToken,
+                ExpiresAt = client.oauth.ExpiresAt ?? DateTime.Now.AddDays(1),
+                RefreshToken = client.oauth.RefreshToken,
+                RefreshExpiresAt = client.oauth.RefreshExpiresAt ?? DateTime.Now.AddDays(365),
+            };
+            srv.OnSave();
+            await RedirectTo(nameof(Republisher.Republish.ViewRepublisher));
+        }
+        async Task handleTikTokUser(string code)
+        {
+            var client = await getTikTok(code);
+
+            if(!Context.User.HasDisplayName)
+            {
+                var me = await client.GetMeAsync(ExternalAPIs.TikTok.TikTokUserFields.DisplayName | ExternalAPIs.TikTok.TikTokUserFields.OpenId);
+                Context.User.DisplayName = me.DisplayName;
+                await Context.BotDB.SaveChangesAsync();
+            }
+
+            await RedirectTo(nameof(Republisher.Republish.ViewRepublisher));
+        }
+
+        [Method("GET"), Path("/tiktok")]
+        public async Task HandleTiktokOAuth([FromQuery]TikTokOAuthSuccess success)
+        {
+            var stateWithPrefix = success.state.GetValueOrDefault("m:_");
+            (var prefix, var state) = stateWithPrefix.Split(':');
+            if (await CheckState(state) == false) return;
+            var scopes = success.scope.Split(',');
+            if(prefix == "a")
+            {
+                if(!scopes.Contains("video.upload"))
+                {
+                    await RespondRaw("Error: you need to authorize 'video.upload' for admin setup.", 400);
+                    return;
+                }
+                await handleTikTokAdmin(success.code);
+            } else if(prefix == "u")
+            {
+                if(!scopes.Contains("video.list"))
+                {
+                    await RespondRaw("Error: you need to authorize 'video.list'", 400);
+                    return;
+                }
+                if (!scopes.Contains("user.info.basic"))
+                {
+                    await RespondRaw("Error: you need to authorize 'user.info.basic'", 400);
+                    return;
+                }
+                await handleTikTokUser(success.code);
+            }
         }
 
         async Task handleDiscordWebhooks(DiscordOAuthClient discord)

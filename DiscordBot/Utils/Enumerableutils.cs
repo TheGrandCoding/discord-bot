@@ -44,5 +44,11 @@ namespace DiscordBot.Utils
             }
             list.Insert(index, value);
         }
+    
+        public static void Deconstruct(this string[] arr, out string arg1, out string arg2)
+        {
+            arg1 = arr[0];
+            arg2 = arr[1];
+        }
     }
 }
