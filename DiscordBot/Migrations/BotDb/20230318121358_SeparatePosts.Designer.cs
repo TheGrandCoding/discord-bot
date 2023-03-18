@@ -3,6 +3,7 @@ using System;
 using DiscordBot.Classes;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DiscordBot.Migrations.BotDb
 {
     [DbContext(typeof(BotDbContext))]
-    partial class BotDbContextModelSnapshot : ModelSnapshot
+    [Migration("20230318121358_SeparatePosts")]
+    partial class SeparatePosts
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -190,6 +193,12 @@ namespace DiscordBot.Migrations.BotDb
 
                     b.Property<uint?>("AuthorId")
                         .HasColumnType("int unsigned");
+
+                    b.Property<int>("DefPlatform")
+                        .HasColumnType("int");
+
+                    b.Property<string>("DefaultText")
+                        .HasColumnType("longtext");
 
                     b.HasKey("Id");
 
@@ -401,6 +410,13 @@ namespace DiscordBot.Migrations.BotDb
 
             modelBuilder.Entity("DiscordBot.Classes.PublishMedia", b =>
                 {
+                    b.HasOne("DiscordBot.Classes.PublishPost", null)
+                        .WithMany("DefaultMedia")
+                        .HasForeignKey("PostId", "Platform")
+                        .HasPrincipalKey("Id", "DefPlatform")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("DiscordBot.Classes.PublishBase", null)
                         .WithMany("Media")
                         .HasForeignKey("PostId", "Platform")
@@ -426,6 +442,8 @@ namespace DiscordBot.Migrations.BotDb
 
             modelBuilder.Entity("DiscordBot.Classes.PublishPost", b =>
                 {
+                    b.Navigation("DefaultMedia");
+
                     b.Navigation("Platforms");
                 });
 #pragma warning restore 612, 618

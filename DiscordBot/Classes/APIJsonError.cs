@@ -84,6 +84,19 @@ namespace DiscordBot.Classes
         public APIErrorResponse this[int i] => Child(i);
         public APIErrorResponse this[string key] => Child(key);
 
+        public APIErrorResponse Extend(APIErrorResponse child)
+        {
+            if (child == null) return this;
+            foreach (var err in child.Errors)
+                WithError(err.Code, err.Message);
+            foreach((var key, var val) in child.Children)
+            {
+                val._parentKey = key;
+                Children[key] = val;
+            }
+            return this;
+        }
+
 
         public APIErrorResponse Build()
         {
@@ -92,7 +105,20 @@ namespace DiscordBot.Classes
                 _parent.Children[_parentKey] = this;
                 return _parent.Build();
             }
+            Prune();
             return this;
+        }
+        public bool Prune()
+        {
+            var remove = new List<string>();
+            foreach ((var key, var child) in Children)
+            {
+                if (child.Prune())
+                    remove.Add(key);
+            }
+            foreach(var x in remove)
+                Children.Remove(x);
+            return Children.Count == 0 && Errors.Count == 0;
         }
 
         public JObject ToJson()

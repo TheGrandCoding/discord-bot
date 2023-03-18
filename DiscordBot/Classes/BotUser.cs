@@ -41,6 +41,7 @@ namespace DiscordBot.Classes
         public DbSet<BotDbAuthSession> AuthSessions { get; set; }
 
         public DbSet<PublishPost> Posts { get; set; }
+        public DbSet<PublishBase> PostPlatforms { get; set; }
 
         public async Task<T> WithLock<T>(Func<Task<T>> action)
         {
@@ -91,6 +92,33 @@ namespace DiscordBot.Classes
                 b.OwnsOne(p => p.Facebook).HasIndex(i => i.AccountId).IsUnique();
                 b.OwnsOne(p => p.Instagram).HasIndex(i => i.AccountId).IsUnique();
             });
+            mb.Entity<PublishBase>()
+                .HasDiscriminator<PublishPlatform>(x => x.Platform)
+                .HasValue<PublishDefault>(PublishPlatform.Default)
+                .HasValue<PublishInstagram>(PublishPlatform.Instagram)
+                .HasValue<PublishDiscord>(PublishPlatform.Discord);
+            mb.Entity<PublishPost>(post =>
+            {
+                post.HasMany(p => p.Platforms)
+                    .WithOne()
+                    .HasForeignKey(p => new { p.PostId })
+                    .HasPrincipalKey(p => new { p.Id });
+                post.Navigation(p => p.Platforms)
+                    .AutoInclude();
+            });
+            mb.Entity<PublishBase>(pb =>
+            {
+                pb.HasKey(p => new { p.PostId, p.Platform });
+                pb.HasMany(p => p.Media)
+                    .WithOne()
+                    .HasForeignKey(p => new { p.PostId, p.Platform })
+                    .HasPrincipalKey(p => new { p.PostId, p.Platform });
+                pb.Navigation(p => p.Media)
+                    .AutoInclude();
+            });
+            mb.Entity<PublishMedia>()
+                .HasKey(p => new { p.PostId, p.Platform });
+                
         }
         protected override void OnConfiguring(DbContextOptionsBuilder options)
         {
