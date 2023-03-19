@@ -129,15 +129,16 @@ namespace ExternalAPIs
         }
 
         #region Instagram Media Publishing
-        public async Task<string> CreateIGMediaContainer(string userId, string image_url, string caption, string[] userTags = null)
+
+
+        async Task<string> createContainer(string userId, Dictionary<string, string> query, string caption, bool isCarouselItem, string[] userTags)
         {
-            var query = new Dictionary<string, string>();
-            query["image_url"] = image_url;
-            query["caption"] = caption;
-            if(userTags != null)
+            if(!string.IsNullOrEmpty(caption))
+                query["caption"] = caption;
+            if (userTags != null)
             {
                 var tags = new JsonArray();
-                foreach(var username in tags)
+                foreach (var username in tags)
                 {
                     var obj = new JsonObject();
                     obj["username"] = username;
@@ -145,14 +146,38 @@ namespace ExternalAPIs
                     obj["y"] = 0.0;
                     tags.Add(obj);
                 }
-                query["userTags"] = tags.ToString(); 
+                query["userTags"] = tags.ToString();
             }
+            if (isCarouselItem)
+                query["is_carousel_item"] = "true";
             var response = await postAsync($"/{userId}/media", queryParams: query);
             await response.EnsureSuccess();
             var content = await response.Content.ReadAsStringAsync();
             var json = JsonObject.Parse(content) as JsonObject;
             return json["id"].ToString();
         }
+
+        public Task<string> CreateIGVideoContainer(string userId, string video_url, string caption, bool isCarouselItem, string[] userTags = null)
+        {
+            var query = new Dictionary<string, string>();
+            query["video_url"] = video_url;
+            query["media_type"] = "VIDEO";
+            return createContainer(userId, query, caption, isCarouselItem, userTags);
+        }
+        public Task<string> CreateIGImageContainer(string userId, string image_url, string caption, bool isCarouselItem, string[] userTags = null)
+        {
+            var query = new Dictionary<string, string>();
+            query["image_url"] = image_url;
+            return createContainer(userId, query, caption, isCarouselItem, userTags);
+        }
+        public Task<string> CreateIGCarouselContainer(string userId, string[] childIds, string caption, string[] userTags = null)
+        {
+            var query = new Dictionary<string, string>();
+            query["children"] = string.Join(',', childIds);
+            query["media_type"] = "CAROUSEL";
+            return createContainer(userId, query, caption, false, userTags);
+        }
+
         public async Task<string> PublishIGMediaContainer(string userId, string containerId)
         {
             var q = new Dictionary<string, string>()

@@ -160,7 +160,13 @@ namespace DiscordBot.MLAPI.Modules.Republisher
         [Method("GET"), Path("/")]
         public Task ViewRepublisher()
         {
-            return viewPost(GetCurrentPost());
+            var cur = GetCurrentPost();
+            if(cur.Id != 0)
+            { // probably an old cookie, clear it.
+                SetCurrentPost(null);
+                cur = new();
+            }
+            return viewPost(cur);
         }
         [Method("GET"), Path("/post/{id}")]
         [Regex("id", "[0-9]+")]
@@ -491,6 +497,20 @@ namespace DiscordBot.MLAPI.Modules.Republisher
             return true;
         }
 
+        PublishPost reformatPost(PublishPost post)
+        {
+            foreach(var platform in post.Platforms)
+            {
+                platform.PostId = post.Id;
+                foreach(var media in platform.Media)
+                {
+                    media.Platform = platform.Platform;
+                    media.PostId = post.Id;
+                }
+            }
+            return post;
+        }
+
         [Method("POST"), Path("/api/post")]
         [RequireRepublishRole(BotRepublishRoles.Provider)]
         public async Task APISchedulePublish()
@@ -514,6 +534,7 @@ namespace DiscordBot.MLAPI.Modules.Republisher
                 return;
             }
             SetCurrentPost(null);
+            post = reformatPost(post); // make sure platforms are all set correctly
             if (post.Id != 0) // ID should be zero since its not been put into the database yet
             { // so if its not zero, we might be modifying an existing post
                 // so check permissions from DB version
@@ -546,13 +567,28 @@ namespace DiscordBot.MLAPI.Modules.Republisher
         public static Div ToHtml(this IGMedia media, bool selected = false)
         {
             var div = new Div(id: $"ig_{media.Id}", cls: "ig_media");
+            div.WithTag("data-type", media.MediaType);
             div.OnClick = "igSelectPost(event)";
             if (selected) div.ClassList.Add("selected");
-            var img = new Img(media.MediaUrl)
+            if(media.MediaType.ToLower() == "image")
             {
-                Style = "width: 32px"
-            };
-            div.Children.Add(img);
+                var img = new Img(media.MediaUrl)
+                {
+                    Style = "width: 32px"
+                };
+                div.Children.Add(img);
+            } else if(media.MediaType.ToLower() == "video")
+            {
+                var vid = new Video(media.MediaUrl)
+                {
+                    Style = "width: 32px"
+                };
+                div.Children.Add(vid);
+            } else
+            {
+                var err = new Anchor(media.MediaUrl, "[unknown type]");
+                div.Children.Add(err);
+            }
             var anchor = new Anchor(media.Permalink, media.Caption)
             {
                 OnClick = "igSelectPost(event)"
@@ -584,13 +620,24 @@ namespace DiscordBot.MLAPI.Modules.Republisher
         public abstract bool IsSetup(out bool expired);
         public abstract bool IsUserAuthenticated(out bool expired);
 
-        PublishBase ThisData { get
+        protected PublishBase ThisData { get
             {
                 if (Name == "Instagram")
                     return Post.Instagram;
                 else if (Name == "Discord")
                     return Post.Discord;
                 return null;
+            } }
+        protected List<PublishMedia> ThisMedia { get
+            {
+                var thisM = ThisData?.Media ?? new();
+                if (thisM.Count == 0)
+                    return Post.Default.Media;
+                return thisM;
+            } }
+        protected string ThisCaption { get
+            {
+                return ThisData?.Caption ?? Post.Default.Caption;
             } }
 
         public virtual Task addMediaList(Classes.HTMLHelpers.HTMLBase container)
@@ -602,14 +649,19 @@ namespace DiscordBot.MLAPI.Modules.Republisher
             foreach(var media in ThisData.Media)
             {
                 var mediaDiv = new Div();
+                mediaDiv.WithTag("data-id", i.ToString());
+                mediaDiv.WithTag("data-platform", media.Platform.ToString().ToLower());
                 mediaDiv.Children.Add(new Label($"{media.Type} {i}:"));
                 var inp = new Input("url", media.RemoteUrl)
                 {
                     OnChange = "mediaUrlChange(event)"
                 };
-                inp.WithTag("data-id", i.ToString());
-                inp.WithTag("data-platform", media.Platform.ToString().ToLower());
                 mediaDiv.Children.Add(inp);
+                var rmBtn = new Input("button", "-", cls: "mediaRemove")
+                {
+                    OnClick = "mediaRemove(event)"
+                };
+                mediaDiv.Children.Add(rmBtn);
                 i++;
                 container.Children.Add(mediaDiv);
             }
@@ -761,19 +813,42 @@ namespace DiscordBot.MLAPI.Modules.Republisher
             }
         }
 
+        async Task<string> createContainer(FacebookClient api, PublishMedia media, string userId, string caption)
+        {
+            string id;
+            if (media.Type == MediaType.Image)
+                id = await api.CreateIGImageContainer(userId, media.RemoteUrl, caption, caption == null);
+            else
+                id = await api.CreateIGVideoContainer(userId, media.RemoteUrl, caption, caption == null);
+            return id;
+        }
+
         public async override Task<Result<string>> ExecuteAsync()
         {
             var http = Context.Services.GetRequiredService<HttpClient>();
             var insta = Context.User.Instagram.CreateClient(http);
             var instaMe = await insta.GetMeAsync(IGUserFields.Username);
             var api = Service.Data.Facebook.CreateClient(http);
-            var media = (Post.Instagram.Media?.FirstOrDefault() ?? Post.Default.Media?.FirstOrDefault()).RemoteUrl;
-            var container = await api.CreateIGMediaContainer(Service.Data.Facebook.InstagramId,
-                media,
-                (Post.Instagram.Caption ?? Post.Default.Caption) + "\r\nVia @" + instaMe.Username,
-                new[] { instaMe.Username });
-            var id = await api.PublishIGMediaContainer(Service.Data.Facebook.InstagramId, container);
+
+            var media = ThisMedia ?? new();
+            var caption = ThisCaption + "\r\nVia @" + instaMe.Username;
+            string containerId;
+            if(media.Count == 0)
+            {
+                return new("No media has been selected.", null);
+            } else if(media.Count == 1)
+            {
+                containerId = await createContainer(api, media.First(), instaMe.Id, caption);
+            } else
+            {
+                var ids = new List<string>();
+                foreach (var med in media)
+                    ids.Add(await createContainer(api, med, instaMe.Id, null));
+                containerId = await api.CreateIGCarouselContainer(instaMe.Id, ids.ToArray(), caption);
+            }
+            var id = await api.PublishIGMediaContainer(instaMe.Id, containerId);
             var full = await api.GetMediaAsync(id, IGMediaFields.All);
+            ThisData.SentId = full.Id;
             return new(full.Permalink);
         }
     }
@@ -870,11 +945,26 @@ namespace DiscordBot.MLAPI.Modules.Republisher
         public async override Task<Result<string>> ExecuteAsync()
         {
             var client = Service.Data.Discord.CreateClient();
+            var embeds = new List<EmbedBuilder>();
             var embed = new EmbedBuilder();
             embed.Title = $"Republished message";
             embed.Description = Post.Discord.Caption ?? Post.Default.Caption;
-            embed.ImageUrl = (Post.Discord.Media?.FirstOrDefault() ?? Post.Default.Media?.FirstOrDefault()).RemoteUrl;
-            var msg = await client.SendMessageAsync(embeds: new[] { embed.Build() });
+            embeds.Add(embed);
+            string content = null;
+            var media = ThisMedia ?? new(); ;
+            for(int i = 0; i < media.Count; i++)
+            {
+                if(i < embeds.Count)
+                    embeds[i].ImageUrl = media[i].RemoteUrl;
+                else
+                {
+                    embeds.Add(new EmbedBuilder().WithImageUrl(media[i].RemoteUrl));
+                }
+            }
+            var msg = await client.SendMessageAsync(text: content, 
+                embeds: embeds.Select(x => x.Build()),
+                username: "Republisher");
+            ThisData.SentId = msg.ToString();
             return new($"Message ID {msg}");
         }
     }

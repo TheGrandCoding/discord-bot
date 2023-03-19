@@ -51,6 +51,7 @@ namespace ExternalAPIs
         public IGOAuthToken(string access_token, DateTime expires_at, string? token_type = null) : base(access_token, expires_at, token_type)
         {
         }
+        [JsonConstructor]
         public IGOAuthToken(string access_token, int expires_in, string? token_type = null) : base(access_token, expires_in, token_type)
         {
         }
@@ -65,7 +66,8 @@ namespace ExternalAPIs
             RefreshToken = refresh_token;
             RefreshExpiresAt = refresh_expires_at;
         }
-        public TikTokOAuthToken(string access_token, int expires_in, string refresh_token, int refresh_expires_in, string? token_type = null) : base(access_token, expires_in, token_type)
+        [JsonConstructor]
+        public TikTokOAuthToken(string access_token, int expires_in, string refresh_token, int refresh_expires_in) : base(access_token, expires_in, null)
         {
             RefreshToken = refresh_token;
             RefreshExpiresIn = refresh_expires_in;

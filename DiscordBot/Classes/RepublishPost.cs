@@ -58,43 +58,42 @@ namespace DiscordBot.Classes
         public APIErrorResponse GetErrors()
         {
             var errors = new APIErrorResponse();
-            var defText = Default?.Caption ?? null;
-            if (string.IsNullOrWhiteSpace(defText))
-                errors.Child("defaultText").WithRequired();
-            var defMedia = Default?.Media ?? null;
-            if (defMedia == null || defMedia.Count == 0)
-                errors.Child("defaultMedia").WithRequired();
+            if (Default == null)
+                return errors.Child(nameof(Default)).EndRequired();
             if (Instagram == null)
                 errors.Child(nameof(Instagram)).WithRequired();
-            else if (Instagram.Kind != PublishKind.DoNotPublish)
-            {
-                var insta = errors.Child(nameof(Instagram));
-                if (string.IsNullOrWhiteSpace(Instagram.Caption ?? defText))
-                    insta.Child("caption").WithRequired();
-                var med = insta.Child("media");
-                for(int i = 0; i < Instagram.Media.Count; i++)
-                {
-                    var err = med.Child(i);
-                    err.Extend(Instagram.Media[i].GetErrors());
-                }
-                if ((Instagram?.Media?.Count ?? 0) == 0)
-                    med.WithRequired();
-            }
             if (Discord == null)
                 errors.Child(nameof(Discord)).WithRequired();
-            else if (Discord.Kind != PublishKind.DoNotPublish)
+            foreach(var p in Platforms)
             {
-                var ds = errors.Child(nameof(Discord));
-                if (string.IsNullOrWhiteSpace(Discord.Caption ?? defText))
-                    return ds.Child("caption").WithRequired();
-                var med = ds.Child("media");
-                for (int i = 0; i < Discord.Media.Count; i++)
+                if(p.Platform != PublishPlatform.Default)
                 {
-                    var err = med.Child(i);
-                    err.Extend(Discord.Media[i].GetErrors());
+                    if (p.Kind == PublishKind.DoNotPublish) continue;
                 }
-                if ((Discord?.Media?.Count ?? 0) == 0)
-                    med.WithRequired();
+                var err = errors.Child(p.Platform.ToString().ToLower());
+                if (string.IsNullOrWhiteSpace(p.Caption ?? Default.Caption))
+                    err.Child("caption").WithRequired();
+                if (p.Media == null || p.Media.Count == 0)
+                {
+                    err.Child("media").WithRequired();
+                }
+                else
+                {
+                    var m = err.Child("media");
+                    var media = p.Media;
+                    if (media == null || media.Count == 0)
+                        media = Default.Media;
+                    for (int i = 0; i < media.Count; i++)
+                    {
+                        var merr = m.Child(i);
+                        merr.Extend(media[i].GetErrors());
+                    }
+                    var duplicates = media.Select(x => x.RemoteUrl).Distinct().Count();
+                    if(duplicates < media.Count)
+                    {
+                        m.WithError("DUPLICATE", "Media URLs must be unique");
+                    }
+                }
             }
             if(errors.HasAnyErrors())
                 return errors.Build();
@@ -120,6 +119,9 @@ namespace DiscordBot.Classes
         [JsonProperty("kind")]
         [JsonConverter(typeof(StringEnumConverter))]
         public PublishKind Kind { get; set; }
+
+        [JsonProperty("sentId")]
+        public string SentId { get; set; }
     }
     public class PublishDefault : PublishBase
     {
@@ -142,6 +144,8 @@ namespace DiscordBot.Classes
 
     public class PublishMedia
     {
+        [Key]
+        public uint Id { get; set; }
         [JsonProperty("postId")]
         public uint PostId { get; set; }
         [JsonProperty("platform")]

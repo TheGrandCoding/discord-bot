@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 
 namespace ExternalAPIs
@@ -58,7 +59,11 @@ namespace ExternalAPIs
             var response = await http.PostAsync(uri.Uri, null);
             await response.EnsureSuccess();
             var content = await response.Content.ReadAsStringAsync();
-            return JsonSerializer.Deserialize<TikTokOAuthToken>(content)!;
+            var obj = JsonNode.Parse(content) as JsonObject;
+            var message = obj["message"].ToString();
+            if(message == "success")
+                return JsonSerializer.Deserialize<TikTokOAuthToken>(obj["data"])!;
+            throw new HttpException(response, content);
         }
 
 

@@ -28,6 +28,16 @@ namespace DiscordBot.Classes.HTMLHelpers.Objects
         public string Width { get => get(nameof(Width)); set => set(nameof(Width), value); }
         public string Viewbox { get => get(nameof(Viewbox)); set => set(nameof(Viewbox), value); }
     }
+    public class Video : DOMBase
+    {
+        public Video(string src = null, string id = null, string cls = null) : base("video", id, cls)
+        {
+            Src = src;
+        }
+
+        public string Alt { get => get(nameof(Alt)); set => set(nameof(Alt), value); }
+        public string Src { get => get(nameof(Src)); set => set(nameof(Src), value); }
+    }
 
     public class ForeignObject : DOMBase
     {

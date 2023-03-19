@@ -116,8 +116,11 @@ namespace DiscordBot.Classes
                 pb.Navigation(p => p.Media)
                     .AutoInclude();
             });
-            mb.Entity<PublishMedia>()
-                .HasKey(p => new { p.PostId, p.Platform });
+            mb.Entity<PublishMedia>(pm =>
+            {
+                pm.HasKey(p => p.Id);
+                pm.HasIndex(p => new { p.PostId, p.Platform });
+            });
                 
         }
         protected override void OnConfiguring(DbContextOptionsBuilder options)

@@ -43,7 +43,7 @@ namespace DiscordBot.MLAPI.Modules
         }
         public class TikTokOAuthSuccess : OAuthSuccess
         {
-            public string scope { get; set; }
+            public string scopes { get; set; }
             public Optional<string> state { get; set; }
         }
 
@@ -245,7 +245,7 @@ namespace DiscordBot.MLAPI.Modules
             var stateWithPrefix = success.state.GetValueOrDefault("m:_");
             (var prefix, var state) = stateWithPrefix.Split(':');
             if (await CheckState(state) == false) return;
-            var scopes = success.scope.Split(',');
+            var scopes = success.scopes.Split(',');
             if(prefix == "a")
             {
                 if(!scopes.Contains("video.upload"))
