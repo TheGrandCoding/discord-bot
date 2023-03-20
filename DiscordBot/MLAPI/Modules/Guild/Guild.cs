@@ -73,7 +73,7 @@ namespace DiscordBot.MLAPI.Modules.Guild
                         {
                             Children =
                             {
-                                new RawObject($"<textarea>{rule.Long}</textarea>")
+                                new RawText($"<textarea>{rule.Long}</textarea>")
                             }
                         }
                     }

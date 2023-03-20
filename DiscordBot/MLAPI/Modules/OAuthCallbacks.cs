@@ -295,13 +295,8 @@ namespace DiscordBot.MLAPI.Modules
                 return;
             }
             var service = Context.Services.GetRequiredService<RepublishService>();
-            service.Data.Discord.Token = discord.oauth.Webhook.Url;
-            service.OnSave();
+            await service.SetDiscordWebhook(discord.oauth.Webhook.Url);
             var dswc = new Discord.Webhook.DiscordWebhookClient(discord.oauth.Webhook.Url);
-            await dswc.SendMessageAsync(embeds: new[] { new EmbedBuilder()
-                .WithTitle("Republisher linked")
-                .WithDescription($"This channel has been configured as a reposting location.")
-                .Build()});
             await RedirectTo(nameof(Republisher.Republish.ViewAdmin));
         }
 

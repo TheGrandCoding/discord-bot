@@ -14,16 +14,17 @@ namespace ExternalAPIs
     }
     public class OAuthToken
     {
-        public OAuthToken(string access_token, DateTime expires_at, string? token_type = null)
+        public OAuthToken(string accessToken, DateTime? expiresAt, string? tokenType = null)
         {
-            AccessToken = access_token;
-            TokenType = token_type;
-            ExpiresAt = expires_at;
+            AccessToken = accessToken;
+            TokenType = tokenType;
+            ExpiresAt = expiresAt;
         }
         [JsonConstructor]
-        public OAuthToken(string access_token, int expires_in, string? token_type = null) 
-            : this(access_token, DateTime.Now.AddSeconds(expires_in), token_type)
+        public OAuthToken(string accessToken, int? expiresIn, string? tokenType = null) 
+            : this(accessToken, DateTime.Now.AddSeconds(expiresIn.GetValueOrDefault(3600)), tokenType)
         {
+            expires_in = expiresIn;
         }
 
         [JsonPropertyName("access_token")]
@@ -48,11 +49,11 @@ namespace ExternalAPIs
     }
     public class IGOAuthToken : OAuthToken
     {
-        public IGOAuthToken(string access_token, DateTime expires_at, string? token_type = null) : base(access_token, expires_at, token_type)
+        public IGOAuthToken(string accessToken, DateTime expiresAt, string? tokenType = null) : base(accessToken, expiresAt, tokenType)
         {
         }
         [JsonConstructor]
-        public IGOAuthToken(string access_token, int expires_in, string? token_type = null) : base(access_token, expires_in, token_type)
+        public IGOAuthToken(string accessToken, int? expiresIn, string? tokenType = null) : base(accessToken, expiresIn, tokenType)
         {
         }
 
@@ -67,13 +68,16 @@ namespace ExternalAPIs
             RefreshExpiresAt = refresh_expires_at;
         }
         [JsonConstructor]
-        public TikTokOAuthToken(string access_token, int expires_in, string refresh_token, int refresh_expires_in) : base(access_token, expires_in, null)
+        public TikTokOAuthToken(string accessToken, int? expiresIn, string refreshToken, int? refreshExpiresIn) : base(accessToken, expiresIn, null)
         {
-            RefreshToken = refresh_token;
-            RefreshExpiresIn = refresh_expires_in;
+            RefreshToken = refreshToken;
+            RefreshExpiresIn = refreshExpiresIn;
         }
+        [JsonPropertyName("open_id")]
         public string OpenId { get; set; }
+        [JsonPropertyName("scope")]
         public string Scope { get; set; }
+        [JsonPropertyName("refresh_token")]
         public string RefreshToken { get; set; }
         [JsonPropertyName("refresh_expires_at")]
         public DateTime? RefreshExpiresAt { get; internal set; }

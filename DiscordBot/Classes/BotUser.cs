@@ -96,7 +96,8 @@ namespace DiscordBot.Classes
                 .HasDiscriminator<PublishPlatform>(x => x.Platform)
                 .HasValue<PublishDefault>(PublishPlatform.Default)
                 .HasValue<PublishInstagram>(PublishPlatform.Instagram)
-                .HasValue<PublishDiscord>(PublishPlatform.Discord);
+                .HasValue<PublishDiscord>(PublishPlatform.Discord)
+                .HasValue<PublishTikTok>(PublishPlatform.TikTok);
             mb.Entity<PublishPost>(post =>
             {
                 post.HasMany(p => p.Platforms)
@@ -125,6 +126,9 @@ namespace DiscordBot.Classes
         }
         protected override void OnConfiguring(DbContextOptionsBuilder options)
         {
+#if DEBUG
+            options.EnableSensitiveDataLogging();
+#endif
             options.WithSQLConnection("botdb", true);
         }
 

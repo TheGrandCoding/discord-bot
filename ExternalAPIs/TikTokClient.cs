@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace ExternalAPIs
@@ -62,8 +63,11 @@ namespace ExternalAPIs
             var obj = JsonNode.Parse(content) as JsonObject;
             var message = obj["message"].ToString();
             if(message == "success")
-                return JsonSerializer.Deserialize<TikTokOAuthToken>(obj["data"])!;
-            throw new HttpException(response, content);
+                return JsonSerializer.Deserialize<TikTokOAuthToken>(obj["data"], new JsonSerializerOptions()
+                {
+                    IncludeFields = true
+                })!;
+            throw new HttpException(null, content);
         }
 
 
@@ -76,8 +80,60 @@ namespace ExternalAPIs
             var content = await response.Content.ReadAsStringAsync();
             return JsonSerializer.Deserialize<TikTokUser>(content)!;
         }
+        class videoFetch
+        {
+            [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+            public ulong? cursor { get; set; }
+            [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+            public int? max_count { get; set; }
+        }
 
+        public async IAsyncEnumerable<TikTokVideo> GetMyVideosAsync(TikTokVideoFields field)
+        {
+            var f = field.ToSnakeCaseList();
+            var query = new Dictionary<string, string>() { { "fields", string.Join(',', f) } };
+            bool has_more = true;
+            var fetchData = new videoFetch();
+            fetchData.max_count = 10;
+            while (has_more)
+            {
+                HttpResponseMessage response;
+                if(fetchData.cursor.HasValue || fetchData.max_count.HasValue)
+                    response = await postAsync<videoFetch>("/v2/video/list/", fetchData,  query);
+                else
+                    response = await postAsync("/v2/video/list/", queryParams: query);
+                await response.EnsureSuccess();
+                var content = await response.Content.ReadAsStringAsync();
+                var parsed = JsonSerializer.Deserialize<TikTokAPIResponse<TikTokVideoList>>(content);
+                foreach (var video in parsed.data.videos)
+                {
+                    yield return video;
+                }
+                has_more = parsed.data.has_more;
+                fetchData.cursor = parsed.data.cursor;
+            }
+        }
 
+        class videoQueryFilters
+        {
+            public string[] video_ids { get; set; }
+        }
+        class videoQuery
+        {
+            public videoQueryFilters filters { get; set; }
+        }
+        public async Task<TikTokVideo[]> GetMyVideoAsync(string[] ids, TikTokVideoFields fields)
+        {
+            var body = new videoQuery()
+            {
+                filters = new() { video_ids = ids },
+            };
+            var response = await postAsync("/v2/video/query/", body, new() { { "fields", string.Join(',', fields.ToSnakeCaseList())} });
+            await response.EnsureSuccess();
+            var content = await response.Content.ReadAsStringAsync();
+            var parsed = JsonSerializer.Deserialize<TikTokAPIResponse<TikTokVideoList>>(content);
+            return parsed.data.videos;
+        }
 
 
         protected override Task<HttpResponseMessage> sendAsync(HttpRequestMessage request, bool withToken = true)

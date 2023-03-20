@@ -7,6 +7,7 @@ using DiscordBot.Utils;
 using ExternalAPIs;
 using ExternalAPIs.Facebook;
 using ExternalAPIs.Instagram;
+using ExternalAPIs.TikTok;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -52,7 +53,8 @@ namespace DiscordBot.MLAPI.Modules.Republisher
                 {
                     new PublishDefault(),
                     new PublishInstagram(), 
-                    new PublishDiscord()
+                    new PublishDiscord(),
+                    new PublishTikTok()
                 };
             }
             foreach (var plat in post.Platforms)
@@ -97,6 +99,16 @@ namespace DiscordBot.MLAPI.Modules.Republisher
                 SetState()).ToString();
         }
 
+        List<SocialMediaPlatform> getPlatforms(PublishPost post)
+        {
+            return new List<SocialMediaPlatform>()
+            {
+                new InstagramRow(SetState, post, Context),
+                new TikTokRow(SetState, post, Context),
+                new DiscordWebhookRow(SetState, post, Context)
+            };
+        }
+
         async Task viewPost(PublishPost post)
         {
             var rep = new Replacements();
@@ -114,17 +126,12 @@ namespace DiscordBot.MLAPI.Modules.Republisher
             }
 
 
-            var platforms = new List<SocialMediaPlatform>()
-            {
-                new InstagramRow(SetState, post, Context),
-                new TikTokRow(SetState, post, Context),
-                new DiscordWebhookRow(SetState, post, Context)
-            };
+            var platforms = getPlatforms(post);
             foreach (var row in platforms)
             {
                 var div = await row.GetDivAsync();
                 main.Children.Add(div);
-                main.Children.Add(new RawObject(null) { RawHTML = "<hr/>" });
+                main.Children.Add(new RawHTML("<hr/>"));
             }
 
             rep.Add("content", main);
@@ -265,66 +272,20 @@ namespace DiscordBot.MLAPI.Modules.Republisher
         {
             var service = Context.Services.GetRequiredService<RepublishService>();
             var main = new Div();
-            if (!service.IsInstagramValid(out var expired))
+            
+            foreach(var platform in getPlatforms(null))
             {
-                string reason;
-                if (service.Data.Facebook?.Id == null)
-                    reason = "A connection has not yet been made to a valid Facebook account.";
-                else if (service.Data.Facebook?.Token == null)
-                    reason = "The authorization token is invalid or has not been provided.";
-                else if (service.Data.Facebook?.InstagramId == null)
-                    reason = "Whist a Facebook account has been linked, it is not correctly connected to a Instagram Business account";
-                else if (expired)
-                    reason = "The login has expired";
-                else
-                    reason = "An unknown issue is present.";
-                main.RawHTML = $"There is a problem with this connection:<br/><strong>{reason}</strong>";
-                main.Class = "error";
-                if(Context.User.RepublishRole.HasFlag(BotRepublishRoles.Admin))
-                {
-                    main.RawHTML += "<br/>Please click this box to force a re-authentication flow, if you are able to do so.";
-                    var url = getFacebookUrl();
-                    main.WithTag("data-url", url);
-                    main.OnClick = "redirectErr(event)";
-                }
-            } else
-            {
-                var data = new Dictionary<string, string>();
-                data["Facebook Account ID"] = service.Data.Facebook.Id;
-                data["Facebook Page ID"] = service.Data.Facebook.PageId;
-                data["Instagram Account ID"] = service.Data.Facebook.InstagramId;
-                var http = Context.Services.GetRequiredService<HttpClient>();
-                var fb = service.Data.Facebook.CreateClient(http);
-                try
-                {
-                    var me = await fb.GetMeAsync();
-                    data["Facebook Account Name"] = me.Name;
-                } catch(Exception ex)
-                {
-                    Program.LogError(ex, "ViewAdminRp");
-                }
-                data["Token Expires in Seconds"] = (service.Data.Facebook.ExpiresAt - DateTime.Now).TotalSeconds.ToString();
-                var ul = new UnorderedList();
-                foreach((var key, var value) in data)
-                {
-                    ul.AddItem(new ListItem()
-                    {
-                        Children =
-                        {
-                            new StrongText(key + ": "),
-                            new Code(value)
-                        }
-                    });
-                }
-                main.Children.Add(ul);
+                var div = platform.GetAdminDiv();
+                main.Children.Add(div);
+                main.Children.Add(new RawHTML("<hr>"));
             }
+
             var userTable = await getUserManageTable(service);
             var postTable = await getPostManageTable();
             await ReplyFile("admin.html", 200, new Replacements()
-                .Add("facebook", main)
+                .Add("platforms", main)
                 .Add("userTable", userTable)
-                .Add("postTable", postTable)
-                .Add("dsWebhook", service.Data.Discord?.Token ?? ""));
+                .Add("postTable", postTable));
         }
 
 
@@ -359,6 +320,29 @@ namespace DiscordBot.MLAPI.Modules.Republisher
             await RespondRaw(ig, 200);
         }
         
+        [Method("GET"), Path("/api/tiktok")]
+        public async Task APIGetTikTokItems()
+        {
+            if (!(Context.User?.TikTok?.IsValid(out _) ?? false))
+            {
+                var m = new TikTokRow(SetState, null, Context);
+                await RespondRedirect(m.ProviderRedirectUri());
+                return;
+            }
+
+            var http = Context.Services.GetRequiredService<HttpClient>();
+            var tiktok = Context.User.TikTok.CreateClient(http);
+
+            var media = tiktok.GetMyVideosAsync(ExternalAPIs.TikTok.TikTokVideoFields.All);
+
+            string tt = "";
+            await foreach (var full in media)
+            {
+                tt += full.ToHtml() + "\n";
+            }
+            await RespondRaw(tt, 200);
+        }
+
         public struct PatchUserData
         {
             public int? role;
@@ -566,8 +550,8 @@ namespace DiscordBot.MLAPI.Modules.Republisher
     {
         public static Div ToHtml(this IGMedia media, bool selected = false)
         {
-            var div = new Div(id: $"ig_{media.Id}", cls: "ig_media");
-            div.WithTag("data-type", media.MediaType);
+            var div = new Div(id: $"ig_{media.Id}", cls: "ig media");
+            div.WithTag("data-type", $"{media.MediaType}".ToLower());
             div.OnClick = "igSelectPost(event)";
             if (selected) div.ClassList.Add("selected");
             if(media.MediaType.ToLower() == "image")
@@ -592,6 +576,25 @@ namespace DiscordBot.MLAPI.Modules.Republisher
             var anchor = new Anchor(media.Permalink, media.Caption)
             {
                 OnClick = "igSelectPost(event)"
+            };
+            div.Children.Add(anchor);
+            return div;
+        }
+        public static Div ToHtml(this TikTokVideo media, bool selected = false)
+        {
+            var div = new Div(id: $"tt_{media.Id}", cls: "tt media");
+            div.WithTag("data-type", "video");
+            div.WithTag("data-media-url", media.EmbedLink);
+            div.OnClick = "ttSelectPost(event)";
+            if (selected) div.ClassList.Add("selected");
+            var img = new Img(media.CoverImageUrl)
+            {
+                Style = "width: 32px"
+            };
+            div.Children.Add(img);
+            var anchor = new Anchor("#", media.Title)
+            {
+                OnClick = "ttSelectPost(event)"
             };
             div.Children.Add(anchor);
             return div;
@@ -622,11 +625,7 @@ namespace DiscordBot.MLAPI.Modules.Republisher
 
         protected PublishBase ThisData { get
             {
-                if (Name == "Instagram")
-                    return Post.Instagram;
-                else if (Name == "Discord")
-                    return Post.Discord;
-                return null;
+                return Post.Platforms.FirstOrDefault(x => x.Platform.ToString() == Name);
             } }
         protected List<PublishMedia> ThisMedia { get
             {
@@ -639,6 +638,52 @@ namespace DiscordBot.MLAPI.Modules.Republisher
             {
                 return ThisData?.Caption ?? Post.Default.Caption;
             } }
+
+        public virtual Div GetAdminDiv()
+        {
+            var container = new Div();
+            container.Children.Add(new H1(Name));
+            var main = new Div();
+            var url = AdminRedirectUri();
+            main.ClassList.Add("box");
+            main.WithTag("data-url", url);
+            main.OnClick = "redirectErr(event)";
+            container.Children.Add(main);
+            var account = GetAccount();
+            var ul = new UnorderedList();
+            main.Children.Add(ul);
+            foreach(var property in account.GetType().GetProperties())
+            {
+                var value = property.GetValue(account);
+                var li = new ListItem();
+                li.Children.Add(new StrongText(property.Name + ": "));
+                if (value == null)
+                    li.Children.Add(new Code("<null>"));
+                else if (property.Name.Contains("token", StringComparison.OrdinalIgnoreCase))
+                    li.Children.Add(new Code("***"));
+                else
+                    li.Children.Add(new Code($"{value}"));
+                ul.AddItem(li);
+            }
+            main.Children.Add(new RawHTML("You can click this text to (re)authorize this connection<br/>"));
+            if (!IsSetup(out bool expired))
+            {
+                string reason;
+                if (account?.Id == null)
+                    reason = "A connection has not yet been made to a valid Facebook account.";
+                else if (account?.Token == null)
+                    reason = "The authorization token is invalid or has not been provided.";
+                else if (expired)
+                    reason = "The login has expired";
+                else
+                    reason = "Some other issue is present.";
+                main.Children.Add(new RawHTML($"<strong>There is a problem with this connection:</strong><br/><strong>{reason}</strong>"));
+                main.ClassList.Add("error");
+                return container;
+            }
+            return container;
+        }
+        public abstract BaseAccount GetAccount();
 
         public virtual Task addMediaList(Classes.HTMLHelpers.HTMLBase container)
         {
@@ -797,7 +842,7 @@ namespace DiscordBot.MLAPI.Modules.Republisher
             {
                 OnClick = "igSearch()"
             });
-            var result = new Div("instaPosts");
+            var result = new Div("instaPosts", cls: "withScroll");
             left.Children.Add(result);
             if (Post.Instagram.OriginalId != null)
             {
@@ -851,6 +896,8 @@ namespace DiscordBot.MLAPI.Modules.Republisher
             ThisData.SentId = full.Id;
             return new(full.Permalink);
         }
+
+        public override BaseAccount GetAccount() => Service.Data?.Facebook;
     }
 
     public class TikTokRow : SocialMediaPlatform
@@ -859,16 +906,28 @@ namespace DiscordBot.MLAPI.Modules.Republisher
         {
         }
 
-        public override Task addLeftcolumn(Div left)
+        public override async Task addLeftcolumn(Div left)
         {
-            left.Children.Add(new StrongText("Not yet implemented!"));
-            return Task.CompletedTask;
-        }
-
-        public override Task addRightColumn(Div right)
-        {
-            right.Children.Add(new StrongText("Not yet implemented!"));
-            return Task.CompletedTask;
+            left.Children.Add(new StrongText("This does not work properly! TikTok's API does not officially support downloading the video file, so this won't work properly."));
+            left.Children.Add(new Input("button", "Search for TikTok video")
+            {
+                OnClick = "ttSearch(event)"
+            });
+            var result = new Div("tiktokPosts", cls: "withScroll");
+            left.Children.Add(result);
+            if (Post.TikTok.OriginalId != null)
+            {
+                var tiktok = Service.Data.TikTok.CreateClient(Context.Services.GetRequiredService<HttpClient>());
+                var info = await tiktok.GetMyVideoAsync(new[] { Post.TikTok.OriginalId }, TikTokVideoFields.All);
+                if (info != null && info.Length > 0)
+                {
+                    result.RawHTML = info[0].ToHtml(true);
+                }
+                else
+                {
+                    Post.Instagram.OriginalId = null;
+                }
+            }
         }
 
         public override string AdminRedirectUri()
@@ -903,6 +962,8 @@ namespace DiscordBot.MLAPI.Modules.Republisher
         {
             return Task.FromResult(new Result<string>("Not implemented", null));
         }
+
+        public override BaseAccount GetAccount() => Service.Data.TikTok;
     }
 
     public class DiscordWebhookRow : SocialMediaPlatform
@@ -962,10 +1023,13 @@ namespace DiscordBot.MLAPI.Modules.Republisher
                 }
             }
             var msg = await client.SendMessageAsync(text: content, 
-                embeds: embeds.Select(x => x.Build()),
-                username: "Republisher");
+                embeds: embeds.Select(x => x.Build()));
             ThisData.SentId = msg.ToString();
             return new($"Message ID {msg}");
         }
+
+
+        public override BaseAccount GetAccount() => Service.Data.Discord;
+
     }
 }

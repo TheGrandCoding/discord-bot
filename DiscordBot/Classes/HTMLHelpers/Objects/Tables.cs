@@ -27,7 +27,7 @@ namespace DiscordBot.Classes.HTMLHelpers.Objects
         }
 
         public Table WithHeaderColumn(string text)
-            => WithHeaderColumn(new RawObject(text));
+            => WithHeaderColumn(new RawText(text));
         public Table WithHeaderColumn(HTMLBase html)
         {
             if (HeaderRow == null)
@@ -45,7 +45,7 @@ namespace DiscordBot.Classes.HTMLHelpers.Objects
             foreach(var x in cells)
             {
                 if (x is string y)
-                    ls.Add(new RawObject(y));
+                    ls.Add(new RawText(y));
                 else if (x is HTMLBase)
                     ls.Add(x as HTMLBase);
                 else

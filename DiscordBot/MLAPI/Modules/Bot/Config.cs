@@ -65,7 +65,7 @@ namespace DiscordBot.MLAPI.Modules.Bot
             return span;
         }
 
-        HTMLBase getControl(string s) => new RawObject(s);
+        HTMLBase getControl(string s) => new RawText(s);
 
         Div getHtml(IConfigurationSection section)
         {

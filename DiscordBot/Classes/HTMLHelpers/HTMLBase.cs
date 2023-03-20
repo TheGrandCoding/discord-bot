@@ -13,14 +13,14 @@ namespace DiscordBot.Classes.HTMLHelpers
 
         public string Tag { get; protected set; }
 
-        private List<string> m_classes = new List<string>();
+        private HashSet<string> m_classes = new();
 
         public string Id { get => get("id"); set => set("id", value); }
-        public string Class { get => string.Join(' ', m_classes); set => m_classes = (value ?? "").Split(' ').ToList(); }
+        public string Class { get => string.Join(' ', m_classes); set => m_classes = (value ?? "").Split(' ').ToHashSet(); }
 
         public bool IsShortTag { get; set; }
         public bool IsOpenOnly { get; set; }
-        public List<string> ClassList { get => m_classes; }
+        public HashSet<string> ClassList { get => m_classes; set => m_classes = value; }
 
         private string _rawText;
         public string RawText { get

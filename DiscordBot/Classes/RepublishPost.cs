@@ -53,6 +53,9 @@ namespace DiscordBot.Classes
         [NotMapped]
         [JsonIgnore]
         public PublishDiscord Discord => Platforms.First(x => x.Platform == PublishPlatform.Discord) as PublishDiscord;
+        [NotMapped]
+        [JsonIgnore]
+        public PublishTikTok TikTok => Platforms.First(x => x.Platform == PublishPlatform.TikTok) as PublishTikTok;
 
 
         public APIErrorResponse GetErrors()
@@ -64,7 +67,9 @@ namespace DiscordBot.Classes
                 errors.Child(nameof(Instagram)).WithRequired();
             if (Discord == null)
                 errors.Child(nameof(Discord)).WithRequired();
-            foreach(var p in Platforms)
+            if (TikTok == null)
+                errors.Child(nameof(TikTok)).WithRequired();
+            foreach (var p in Platforms)
             {
                 if(p.Platform != PublishPlatform.Default)
                 {
@@ -86,6 +91,8 @@ namespace DiscordBot.Classes
                     for (int i = 0; i < media.Count; i++)
                     {
                         var merr = m.Child(i);
+                        if (p.Platform == PublishPlatform.TikTok && media[i].Type != MediaType.Video)
+                            merr.Child("type").WithChoices("VIDEO");
                         merr.Extend(media[i].GetErrors());
                     }
                     var duplicates = media.Select(x => x.RemoteUrl).Distinct().Count();
@@ -104,6 +111,7 @@ namespace DiscordBot.Classes
     [JsonSubtypes.KnownSubType(typeof(PublishDefault), PublishPlatform.Default)]
     [JsonSubtypes.KnownSubType(typeof(PublishInstagram), PublishPlatform.Instagram)]
     [JsonSubtypes.KnownSubType(typeof(PublishDiscord), PublishPlatform.Discord)]
+    [JsonSubtypes.KnownSubType(typeof(PublishTikTok), PublishPlatform.TikTok)]
     public abstract class PublishBase
     {
         [JsonProperty("postId")]
@@ -122,6 +130,8 @@ namespace DiscordBot.Classes
 
         [JsonProperty("sentId")]
         public string SentId { get; set; }
+        [JsonProperty("originalId")]
+        public string OriginalId { get; set; }
     }
     public class PublishDefault : PublishBase
     {
@@ -132,13 +142,16 @@ namespace DiscordBot.Classes
     {
         [JsonProperty("platform")]
         public override PublishPlatform Platform => PublishPlatform.Instagram;
-        [JsonProperty("originalId")]
-        public string OriginalId { get; set; }
     }
     public class PublishDiscord : PublishBase
     {
         [JsonProperty("platform")]
         public override PublishPlatform Platform => PublishPlatform.Discord;
+    }
+    public class PublishTikTok : PublishBase
+    {
+        [JsonProperty("platform")]
+        public override PublishPlatform Platform => PublishPlatform.TikTok;
     }
 
 

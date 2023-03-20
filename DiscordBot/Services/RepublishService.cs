@@ -1,4 +1,5 @@
-﻿using DiscordBot.Classes;
+﻿using Discord;
+using DiscordBot.Classes;
 using ExternalAPIs;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
@@ -37,6 +38,41 @@ namespace DiscordBot.Services
                 });
             }*/
         }
+    
+        public async Task SetDiscordWebhook(string url)
+        {
+            if(!string.IsNullOrWhiteSpace(Data.Discord.Token))
+            { // there's already a token here, so we'll try to delete the old webhook
+                try
+                {
+                    var client = Data.Discord.CreateClient();
+                    await client.DeleteWebhookAsync(new Discord.RequestOptions()
+                    {
+                        AuditLogReason = "A different URL was provided."
+                    });
+                } catch { }
+            }
+            Data.Discord.Token = url;
+            try
+            {
+                var client = Data.Discord.CreateClient();
+                await client.ModifyWebhookAsync(x =>
+                {
+                    x.Name = "Republisher";
+                });
+                await client.SendMessageAsync(embeds: new[] { new EmbedBuilder()
+                    .WithTitle("Republisher linked")
+                    .WithDescription($"This channel has been configured as a reposting location.")
+                    .Build()});
+                OnSave();
+            }
+            catch
+            {
+                Data.Discord.Token = null;
+                throw;
+            }
+        }
+
     }
     
     public class RepublishSave

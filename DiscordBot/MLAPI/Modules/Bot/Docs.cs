@@ -32,7 +32,7 @@ namespace DiscordBot.MLAPI.Modules
             {
                 Children =
                 {
-                    new RawObject($"<blockquote>{message}</blockquote>")
+                    new RawText($"<blockquote>{message}</blockquote>")
                 }
             };
         }
@@ -176,7 +176,7 @@ namespace DiscordBot.MLAPI.Modules
             if (linkText != null)
                 html.Children.Add(new Anchor(linkText, text));
             else
-                html.Children.Add(new RawObject(text));
+                html.Children.Add(new RawText(text));
             var anchor = new Anchor("#" + id, "", cls: "anchor-3Z-8Bb hyperlink");
             anchor.Children.Add(new Div().WithTag("name", id));
             html.Children.Add(anchor);
@@ -587,7 +587,7 @@ namespace DiscordBot.MLAPI.Modules
                         req.AddPath($"{chr}");
 
                         var anchor = new Anchor("#", "");
-                        anchor.Children.Add(new RawObject("{"));
+                        anchor.Children.Add(new RawText("{"));
                         var spn = new Span()
                         {
                             RawText = Uri.EscapeDataString(prm.Name),
@@ -596,14 +596,14 @@ namespace DiscordBot.MLAPI.Modules
                         anchor.Children.Add(spn);
                         if (prm.IsOptional)
                         {
-                            anchor.Children.Add(new RawObject(" = "));
+                            anchor.Children.Add(new RawText(" = "));
                             anchor.Children.Add(new Span()
                             {
                                 Style = "color: blue",
                                 RawText = $"{(prm.DefaultValue ?? "null")}"
                             });
                         }
-                        anchor.Children.Add(new RawObject("}"));
+                        anchor.Children.Add(new RawText("}"));
                         req.Add(anchor);
                     }
                     main.Children.Add(req.ToHtml());
@@ -720,7 +720,7 @@ namespace DiscordBot.MLAPI.Modules
             var span = new Span();
             var anchor = new Anchor(link, "", cls: "http-req-variable");
             span.Children.Add(anchor);
-            anchor.Children.Add(new RawObject("{"));
+            anchor.Children.Add(new RawText("{"));
             anchor.Children.Add(new Span()
             {
                 RawText = Program.GetTypeName(param.Type, out var _),
@@ -732,9 +732,9 @@ namespace DiscordBot.MLAPI.Modules
                 anchor.Children.Add(new Span().WithRawText($" = {(param.DefaultValue ?? "null")}")
                     .WithTag("style", "color: blue"));
             }
-            anchor.Children.Add(new RawObject("}"));
+            anchor.Children.Add(new RawText("}"));
             if(withSpace)
-                span.Children.Add(new RawObject(" "));
+                span.Children.Add(new RawText(" "));
             url.Children.Add(span);
             return this;
         }
@@ -743,7 +743,7 @@ namespace DiscordBot.MLAPI.Modules
             var span = new Span();
             var anchor = new Anchor(link, "", cls: "http-req-variable");
             span.Children.Add(anchor);
-            anchor.Children.Add(new RawObject("{"));
+            anchor.Children.Add(new RawText("{"));
             anchor.Children.Add(new Span()
             {
                 RawText = Program.GetTypeName(param.ParameterType, out var _),
@@ -755,9 +755,9 @@ namespace DiscordBot.MLAPI.Modules
                 anchor.Children.Add(new Span().WithRawText($" = {(param.DefaultValue ?? "null")}")
                     .WithTag("style", "color: blue"));
             }
-            anchor.Children.Add(new RawObject("}"));
+            anchor.Children.Add(new RawText("}"));
             if(withSpace)
-                span.Children.Add(new RawObject(" "));
+                span.Children.Add(new RawText(" "));
             url.Children.Add(span);
             return this;
         }

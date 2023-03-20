@@ -258,7 +258,7 @@ namespace DiscordBot.MLAPI.Modules
                                 var nameCell = row.Children[full ? 2 : 0] as TableData;
                                 var warnSpan = new Span(cls: "product-warn");
                                 warnSpan.Children.Add(new Break());
-                                warnSpan.Children.Add(new RawObject($"(!) This item is also listed in other categories: {string.Join(", ", c)}"));
+                                warnSpan.Children.Add(new RawText($"(!) This item is also listed in other categories: {string.Join(", ", c)}"));
                                 nameCell.Children.Add(warnSpan);
                             }
                         }
@@ -522,7 +522,7 @@ namespace DiscordBot.MLAPI.Modules
                     var listItem = new ListItem();
                     var c = new Classes.HTMLHelpers.Objects.Span();
                     if (i.Value.Amount > 1)
-                        c.Children.Add(new RawObject($"{i.Value.Amount}x "));
+                        c.Children.Add(new RawText($"{i.Value.Amount}x "));
                     var info = getProductInfo(prod, 0, c);
                     if(i.Value.Frozen)
                         info.Children.Add(new Span(cls: "frozen").WithRawText(" (from Frozen)"));

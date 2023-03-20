@@ -44,7 +44,7 @@ namespace DiscordBot.MLAPI.Modules
                     data = "*No data stored on you*";
                 else
                     data = jobj.ToString(Newtonsoft.Json.Formatting.Indented);
-                para.Children.Add(new RawObject("<pre>" + 
+                para.Children.Add(new RawText("<pre>" + 
                     data
                     + "</pre>"));
                 div.Children.Add(para);
