@@ -110,16 +110,44 @@ namespace DiscordBot.MLAPI.Modules
         [Method("GET"), Path("/ocr/upload")]
         public async Task Upload()
         {
-            await ReplyFile("upload.html", 200);
+            var recipients = new List<Option>();
+            var senders = new List<Option>();
+            foreach (var recipient in BaseDir.EnumerateDirectories())
+            {
+                if (recipient.Name.StartsWith('.')) continue;
+                var recName = getName(recipient);
+                recipients.Add(new Option(recName, recipient.Name));
+                foreach (var sender in recipient.EnumerateDirectories())
+                {
+                    var sendName = getName(sender);
+                    senders.Add(new Option(sendName, sender.Name));
+                }
+            }
+            await ReplyFile("upload.html", 200, new Replacements()
+                .Add("recipients", string.Join("\n", recipients))
+                .Add("senders", string.Join("\n", senders)));
+        }
+
+        string ensureDirectory(string parentPath, string dirName)
+        {
+            var stripped = dirName.Trim().Replace(" ", "");
+            var fullPath = Path.Combine(parentPath, Program.GetSafePath(stripped));
+            if (!Directory.Exists(fullPath))
+            {
+                Directory.CreateDirectory(fullPath);
+                if (stripped != dirName)
+                    File.WriteAllText(Path.Combine(fullPath, "name.txt"), dirName);
+            }
+            return fullPath;
         }
 
         [Method("POST"), Path("/ocr/upload")]
         [RequireNoExcessQuery(false)]
         public async Task DoUpload(string recipient, string sender, string date)
         {
-            var dir = Path.Combine(BaseDir.FullName, Program.GetSafePath(recipient), Program.GetSafePath(sender), Program.GetSafePath(date));
-            if(!Directory.Exists(dir))
-                Directory.CreateDirectory(dir);
+            var recDir = ensureDirectory(BaseDir.FullName, recipient);
+            var sendDir = ensureDirectory(recDir, sender);
+            var dir = ensureDirectory(sendDir, date);
             int next = getNextPageNum(dir);
             int count = 1;
             foreach(var file in Context.Files)
@@ -139,7 +167,10 @@ namespace DiscordBot.MLAPI.Modules
         [Regex("date", RegexAttribute.Date + "[a-z]?")] // add optional suffix in case multiple letters on same day
         public async Task ViewMail(string rec, string send, string date)
         {
-            var path = Path.Combine(BaseDir.FullName, rec, send, date);
+            var path = Path.Combine(BaseDir.FullName,
+                Program.GetSafePath(rec),
+                Program.GetSafePath(send),
+                Program.GetSafePath(date));
             var data = new List<string>();
             foreach(var file in Directory.EnumerateFiles(path).OrderBy(x => x))
             {
@@ -148,7 +179,7 @@ namespace DiscordBot.MLAPI.Modules
                 var ocr = info.Name.Replace(info.Extension, ".txt");
 
                 data.Add("<div class='file'>");
-                data.Add($"<img title=\"{info.Name}\" src=\"/ocr/raw/{rec}/{send}/{date}/{info.Name}\"></img>");
+                data.Add($"<img title=\"{info.Name}\" onclick=\"loadImg(event)\" data-src=\"/ocr/raw/{rec}/{send}/{date}/{info.Name}\"></img>");
                 data.Add($"<iframe src=\"/ocr/raw/{rec}/{send}/{date}/{ocr}\"></iframe>");
                 data.Add("</div>");
             }
@@ -162,7 +193,11 @@ namespace DiscordBot.MLAPI.Modules
         [Regex("file", RegexAttribute.Filename)]
         public async Task FetchMailRaw(string rec, string send, string date, string file)
         {
-            var path = Path.Combine(BaseDir.FullName, rec, send, date, Program.GetSafePath(file));
+            var path = Path.Combine(BaseDir.FullName, 
+                Program.GetSafePath(rec), 
+                Program.GetSafePath(send), 
+                Program.GetSafePath(date), 
+                Program.GetSafePath(file));
             try
             {
                 using (var fs = File.OpenRead(path))
