@@ -29,7 +29,6 @@ namespace DiscordBot.Services
 
         public ConcurrentDictionary<int, SavedMenu> Menus { get; set; } = new();
 
-        public WorkingMenu WorkingMenu { get; set; }
 
 
         public ConcurrentDictionary<int, WorkingRecipeCollection> OngoingRecipes { get; set; } = new();
@@ -38,6 +37,20 @@ namespace DiscordBot.Services
 
 
         public const string DefaultInventoryId = "default";
+
+
+        private WorkingMenu _workingMenu;
+
+        public WorkingMenu GetWorkingMenu(IServiceProvider services)
+        {
+            var db = services.GetFoodDb("GetWorkingMenu");
+            _workingMenu.FlushCache(db);
+            return _workingMenu;
+        }
+        public void SetWorkingMenu(WorkingMenu menu)
+        {
+            _workingMenu = menu;
+        }
 
         public FoodDbContext DB()
         {
@@ -306,10 +319,10 @@ namespace DiscordBot.Services
             return builder;
         }
 
-        public EmbedBuilder getYesterdayUsedItems()
+        public EmbedBuilder getYesterdayUsedItems(WorkingMenu workingMenu)
         {
             var yes = DateTime.UtcNow.AddDays(-1);
-            var yesterday = WorkingMenu.Days.FirstOrDefault(x => x.Date.IsSameDay(yes));
+            var yesterday = workingMenu.Days.FirstOrDefault(x => x.Date.IsSameDay(yes));
             if (yesterday != null)
             {
                 var usesEmbed = new EmbedBuilder();
@@ -343,7 +356,9 @@ namespace DiscordBot.Services
         [Cron("6,12", "0")]
         public void SendMenuNotifs(int hour)
         {
-            if (WorkingMenu == null) return;
+            using var scope = Program.GlobalServices.CreateScope();
+            var workingMenu = GetWorkingMenu(scope.ServiceProvider);
+            if (workingMenu == null) return;
 
 
             var embeds = new List<Embed>();
@@ -353,23 +368,23 @@ namespace DiscordBot.Services
             if(hour < 12)
             {
                 // morning reminder
-                var today = WorkingMenu.Days.FirstOrDefault(x => x.Date.IsSameDay(now));
+                var today = workingMenu.Days.FirstOrDefault(x => x.Date.IsSameDay(now));
                 embeds.Add(toEmbed(today, true, out mention).Build());
             } else
             {
                 now = now.AddDays(1);
                 WorkingMenuDay tomorrow;
-                tomorrow = WorkingMenu.Days.FirstOrDefault(x => x.Date.IsSameDay(now));
+                tomorrow = workingMenu.Days.FirstOrDefault(x => x.Date.IsSameDay(now));
                 if (tomorrow == null)
                 {
-                    attemptFullfill(false);
-                    tomorrow = WorkingMenu.Days.FirstOrDefault(x => x.Date.IsSameDay(now));
+                    attemptFullfill(workingMenu, false);
+                    tomorrow = workingMenu.Days.FirstOrDefault(x => x.Date.IsSameDay(now));
                     if(tomorrow == null)
                     {
                         Error("Tomorrow was still null even after adding new menu days?");
                         var sb = new StringBuilder();
                         sb.Append($"Days are:\n");
-                        foreach(var x in WorkingMenu.Days)
+                        foreach(var x in workingMenu.Days)
                         {
                             sb.AppendLine($"- {x.Date}");
                         }
@@ -417,18 +432,17 @@ namespace DiscordBot.Services
             }
         }
 
-        void attemptFullfill(bool forceLog)
+        void attemptFullfill(WorkingMenu menu, bool forceLog)
         {
-            Menus.TryGetValue(WorkingMenu.NextComingUp, out var savedMenu);
-            savedMenu.Fulfill(this, DefaultInventoryId, DateTime.UtcNow.NextDay(DayOfWeek.Monday).Date, forceLog);
+            if(Menus.TryGetValue(menu.NextComingUp, out var savedMenu))
+                savedMenu.Fulfill(this, menu, DefaultInventoryId, DateTime.UtcNow.NextDay(DayOfWeek.Monday).Date, forceLog);
         }
 
-        void doFreezerChecks()
+        void doFreezerChecks(WorkingMenu menu, FoodDbContext db)
         {
-            attemptFullfill(DateTime.UtcNow.DayOfWeek == DayOfWeek.Sunday);
-            using var db = DB();
+            attemptFullfill(menu, DateTime.UtcNow.DayOfWeek == DayOfWeek.Sunday);
             var inventory = db.GetInventory(DefaultInventoryId);
-            var usedOnDate = WorkingMenu.GetItemsUsed();
+            var usedOnDate = menu.GetItemsUsed();
 
             var nextDate = DateTime.UtcNow.Date.AddDays(8);
             var embed = new EmbedBuilder();
@@ -459,9 +473,11 @@ namespace DiscordBot.Services
 
         public async void DoMenuChecks()
         {
-            if (WorkingMenu == null) return;
+            using var scope = Program.GlobalServices.CreateScope();
+            var menu = GetWorkingMenu(scope.ServiceProvider);
+            if (menu == null) return;
             // set uses on yesterday's stuff
-            var yesE = getYesterdayUsedItems();
+            var yesE = getYesterdayUsedItems(menu);
             if (yesE != null)
             {
                 var lc = await getLogChannel();
@@ -474,7 +490,7 @@ namespace DiscordBot.Services
 
             try
             {
-                doFreezerChecks();
+                doFreezerChecks(menu, scope.ServiceProvider.GetFoodDb("freezer"));
             }
             finally
             {
@@ -488,12 +504,13 @@ namespace DiscordBot.Services
         {
             var dict = new Dictionary<string, List<string>>(Manufacturers);
             var recipList = new List<SavedRecipe>(Recipes);
+            using var scope = Program.GlobalServices.CreateScope();
             var sv = new foodSave()
             {
                 manufacturerPrefixes = dict,
                 recipes = recipList,
                 menus = Menus.Values.ToList(),
-                curMenu = WorkingMenu
+                curMenu = GetWorkingMenu(scope.ServiceProvider)
             };
             return Program.Serialise(sv, conv: new InventoryItemConverter());
         }
@@ -508,17 +525,9 @@ namespace DiscordBot.Services
             Menus = new ConcurrentDictionary<int, SavedMenu>();
             foreach (var x in sv.menus)
                 Menus[x.Id] = x;
-            WorkingMenu = sv.curMenu;
-            if(WorkingMenu != null)
-            {
-                foreach (var day in WorkingMenu.Days)
-                {
-                    foreach ((var key, var ls) in day.Items)
-                    {
-                        ls.RemoveAll(x => x == null || x.Item == null);
-                    }
-                }
-            }
+            using (var scope = Program.GlobalServices.CreateScope())
+                sv.curMenu.FlushCache(scope.ServiceProvider.GetFoodDb("onReady"));       
+            SetWorkingMenu(sv.curMenu);
 #if DEBUG
             //OnDailyTick();
 #endif
@@ -946,6 +955,33 @@ namespace DiscordBot.Services
             }
         }
 
+        public void FlushCache(FoodDbContext db)
+        {
+            foreach(var day in Days)
+            {
+                foreach(var ls in day.Items.Values)
+                {
+                    for(int i = 0; i < ls.Count; i++)
+                    {
+                        var item = ls[i];
+                        if(item == null || item.Item == null)
+                        {
+                            ls.RemoveAt(i);
+                            i--;
+                            continue;
+                        }
+                        var updated = db.GetInventoryItem(item.Item.Id);
+                        if(updated == null)
+                        {
+                            ls.RemoveAt(i);
+                            i--;
+                            continue;
+                        }
+                        ls[i].Item = updated;
+                    }
+                }
+            }
+        }
 
         public int FromMenu { get; set; }
 
@@ -1032,16 +1068,14 @@ namespace DiscordBot.Services
         }
 
 
-        public void Fulfill(FoodService service, string inventoryId, DateTime? startdate, bool forceLog)
+        public void Fulfill(FoodService service, WorkingMenu menu, string inventoryId, DateTime? startdate, bool forceLog)
         {
             var log = new StringBuilder();
 
             log.AppendLine("== Starting menu conversion ==");
-            var menu = service.WorkingMenu;
             if(menu == null)
             {
                 menu = new WorkingMenu("");
-                service.WorkingMenu = menu;
             }
             var added = 0;
             try
@@ -1053,6 +1087,7 @@ namespace DiscordBot.Services
             } 
             finally
             {
+                service.SetWorkingMenu(menu);
                 var p = Program.GetTempPath("log.txt");
                 System.IO.File.WriteAllText(p, log.ToString());
                 Program.SendLogFileAsync(p, channel: service.getLogChannel().Result).Wait();

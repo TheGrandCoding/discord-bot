@@ -2,6 +2,8 @@
 using Discord.Interactions;
 using Discord.WebSocket;
 using DiscordBot.Services;
+using DiscordBot.Utils;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -224,7 +226,8 @@ namespace DiscordBot.Interactions.Components
             if (kind == "refresh")
             {
                 allEmbeds.Remove(data);
-                var yesE = Service.getYesterdayUsedItems().Build();
+                using var scope = Program.GlobalServices.CreateScope();
+                var yesE = Service.getYesterdayUsedItems(Service.GetWorkingMenu(scope.ServiceProvider)).Build();
                 if(yesE != null)
                 {
                     allEmbeds.Add(yesE);

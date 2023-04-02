@@ -694,8 +694,9 @@ namespace DiscordBot.MLAPI.Modules
         {
             var table = new Table();
             var replacements = new Replacements();
+            var menu = Service.GetWorkingMenu(Context.Services);
 
-            if (Service.WorkingMenu == null)
+            if (menu == null)
             {
                 replacements.Add("title", "Selector");
 
@@ -718,12 +719,12 @@ namespace DiscordBot.MLAPI.Modules
             else
             {
                 table.WithHeaderColumn("Day");
-                var _groups = Service.WorkingMenu.GetGroups();
+                var _groups = menu.GetGroups();
                 foreach (var group in _groups)
                     table.WithHeaderColumn(group);
 
                 int dayIndex = 0;
-                foreach (var day in Service.WorkingMenu.Days)
+                foreach (var day in menu.Days)
                 {
                     var date = day.Date;
                     var row = new TableRow(id: $"day-{dayIndex}");
@@ -798,10 +799,10 @@ namespace DiscordBot.MLAPI.Modules
 
                 if(edit)
                 {
-                    replacements.Add("title", new Anchor($"/food/menu/new?overwrite={Service.WorkingMenu.FromMenu}", Service.WorkingMenu.Title));
+                    replacements.Add("title", new Anchor($"/food/menu/new?overwrite={menu.FromMenu}", menu.Title));
                 } else
                 {
-                    replacements.Add("title", Service.WorkingMenu.Title);
+                    replacements.Add("title", menu.Title);
                 }
             }
             replacements.Add("edit", edit ? "true" : "");
@@ -1633,7 +1634,8 @@ namespace DiscordBot.MLAPI.Modules
         [Method("POST"), Path("/api/menu")]
         public async Task SelectMenu(int id)
         {
-            if(Service.WorkingMenu != null)
+            
+            if(Service.GetWorkingMenu(Context.Services) != null)
             {
                 await RespondRaw("Cannot overwrite current menu", 400);
                 return;
@@ -1643,7 +1645,9 @@ namespace DiscordBot.MLAPI.Modules
                 await RespondRaw("Menu does not exist", 400);
                 return;
             }
-            menu.Fulfill(Service, FoodService.DefaultInventoryId, DateTime.UtcNow.NextDay(DayOfWeek.Monday).Date, true);
+            var current = Service.GetWorkingMenu(Context.Services);
+            menu.Fulfill(Service, current, FoodService.DefaultInventoryId, DateTime.UtcNow.NextDay(DayOfWeek.Monday).Date, true);
+            Service.SetWorkingMenu(current);
             Service.OnSave();
             await RespondRaw("Ok", 200);
         }
@@ -1672,15 +1676,16 @@ namespace DiscordBot.MLAPI.Modules
         [Method("POST"), Path("/api/menu/shared")]
         public async Task MenuToggleShare(int day)
         {
-            if (Service.WorkingMenu == null)
+            var menu = Service.GetWorkingMenu(Context.Services);
+            if (menu == null)
             {
                 await RespondRaw("No current menu", 400);
                 return;
             }
-            var d = Service.WorkingMenu.Days.ElementAtOrDefault(day);
+            var d = menu.Days.ElementAtOrDefault(day);
             if(d.Items.TryGetValue("*", out var ls))
             {
-                var groups = Service.WorkingMenu.GetGroups();
+                var groups = menu.GetGroups();
                 d.Items = new Dictionary<string, List<WorkingMenuItem>>();
                 foreach (var g in groups)
                     d.Items.Add(g, new List<WorkingMenuItem>());
@@ -1693,6 +1698,7 @@ namespace DiscordBot.MLAPI.Modules
                 };
             }
             d.ManualOverride = true;
+            Service.SetWorkingMenu(menu);
             Service.OnSave();
             await RespondRaw("", 200);
         }
@@ -1700,7 +1706,8 @@ namespace DiscordBot.MLAPI.Modules
         [Method("POST"), Path("/api/menu/move")]
         public async Task MoveMenuItem()
         {
-            if(Service.WorkingMenu == null)
+            var menu = Service.GetWorkingMenu(Context.Services);
+            if(menu == null)
             {
                 await RespondRaw("No current menu", 400);
                 return;
@@ -1710,7 +1717,7 @@ namespace DiscordBot.MLAPI.Modules
             if (data.FromGroup != null)
             {
 
-                var fromD = Service.WorkingMenu.Days[data.FromDay];
+                var fromD = menu.Days[data.FromDay];
                 var fromG = fromD.Items[data.FromGroup];
 
                 item = fromG.FirstOrDefault(x => x?.Item?.Id == data.Id);
@@ -1725,10 +1732,11 @@ namespace DiscordBot.MLAPI.Modules
                 };
             }
 
-            var toD = Service.WorkingMenu.Days[data.ToDay];
+            var toD = menu.Days[data.ToDay];
             toD.ManualOverride = true;
 
             toD.Items.AddInner(data.ToGroup, item);
+            Service.SetWorkingMenu(menu);
             Service.OnSave();
             await RespondRaw("OK");
         }
@@ -1736,20 +1744,24 @@ namespace DiscordBot.MLAPI.Modules
         [Method("PATCH"), Path("/api/menu/manual")]
         public async Task SetMenuDayManual(int day, bool manual)
         {
-            var d = Service.WorkingMenu.Days[day];
+            var menu = Service.GetWorkingMenu(Context.Services);
+            var d = menu.Days[day];
             d.ManualOverride = manual;
+            Service.SetWorkingMenu(menu);
             Service.OnSave();
             await RespondRaw("OK");
         }
         [Method("PATCH"), Path("/api/menu/text")]
         public async Task SetMenuDayText(int day, string group, string text = null)
         {
-            var d = Service.WorkingMenu.Days[day];
+            var menu = Service.GetWorkingMenu(Context.Services);
+            var d = menu.Days[day];
             if(string.IsNullOrEmpty(text) || text == "none")
                 d.Text.Remove(group);
             else
                 d.Text[group] = text;
             d.ManualOverride = true;
+            Service.SetWorkingMenu(menu);
             Service.OnSave();
             await RespondRaw("OK");
         }
@@ -1757,14 +1769,16 @@ namespace DiscordBot.MLAPI.Modules
         [Method("DELETE"), Path("/api/menu/item")]
         public async Task DeleteMenuItem(string group, int day, int id)
         {
-            if (Service.WorkingMenu == null)
+            var menu = Service.GetWorkingMenu(Context.Services);
+            if (menu == null)
             {
                 await RespondRaw("No current menu", 400);
                 return;
             }
-            var mDay = Service.WorkingMenu.Days[day];
+            var mDay = menu.Days[day];
             var mGroup = mDay.Items[group];
             mGroup.RemoveAll(x => x?.Item?.Id == id);
+            Service.SetWorkingMenu(menu);
             Service.OnSave();
             await RespondRaw("OK");
         }
@@ -1772,7 +1786,8 @@ namespace DiscordBot.MLAPI.Modules
         [Method("PATCH"), Path("/api/menu/item")]
         public async Task EditMenuItem(string group, int day, int id, int uses)
         {
-            if (Service.WorkingMenu == null)
+            var menu = Service.GetWorkingMenu(Context.Services);
+            if (menu == null)
             {
                 await RespondRaw("No current menu", 400);
                 return;
@@ -1782,7 +1797,7 @@ namespace DiscordBot.MLAPI.Modules
                 await RespondError(APIErrorResponse.InvalidQueryParams().Child("uses").EndError("INVALID", "Cannot be below 1"));
                 return;
             }
-            var mDay = Service.WorkingMenu.Days[day];
+            var mDay = menu.Days[day];
             var mGroup = mDay.Items[group];
             var item = mGroup.FirstOrDefault(x => x?.Item?.Id == id);
             if(item == null) 
@@ -1791,6 +1806,7 @@ namespace DiscordBot.MLAPI.Modules
                 return;
             }
             item.Uses = uses;
+            Service.SetWorkingMenu(menu);
             Service.OnSave();
             await RespondRaw("OK");
         }
