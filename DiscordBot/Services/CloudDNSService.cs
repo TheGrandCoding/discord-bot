@@ -110,39 +110,31 @@ namespace DiscordBot.Services
         {
             var client = Program.GlobalServices.GetRequiredService<Classes.BotHttpClient>()
                 .Child("DynDNS");
-            bool dirty = false;
-            try
+            var externalIp = await getExternalIP(client);
+            if(string.IsNullOrWhiteSpace(externalIp)) return new("No ext IP");
+
+            if (externalIp == Data.LastSeenIP)
+                return new();
+            Info($"New external IP: s{externalIp}");
+            Data.LastSeenIP = externalIp;
+
+            if (string.IsNullOrWhiteSpace(Data.ZoneId))
             {
-                var externalIp = await getExternalIP(client);
-                if(string.IsNullOrWhiteSpace(externalIp)) return new("No ext IP");
-
-                if (externalIp == Data.LastSeenIP)
-                    return new();
-                Info($"New external IP: {externalIp}");
-                Data.LastSeenIP = externalIp;
-                dirty = true;
-
-                if (string.IsNullOrWhiteSpace(Data.ZoneId))
-                {
-                    dirty = true;
-                    Data.ZoneId = await getZoneId(client);
-                }
-                Info($"Zone {Data.Zone} has ID {Data.ZoneId}");
-
-                (var currentIp, var dnsRecordId) = await getCurrentIp(client);
-                Info($"DNS Lookup: {currentIp}");
-                if (currentIp == null) return new("Could not fetch existing IP record");
-                if(externalIp == currentIp) return new("IPs same");
-
-
-                Info($"DNS {Data.DomainName} has ID {dnsRecordId}");
-
-                await updateRecordedIp(client, Data.ZoneId, dnsRecordId, externalIp);
-                Info("Updated.");
-            } finally
-            {
-                if (dirty) this.OnSave();
+                Data.ZoneId = await getZoneId(client);
             }
+            Info($"Zone {Data.Zone} has ID {Data.ZoneId}");
+
+            (var currentIp, var dnsRecordId) = await getCurrentIp(client);
+            Info($"DNS Lookup: {currentIp}");
+            if (currentIp == null) return new("Could not fetch existing IP record");
+            if(externalIp == currentIp) return new("IPs same");
+
+
+            Info($"DNS {Data.DomainName} has ID {dnsRecordId}");
+
+            await updateRecordedIp(client, Data.ZoneId, dnsRecordId, externalIp);
+            Info("Updated.");
+            this.OnSave();
             return new();
         }
         public override void OnDailyTick()
