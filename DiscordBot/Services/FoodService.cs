@@ -525,9 +525,10 @@ namespace DiscordBot.Services
             Menus = new ConcurrentDictionary<int, SavedMenu>();
             foreach (var x in sv.menus)
                 Menus[x.Id] = x;
+            var cpy = sv.curMenu.Copy();
             using (var scope = Program.GlobalServices.CreateScope())
-                sv.curMenu.FlushCache(scope.ServiceProvider.GetFoodDb("onReady"));       
-            SetWorkingMenu(sv.curMenu);
+                cpy.FlushCache(scope.ServiceProvider.GetFoodDb("onReady"));
+            SetWorkingMenu(cpy);
 #if DEBUG
             //OnDailyTick();
 #endif
@@ -1001,9 +1002,22 @@ namespace DiscordBot.Services
                     if (key != "*" && ls.Contains(key) == false) ls.Add(key);
                 }
             }
+            ls.Sort();
             return ls.ToArray();
         }
+
+        internal WorkingMenu Copy()
+        {
+            return new WorkingMenu(Title)
+            {
+                Days = Days.Select(x => x.Copy()).ToList(),
+                FromMenu = FromMenu,
+                NextComingUp = NextComingUp
+            };
+        }
     }
+
+    [DebuggerDisplay($"{{{nameof(GetDebuggerDisplay)}(),nq}}")]
     public class WorkingMenuDay
     {
         public WorkingMenuDay(DateTime date, Dictionary<string, string> text)
@@ -1029,8 +1043,25 @@ namespace DiscordBot.Services
             }
             return ls.DistinctBy(x => x.Id).ToList();
         }
-    
-        
+
+        internal WorkingMenuDay Copy()
+        {
+            return new WorkingMenuDay(Date, new(Text.Select(x => x)))
+            {
+                ManualOverride = ManualOverride,
+                Items = new(Items.Select(x => new KeyValuePair<string, List<WorkingMenuItem>>(x.Key, x.Value.Select(y => y.Copy()).ToList())))
+            };
+        }
+
+        internal string GetDebuggerDisplay()
+        {
+            var sb = new StringBuilder();
+            sb.Append(Date.ToString("yyyy/MM/dd HH:mm:ss"));
+            sb.Append($", {ManualOverride}");
+            foreach ((var key, var txt) in Text)
+                sb.Append($" {key}={txt}");
+            return sb.ToString();
+        }
     }
 
     public class WorkingMenuItem
@@ -1044,6 +1075,15 @@ namespace DiscordBot.Services
             if (Uses > 1)
                 return $"{Uses}x {s}";
             return s;
+        }
+
+        internal WorkingMenuItem Copy()
+        {
+            return new WorkingMenuItem()
+            {
+                Item = Item,
+                Uses = Uses
+            };
         }
     }
 

@@ -1756,6 +1756,7 @@ namespace DiscordBot.MLAPI.Modules
         {
             var menu = Service.GetWorkingMenu(Context.Services);
             var d = menu.Days[day];
+            Program.LogInfo(d?.GetDebuggerDisplay() ?? "null", "FoodSetText");
             if(string.IsNullOrEmpty(text) || text == "none")
                 d.Text.Remove(group);
             else
