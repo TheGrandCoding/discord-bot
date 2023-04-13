@@ -55,6 +55,11 @@ namespace DiscordBot.MLAPI.Modules
             {
                 fs.Close();
             }
+            if(Service.TryWriteTemplate(Context.User.Id, id, out var tfs))
+            {
+                tfs.Write(Encoding.UTF8.GetBytes("! {0}\r\n{1}"));
+                tfs.Close();
+            }
             await RedirectTo(nameof(EditFilter), false, id);
         }
 
@@ -75,6 +80,25 @@ namespace DiscordBot.MLAPI.Modules
             } else
             {
                 await RespondRaw("Failed to delete", 500);
+            }
+        }
+
+        [Method("GET"), Path("/filters-template/{filterId}")]
+        [Regex("filterId", FilterIdRegex)]
+        public async Task FetchTemplateRaw(string filterId)
+        {
+            if (!Service.TryReadTemplate(Context.User.Id, filterId, out var fs))
+            {
+                await RespondRaw("{0}", 200);
+                return;
+            }
+            try
+            {
+                await ReplyStream(fs, 200);
+            }
+            finally
+            {
+                fs.Close();
             }
         }
 
@@ -104,6 +128,26 @@ namespace DiscordBot.MLAPI.Modules
         public async Task UploadRaw(string filterId, bool append = false)
         {
             if(!Service.TryOpenWrite(Context.User.Id, filterId, out var fs))
+            {
+                await RespondRaw("No filter exists by that ID or could not open file", 404);
+                return;
+            }
+            try
+            {
+                var data = Encoding.UTF8.GetBytes(Context.Body);
+                fs.Write(data);
+            }
+            finally
+            {
+                fs.Close();
+            }
+            await RespondRaw("OK");
+        }
+        [Method("POST"), Path("/filters-template/{filterId}")]
+        [Regex("filterId", FilterIdRegex)]
+        public async Task UploadTemplateRaw(string filterId)
+        {
+            if (!Service.TryWriteTemplate(Context.User.Id, filterId, out var fs))
             {
                 await RespondRaw("No filter exists by that ID or could not open file", 404);
                 return;
