@@ -26,7 +26,7 @@ namespace DiscordBot.MLAPI.Modules
             var folder = Service.GetDirectory(Context.User.Id);
 
             var ul = new UnorderedList();
-            foreach(var file in Directory.EnumerateFiles(folder))
+            foreach(var file in Directory.EnumerateFiles(folder, "*.txt"))
             {
                 var id = Path.GetFileNameWithoutExtension(file);
                 var anchor = new Anchor($"/filters/{id}");
