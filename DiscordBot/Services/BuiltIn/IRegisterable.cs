@@ -12,4 +12,12 @@ namespace DiscordBot.Services.BuiltIn
         Task<string> RegisterAsync(IMessageChannel channel, IUser user);
         Task<string> UnregisterAsync(IMessageChannel channel, IUser user);
     }
+
+    public interface IRegisterableOption : IRegisterable
+    {
+        Task<string> RegisterWithOptionAsync(IMessageChannel channel, IUser user, string option);
+        Task<string?> UnregisterWithOptionAsync(IMessageChannel channel, IUser user, string option);
+
+        IAsyncEnumerable<AutocompleteResult> GetOptionsAsync(IMessageChannel channel, IUser user);
+    }
 }

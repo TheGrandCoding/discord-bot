@@ -18,7 +18,14 @@ namespace DiscordBot.Interactions.Modules
     {
 
         [SlashCommand("register", "Registers a channel for a service")]
-        public async Task Register([Autocomplete(typeof(ListServiceAutocomplete))]string service, ITextChannel channel = null)
+        public async Task Register(
+            [Summary("service", "The service to register")]
+            [Autocomplete(typeof(ListServiceAutocomplete))]string service, 
+            [Summary("option", "An optional key to configure")]
+            [Autocomplete(typeof(ListServiceOptionsAutocomplete))]
+            string optionValue = null, 
+            [Summary("channel", "Use this channel instead")]
+            ITextChannel channel = null)
         {
             channel ??= Context.Channel as ITextChannel;
             if(string.IsNullOrWhiteSpace(service))
@@ -41,11 +48,22 @@ namespace DiscordBot.Interactions.Modules
                 return;
             }
             await DeferAsync(ephemeral: true);
-            var r = await registerable.RegisterAsync(channel, Context.User);
+            string r;
+            if (serv is IRegisterableOption withOpt)
+                r = await withOpt.RegisterWithOptionAsync(channel, Context.User, optionValue);
+            else
+                r = await registerable.RegisterAsync(channel, Context.User);
             await ModifyOriginalResponseAsync(x => x.Content = (r ?? "Completed."));
         }
         [SlashCommand("unregister", "Removes a channel from a service")]
-        public async Task UnRegister([Autocomplete(typeof(ListServiceAutocomplete))] string service, ITextChannel channel = null)
+        public async Task UnRegister(
+            [Summary("service", "The service to register")]
+            [Autocomplete(typeof(ListServiceAutocomplete))]string service,
+            [Summary("option", "An optional key to configure")]
+            [Autocomplete(typeof(ListServiceOptionsAutocomplete))]
+            string optionValue = null,
+            [Summary("channel", "Use this channel instead")]
+            ITextChannel channel = null)
         {
             channel ??= Context.Channel as ITextChannel;
             if (string.IsNullOrWhiteSpace(service))
@@ -68,7 +86,11 @@ namespace DiscordBot.Interactions.Modules
                 return;
             }
             await DeferAsync(ephemeral: true);
-            var r = await registerable.UnregisterAsync(channel, Context.User);
+            string r;
+            if (serv is IRegisterableOption withOpt)
+                r = await withOpt.UnregisterWithOptionAsync(channel, Context.User, optionValue);
+            else
+                r = await registerable.UnregisterAsync(channel, Context.User);
             await ModifyOriginalResponseAsync(x => x.Content = (r ?? "Completed."));
         }
     }

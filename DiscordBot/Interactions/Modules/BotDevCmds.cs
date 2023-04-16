@@ -2,6 +2,7 @@
 using Discord.Interactions;
 using Discord.WebSocket;
 using DiscordBot.Services;
+using DiscordBot.Services.BuiltIn;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -148,6 +149,31 @@ namespace DiscordBot.Interactions.Modules
                     list.Add(new AutocompleteResult(srv.Name, srv.Name));
             }
             return Task.FromResult(AutocompletionResult.FromSuccess(list.Take(20)));
+        }
+    }
+
+    public class ListServiceOptionsAutocomplete : AutocompleteHandler
+    {
+        public ListServiceOptionsAutocomplete()
+        {
+        }
+        public override async Task<AutocompletionResult> GenerateSuggestionsAsync(IInteractionContext context, IAutocompleteInteraction autocompleteInteraction, IParameterInfo parameter, IServiceProvider services)
+        {
+            var list = new List<AutocompleteResult>();
+            var data = autocompleteInteraction.Data;
+            var cmd = data.Options.First().Name;
+            var service = data.Options.FirstOrDefault(x => x.Name == "service").Value as string;
+            string text = data.Current.Value as string;
+
+            var srv = Service.GetServices().Where(x => x is IRegisterableOption).FirstOrDefault(x => x.Name == service);
+            if (srv == null) return AutocompletionResult.FromSuccess();
+            List<AutocompleteResult> opts;
+            if(cmd == "register")
+                opts = await (srv as IRegisterableOption).GetOptionsAsync(null, context.User).Take(20).ToListAsync();
+            else
+                opts = await (srv as IRegisterableOption).GetOptionsAsync(context.Channel, context.User).Take(20).ToListAsync();
+
+            return AutocompletionResult.FromSuccess(opts);
         }
     }
 }
