@@ -115,7 +115,7 @@ namespace DiscordBot.Services
 
             if (externalIp == Data.LastSeenIP)
                 return new();
-            Info($"New external IP: s{externalIp}");
+            Info($"New external IP: {externalIp}");
             Data.LastSeenIP = externalIp;
 
             if (string.IsNullOrWhiteSpace(Data.ZoneId))
