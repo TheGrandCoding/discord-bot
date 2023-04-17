@@ -84,6 +84,16 @@ namespace DiscordBot.Websockets
             var packet = new TTPacket(TTPacketId.UpdateIgnored, jobj);
             Send(packet);
         }
+        public void SendRecentDatas(TimeTrackDb DB, DateTime? since = null)
+        {
+            var recentVideos = DB.GetRecentVideo(User.Id, since);
+            if (recentVideos.Length == 0) return;
+            var vids = new JObject();
+            foreach (var x in recentVideos)
+                vids[x.VideoId] = x.WatchedTime;
+            var packet = new TTPacket(TTPacketId.SetTimes, vids);
+            Send(packet);
+        }
 
 
         protected void Send(Packet<TTPacketId> obj)
@@ -102,9 +112,15 @@ namespace DiscordBot.Websockets
             if (!int.TryParse(Context.QueryString.Get("v"), out var x))
                 x = 1;
             APIVersion = x;
-            using var db = Services.GetTimeDb("OnOpen");
+            var db = Services.GetTimeDb("OnOpen");
             WatchingVideo = new Cached<bool>(false, 2);
             SendAllClientRatelimits();
+            DateTime? since = null;
+            if(long.TryParse(Context.QueryString.Get("since"), out var timestamp))
+            {
+                since = DateTimeOffset.FromUnixTimeMilliseconds(timestamp).UtcDateTime;
+            }
+            SendRecentDatas(db, since);
             SendIgnoredDatas(db);
         }
 
@@ -222,7 +238,7 @@ namespace DiscordBot.Websockets
             Program.LogDebug(e.Data, $"TTWS-{IP}");
             var packet = new TTPacket(JObject.Parse(e.Data));
 
-            using var db = Services.GetTimeDb("OnMessage");
+            var db = Services.GetTimeDb("OnMessage");
             try
             {
                 TTPacket response;

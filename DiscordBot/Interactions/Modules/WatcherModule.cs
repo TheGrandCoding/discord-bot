@@ -79,7 +79,7 @@ namespace DiscordBot.Interactions.Modules
         public async Task Search(string code)
         {
             await RespondAsync("Searching...", ephemeral: true);
-            using var db = Services.GetTimeDb("slashTimeTrack");
+            var db = Services.GetTimeDb("slashTimeTrack");
             var video = db.GetVideo(User.Id, code);
             if(video == null)
             {

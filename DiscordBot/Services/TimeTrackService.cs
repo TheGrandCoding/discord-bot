@@ -57,7 +57,7 @@ namespace DiscordBot.Services
     {
         protected override void OnConfiguring(DbContextOptionsBuilder options)
         {
-            options.WithSQLConnection("watch");
+            options.WithSQLConnection("watch", true);
         }
 
         private static Cached<string> ExtensionVersion { get; set; } = new Cached<string>(null, 180);
@@ -186,6 +186,29 @@ namespace DiscordBot.Services
         public IgnoreData[] GetIgnoreDatas(uint user)
         {
             return Ignores.Where(x => x.UserId == user).ToArray();
+        }
+        public VideoData[] GetRecentVideo(uint user, DateTime? since = null)
+        {
+            since ??= DateTime.UtcNow.AddHours(-12);
+            return WatchTimes.Where(x => x.UserId == user && x.LastUpdated >= since).ToArray();
+        }
+        public RedditData[] GetRecentThread(uint user, DateTime? since = null)
+        {
+            since ??= DateTime.UtcNow.AddHours(-12);
+            var threads = Threads.Where(x => x.UserId == user && x.LastUpdated >= since).ToArray();
+            var latest = new Dictionary<string, RedditData>();
+            foreach(var thread in threads)
+            {
+                if(!latest.TryGetValue(thread.ThreadId, out var data))
+                {
+                    latest[thread.ThreadId] = thread;
+                } else
+                {
+                    if (thread.LastUpdated > data.LastUpdated)
+                        latest[thread.ThreadId] = thread;
+                }
+            }
+            return latest.Values.ToArray();
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
