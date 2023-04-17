@@ -179,23 +179,13 @@ namespace DiscordBot.Services
         }
         public RedditData[] GetThread(uint user, string thread)
         {
-            unchecked
-            {
-                var v = Threads
-                    .AsAsyncEnumerable()
-                    .Where(x => x.UserId == user && x.ThreadId == thread)
-                    .OrderBy(x => x.LastUpdated)
-                    .ToArrayAsync();
-                return v.Result;
-            }
+            return Threads.Where(x => x.UserId == user && x.ThreadId == thread)
+                .OrderBy(x => x.LastUpdated)
+                .ToArray();
         }
         public IgnoreData[] GetIgnoreDatas(uint user)
         {
-            unchecked
-            {
-                var x = Ignores.AsAsyncEnumerable().Where(x => x.UserId == user).ToArrayAsync().Result;
-                return x;
-            }
+            return Ignores.Where(x => x.UserId == user).ToArray();
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
