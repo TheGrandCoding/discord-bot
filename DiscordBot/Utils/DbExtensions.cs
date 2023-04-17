@@ -22,6 +22,12 @@ namespace DiscordBot.Utils
             var d = services.GetRequiredService<Services.FoodDbContext>();
             return d;
         }
+        public static Services.TimeTrackDb GetTimeDb(this IServiceProvider services, string reason)
+        {
+            var d = services.GetRequiredService<Services.TimeTrackDb>();
+            d.SetReason(reason);
+            return d;
+        }
     }
 
 }

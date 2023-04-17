@@ -1,5 +1,6 @@
 ﻿using DiscordBot.Classes;
 using DiscordBot.Services;
+using DiscordBot.Utils;
 using DiscordBot.Websockets;
 using Google.Apis.YouTube.v3;
 using Google.Apis.YouTube.v3.Data;
@@ -22,7 +23,7 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
     {
         public TimeTracker(APIContext context) : base(context, "tracker")
         {
-            DB = Context.Services.GetRequiredService<TimeTrackDb>();
+            DB = Context.Services.GetTimeDb("TimeTrackerAPI");
         }
 
         public TimeTrackDb DB { get; }

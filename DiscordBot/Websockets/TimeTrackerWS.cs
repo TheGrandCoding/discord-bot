@@ -3,6 +3,7 @@ using DiscordBot.Classes;
 using DiscordBot.MLAPI;
 using DiscordBot.MLAPI.Modules.TimeTracking;
 using DiscordBot.Services;
+using DiscordBot.Utils;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json.Linq;
 using System;
@@ -75,8 +76,6 @@ namespace DiscordBot.Websockets
         public void SendIgnoredDatas(TimeTrackDb DB)
         {
             var ignored = DB.GetIgnoreDatas(User.Id);
-            if (ignored.Length == 0)
-                return;
             var jobj = new JObject();
             foreach(var ignore in ignored)
             {
@@ -103,7 +102,7 @@ namespace DiscordBot.Websockets
             if (!int.TryParse(Context.QueryString.Get("v"), out var x))
                 x = 1;
             APIVersion = x;
-            using var db = Services.GetRequiredService<TimeTrackDb>();
+            using var db = Services.GetTimeDb("OnOpen");
             WatchingVideo = new Cached<bool>(false, 2);
             SendAllClientRatelimits();
             SendIgnoredDatas(db);
@@ -223,7 +222,7 @@ namespace DiscordBot.Websockets
             Program.LogDebug(e.Data, $"TTWS-{IP}");
             var packet = new TTPacket(JObject.Parse(e.Data));
 
-            using var db = Services.GetRequiredService<TimeTrackDb>();
+            using var db = Services.GetTimeDb("OnMessage");
             try
             {
                 TTPacket response;

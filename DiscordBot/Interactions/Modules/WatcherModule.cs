@@ -2,6 +2,7 @@
 using Discord.Interactions;
 using DiscordBot.Services;
 using DiscordBot.Services.arr;
+using DiscordBot.Utils;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
@@ -78,7 +79,7 @@ namespace DiscordBot.Interactions.Modules
         public async Task Search(string code)
         {
             await RespondAsync("Searching...", ephemeral: true);
-            using var db = Services.GetRequiredService<TimeTrackDb>();
+            using var db = Services.GetTimeDb("slashTimeTrack");
             var video = db.GetVideo(User.Id, code);
             if(video == null)
             {

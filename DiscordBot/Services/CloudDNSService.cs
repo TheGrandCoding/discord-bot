@@ -115,7 +115,7 @@ namespace DiscordBot.Services
 
             if (externalIp == Data.LastSeenIP)
                 return new();
-            Info($"New external IP: {externalIp}");
+            Info($"New external IP: {externalIp} (old: {Data.LastSeenIP}");
             Data.LastSeenIP = externalIp;
 
             if (string.IsNullOrWhiteSpace(Data.ZoneId))
@@ -127,7 +127,11 @@ namespace DiscordBot.Services
             (var currentIp, var dnsRecordId) = await getCurrentIp(client);
             Info($"DNS Lookup: {currentIp}");
             if (currentIp == null) return new("Could not fetch existing IP record");
-            if(externalIp == currentIp) return new("IPs same");
+            if(externalIp == currentIp)
+            {
+                this.OnSave();
+                return new("DNS record already points to that IP");
+            }
 
 
             Info($"DNS {Data.DomainName} has ID {dnsRecordId}");

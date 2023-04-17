@@ -60,10 +60,14 @@ namespace DiscordBot.Websockets
                     return user;
                 var session = BotDB.GetSessionAsync(SessionToken).Result;
                 if (session != null)
+                {
                     return user = session.User;
+                }
                 var token = BotDB.GetTokenAsync(ApiToken).Result;
                 if (token != null)
+                {
                     return user = token.User;
+                }
                 Program.LogDebug($"{IP} provided an unknown session or auth token, or none at all.", "WSLog");
                 return null;
             } }

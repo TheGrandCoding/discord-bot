@@ -25,7 +25,7 @@ namespace DiscordBot.Services
 #if DEBUG
             return;
 #endif
-            using var db = Program.GlobalServices.GetRequiredService<TimeTrackDb>();
+            using var db = Program.GlobalServices.GetTimeDb("OnReady");
             if(PurgeMonthOldThreads(db))
             {
                 db.SaveChanges();
@@ -199,6 +199,30 @@ namespace DiscordBot.Services
             modelBuilder.Entity<IgnoreData>()
                 .HasKey(x => new { x.UserId, x.VideoId });
 
+        }
+
+
+        static int _id = 0;
+        int Id = 0;
+        string _reason;
+        public void SetReason(string reason)
+        {
+            if (Id == 0)
+            {
+                Id = System.Threading.Interlocked.Increment(ref _id);
+                Program.LogDebug($"Created DB {Id}/{reason}", "TimeTrackDb");
+                _reason = reason;
+            }
+            else
+            {
+                _reason = (_reason ?? "") + "+" + reason;
+                Program.LogDebug($"Re-used DB {Id}/{_reason}", "TimeTrackDb");
+            }
+        }
+        public override void Dispose()
+        {
+            Program.LogWarning($"Disposing DB {Id}/{_reason}", "TimeTrackDb");
+            base.Dispose();
         }
     }
 
