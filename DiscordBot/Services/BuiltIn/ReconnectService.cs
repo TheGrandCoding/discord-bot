@@ -39,7 +39,6 @@ namespace DiscordBot.Services.BuiltIn
                 Info($"Connected");
                 _connectResult.SetResult(true);
                 _cancelSource?.Cancel();
-                _cancelSource = null;
                 _thread = null;
                 return Task.CompletedTask;
             };
@@ -77,8 +76,9 @@ namespace DiscordBot.Services.BuiltIn
                     attempts++;
                 }
             }
+            Info($"Exiting with state={_discord.ConnectionState}; login={_discord.LoginState}; cancel={(_cancelSource?.Token.IsCancellationRequested ?? false)}");
+            _cancelSource = null;
             _connectResult = null;
-            Info($"Exiting with state={_discord.ConnectionState}; login={_discord.LoginState}; cancel={(_cancelSource?.Token?.IsCancellationRequested ?? false)}");
         }
     }
 }
