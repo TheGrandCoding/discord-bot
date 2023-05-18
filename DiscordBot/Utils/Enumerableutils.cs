@@ -50,5 +50,26 @@ namespace DiscordBot.Utils
             arg1 = arr[0];
             arg2 = arr[1];
         }
+
+        public static Dictionary<TKey, TValue> Copy<TKey, TValue>(this Dictionary<TKey, TValue> dict, Func<TValue, TValue> selector = null)
+        {
+            selector ??= (TValue v) => v;
+            var newDict = new Dictionary<TKey, TValue>();
+            foreach (var keypair in dict)
+            {
+                newDict[keypair.Key] = selector(keypair.Value);
+            }
+            return newDict;
+        }
+        public static List<T> Copy<T>(this List<T> list, Func<T, T> selector = null)
+        {
+            selector ??= (T v) => v;
+            var newList = new List<T>();    
+            foreach(var item in list)
+            {
+                newList.Add(selector(item));
+            }
+            return newList;
+        }
     }
 }

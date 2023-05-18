@@ -1010,7 +1010,7 @@ namespace DiscordBot.Services
         {
             return new WorkingMenu(Title)
             {
-                Days = Days.Select(x => x.Copy()).ToList(),
+                Days = Days.Copy(x => x.Copy()),
                 FromMenu = FromMenu,
                 NextComingUp = NextComingUp
             };
@@ -1046,10 +1046,10 @@ namespace DiscordBot.Services
 
         internal WorkingMenuDay Copy()
         {
-            return new WorkingMenuDay(Date, new(Text.Select(x => x)))
+            return new WorkingMenuDay(Date, Text.Copy())
             {
                 ManualOverride = ManualOverride,
-                Items = new(Items.Select(x => new KeyValuePair<string, List<WorkingMenuItem>>(x.Key, x.Value.Select(y => y.Copy()).ToList())))
+                Items = Items.Copy(x => x.Copy(y => y.Copy()))
             };
         }
 
