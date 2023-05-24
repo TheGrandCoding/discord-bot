@@ -28,6 +28,14 @@ namespace DiscordBot.Utils
             d.SetReason(reason);
             return d;
         }
+        public static Services.RssDbContext GetRssDb(this IServiceProvider services)
+        {
+            var d = services.GetRequiredService<Services.RssDbContext>();
+            return d;
+        }
+
+        public static Classes.BotHttpClient GetHttp(this IServiceProvider services)
+            => services.GetRequiredService<Classes.BotHttpClient>();
     }
 
 }

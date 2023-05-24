@@ -1,6 +1,7 @@
 ﻿using Discord.Commands;
 using DiscordBot.Utils;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
@@ -171,8 +172,34 @@ namespace DiscordBot.MLAPI
                 {
                     try
                     {
-                        var jsonParsed = JsonConvert.DeserializeObject(context.Body, param.ParameterType);
-                        args.Add(jsonParsed);
+                        if (context.Request.ContentType.Contains("urlencoded"))
+                        {
+                            var props = param.ParameterType.GetProperties();
+                            var jobj = new JObject();
+                            foreach (var item in context.Body.Split('&', StringSplitOptions.RemoveEmptyEntries))
+                            {
+                                var pair = item.Split('=');
+                                var key = pair[0];
+                                var pType = props.First(x => x.Name.Equals(key, StringComparison.InvariantCultureIgnoreCase)).PropertyType;
+                                var value = System.Web.HttpUtility.UrlDecode(pair[1]);
+                                if(pType.IsArray || pType.IsAssignableTo(typeof(IEnumerable<>)))
+                                {
+                                    var array = jobj.GetOrDefault(key, new JArray());
+                                    array.Add(value);
+                                    jobj[key] = array;
+                                } else
+                                {
+                                    jobj[pair[0]] = value;
+
+                                }
+                            }
+                            var parsed = jobj.ToObject(param.ParameterType);
+                            args.Add(parsed);
+                        } else
+                        {
+                            var jsonParsed = JsonConvert.DeserializeObject(context.Body, param.ParameterType);
+                            args.Add(jsonParsed);
+                        }
                     } catch(Exception ex)
                     { 
                         return final.WithError($"Json parsed eror on {param.Name}: {ex.Message}");

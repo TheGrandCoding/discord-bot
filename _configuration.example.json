@@ -99,6 +99,7 @@
   },
   "urls": {
     "download": "<uri>",
+    "flaresolverr": "<uri>",
     "jackett": "<uri>",
     "jellyfin": "<uri>",
     "ocrdir": "<string>"
