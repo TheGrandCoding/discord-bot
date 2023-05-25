@@ -1,4 +1,5 @@
-﻿using DiscordBot.Classes;
+﻿using Discord;
+using DiscordBot.Classes;
 using DiscordBot.Utils;
 using Jint;
 using Jint.Native.Object;
@@ -185,6 +186,8 @@ namespace DiscordBot.Services
             {
                 pending = await db.GetPendingFeeds();
             }
+            var embed = new EmbedBuilder();
+            embed.Title = "RSS";
             foreach (var feed in pending)
             {
                 if (string.IsNullOrWhiteSpace(feed.Url)) continue;
@@ -224,8 +227,16 @@ namespace DiscordBot.Services
                     }
                     feed.UnreadArticles = unread;
                 }
+                if(feed.UnreadArticles > 0)
+                {
+                    embed.AddField(feed.Name, $"{feed.UnreadArticles} unread");
+                }
             }
             await db.SaveChangesAsync();
+            if(embed.Fields.Count > 0)
+            {
+                await Program.SendLogMessageAsync(embed: embed.Build());
+            }
         }
 
         static SemaphoreSlim _lock = new(1, 1);
