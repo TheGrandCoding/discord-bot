@@ -478,7 +478,7 @@ Changed how permissions worked for bot.
             });
             coll.AddSingleton<YouTubeService>(yClient);
 
-            var bypasser = new ClearanceHandler(Program.Configuration["urls:flaresolverr"] ?? "localhost:8191");
+            var bypasser = new ClearanceHandler(Program.Configuration["urls:flaresolverr"] ?? "http://localhost:8191");
             var botHttp = new BotHttpClient(bypasser);
             coll.AddSingleton(typeof(BotHttpClient), botHttp);
             coll.AddSingleton<HttpClient>((p) =>
