@@ -16,7 +16,7 @@ namespace DiscordBot.Classes
     {
         public static bool ForceDebug { get; set; } = false;
         protected static SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
-        public BotHttpClient(HttpClientHandler client, string source = null, bool? debug = null, 
+        public BotHttpClient(HttpMessageHandler client, string source = null, bool? debug = null, 
             IRateLimiter ratelimiter = null,
             bool storeCookies = false) : base(client)
         {
@@ -27,7 +27,7 @@ namespace DiscordBot.Classes
             _storeCookies = storeCookies;
         }
 
-        private HttpClientHandler _client;
+        private HttpMessageHandler _client;
         private string _source;
         private bool _debug;
         private IRateLimiter _ratelimiter;

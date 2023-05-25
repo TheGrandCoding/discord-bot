@@ -33,6 +33,7 @@ using System.Threading.Tasks;
 using DiscordBot.Classes.Calender;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
+using FlareSolverrSharp;
 
 [assembly: AssemblyVersion(DiscordBot.Program.VERSION)]
 [assembly: Guid("747a6b5a-9564-4b19-980c-2ae52688a1ec")]
@@ -468,6 +469,7 @@ Changed how permissions worked for bot.
             coll.AddDbContext<CalenderDb>(ServiceLifetime.Transient);
             coll.AddDbContext<FoodDbContext>(ServiceLifetime.Transient);
             coll.AddDbContext<HoursDbContext>(ServiceLifetime.Transient);
+            coll.AddDbContext<RssDbContext>(ServiceLifetime.Transient);
 
             var yClient = new Google.Apis.YouTube.v3.YouTubeService(new Google.Apis.Services.BaseClientService.Initializer()
             {
@@ -476,11 +478,8 @@ Changed how permissions worked for bot.
             });
             coll.AddSingleton<YouTubeService>(yClient);
 
-            var httpHandler = new HttpClientHandler()
-            {
-                AutomaticDecompression = System.Net.DecompressionMethods.All
-            };
-            var botHttp = new BotHttpClient(httpHandler);
+            var bypasser = new ClearanceHandler(Program.Configuration["urls:flaresolverr"] ?? "localhost:8191");
+            var botHttp = new BotHttpClient(bypasser);
             coll.AddSingleton(typeof(BotHttpClient), botHttp);
             coll.AddSingleton<HttpClient>((p) =>
             {
