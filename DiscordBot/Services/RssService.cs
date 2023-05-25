@@ -18,6 +18,28 @@ namespace DiscordBot.Services
 {
     public class RssDbContext : DbContext
     {
+        static int _id = 0;
+        int Id = 0;
+        string _reason;
+        public void SetReason(string reason)
+        {
+            if (Id == 0)
+            {
+                Id = System.Threading.Interlocked.Increment(ref _id);
+                Program.LogDebug($"Created DB {Id}/{reason}", this.GetType().Name);
+                _reason = reason;
+            }
+            else
+            {
+                _reason = (_reason ?? "") + "+" + reason;
+                Program.LogDebug($"Re-used DB {Id}/{_reason}", this.GetType().Name);
+            }
+        }
+        public override void Dispose()
+        {
+            Program.LogWarning($"Disposing DB {Id}/{_reason}", this.GetType().Name);
+            base.Dispose();
+        }
         public DbSet<RssFeed> Feeds { get; set; }
         public DbSet<RssArticle> Articles { get; set; }
         public DbSet<RssScript> Scripts { get; set; }
@@ -148,7 +170,7 @@ namespace DiscordBot.Services
                 return program;
             };
 
-            var db = services.GetRssDb();
+            var db = services.GetRssDb($"Check ({onlyFor}, {refilter})");
             var http = services.GetRequiredService<DiscordBot.Classes.BotHttpClient>();
 
             var nowTime = DateTimeOffset.UtcNow;
@@ -238,10 +260,10 @@ namespace DiscordBot.Services
         [Cron("*", "*/15")]
         public void startScheduledCheck()
         {
-            Task.Run(() =>
+            Task.Run(async () =>
             {
                 using var scope = Program.GlobalServices.CreateScope();
-                return RunPendingCheck(scope.ServiceProvider);
+                await RunPendingCheck(scope.ServiceProvider);
             });
         }
 #endif

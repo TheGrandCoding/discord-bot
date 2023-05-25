@@ -28,9 +28,10 @@ namespace DiscordBot.Utils
             d.SetReason(reason);
             return d;
         }
-        public static Services.RssDbContext GetRssDb(this IServiceProvider services)
+        public static Services.RssDbContext GetRssDb(this IServiceProvider services, string reason)
         {
             var d = services.GetRequiredService<Services.RssDbContext>();
+            d.SetReason(reason);
             return d;
         }
 

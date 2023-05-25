@@ -17,7 +17,7 @@ namespace DiscordBot.MLAPI.Modules
     {
         public RssModule(APIContext context) : base(context, "rss")
         {
-            DB = context.Services.GetRssDb();
+            DB = context.Services.GetRssDb($"HTTP_{context.Endpoint.Name}");
             Service = context.Services.GetRequiredService<RssService>();
         }
 
