@@ -71,7 +71,7 @@ namespace DiscordBot.MLAPI.Modules
             }
             feed.Name = data.Name;
             feed.Url = data.Url;
-            feed.Interval = Math.Min(15, data.Interval);
+            feed.Interval = Math.Max(15, data.Interval);
             if(data.Parser.HasValue)
             {
                 var parserScript = await DB.Scripts.FindAsync(data.Parser);
