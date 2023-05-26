@@ -193,12 +193,14 @@ namespace DiscordBot.Services
                 if (string.IsNullOrWhiteSpace(feed.Url)) continue;
                 var articles = GetArticles(http, feed, nowTime, parseScript);
                 var toAdd = new List<RssArticle>();
+                int newUnread = 0;
                 await foreach (var article in articles)
                 {
                     bool existing = await db.Articles.Where(x => x.CustomId == article.CustomId).AnyAsync();
                     if (existing) continue;
                     var result = checkFilters(feed, article, parseScript);
                     if (!result) continue;
+                    if (!article.IsRead) newUnread++;
                     toAdd.Add(article);
                 }
                 await db.AddArticles(feed, toAdd);
@@ -227,9 +229,9 @@ namespace DiscordBot.Services
                     }
                     feed.UnreadArticles = unread;
                 }
-                if(feed.UnreadArticles > 0)
+                if(newUnread > 0)
                 {
-                    embed.AddField(feed.Name, $"{feed.UnreadArticles} unread");
+                    embed.AddField(feed.Name, $"{feed.UnreadArticles} new unread");
                 }
             }
             await db.SaveChangesAsync();
