@@ -57,6 +57,7 @@ namespace DiscordBot.MLAPI.Modules
             public string Url { get; set; }
             public int? Parser { get; set; }
             public int[] Filters { get; set; }
+            public int Interval { get; set; }
         }
 
         [Method("POST"), Path("/api/rss/feeds")]
@@ -70,6 +71,7 @@ namespace DiscordBot.MLAPI.Modules
             }
             feed.Name = data.Name;
             feed.Url = data.Url;
+            feed.Interval = Math.Min(15, data.Interval);
             if(data.Parser.HasValue)
             {
                 var parserScript = await DB.Scripts.FindAsync(data.Parser);
