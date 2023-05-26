@@ -231,7 +231,7 @@ namespace DiscordBot.Services
                 }
                 if(newUnread > 0)
                 {
-                    embed.AddField(feed.Name, $"{feed.UnreadArticles} new unread");
+                    embed.AddField(feed.Name, $"{newUnread} new unread");
                 }
             }
             await db.SaveChangesAsync();
