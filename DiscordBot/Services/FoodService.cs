@@ -847,7 +847,7 @@ namespace DiscordBot.Services
                     log.AppendLine("  ** Manual mode. **");
                     continue;
                 }
-                workingDay.Text = menuDay.Text;
+                workingDay.Text = new (menuDay.Text);
                 foreach (var keypair in menuDay.Items)
                 {
                     log.AppendLine($"  {keypair.Key}: ");
@@ -1172,7 +1172,7 @@ namespace DiscordBot.Services
 
     public class SavedMenuDay
     {
-        public Dictionary<string, string> Text { get; set; }
+        public IDictionary<string, string> Text { get; set; }
 
         public Dictionary<string, List<SavedMenuItem>> Items { get; set; } = new();
 
