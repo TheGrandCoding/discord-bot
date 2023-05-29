@@ -1,5 +1,6 @@
 ﻿using Discord;
 using DiscordBot.Classes;
+using DiscordBot.MLAPI;
 using DiscordBot.Utils;
 using Jint;
 using Jint.Native.Object;
@@ -188,6 +189,7 @@ namespace DiscordBot.Services
             }
             var embed = new EmbedBuilder();
             embed.Title = "RSS";
+            var webLink = Handler.LocalAPIUrl + Handler.GetEndpoint(nameof(MLAPI.Modules.RssModule.HtmlIndex)).GetFormattablePath();
             foreach (var feed in pending)
             {
                 if (string.IsNullOrWhiteSpace(feed.Url)) continue;
@@ -231,7 +233,7 @@ namespace DiscordBot.Services
                 }
                 if(newUnread > 0)
                 {
-                    embed.AddField(feed.Name, $"{newUnread} new unread");
+                    embed.AddField(feed.Name, $"[{newUnread} new unread]({webLink}#{feed.Id})");
                 }
             }
             await db.SaveChangesAsync();
