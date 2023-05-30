@@ -25,6 +25,7 @@ namespace DiscordBot.Classes
             _debug = debug ?? Program.BOT_DEBUG;
             _ratelimiter = ratelimiter ?? new DefaultRateLimiter();
             _storeCookies = storeCookies;
+            DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36");
         }
 
         private HttpMessageHandler _client;
@@ -120,9 +121,14 @@ namespace DiscordBot.Classes
         {
 
             foreach (var defalt in DefaultRequestHeaders)
-                message.Headers.TryAddWithoutValidation(defalt.Key, defalt.Value);
+            {
+                if(!message.Headers.Contains(defalt.Key))
+                {
+                    message.Headers.TryAddWithoutValidation(defalt.Key, defalt.Value);
+                }
+            }
 
-            if(_storeCookies)
+            if (_storeCookies)
             {
                 var header = _cookies.GetCookieHeader(message.RequestUri);
                 message.Headers.Add("Cookie", header);
