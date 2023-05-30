@@ -131,6 +131,7 @@ namespace DiscordBot.Services
                         Title = item.Title.Text,
                         PublishedDate = item.PublishDate,
                         SeenDate = nowTime,
+                        Author = string.Join(", ", item.Authors.Select(x => x.Name)),
                         Url = url
                     };
                 }
@@ -198,8 +199,22 @@ namespace DiscordBot.Services
                 int newUnread = 0;
                 await foreach (var article in articles)
                 {
-                    bool existing = await db.Articles.Where(x => x.CustomId == article.CustomId).AnyAsync();
-                    if (existing) continue;
+                    var existing = await db.Articles.FirstOrDefaultAsync(x => x.CustomId == article.CustomId);
+                    if (existing != null)
+                    {
+                        if (article.Title != existing.Title
+                            || article.Author != existing.Author
+                            || article.Url != existing.Url
+                            || article.PublishedDate != existing.PublishedDate
+                            )
+                        {
+                            existing.Title = article.Title;
+                            existing.Author = article.Author;
+                            existing.Url = article.Url;
+                            existing.PublishedDate = article.PublishedDate;
+                        }
+                        continue;
+                    }
                     var result = checkFilters(feed, article, parseScript);
                     if (!result) continue;
                     if (!article.IsRead) newUnread++;
@@ -309,6 +324,7 @@ namespace DiscordBot.Services
         public string Title { get; set; }
         public string Url { get; set; }
         public string CustomId { get; set; }
+        public string Author { get; set; }
 
         public bool IsRead { get; set; }
         public bool IsImportant { get; set; }

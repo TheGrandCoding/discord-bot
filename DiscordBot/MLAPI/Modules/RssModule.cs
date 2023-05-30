@@ -146,6 +146,7 @@ namespace DiscordBot.MLAPI.Modules
                 jobj["feed"] = article.FeedId;
                 jobj["title"] = article.Title;
                 jobj["url"] = article.Url;
+                jobj["author"] = article.Author;
                 jobj["read"] = article.IsRead;
                 jobj["important"] = article.IsImportant;
                 jobj["seenDate"] = article.SeenDate.ToUnixTimeMilliseconds().ToString();
