@@ -105,10 +105,11 @@ namespace DiscordBot.Websockets
                 } else if (data.TryGetValue("advance", out var payloadT) && payloadT is JObject payload)
                 {
                     var catalyst = payload["id"].ToObject<string>();
-                    var started = payload["started"].ToObject<ulong>();
+                    var allStart = payload["allStart"].ToObject<ulong>();
+                    var started = payload["startedAt"].ToObject<ulong>();
                     var time = payload["time"].ToObject<ulong>();
                     if (!Recipe.StartedAt.HasValue)
-                        Recipe.StartedAt = started;
+                        Recipe.StartedAt = allStart;
                     var cat = Recipe.RecipeGroups.FirstOrDefault(x => x.Catalyst == catalyst);
                     if(cat != null)
                     {
