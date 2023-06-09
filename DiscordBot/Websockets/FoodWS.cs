@@ -37,6 +37,19 @@ namespace DiscordBot.Websockets
             SendJson(packet);
         }
 
+        IEnumerable<int> getDelays(WorkingRecipeGroup group)
+        {
+            var globalStart = Recipe.StartedAt ?? 0;
+
+            var groupStart = group.StartedAt ?? 0;
+
+            var diff = groupStart - globalStart;
+            yield return (int)diff;
+
+            foreach (var step in group.SimpleSteps)
+                yield return step.Remaining;
+        }
+
         private void logDelayEmbed()
         {
             var builder = new EmbedBuilder();
@@ -44,11 +57,20 @@ namespace DiscordBot.Websockets
             foreach(var group in Recipe.RecipeGroups)
             {
                 var value = new StringBuilder();
+                var delays = getDelays(group);
                 int length = $"{group.SimpleSteps.Count}".Length;
-                foreach(var step in group.SimpleSteps)
+                int i = 0;
+                foreach(var delay in delays)
                 {
-                    int delay = step.Remaining * -1;
-                    value.AppendLine($"{step.ToString().PadRight(length)}. {step.Duration}{(delay >= 0 ? $"+{delay}" : $"{delay}")}");
+                    if(i < group.SimpleSteps.Count)
+                    {
+                        var step = group.SimpleSteps[i];
+                        value.AppendLine($"{i.ToString().PadRight(length)}. {step.Duration}{(delay >= 0 ? $"+{delay}" : $"{delay}")}");
+                        i++;
+                    } else
+                    {
+                        value.AppendLine($"& {delay}");
+                    }
                 }
                 builder.AddField(group.Catalyst, value.ToString());
             }
