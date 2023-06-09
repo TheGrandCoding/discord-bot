@@ -1095,16 +1095,38 @@ namespace DiscordBot.Services
         public int Id { get; set; }
         private static int _id;
 
+        Dictionary<string, TValue> correctDict<TValue>(Dictionary<string, TValue> dict)
+        {
+            if(dict.ContainsKey("*"))
+            {
+                var keys = dict.Keys.Where(x => x != "*").ToArray();
+                foreach(var key in keys)
+                {
+                    dict.Remove(key);
+                }
+            }
+            return dict;
+        }
+
         public SavedMenu()
         {
             Id = System.Threading.Interlocked.Increment(ref _id);
         }
         [JsonConstructor]
-        public SavedMenu( int id )
+        public SavedMenu(int id, List<SavedMenuDay> days)
         {
             Id = id;
             if (id > _id)
                 _id = Id;
+            Days = days;
+            if(Days != null)
+            {
+                foreach(var d in Days)
+                {
+                    d.Text = correctDict(d.Text);
+                    d.Items = correctDict(d.Items);
+                }
+            }
         }
 
 
@@ -1172,7 +1194,7 @@ namespace DiscordBot.Services
 
     public class SavedMenuDay
     {
-        public IDictionary<string, string> Text { get; set; }
+        public Dictionary<string, string> Text { get; set; }
 
         public Dictionary<string, List<SavedMenuItem>> Items { get; set; } = new();
 

@@ -1553,7 +1553,20 @@ namespace DiscordBot.MLAPI.Modules
                 }
                 var menuDay = new SavedMenuDay();
                 if (day.TryGetValue("text", out var text))
-                    menuDay.Text = text.ToObject<Dictionary<string, string>>();
+                {
+                    var provided = text.ToObject<Dictionary<string, string>>();
+                    menuDay.Text = new Dictionary<string, string>();
+                    if(provided.TryGetValue("*", out var ast))
+                    {
+                        menuDay.Text["*"] = ast;
+                    } else
+                    {
+                        foreach ((var key, var value) in provided)
+                        {
+                            menuDay.Text.Add(key, value);
+                        }
+                    }
+                }
 
                 var dayItems = day["items"] as JObject;
                 var itemsError = _error.Child("items");
@@ -1563,9 +1576,19 @@ namespace DiscordBot.MLAPI.Modules
                     return;
                 }
 
+                var hasAsterisk = false;
                 foreach(var keypair in dayItems)
                 {
                     var kpError = itemsError.Child(keypair.Key);
+                    if(keypair.Key == "*" || hasAsterisk)
+                    {
+                        hasAsterisk = true;
+                        if(dayItems.Count > 0)
+                        {
+                            await RespondError(kpError.EndError("INVALID", "Cannot have * with other values"));
+                            return;
+                        }
+                    }
                     var value = keypair.Value as JArray;
 
                     for(int itemI = 0; itemI < value.Count; itemI++)
