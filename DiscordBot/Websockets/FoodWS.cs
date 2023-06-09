@@ -1,4 +1,5 @@
-﻿using DiscordBot.Services;
+﻿using Discord;
+using DiscordBot.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json.Linq;
 using System;
@@ -36,12 +37,37 @@ namespace DiscordBot.Websockets
             SendJson(packet);
         }
 
+        private void logDelayEmbed()
+        {
+            var builder = new EmbedBuilder();
+            builder.Title = $"Recipe {Recipe.Id} complete";
+            foreach(var group in Recipe.RecipeGroups)
+            {
+                var value = new StringBuilder();
+                int length = $"{group.SimpleSteps.Count}".Length;
+                foreach(var step in group.SimpleSteps)
+                {
+                    int delay = step.Remaining * -1;
+                    value.AppendLine($"{step.ToString().PadRight(length)}. {step.Duration}{(delay >= 0 ? $"+{delay}" : $"{delay}")}");
+                }
+                builder.AddField(group.Catalyst, value.ToString());
+            }
+            Program.SendLogMessageAsync(embed: builder.Build()).Wait();
+        }
+
         protected override void OnMessage(MessageEventArgs e)
         {
             var jobj = JObject.Parse(e.Data);
             Debug(jobj.ToString(), "OnMessage");
             if(jobj.TryGetValue("done", out _))
             {
+                try
+                {
+                    logDelayEmbed();
+                } catch (Exception ex)
+                {
+                    Error("Failed to log recipe conclusion:", ex);
+                }
                 FoodService.OngoingRecipes.TryRemove(Recipe.Id, out _);
                 this.Context.WebSocket.Close(CloseStatusCode.Normal, "Done");
             } else if(jobj.TryGetValue("data", out var dataT) && dataT is JObject data)
@@ -68,6 +94,7 @@ namespace DiscordBot.Websockets
                         cat.Alarm = false;
                         cat.AdvancedAt = time;
                         cat.StartedAt = started;
+                        var updates = payload["updates"] as JObject;
 
                         for(int i = 0; i < cat.SimpleSteps.Count; i++)
                         {
@@ -81,6 +108,10 @@ namespace DiscordBot.Websockets
                             if(step.State == WorkingState.Ongoing)
                             {
                                 step.State = WorkingState.Complete;
+                                if(updates.TryGetValue(i.ToString(), out var updateObj))
+                                {
+                                    step.Remaining = (int)Math.Round(updateObj["remaining"].ToObject<double>());
+                                }
                                 var next = cat.SimpleSteps.ElementAtOrDefault(i + 1);
                                 if(next != null)
                                 {
