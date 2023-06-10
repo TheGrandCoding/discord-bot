@@ -665,7 +665,16 @@ namespace DiscordBot.MLAPI.Modules
         {
             var item = menuitem.Item;
             var div = new Div(id: $"{item.Id}-{itemN++}", "placed item draggable");
-            div.WithTag("title", $"Id: {item.Id}; Product: {item.ProductId}");
+            string expires;
+            var diff = item.ExpiresAt - DateTime.Now;
+            if (diff.TotalDays > 10)
+            {
+                expires = $"in {(int)diff.TotalDays} days";
+            } else
+            {
+                expires = $"on {item.ExpiresAt.DayOfWeek} {item.ExpiresAt.Day}";
+            }
+            div.WithTag("title", $"Id: {item.Id}; Product: {item.ProductId}&#013; Expires {expires}");
             div.WithTag("data-uses", menuitem.Uses.ToString());
             div.WithTag("data-id", item.Id.ToString());
             var manu = Service.GetManufacturor(item.ProductId);
