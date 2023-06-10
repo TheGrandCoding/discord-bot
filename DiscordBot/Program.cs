@@ -448,6 +448,7 @@ Changed how permissions worked for bot.
                     RunOnGateway = false,
                     DefaultTimeout = TimeSpan.FromSeconds(30)
                 });
+            coll.AddDbContext<FilterDbContext>(ServiceLifetime.Scoped);
             coll.AddDbContext<LogContext>(ServiceLifetime.Scoped);
             coll.AddDbContext<BotDbContext>(ServiceLifetime.Scoped);
 #if INCLUDE_CHESS

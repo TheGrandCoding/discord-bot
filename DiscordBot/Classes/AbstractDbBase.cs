@@ -38,17 +38,17 @@ namespace DiscordBot.Classes
 
         protected abstract int _lockCount { get; set; }
         protected abstract SemaphoreSlim _lock { get; }
-        public async Task<T> WithLock<T>(Func<Task<T>> action)
+        public T WithLock<T>(Func<T> func)
         {
             try
             {
                 if (_lockCount == 0)
                 {
-                    await _lock.WaitAsync();
+                    _lock.Wait();
                 }
                 _lockCount++;
-                var task = action();
-                return await task;
+                var result = func();
+                return result;
             }
             finally
             {
@@ -59,13 +59,25 @@ namespace DiscordBot.Classes
                 }
             }
         }
-        public Task WithLock(Action action)
+        public void WithLock(Action action)
         {
-            return WithLock<bool>(() =>
+            try
             {
+                if (_lockCount == 0)
+                {
+                    _lock.Wait();
+                }
+                _lockCount++;
                 action();
-                return Task.FromResult(true);
-            });
+            }
+            finally
+            {
+                _lockCount--;
+                if (_lockCount == 0)
+                {
+                    _lock.Release();
+                }
+            }
         }
 
 

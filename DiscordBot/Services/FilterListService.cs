@@ -1,12 +1,64 @@
-﻿using System;
+﻿using DiscordBot.Classes;
+using DiscordBot.Utils;
+using Microsoft.EntityFrameworkCore;
+using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace DiscordBot.Services
 {
+    public class FilterDbContext : AbstractDbBase
+    {
+        private static int _count = 0;
+        private static SemaphoreSlim _semaphore = new(1, 1);
+        protected override int _lockCount { get => _count; set => _count = value; }
+        protected override SemaphoreSlim _lock => _semaphore;
+
+        public DbSet<FilterList> Filters { get; set; }
+
+        protected override void OnConfiguring(DbContextOptionsBuilder options)
+        {
+            options.WithSQLConnection("filters", true);
+        }
+
+        protected override void OnModelCreating(ModelBuilder builder)
+        {
+
+        }
+
+        public ValueTask<FilterList> GetFilter(Guid id)
+        {
+            return WithLock(() => Filters.FindAsync(id));
+        }
+
+        public IAsyncEnumerable<FilterList> GetFilters(uint userId)
+        {
+            return WithLock(() => Filters.AsAsyncEnumerable().Where(x => x.AuthorId == userId));
+        }
+
+        public Task DeleteFilter(Guid id)
+        {
+            return WithLock(async () =>
+            {
+                var f = await Filters.FindAsync(id);
+                Filters.Remove(f);
+            });
+        }
+        public void DeleteFilter(FilterList f)
+        {
+
+            WithLock(() =>
+            {
+                Filters.Remove(f);
+            });
+        }
+    }
     public class FilterListService : Service
     {
         string BaseDir => Path.Combine(Program.BASE_PATH, "data", "filters");
@@ -50,8 +102,6 @@ namespace DiscordBot.Services
 
         public bool TryReadTemplate(ulong userId, string filterId, out FileStream fs)
             => openFile(userId, filterId, true, out fs, "template");
-        public bool TryWriteTemplate(ulong userId, string filterId, out FileStream fs)
-            => openFile(userId, filterId, false, out fs, "template");
         public bool TryOpenRead(string filterId, out FileStream fs)
         {
             foreach(var userId in getUserIds())
@@ -64,42 +114,76 @@ namespace DiscordBot.Services
         }
         public bool TryOpenRead(ulong userId, string filterId, out FileStream stream)
             => openFile(userId, filterId, true, out stream);
-        public bool TryOpenWrite(ulong userId, string filterId, out FileStream stream)
-            => openFile(userId, filterId, false, out stream);
 
-        public bool TryCreateNew(ulong userId, out string id, out FileStream fs)
+        public override void OnReady(IServiceProvider services)
         {
-            bool found = true;
-            id = null;
-            while(found)
+            var userIds = getUserIds().ToList();
+            if (userIds.Count == 0) return;
+
+            var filterDb = services.GetDb<FilterDbContext>("FilterConvert");
+            foreach (var userId in userIds)
             {
-                id = Classes.PasswordHash.RandomToken(32);
-                foreach(var otherId in getUserIds())
-                { // verify file ID is unique accross all users
-                    found = File.Exists(GetFilePath(otherId, id));
-                    if (found) break;
+                var folder = GetDirectory(userId);
+                foreach (var file in Directory.EnumerateFiles(folder, "*.txt"))
+                {
+                    var oldId = Path.GetFileNameWithoutExtension(file);
+                    var existing = filterDb.Filters.FirstOrDefault(x => x.Name == oldId);
+                    if (existing != null) continue;
+                    var newFilter = new FilterList()
+                    {
+                        AuthorId = (uint)userId,
+                        Name = oldId,
+                        AutoAddTemplate = "",
+                        Text = ""
+                    };
+
+                    FileStream fs = null;
+                    try
+                    {
+                        if (TryOpenRead(oldId, out fs))
+                        {
+                            using var reader = new StreamReader(fs);
+                            newFilter.Text = reader.ReadToEnd();
+                        }
+                    } finally
+                    {
+                        fs?.Dispose();
+                    }
+
+                    try
+                    {
+                        if(TryReadTemplate(userId, oldId, out fs))
+                        {
+                            using var reader = new StreamReader(fs);
+                            newFilter.AutoAddTemplate = reader.ReadToEnd();
+                        }
+                    } finally
+                    {
+                        fs?.Dispose();
+                    }
+
+                    filterDb.Filters.Add(newFilter);
+
                 }
             }
-            return TryOpenWrite(userId, id, out fs);
-        }
-    
-        public bool TryDelete(ulong userId, string filterId)
-        {
-            var path = GetFilePath(userId, filterId);
-            try
-            {
-                File.Delete(path);
-                return true;
-            } catch(FileNotFoundException)
-            {
-                return true; // didn't exist to begin with, so not there
-            } catch(Exception ex)
-            {
-                Error(ex);
-                return false;
-            }
+            filterDb.SaveChanges();
         }
     }
 
+    public class FilterList
+    {
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        [Key]
+        public Guid Id { get; set; }
 
+        public uint AuthorId { get; set; }
+
+        [MaxLength(32)]
+        public string Name { get; set; }
+        [MaxLength(int.MaxValue)]
+        public string Text { get; set; }
+        [MaxLength(int.MaxValue)]
+        public string AutoAddTemplate { get; set; }
+
+    }
 }

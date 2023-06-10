@@ -108,7 +108,7 @@ namespace DiscordBot.Classes
                 return new("Username or password invalid.");
             if (await Program.IsPasswordLeaked(services.GetRequiredService<BotHttpClient>(), password))
                 return new("Password is known to be compromised.");
-            return await WithLock<Result<BotDbUser>>(async () =>
+            return await WithLock<Task<Result<BotDbUser>>>(async () =>
             {
                 var existing = await Users.FirstOrDefaultAsync(x => x.Name == username);
                 if (existing != null)
@@ -155,7 +155,7 @@ namespace DiscordBot.Classes
         }
         public Task<Result<BotDbUser>> GetUserFromDiscord(Discord.IUser discordUser, bool createIfNotExist)
         {
-            return WithLock<Result<BotDbUser>>(async () =>
+            return WithLock<Task<Result<BotDbUser>>>(async () =>
             {
                 var idstr = discordUser.Id.ToString();
                 var user = await Users.FirstOrDefaultAsync(x => x.Connections.DiscordId == idstr);
@@ -251,9 +251,9 @@ namespace DiscordBot.Classes
                     .FirstOrDefaultAsync(t => t.Token == token);
             });
         }
-        public Task RemoveSessionAsync(BotDbAuthSession session)
+        public void RemoveSessionAsync(BotDbAuthSession session)
         {
-            return WithLock(() => {
+            WithLock(() => {
                 AuthSessions.Remove(session);
             });
         }

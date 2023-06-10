@@ -36,7 +36,7 @@ namespace DiscordBot.Interactions.Components
             }
             else if(session != null)
             {
-                await BotDB.RemoveSessionAsync(session);
+                BotDB.RemoveSessionAsync(session);
             }
             await BotDB.SaveChangesAsync();
             await Context.Interaction.UpdateAsync(m =>

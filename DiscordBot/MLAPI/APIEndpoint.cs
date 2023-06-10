@@ -64,6 +64,7 @@ namespace DiscordBot.MLAPI
             if (!IsRegex)
                 return GetNicePath();
             var sb = new StringBuilder();
+            sb.Append("^");
             var slices = m_path.Text.Split('/');
             foreach(var x in slices)
             {
