@@ -18,33 +18,19 @@ using System.Xml;
 
 namespace DiscordBot.Services
 {
-    public class RssDbContext : DbContext
+    public sealed class RssDbContext : AbstractDbBase
     {
-        static int _id = 0;
-        int Id = 0;
-        string _reason;
-        public void SetReason(string reason)
-        {
-            if (Id == 0)
-            {
-                Id = System.Threading.Interlocked.Increment(ref _id);
-                Program.LogDebug($"Created DB {Id}/{reason}", this.GetType().Name);
-                _reason = reason;
-            }
-            else
-            {
-                _reason = (_reason ?? "") + "+" + reason;
-                Program.LogDebug($"Re-used DB {Id}/{_reason}", this.GetType().Name);
-            }
-        }
-        public override void Dispose()
-        {
-            Program.LogWarning($"Disposing DB {Id}/{_reason}", this.GetType().Name);
-            base.Dispose();
-        }
+        private static int _count = 0;
+        private static SemaphoreSlim _semaphore = new(1, 1);
+        protected override int _lockCount { get => _count; set => _count = value; }
+        protected override SemaphoreSlim _lock => _semaphore;
+
+
         public DbSet<RssFeed> Feeds { get; set; }
         public DbSet<RssArticle> Articles { get; set; }
         public DbSet<RssScript> Scripts { get; set; }
+
+
         protected override void OnConfiguring(DbContextOptionsBuilder options)
         {
 #if DEBUG

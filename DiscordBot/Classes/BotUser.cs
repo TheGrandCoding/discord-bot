@@ -11,66 +11,19 @@ using System.Threading.Tasks;
 
 namespace DiscordBot.Classes
 {
-    public class BotDbContext : DbContext
+    public class BotDbContext : AbstractDbBase
     {
-        static int _id = 0;
-        int Id = 0;
-        string _reason;
-        public void SetReason(string reason)
-        {
-            if(Id == 0)
-            {
-                Id = System.Threading.Interlocked.Increment(ref _id);
-                Program.LogDebug($"Created DB {Id}/{reason}", "BotDbCtx");
-                _reason = reason;
-            } else
-            {
-                _reason = (_reason ?? "") + "+" + reason;
-                Program.LogDebug($"Re-used DB {Id}/{_reason}", "BotDbCtx");
-            }
-        }
-        public override void Dispose()
-        {
-            Program.LogWarning($"Disposing DB {Id}/{_reason}", "BotDbCtx");
-            base.Dispose();
-        }
-        public static SemaphoreSlim _lock = new(1);
-        private int _lockCount = 0;
+        private static int _count = 0;
+        private static SemaphoreSlim _semaphore = new(1, 1);
+        protected override int _lockCount { get => _count; set => _count = value; }
+        protected override SemaphoreSlim _lock => _semaphore;
+
         public DbSet<BotDbUser> Users { get; set; } 
         public DbSet<BotDbAuthToken> AuthTokens { get; set; }
         public DbSet<BotDbAuthSession> AuthSessions { get; set; }
 
         public DbSet<PublishPost> Posts { get; set; }
         public DbSet<PublishBase> PostPlatforms { get; set; }
-
-        public async Task<T> WithLock<T>(Func<Task<T>> action)
-        {
-            try
-            {
-                if(_lockCount == 0)
-                {
-                    await _lock.WaitAsync();
-                }
-                _lockCount++;
-                var task = action();
-                return await task;
-            } finally
-            {
-                _lockCount--;
-                if(_lockCount == 0)
-                {
-                    _lock.Release();
-                }
-            }
-        }
-        public Task WithLock(Action action)
-        {
-            return WithLock<bool>(() =>
-            {
-                action();
-                return Task.FromResult(true);
-            });
-        }
 
         protected override void OnModelCreating(ModelBuilder mb)
         {

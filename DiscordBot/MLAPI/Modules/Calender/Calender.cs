@@ -17,7 +17,7 @@ namespace DiscordBot.MLAPI.Modules
 
         public override async Task BeforeExecute()
         {
-            if(!CalenderDb.Lock.WaitOne(1000 * 5))
+            if(!CalenderDb._semaphore.Wait(1000 * 5))
             {
                 await RespondRaw("Failed to achieve lock", 429);
                 throw new HaltExecutionException("Failed to achieve lock");
@@ -25,7 +25,7 @@ namespace DiscordBot.MLAPI.Modules
         }
         public override Task AfterExecute()
         {
-            CalenderDb.Lock.Release();
+            CalenderDb._semaphore.Release();
             return Task.CompletedTask;
         }
 

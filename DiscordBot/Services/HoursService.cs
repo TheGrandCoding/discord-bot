@@ -1,5 +1,6 @@
 ﻿using Discord;
 using Discord.WebSocket;
+using DiscordBot.Classes;
 using DiscordBot.Utils;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -10,6 +11,7 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace DiscordBot.Services
@@ -140,12 +142,12 @@ namespace DiscordBot.Services
 
     }
 
-    public class HoursDbContext : DbContext
+    public class HoursDbContext : AbstractDbBase
     {
-        public HoursDbContext() { }
-        public HoursDbContext(DbContextOptions<HoursDbContext> opts) : base(opts)
-        {
-        }
+        private static int _count = 0;
+        private static SemaphoreSlim _semaphore = new(1, 1);
+        protected override int _lockCount { get => _count; set => _count = value; }
+        protected override SemaphoreSlim _lock => _semaphore;
         protected override void OnConfiguring(DbContextOptionsBuilder options)
         {
             options.WithSQLConnection("hours");

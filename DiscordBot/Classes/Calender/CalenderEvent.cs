@@ -16,27 +16,16 @@ using DiscordBot.Utils;
 
 namespace DiscordBot.Classes.Calender
 {
-    public class CalenderFactory : IDesignTimeDbContextFactory<CalenderDb>
+    public class CalenderDb : AbstractDbBase
     {
-        public CalenderDb CreateDbContext(string[] args)
-        {
-            var builder = new DbContextOptionsBuilder<CalenderDb>();
-            builder.UseSqlServer("Server=(localdb)\\mssqllocaldb;Database=calendar;MultipleActiveResultSets=true");
-            builder.EnableSensitiveDataLogging();
-            return new CalenderDb(builder.Options);
-        }
-    }
-    public class CalenderDb : DbContext
-    {
-        public CalenderDb([NotNullAttribute] DbContextOptions options) : base(options)
-        {
-        }
+        private static int _count = 0;
+        public static SemaphoreSlim _semaphore = new(1, 1);
+        protected override int _lockCount { get => _count; set => _count = value; }
+        protected override SemaphoreSlim _lock => _semaphore;
         protected override void OnConfiguring(DbContextOptionsBuilder options)
         {
             options.WithSQLConnection("calendar");
         }
-
-        public static Semaphore Lock = new Semaphore(1, 1);
 
 
         public DbSet<CalenderEvent> Events { get; set; }

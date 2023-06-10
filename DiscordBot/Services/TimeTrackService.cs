@@ -15,6 +15,7 @@ using System.Net;
 using System.Net.Http;
 using System.Text;
 using DiscordBot.Utils;
+using System.Threading;
 
 namespace DiscordBot.Services
 {
@@ -53,8 +54,13 @@ namespace DiscordBot.Services
     }
 
 
-    public class TimeTrackDb : DbContext
+    public class TimeTrackDb : AbstractDbBase
     {
+        private static int _count = 0;
+        private static SemaphoreSlim _semaphore = new(1, 1);
+        protected override int _lockCount { get => _count; set => _count = value; }
+        protected override SemaphoreSlim _lock => _semaphore;
+
         protected override void OnConfiguring(DbContextOptionsBuilder options)
         {
             options.WithSQLConnection("watch", true);
@@ -222,30 +228,6 @@ namespace DiscordBot.Services
             modelBuilder.Entity<IgnoreData>()
                 .HasKey(x => new { x.UserId, x.VideoId });
 
-        }
-
-
-        static int _id = 0;
-        int Id = 0;
-        string _reason;
-        public void SetReason(string reason)
-        {
-            if (Id == 0)
-            {
-                Id = System.Threading.Interlocked.Increment(ref _id);
-                Program.LogDebug($"Created DB {Id}/{reason}", "TimeTrackDb");
-                _reason = reason;
-            }
-            else
-            {
-                _reason = (_reason ?? "") + "+" + reason;
-                Program.LogDebug($"Re-used DB {Id}/{_reason}", "TimeTrackDb");
-            }
-        }
-        public override void Dispose()
-        {
-            Program.LogWarning($"Disposing DB {Id}/{_reason}", "TimeTrackDb");
-            base.Dispose();
         }
     }
 

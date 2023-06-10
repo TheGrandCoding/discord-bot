@@ -1,39 +1,27 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using DiscordBot.Classes;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 
 namespace DiscordBot.Utils
 {
     public static class DbExtensions
     {
+        public static T GetDb<T>(this IServiceProvider services, string reason) where T : AbstractDbBase
+        {
+            var d = services.GetRequiredService<T>();
+            d.SetReason(reason);
+            return d;
+        }
         public static Classes.BotDbContext GetBotDb(this IServiceProvider services, string reason)
-        {
-            var d = services.GetRequiredService<Classes.BotDbContext>();
-            d.SetReason(reason);
-            return d;
-        }
+            => GetDb<Classes.BotDbContext>(services, reason);
         public static Services.LogContext GetMsgDb(this IServiceProvider services, string reason)
-        {
-            var d = services.GetRequiredService<Services.LogContext>();
-            d.SetReason(reason);
-            return d;
-        }
+            => GetDb<Services.LogContext>(services, reason);
         public static Services.FoodDbContext GetFoodDb(this IServiceProvider services, string reason)
-        {
-            var d = services.GetRequiredService<Services.FoodDbContext>();
-            return d;
-        }
+            => GetDb<Services.FoodDbContext>(services, reason);
         public static Services.TimeTrackDb GetTimeDb(this IServiceProvider services, string reason)
-        {
-            var d = services.GetRequiredService<Services.TimeTrackDb>();
-            d.SetReason(reason);
-            return d;
-        }
+            => GetDb<Services.TimeTrackDb>(services, reason);
         public static Services.RssDbContext GetRssDb(this IServiceProvider services, string reason)
-        {
-            var d = services.GetRequiredService<Services.RssDbContext>();
-            d.SetReason(reason);
-            return d;
-        }
+            => GetDb<Services.RssDbContext>(services, reason);
 
         public static Classes.BotHttpClient GetHttp(this IServiceProvider services)
             => services.GetRequiredService<Classes.BotHttpClient>();

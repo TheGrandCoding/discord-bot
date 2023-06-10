@@ -18,6 +18,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using DiscordBot.Utils;
+using DiscordBot.Classes;
 
 namespace DiscordBot.Services
 {
@@ -554,12 +555,12 @@ namespace DiscordBot.Services
         public WorkingMenu curMenu { get; set; }
     }
 
-    public class FoodDbContext : DbContext
+    public class FoodDbContext : AbstractDbBase
     {
-        public FoodDbContext() { }
-        public FoodDbContext(DbContextOptions<FoodDbContext> opt) : base(opt)
-        {
-        }
+        private static int _count = 0;
+        private static SemaphoreSlim _semaphore = new(1, 1);
+        protected override int _lockCount { get => _count; set => _count = value; }
+        protected override SemaphoreSlim _lock => _semaphore;
         protected override void OnConfiguring(DbContextOptionsBuilder options)
         {
             options.WithSQLConnection("food");

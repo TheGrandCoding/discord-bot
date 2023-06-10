@@ -1,5 +1,6 @@
 ﻿using Discord;
 using Discord.WebSocket;
+using DiscordBot.Classes;
 using DiscordBot.Utils;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
@@ -20,35 +21,13 @@ using System.Threading.Tasks;
 
 namespace DiscordBot.Services
 {
-    public class LogContext : DbContext
+    public class LogContext : AbstractDbBase
     {
-        public LogContext()
-        {
-        }
+        private static int _count = 0;
+        private static SemaphoreSlim _semaphore = new(1, 1);
+        protected override int _lockCount { get => _count; set => _count = value; }
+        protected override SemaphoreSlim _lock => _semaphore;
 
-
-        static int _id = 0;
-        int Id = 0;
-        string _reason;
-        public void SetReason(string reason)
-        {
-            if (Id == 0)
-            {
-                Id = System.Threading.Interlocked.Increment(ref _id);
-                Program.LogDebug($"Created DB {Id}/{reason}", "LogContext");
-                _reason = reason;
-            }
-            else
-            {
-                _reason = (_reason ?? "") + "+" + reason;
-                Program.LogDebug($"Re-used DB {Id}/{_reason}", "LogContext");
-            }
-        }
-        public override void Dispose()
-        {
-            Program.LogWarning($"Disposing DB {Id}/{_reason}", "LogContext");
-            base.Dispose();
-        }
 
         public DbSet<MsgModel> Messages { get; set; }
         public DbSet<NameTimestamps> Names { get; set; }
