@@ -1,6 +1,7 @@
 ﻿using Discord;
 using Discord.Commands;
 using DiscordBot.Classes;
+using DiscordBot.Classes.DbContexts;
 using DiscordBot.Permissions;
 using DiscordBot.Services;
 using DiscordBot.Utils;
@@ -177,7 +178,7 @@ namespace DiscordBot.MLAPI
         public APIEndpoint Endpoint { get; set; }
 
         private BotDbContext _db;
-        public DiscordBot.Classes.BotDbContext BotDB 
+        public BotDbContext BotDB 
         { 
             get
             {

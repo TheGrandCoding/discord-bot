@@ -2,6 +2,7 @@
 using Discord.Rest;
 using Discord.WebSocket;
 using DiscordBot.Classes;
+using DiscordBot.Classes.DbContexts;
 using DiscordBot.MLAPI;
 using DiscordBot.Utils;
 using Microsoft.EntityFrameworkCore.Internal;

@@ -1,6 +1,7 @@
 ﻿using Discord;
 using Discord.Commands;
 using DiscordBot.Classes;
+using DiscordBot.Classes.DbContexts;
 using DiscordBot.MLAPI.Exceptions;
 using DiscordBot.Services;
 using DiscordBot.Utils;

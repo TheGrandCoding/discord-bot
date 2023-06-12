@@ -2,6 +2,7 @@
 using Discord.Commands;
 using Discord.WebSocket;
 using DiscordBot.Classes;
+using DiscordBot.Classes.DbContexts;
 using DiscordBot.Commands;
 using DiscordBot.Services;
 using DiscordBot.Utils;

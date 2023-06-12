@@ -1,8 +1,8 @@
 ﻿using Discord;
 using DiscordBot.Classes;
+using DiscordBot.Classes.DbContexts;
 using DiscordBot.MLAPI;
 using DiscordBot.MLAPI.Modules.TimeTracking;
-using DiscordBot.Services;
 using DiscordBot.Utils;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json.Linq;

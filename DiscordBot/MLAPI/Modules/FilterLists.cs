@@ -1,4 +1,5 @@
 ﻿using Discord;
+using DiscordBot.Classes.DbContexts;
 using DiscordBot.Classes.HTMLHelpers.Objects;
 using DiscordBot.MLAPI.Attributes;
 using DiscordBot.Services;
@@ -20,10 +21,8 @@ namespace DiscordBot.MLAPI.Modules
         const string FilterIdRegex = @"\w{8}-?\w{4}-?\w{4}-?\w{4}-?\w{12}";
         public FilterLists(APIContext context) : base(context, "filters")
         {
-            Service = Context.Services.GetRequiredService<FilterListService>();
             DB = Context.Services.GetDb<FilterDbContext>("HTTP_" + context.Endpoint.Name);
         }
-        public FilterListService Service { get; set; }
         public FilterDbContext DB { get; set; }
 
         [Method("GET"), Path("/filters")]

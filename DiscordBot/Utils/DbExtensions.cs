@@ -1,4 +1,4 @@
-﻿using DiscordBot.Classes;
+﻿using DiscordBot.Classes.DbContexts;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 
@@ -12,16 +12,16 @@ namespace DiscordBot.Utils
             d.SetReason(reason);
             return d;
         }
-        public static Classes.BotDbContext GetBotDb(this IServiceProvider services, string reason)
-            => GetDb<Classes.BotDbContext>(services, reason);
-        public static Services.LogContext GetMsgDb(this IServiceProvider services, string reason)
-            => GetDb<Services.LogContext>(services, reason);
-        public static Services.FoodDbContext GetFoodDb(this IServiceProvider services, string reason)
-            => GetDb<Services.FoodDbContext>(services, reason);
-        public static Services.TimeTrackDb GetTimeDb(this IServiceProvider services, string reason)
-            => GetDb<Services.TimeTrackDb>(services, reason);
-        public static Services.RssDbContext GetRssDb(this IServiceProvider services, string reason)
-            => GetDb<Services.RssDbContext>(services, reason);
+        public static BotDbContext GetBotDb(this IServiceProvider services, string reason)
+            => GetDb<BotDbContext>(services, reason);
+        public static LogContext GetMsgDb(this IServiceProvider services, string reason)
+            => GetDb<LogContext>(services, reason);
+        public static FoodDbContext GetFoodDb(this IServiceProvider services, string reason)
+            => GetDb<FoodDbContext>(services, reason);
+        public static TimeTrackDb GetTimeDb(this IServiceProvider services, string reason)
+            => GetDb<TimeTrackDb>(services, reason);
+        public static RssDbContext GetRssDb(this IServiceProvider services, string reason)
+            => GetDb<RssDbContext>(services, reason);
 
         public static Classes.BotHttpClient GetHttp(this IServiceProvider services)
             => services.GetRequiredService<Classes.BotHttpClient>();

@@ -2,6 +2,7 @@
 using Discord.WebSocket;
 using DiscordBot.Classes;
 using DiscordBot.Classes.Attributes;
+using DiscordBot.Classes.DbContexts;
 using DiscordBot.Services.Games;
 using DiscordBot.Utils;
 using Microsoft.Extensions.DependencyInjection;

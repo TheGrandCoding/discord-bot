@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace DiscordBot.Classes
+namespace DiscordBot.Classes.DbContexts
 {
     public abstract class AbstractDbBase : DbContext
     {
