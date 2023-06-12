@@ -69,7 +69,7 @@ namespace DiscordBot.Classes.DbContexts
             await Articles.AddRangeAsync(articles);
             var unreads = articles.Count(x => x.IsRead == false);
             feed.UnreadArticles += unreads;
-            feed.NextCheck = DateTime.UtcNow.AddMinutes(Math.Min(1, feed.Interval));
+            feed.NextCheck = DateTime.UtcNow.AddMinutes(Math.Max(1, feed.Interval));
             Feeds.Update(feed);
         }
     }
