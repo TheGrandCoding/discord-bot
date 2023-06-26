@@ -1592,7 +1592,7 @@ namespace DiscordBot.MLAPI.Modules
                     if(keypair.Key == "*" || hasAsterisk)
                     {
                         hasAsterisk = true;
-                        if(dayItems.Count > 0)
+                        if(menuDay.Items.Count > 0)
                         {
                             await RespondError(kpError.EndError("INVALID", "Cannot have * with other values"));
                             return;
