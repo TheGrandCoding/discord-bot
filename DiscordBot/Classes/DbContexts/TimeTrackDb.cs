@@ -159,21 +159,7 @@ namespace DiscordBot.Classes.DbContexts
         public RedditData[] GetRecentThread(uint user, DateTime? since = null)
         {
             since ??= DateTime.UtcNow.AddHours(-12);
-            var threads = Threads.Where(x => x.UserId == user && x.LastUpdated >= since).ToArray();
-            var latest = new Dictionary<string, RedditData>();
-            foreach (var thread in threads)
-            {
-                if (!latest.TryGetValue(thread.ThreadId, out var data))
-                {
-                    latest[thread.ThreadId] = thread;
-                }
-                else
-                {
-                    if (thread.LastUpdated > data.LastUpdated)
-                        latest[thread.ThreadId] = thread;
-                }
-            }
-            return latest.Values.ToArray();
+            return Threads.Where(x => x.UserId == user && x.LastUpdated >= since).ToArray();
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

@@ -3,6 +3,7 @@ using DiscordBot.Classes;
 using DiscordBot.Classes.DbContexts;
 using DiscordBot.MLAPI;
 using DiscordBot.MLAPI.Modules.TimeTracking;
+using DiscordBot.Services;
 using DiscordBot.Utils;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json.Linq;
@@ -87,12 +88,23 @@ namespace DiscordBot.Websockets
         public void SendRecentDatas(TimeTrackDb DB, DateTime? since = null)
         {
             var recentVideos = DB.GetRecentVideo(User.Id, since);
-            if (recentVideos.Length == 0) return;
+            var recentThreads = DB.GetRecentThread(User.Id, since);
+            if (recentVideos.Length == 0 && recentThreads.Length == 0) return;
+            
             var vids = new JObject();
             foreach (var x in recentVideos)
                 vids[x.VideoId] = x.WatchedTime;
-            var packet = new TTPacket(TTPacketId.SetTimes, vids);
-            Send(packet);
+            var vidPacket = new TTPacket(TTPacketId.SetTimes, vids);
+            Send(vidPacket);
+
+            var threads = new JObject();
+            foreach(var group in recentThreads.GroupBy(b => b.ThreadId))
+            {
+                var data = encodeThreadData(group.OrderBy(x => x.LastUpdated).ToArray());
+                threads[group.Key] = data;
+            }
+            var threadPacket = new TTPacket(TTPacketId.GetThreads, threads);
+            Send(threadPacket);
         }
 
 
@@ -122,6 +134,25 @@ namespace DiscordBot.Websockets
             }
             SendRecentDatas(db, since);
             SendIgnoredDatas(db);
+        }
+
+        JObject encodeThreadData(RedditData[] threads)
+        {
+            var thing = threads.Last();
+            var threadObj = new JObject();
+            if (APIVersion == 2)
+            {
+                var jar = new JArray();
+                foreach (var x in threads)
+                    jar.Add(new DateTimeOffset(x.LastUpdated).ToUnixTimeMilliseconds());
+                threadObj["when"] = jar;
+            }
+            else
+            {
+                threadObj["when"] = new DateTimeOffset(thing.LastUpdated).ToUnixTimeMilliseconds();
+            }
+            threadObj["count"] = thing.Comments;
+            return threadObj;
         }
 
         TTPacket getResponse(TTPacket packet, TimeTrackDb DB)
@@ -194,19 +225,7 @@ namespace DiscordBot.Websockets
                     var threads = DB.GetThread(User.Id, id);
                     if (threads == null || threads.Length == 0)
                         continue;
-                    var thing = threads.Last();
-                    var threadObj = new JObject();
-                    if(APIVersion == 2)
-                    {
-                        var jar = new JArray();
-                        foreach (var x in threads)
-                            jar.Add(new DateTimeOffset(x.LastUpdated).ToUnixTimeMilliseconds());
-                        threadObj["when"] = jar;
-                    } else
-                    {
-                        threadObj["when"] = new DateTimeOffset(thing.LastUpdated).ToUnixTimeMilliseconds();
-                    }
-                    threadObj["count"] = thing.Comments;
+                    var threadObj = encodeThreadData(threads);
                     jobj[id] = threadObj;
                 }
                 return packet.ReplyWith(jobj);
