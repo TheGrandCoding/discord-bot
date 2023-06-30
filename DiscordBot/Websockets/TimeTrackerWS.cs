@@ -138,20 +138,32 @@ namespace DiscordBot.Websockets
 
         JObject encodeThreadData(RedditData[] threads)
         {
-            var thing = threads.Last();
             var threadObj = new JObject();
-            if (APIVersion == 2)
+            var thing = threads.Last();
+            if (APIVersion >= 2)
             {
                 var jar = new JArray();
                 foreach (var x in threads)
-                    jar.Add(new DateTimeOffset(x.LastUpdated).ToUnixTimeMilliseconds());
+                {
+                    if(APIVersion == 2)
+                    {
+                        jar.Add(new DateTimeOffset(x.LastUpdated).ToUnixTimeMilliseconds());
+                    } else
+                    {
+                        var obj = new JObject();
+                        obj["t"] = new DateTimeOffset(x.LastUpdated).ToUnixTimeMilliseconds();
+                        obj["c"] = x.Comments;
+                        jar.Add(obj);
+                    }
+                }
                 threadObj["when"] = jar;
             }
             else
             {
                 threadObj["when"] = new DateTimeOffset(thing.LastUpdated).ToUnixTimeMilliseconds();
             }
-            threadObj["count"] = thing.Comments;
+            if(APIVersion < 3)
+                threadObj["count"] = thing.Comments;
             return threadObj;
         }
 

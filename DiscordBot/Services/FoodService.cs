@@ -1479,7 +1479,7 @@ namespace DiscordBot.Services
 
             if(simpleSteps.Last().Duration > 0)
             {
-                var dishUp = new WorkingRecipeStep("Dish up", 0);
+                var dishUp = new WorkingRecipeStep("Dish up", 0, 0);
                 dishUp.TentativeStartTime = lastTime ?? 0;
                 simpleSteps.Insert(simpleSteps.Count, dishUp);
             }
@@ -1487,6 +1487,7 @@ namespace DiscordBot.Services
             this.SimpleSteps = simpleSteps.ToList();
 
             int? nextStart = null;
+            int nextDelay = 0;
             for(int i = this.SimpleSteps.Count - 1; i >= 0; i--)
             {
                 var step = this.SimpleSteps[i];
@@ -1495,7 +1496,9 @@ namespace DiscordBot.Services
                     step.Duration = nextStart.Value - step.TentativeStartTime.Value;
                     step.Remaining = step.Duration;
                 }
+                step.TentativeStartTime = step.TentativeStartTime.Value + nextDelay;
                 nextStart = step.TentativeStartTime.Value;
+                nextDelay = step.DelayNext;
             }
             // go through and merge steps that start at the same time.
             int idx = 0;
@@ -1508,6 +1511,7 @@ namespace DiscordBot.Services
                     current.Text += " & " + next.Text;
                     current.Duration += next.Duration;
                     current.Remaining += next.Remaining;
+                    current.DelayNext = Math.Min(current.DelayNext, next.DelayNext);
                     this.SimpleSteps.RemoveAt(idx + 1);
                 } else
                 {
@@ -1571,7 +1575,7 @@ namespace DiscordBot.Services
             wr.RecipeId = recipe.Id;
             foreach(var step in recipe.Steps)
             {
-                wr.WithStep(step.Description, (step.Duration + step.Delay) ?? 0);
+                wr.WithStep(step.Description, step.Duration ?? 0, step.Delay ?? 0);
             }
             return wr;
         }
@@ -1581,9 +1585,9 @@ namespace DiscordBot.Services
             Steps = new List<WorkingRecipeStep>();
             Current = 0;
         }
-        public WorkingRecipe WithStep(string text, int duration = 0)
+        public WorkingRecipe WithStep(string text, int duration = 0, int delayNext = 0)
         {
-            var s = new WorkingRecipeStep(text, duration);
+            var s = new WorkingRecipeStep(text, duration, delayNext);
             Steps.Add(s);
             return this;
         }
@@ -1612,10 +1616,10 @@ namespace DiscordBot.Services
             {
                 if(original)
                 {
-                    s += step.Duration;
+                    s += step.Duration + step.DelayNext;
                 } else
                 {
-                    s += step.Remaining;
+                    s += step.Remaining + step.DelayNext;
                 }
             }
             return s;
@@ -1636,16 +1640,18 @@ namespace DiscordBot.Services
     [DebuggerDisplay($"{{{nameof(GetDebuggerDisplay)}(),nq}}")]
     public class WorkingRecipeStep
     {
-        public WorkingRecipeStep(string text, int duration)
+        public WorkingRecipeStep(string text, int duration, int delayNext)
         {
             Text = text;
             Duration = duration;
+            DelayNext = delayNext;
             Remaining = duration;
             State = WorkingState.Pending;
-                
         }
+
         public string Text { get; set; }
         public int Duration { get; set; }
+        public int DelayNext { get; set; }
         public int Remaining { get; set; }
         public WorkingState State { get; set; }
         public ulong? StartedAt { get; set; }
@@ -1662,6 +1668,7 @@ namespace DiscordBot.Services
 
             jobj["text"] = Text;
             jobj["duration"] = Duration;
+            jobj["delayNext"] = DelayNext;
             jobj["remain"] = Remaining + modifyRemaining;
             jobj["state"] = State.ToString();
             if(StartedAt.HasValue)
