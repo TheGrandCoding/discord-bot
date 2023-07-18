@@ -303,6 +303,11 @@ namespace DiscordBot.MLAPI
                 || str.Contains("::1");
         }
 
+        static string[] csp_updated = new string[]
+        {
+            "/login", "/ocr", "/food", "/filters", "/legal"
+        };
+
         static void addSecurityHeaders(HttpListenerContext context)
         {
             context.Response.AddHeader("X-Frame-Options", "SAMEORIGIN");
@@ -317,9 +322,9 @@ namespace DiscordBot.MLAPI
             } else if(context.Request.Url.AbsolutePath.StartsWith("/ocr/raw"))
             {
                 context.Response.AddHeader("Content-Security-Policy", "default-src 'self' 'unsafe-inline';");
-            } else
+            } else if(csp_updated.Any(path => context.Request.Url.AbsolutePath.StartsWith(path)))
             {
-                context.Response.AddHeader("Content-Security-Policy-Report-Only", "default-src 'none'; " +
+                context.Response.AddHeader("Content-Security-Policy", "default-src 'none'; " +
                     $"script-src {LocalAPIUrl}/_/js/ https://cdn.jsdelivr.net/ https://cdnjs.cloudflare.com/; " +
                     $"style-src {LocalAPIUrl}/_/css/ https://cdn.jsdelivr.net/; " +
                     $"media-src {LocalAPIUrl}/_/assets/; " +
@@ -328,6 +333,9 @@ namespace DiscordBot.MLAPI
                     $"frame-src 'self'; " +
                     $"connect-src {LocalAPIUrl}/api/ {WSService.Url}; " +
                     "frame-ancestors 'none'");
+            } else
+            {
+                context.Response.AddHeader("Content-Security-Policy", "default-src 'self' 'unsafe-inline';");
             }
         }
 
