@@ -116,7 +116,7 @@ namespace DiscordBot.MLAPI.Modules
                 {
                     Children =
                     {
-                        new Img("/_/img/snowflake.png") {Style = "width: 32px; vertical-align: middle"},
+                        new Img("/_/img/snowflake.png"),
                         new Span() { RawText = text }
                     }
                 };
@@ -125,6 +125,19 @@ namespace DiscordBot.MLAPI.Modules
             {
                 return new TableData(text);
             }
+        }
+
+        Input getRemoveInput(int invId, bool shouldUse)
+        {
+            var i = new Input("button", shouldUse ? "Use" : "Delete", cls: "danger remove-item");
+            i.WithTag("data-id", invId);
+            return i;
+        }
+        Input getFreezeInput(int invId, bool isFrozen)
+        {
+            var i = new Input("button", isFrozen ? "Unfreeze" : "Freeze", cls: "freeze freeze-item");
+            i.WithTag("data-id", invId);
+            return i;
         }
 
         TableRow getRow(InventoryItem item, bool full)
@@ -153,14 +166,8 @@ namespace DiscordBot.MLAPI.Modules
                 row.Children.Add(new TableData(null)
                 {
                     Children = {
-                            new Input("button", shouldUse ? "Use" : "Delete", cls: "danger")
-                            {
-                                OnClick = $"removeInvItem({item.Id}, {(shouldUse ? "true" : "false")});"
-                            },
-                            new Input("button", item.Frozen ? "Unfreeze" : "Freeze", cls: "freeze")
-                            {
-                                OnClick = $"toggleFrozen({item.Id}, {item.Frozen.ToString().ToLower()});"
-                            }
+                            getRemoveInput(item.Id, shouldUse),
+                            getFreezeInput(item.Id, item.Frozen)
                         }
                 });
             }
@@ -400,28 +407,16 @@ namespace DiscordBot.MLAPI.Modules
                         d.Children.Add(new Span() { RawText = $" ({thing.ExpiresAt:yyyy-MM-dd})" });
                         row.Children.Add(d);
 
-                        if(!thing.Frozen)
-                        {
-                            row.Children.Add(new TableData(null)
-                            {
-                                Children = {
-                                    new Input("button", "Freeze", cls: "danger")
-                                    {
-                                        OnClick = $"markFrozen({thing.Id});"
-                                    }
-                                }
-                            });
-                        } else
-                        {
-                            row.Children.Add(new TableData(""));
-                        }
                         row.Children.Add(new TableData(null)
                         {
                             Children = {
-                                new Input("button", "Delete", cls: "danger")
-                                {
-                                    OnClick = $"removeInvItem({thing.Id});"
-                                }
+                                getFreezeInput(thing.Id, thing.Frozen)
+                            }
+                        });
+                        row.Children.Add(new TableData(null)
+                        {
+                            Children = {
+                                getRemoveInput(thing.Id, false)
                             }
                         });
 
@@ -574,14 +569,11 @@ namespace DiscordBot.MLAPI.Modules
                 {
                     Children =
                     {
-                        new Input("checkbox", id: x.Id.ToString(), cls: "recipe-selects") {
-                            OnClick = "cbToggled(event)"
-                        },
-                        new Input("number", id: $"delay-{x.Id}") {
-                            Style = "display: none"
-                        }.WithTag("placeholder", "Offset (s)"),
-                        new Input("button", "Edit") {OnClick = $"editRecipe({x.Id});"},
-                        new Input("button", "Delete") {OnClick = $"deleteRecipe({x.Id});"}
+                        new Input("checkbox", id: x.Id.ToString(), cls: "recipe-selects"),
+                        new Input("number", id: $"delay-{x.Id}", cls: "hidden")
+                            .WithTag("placeholder", "Offset (s)"),
+                        new Input("button", "Edit", cls: "edit-recipe").WithTag("data-id", x.Id),
+                        new Input("button", "Delete", cls: "delete-recipe").WithTag("data-id", x.Id)
                     }
                 });
                 table.Children.Add(r);
@@ -684,17 +676,13 @@ namespace DiscordBot.MLAPI.Modules
                 div.Children.Add(new Span(cls: "manu") { RawText = manu });
             if(item.Frozen)
             {
-                div.Children.Add(new Img("/_/img/snowflake.png")
-                {
-                    Style = "width: 32px; vertical-align: middle"
-                });
+                div.Children.Add(new Img("/_/img/snowflake.png"));
             }
             div.Children.Add(new Span() { RawText = item.Product.Name });
             if(edit)
             {
                 div.WithTag("draggable", "true");
-                div.WithTag("ondragstart", "onDragStart(event);");
-                div.WithTag("onclick", "onItemClick(event);");
+                div.ClassList.Add("drag-start");
             }
             return div;
         }
@@ -716,7 +704,7 @@ namespace DiscordBot.MLAPI.Modules
                     foreach ((var key, var value) in Service.Menus)
                     {
                         var div = new Div();
-                        div.Children.Add(new Anchor("#", value.Title ?? $"{key}") { OnClick = $"selectMenu({key});" });
+                        div.Children.Add(new Anchor("#", value.Title ?? $"{key}", id: "selectMenu"));
                         div.Children.Add(new Anchor($"/food/menu/new?overwrite={key}", " (Edit)"));
                         table.WithRow(div);
                     }
@@ -741,7 +729,7 @@ namespace DiscordBot.MLAPI.Modules
                         row.ClassList.Add("today-row");
 
                     var dayTd = new TableData($"{date.DayOfWeek} {date.Day}{Program.GetDaySuffix(date.Day)}");
-                    var maninp = new Input("checkbox") { OnClick = $"togglemanual(event);" };
+                    var maninp = new Input("checkbox", cls: "cbManual");
                     if (day.ManualOverride) maninp.WithTag("checked", null);
                     dayTd.Children.Add(maninp);
 
@@ -776,9 +764,7 @@ namespace DiscordBot.MLAPI.Modules
                             data.WithTag("data-date", dayIndex.ToString());
                             if(edit)
                             {
-                                data.WithTag("ondragover", "onDragOver(event)");
-                                data.WithTag("ondrop", "onDrop(event)");
-                                data.WithTag("onclick", "setText(event)");
+                                data.ClassList.Add("drag-over");
                             }
                             if (day.Text.TryGetValue(group, out var x))
                                 data.Children.Add(new StrongText(x));
@@ -795,11 +781,9 @@ namespace DiscordBot.MLAPI.Modules
                     }
 
 
-                    var inp = new Input("checkbox")
+                    var inp = new Input("checkbox", cls: "cbToggleShare")
                     {
-                        Checked = day.Items.ContainsKey("*"),
-                        OnClick = edit ? "toggleShare(event);" : "return false",
-                        Style = "float: right"
+                        Checked = day.Items.ContainsKey("*")
                     };
                     row.Children.Last().Children.Add(inp);
                     table.Children.Add(row);
@@ -814,7 +798,7 @@ namespace DiscordBot.MLAPI.Modules
                     replacements.Add("title", menu.Title);
                 }
             }
-            replacements.Add("edit", edit ? "true" : "");
+            replacements.Add("edit", edit ? "<div id='edit'></div>" : "");
 
             await ReplyFile("menu.html", 200, replacements.Add("table", table.ToString(true)));
         }
@@ -1317,7 +1301,6 @@ namespace DiscordBot.MLAPI.Modules
             if(jobj.TryGetValue("children", out var child))
             {
                 recipe.Children = new Dictionary<int, int>();
-                int _ind = 0;
                 foreach (var c in (child as JArray))
                 {
                     var o = c as JObject;
