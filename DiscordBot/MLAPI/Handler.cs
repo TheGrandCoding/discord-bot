@@ -29,8 +29,8 @@ namespace DiscordBot.MLAPI
         public const string LocalAPIDomain = "localhost";
         public const string LocalAPIUrl = "http://localhost:8887";
 #else
-        public const string LocalAPIDomain = "cheale14.com";
-        public const string LocalAPIUrl = "https://mlapi." + LocalAPIDomain;
+        public const string LocalAPIDomain = "mlapi.cheale14.com";
+        public const string LocalAPIUrl = "https://" + LocalAPIDomain;
 #endif
         public static void Start()
         {

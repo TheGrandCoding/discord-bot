@@ -30,7 +30,7 @@ namespace DiscordBot.MLAPI
                     if (_domain.StartsWith("a:"))
                     {
                         _domain = _domain.Substring("a:".Length);
-                        _domain = _domain + "." + Handler.LocalAPIDomain;
+                        _domain = _domain + "." + string.Join('.', Handler.LocalAPIDomain.Split('.').Skip(1));
                         _domains[i] = _domain;
                     }
                     yield return _domain;
