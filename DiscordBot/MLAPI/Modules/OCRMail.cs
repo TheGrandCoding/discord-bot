@@ -86,8 +86,7 @@ namespace DiscordBot.MLAPI.Modules
                             .WithCell(sendName)
                             .WithCell(dateName)
                             .WithCell(getSubject(date))
-                            .WithTag("data-link", $"/ocr/view/{recipient.Name}/{sender.Name}/{date.Name}")
-                            .WithTag("onclick", "gotorow(event)");
+                            .WithTag("data-link", $"/ocr/view/{recipient.Name}/{sender.Name}/{date.Name}");
                         table.Children.Add(tr);
                     }
                 }
@@ -179,7 +178,7 @@ namespace DiscordBot.MLAPI.Modules
                 var ocr = info.Name.Replace(info.Extension, ".txt");
 
                 data.Add("<div class='file'>");
-                data.Add($"<img title=\"{info.Name}\" onclick=\"loadImg(event)\" data-src=\"/ocr/raw/{rec}/{send}/{date}/{info.Name}\"></img>");
+                data.Add($"<img title=\"{info.Name}\" data-src=\"/ocr/raw/{rec}/{send}/{date}/{info.Name}\"></img>");
                 data.Add($"<iframe src=\"/ocr/raw/{rec}/{send}/{date}/{ocr}\"></iframe>");
                 data.Add("</div>");
             }

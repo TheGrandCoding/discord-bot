@@ -314,14 +314,18 @@ namespace DiscordBot.MLAPI
             if (context.Request.Url.AbsolutePath.StartsWith("/api/"))
             {
                 context.Response.AddHeader("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'");
+            } else if(context.Request.Url.AbsolutePath.StartsWith("/ocr/raw"))
+            {
+                context.Response.AddHeader("Content-Security-Policy", "default-src 'self' 'unsafe-inline';");
             } else
             {
                 context.Response.AddHeader("Content-Security-Policy-Report-Only", "default-src 'none'; " +
                     $"script-src {LocalAPIUrl}/_/js/ https://cdn.jsdelivr.net/; " +
                     $"style-src {LocalAPIUrl}/_/css/ https://cdn.jsdelivr.net/; " +
                     $"media-src {LocalAPIUrl}/_/assets/; " +
-                    $"img-src {LocalAPIUrl}/_/img/; " +
+                    $"img-src 'self'; " +
                     $"font-src 'self' data:; " +
+                    $"frame-src 'self'; " +
                     $"connect-src {LocalAPIUrl}/api/ {WSService.Url}; " +
                     "frame-ancestors 'none'");
             }
