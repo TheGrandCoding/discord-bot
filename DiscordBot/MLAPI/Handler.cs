@@ -331,7 +331,7 @@ namespace DiscordBot.MLAPI
                     $"img-src 'self'; " +
                     $"font-src 'self' data:; " +
                     $"frame-src 'self'; " +
-                    $"connect-src {LocalAPIUrl}/api/ {WSService.Url}; " +
+                    $"connect-src {LocalAPIUrl}/api/ {WSService.Url}/; " +
                     "frame-ancestors 'none'");
             } else
             {
