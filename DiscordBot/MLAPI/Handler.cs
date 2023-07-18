@@ -320,7 +320,7 @@ namespace DiscordBot.MLAPI
             } else
             {
                 context.Response.AddHeader("Content-Security-Policy-Report-Only", "default-src 'none'; " +
-                    $"script-src {LocalAPIUrl}/_/js/ https://cdn.jsdelivr.net/; " +
+                    $"script-src {LocalAPIUrl}/_/js/ https://cdn.jsdelivr.net/ https://cdnjs.cloudflare.com/; " +
                     $"style-src {LocalAPIUrl}/_/css/ https://cdn.jsdelivr.net/; " +
                     $"media-src {LocalAPIUrl}/_/assets/; " +
                     $"img-src 'self'; " +
