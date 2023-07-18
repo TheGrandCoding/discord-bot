@@ -15,6 +15,12 @@ namespace DiscordBot.Services
     {
         public static WebSocketServer Server { get; set; }
 
+#if WINDOWS
+        public const string Url = $"ws://{MLAPI.Handler.LocalAPIDomain}:4650";
+#else
+        public const string Url = $"wss://{MLAPI.Handler.LocalAPIDomain}/wss";
+#endif
+
         public override void OnLoaded(IServiceProvider services)
         {
             if (Server != null)

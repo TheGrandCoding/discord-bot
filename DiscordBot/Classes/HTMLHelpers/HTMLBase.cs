@@ -122,6 +122,7 @@ namespace DiscordBot.Classes.HTMLHelpers
             tagValues[name] = value;
             return this;
         }
+        public HTMLBase WithTag(string name, int value) => WithTag(name, value.ToString());
         public HTMLBase WithRawText(string content)
         {
             RawText = content;
@@ -184,12 +185,18 @@ namespace DiscordBot.Classes.HTMLHelpers
             }
         }
 
+        [Obsolete("CSP")]
         public string Style { get => get(nameof(Style)); set => set(nameof(Style), value); }
 
+        [Obsolete("CSP")]
         public string OnClick { get => get(nameof(OnClick)); set => set(nameof(OnClick), value); }
+        [Obsolete("CSP")]
         public string OnMouseOver { get => get(nameof(OnMouseOver)); set => set(nameof(OnMouseOver), value); }
+        [Obsolete("CSP")]
         public string OnMouseEnter { get => get(nameof(OnMouseEnter)); set => set(nameof(OnMouseEnter), value); }
+        [Obsolete("CSP")]
         public string OnMouseLeave { get => get(nameof(OnMouseLeave)); set => set(nameof(OnMouseLeave), value); }
+        [Obsolete("CSP")]
         public string OnMouseOut { get => get(nameof(OnMouseOut)); set => set(nameof(OnMouseOut), value); }
     }
 

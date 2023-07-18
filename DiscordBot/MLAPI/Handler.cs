@@ -303,6 +303,30 @@ namespace DiscordBot.MLAPI
                 || str.Contains("::1");
         }
 
+        static void addSecurityHeaders(HttpListenerContext context)
+        {
+            context.Response.AddHeader("X-Frame-Options", "SAMEORIGIN");
+            if(Handler.LocalAPIUrl.StartsWith("https"))
+            {
+                context.Response.AddHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+            }
+
+            if (context.Request.Url.AbsolutePath.StartsWith("/api/"))
+            {
+                context.Response.AddHeader("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'");
+            } else
+            {
+                context.Response.AddHeader("Content-Security-Policy-Report-Only", "default-src 'none'; " +
+                    $"script-src {LocalAPIUrl}/_/js/ https://cdn.jsdelivr.net/; " +
+                    $"style-src {LocalAPIUrl}/_/css/ https://cdn.jsdelivr.net/; " +
+                    $"media-src {LocalAPIUrl}/_/assets/; " +
+                    $"img-src {LocalAPIUrl}/_/img/; " +
+                    $"font-src 'self' data:; " +
+                    $"connect-src {LocalAPIUrl}/api/ {WSService.Url}; " +
+                    "frame-ancestors 'none'");
+            }
+        }
+
         static async Task innerLoop(HttpListenerContext req)
         {
             using var scopedServices = Program.GlobalServices.CreateScope();
@@ -313,6 +337,7 @@ namespace DiscordBot.MLAPI
                 req.Response.Close();
                 return;
             }
+            addSecurityHeaders(req);
             if (context.Headers.TryGetValue("Origin", out var origin))
             {
                 if (origin != LocalAPIUrl && (context.Path.StartsWith("/api/tracker") || context.Path.StartsWith("/ocr")))
@@ -325,7 +350,8 @@ namespace DiscordBot.MLAPI
                             req.Response.AddHeader(key.Replace("Request", "Allow"), val);
                         }
                     }
-                    req.Response.AddHeader("Access-Control-Allow-Origin", "*");
+                    req.Response.AddHeader("Vary", "Origin");
+                    req.Response.AddHeader("Access-Control-Allow-Origin", origin ?? "*");
                     if (context.Method == "OPTIONS")
                     {
                         req.Response.StatusCode = 200;
