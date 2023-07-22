@@ -670,7 +670,7 @@ namespace DiscordBot.MLAPI.Modules
             div.WithTag("data-uses", menuitem.Uses.ToString());
             div.WithTag("data-id", item.Id.ToString());
             var manu = Service.GetManufacturor(item.ProductId);
-            if (menuitem.Uses > 1)
+            if (menuitem.Uses > 1 || (menuitem.Item?.Product?.Uses ?? 1) > 1)
                 div.Children.Add(new Span(cls: "uses").WithRawText($"{menuitem.Uses}x "));
             if(manu != null)
                 div.Children.Add(new Span(cls: "manu") { RawText = manu });
@@ -744,9 +744,7 @@ namespace DiscordBot.MLAPI.Modules
                         data.WithTag("data-date", dayIndex.ToString());
                         if(edit)
                         {
-                            data.WithTag("ondragover", "onDragOver(event)");
-                            data.WithTag("ondrop", "onDrop(event)");
-                            data.WithTag("onclick", "setText(event)");
+                            data.ClassList.Add("drag-over");
                         }
                         foreach (var item in ls)
                         {
