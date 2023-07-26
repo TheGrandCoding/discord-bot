@@ -757,7 +757,7 @@ namespace DiscordBot.Services
                         failsFilters.Add($"Server has none of the following features: [{string.Join(", ", ff.Features)}]");
                     } else if(f is RangeByHashFilter rbh)
                     {
-                        failsFilters.Add($"Could not computer range by hash filter.");
+                        failsFilters.Add($"Could not compute range by hash filter.");
                     }
                 }
             }
@@ -826,6 +826,7 @@ namespace DiscordBot.Services
 
     public enum FilterType : ulong
     {
+        Generic         = 0,
         Feature         = 1604612045,
         IDRange         = 2404720969,
         MemberCount     = 2918402255,
@@ -853,11 +854,12 @@ namespace DiscordBot.Services
                 return HubTypeFilter.Create(x);
             else if (type == FilterType.ID)
                 return IDListFilter.Create(x);
-            else if (type == FilterType.VanityURL)
-                throw new NotImplementedException($"VanityURL filter is not implemented");
+            // else if (type == FilterType.VanityURL)
+            //     throw new NotImplementedException($"VanityURL filter is not implemented");
             else if (type == FilterType.RangeByHash)
                 return RangeByHashFilter.Create(x);
-            throw new ArgumentException($"Unknown filter type: {type}");
+            else
+                return GenericFilter.Create(x);
         }
 
         public override string ToString()
@@ -869,6 +871,46 @@ namespace DiscordBot.Services
         }
 
         public abstract List<Change> GetChanges(Filter filter);
+    }
+
+    public class GenericFilter : Filter
+    {
+        public override FilterType Type => FilterType.Generic;
+
+        public JToken Json { get; set; }
+
+        public new static Filter Create(JToken x)
+        {
+            var f = new GenericFilter();
+            f.Json = x;
+            return f;
+        }
+
+
+        public override string ToString()
+        {
+            return Json?.ToString() ?? "<no json>";
+        }
+
+        public override bool Equals(object obj)
+        {
+            return obj is GenericFilter filter &&
+                   EqualityComparer<JToken>.Default.Equals(Json, filter.Json);
+        }
+
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(base.GetHashCode(), Json);
+        }
+
+        public override List<Change> GetChanges(Filter filter)
+        {
+            if (!(filter is FeatureFilter other))
+                return new Change("Type", $".", filter.GetType().Name);
+            if(!this.Equals(filter))
+                return new Change("Json", Json.ToString(), other?.ToString());
+            return new List<Change>();
+        }
     }
 
     public class FeatureFilter : Filter
