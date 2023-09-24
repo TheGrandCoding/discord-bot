@@ -102,7 +102,9 @@
     "flaresolverr": "<uri>",
     "jackett": "<uri>",
     "jellyfin": "<uri>",
-    "ocrdir": "<string>"
+    "ocrdir": "<string>",
+    "ocrexe": "<string>",
+    "ocrpy": "<string>"
   },
   "vote": {
     "adminEmail": "<string>"

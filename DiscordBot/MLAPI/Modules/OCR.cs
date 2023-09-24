@@ -18,16 +18,11 @@ namespace DiscordBot.MLAPI.Modules
         
         }
 
-#if DEBUG
-        const string pypath = @"D:\_GitHub\mlapibot\run.py";
-#else
-        const string pypath = @"~/bot/mlapibot/run.py";
-#endif
-        private string run_cmd(string cmd, string args)
+        private string run_cmd(string args)
         {
             ProcessStartInfo start = new ProcessStartInfo();
-            start.FileName = "python3";
-            start.Arguments = string.Format("\"{0}\" \"{1}\"", cmd, args);
+            start.FileName = Program.Configuration["urls:ocrexe"];
+            start.Arguments = string.Format("\"{0}\" \"{1}\"", Program.Configuration["urls:ocrpy"], args);
             start.UseShellExecute = false;
             start.RedirectStandardOutput = true;
             using (Process process = Process.Start(start))
@@ -54,12 +49,21 @@ namespace DiscordBot.MLAPI.Modules
                 kind = "png";
             else
                 kind = "jpg";
-            var bytes = Convert.FromBase64String(Context.Body.Substring(split + 1));
             var temp = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"download.{kind}");
-            System.IO.File.WriteAllBytes(temp, bytes);
-            var rtn = run_cmd(pypath, temp).Trim();
-            Program.LogInfo(rtn, "OCR");
-            await RespondRaw(rtn);
+            try
+            {
+                var bytes = Convert.FromBase64String(Context.Body.Substring(split + 1));
+                System.IO.File.WriteAllBytes(temp, bytes);
+                var rtn = run_cmd(temp).Trim();
+                Program.LogInfo(rtn, "OCR");
+                await RespondRaw(rtn);
+            } finally
+            {
+                try
+                {
+                    File.Delete(temp);
+                } catch { }
+            }
         }
     }
 }
