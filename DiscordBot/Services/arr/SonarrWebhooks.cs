@@ -22,7 +22,7 @@ namespace DiscordBot.Services.Sonarr
     {
         public List<SaveChannel> Channels { get; set; }
 
-        const string apiUrl = "https://sonarr.cheale14.com/api";
+        const string apiUrl = "https://sonarr.cheale14.com/api/v3";
 
         public Semaphore Lock = new Semaphore(1, 1);
         public BotHttpClient HTTP { get; private set; }
@@ -202,7 +202,7 @@ namespace DiscordBot.Services.Sonarr
 
         public async Task<SonarrHistoryGrabbedRecord> GetHistory(int episodeId, int seriesId, int attempts = 0)
         {
-            var url = apiUrl + $"/history?sortKey=date&episodeId={episodeId}";
+            var url = apiUrl + $"/history?sortKey=date&episodeId={episodeId}&includeSeries=true";
             Info($"Sending GET{attempts} {url}", "OnGrab");
             var request = new HttpRequestMessage(HttpMethod.Get, url);
             var response = await HTTP.SendAsync(request);
@@ -671,7 +671,7 @@ namespace DiscordBot.Services.Sonarr
         public int seriesId { get; set; }
         public string SourceTitle { get; set; }
         public virtual string EventType { get; set; }
-        public SonarrEpisode Episode { get; set; }
+        //public SonarrEpisode Episode { get; set; }
         public SonarrSeries Series { get; set; }
         public int Id { get; set; }
     }
