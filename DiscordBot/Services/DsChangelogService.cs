@@ -108,13 +108,20 @@ namespace DiscordBot.Services
                 var chrs = line.Distinct().ToArray();
                 if(chrs.Length == 1 && line.Length >= 3)
                 { // header underline e.g. ==========
-                    builder.Title = contentlines[i - 1];
-                    var idx = builder.Title.IndexOf('{');
-                    if(idx != -1)
+                    var text = contentlines[i - 1];
+                    var idx = text.IndexOf('{');
+                    if (idx != -1)
                     {
-                        builder.Title = builder.Title.Substring(0, idx);
+                        text = text.Substring(0, idx);
                     }
-                    lines.RemoveAt(i - 1);
+                    lines.RemoveAt(lines.Count - 1);
+                    if(builder.Title == null)
+                    {
+                        builder.Title = text;
+                    } else
+                    {
+                        lines.Add($"## {text}");
+                    }
                     continue;
                 }
                 lines.Add(line);
