@@ -134,11 +134,8 @@ namespace DiscordBot.MLAPI.Modules
             if(feed != 0)
                 articles = articles.Where(x => x.FeedId == feed);
             articles = articles.OrderByDescending(x => x.PublishedDate).ThenByDescending(x => x.SeenDate);
-            if(page.HasValue)
-            {
-                articles = articles.Skip(page.Value * pageSize.Value);
-                articles = articles.Take(pageSize.Value);
-            }
+            articles = articles.Skip(page.GetValueOrDefault(0) * pageSize.Value);
+            articles = articles.Take(pageSize.Value);
             var jarray = new JArray();
             await foreach(var article in articles)
             {

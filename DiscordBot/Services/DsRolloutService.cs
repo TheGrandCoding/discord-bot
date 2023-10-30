@@ -889,7 +889,7 @@ namespace DiscordBot.Services
 
         public override string ToString()
         {
-            return Json?.ToString() ?? "<no json>";
+            return '`' + (Json?.ToString() ?? "<no json>") + '`';
         }
 
         public override bool Equals(object obj)
