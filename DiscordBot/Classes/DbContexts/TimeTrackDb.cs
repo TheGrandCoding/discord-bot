@@ -106,14 +106,18 @@ namespace DiscordBot.Classes.DbContexts
         }
         public void AddThread(uint user, string id, int comments)
         {
-            var rtd = new RedditData()
+            var existing = this.GetThread(user, id);
+            if (existing == null || existing.Length == 0 || existing.Last().Comments != comments)
             {
-                UserId = user,
-                ThreadId = id,
-                Comments = comments,
-                LastUpdated = DateTime.Now
-            };
-            Threads.Add(rtd);
+                var rtd = new RedditData()
+                {
+                    UserId = user,
+                    ThreadId = id,
+                    Comments = comments,
+                    LastUpdated = DateTime.Now
+                };
+                Threads.Add(rtd);
+            }
         }
         public void AddIgnored(uint user, string id, bool isIgnored)
         {
