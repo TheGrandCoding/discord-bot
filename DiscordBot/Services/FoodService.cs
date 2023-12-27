@@ -1494,7 +1494,7 @@ namespace DiscordBot.Services
                 if(nextStart.HasValue)
                 {
                     step.Duration = nextStart.Value - step.TentativeStartTime.Value;
-                    step.Remaining = step.Duration;
+                    step.RemainingMs = step.Duration * 1000;
                 }
                 step.TentativeStartTime = step.TentativeStartTime.Value + nextDelay;
                 nextStart = step.TentativeStartTime.Value;
@@ -1510,7 +1510,7 @@ namespace DiscordBot.Services
                 {
                     current.Text += " & " + next.Text;
                     current.Duration += next.Duration;
-                    current.Remaining += next.Remaining;
+                    current.RemainingMs += next.RemainingMs;
                     current.DelayNext = Math.Min(current.DelayNext, next.DelayNext);
                     this.SimpleSteps.RemoveAt(idx + 1);
                 } else
@@ -1645,23 +1645,19 @@ namespace DiscordBot.Services
             Text = text;
             Duration = duration;
             DelayNext = delayNext;
-            Remaining = duration;
+            RemainingMs = duration * 1000;
             State = WorkingState.Pending;
         }
 
         public string Text { get; set; }
         public int Duration { get; set; }
         public int DelayNext { get; set; }
-        public int Remaining { get; set; }
+        public long RemainingMs { get; set; }
+        public int Remaining => (int)(RemainingMs / 1000);
         public WorkingState State { get; set; }
         public ulong? StartedAt { get; set; }
         public int? TentativeStartTime { get; set; }
 
-        public void Tick(int elapsed)
-        {
-            Remaining -= elapsed;
-        }
-    
         public JObject ToJson(int modifyRemaining)
         {
             var jobj = new JObject();

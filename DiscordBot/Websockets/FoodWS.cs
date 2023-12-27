@@ -104,20 +104,20 @@ namespace DiscordBot.Websockets
                     }
                 } else if (data.TryGetValue("advance", out var payloadT) && payloadT is JObject payload)
                 {
-                    var catalyst = payload["id"].ToObject<string>();
-                    var allStart = payload["allStart"].ToObject<ulong>();
-                    var started = payload["startedAt"].ToObject<ulong>();
-                    var time = payload["time"].ToObject<ulong>();
+                    var catalyst = payload["catalyst"].ToObject<string>();
+                    var globalStartedAt = payload["globalStartedAt"].ToObject<ulong>();
+                    var when = payload["when"].ToObject<ulong>();
                     if (!Recipe.StartedAt.HasValue)
-                        Recipe.StartedAt = allStart;
+                        Recipe.StartedAt = globalStartedAt;
                     var cat = Recipe.RecipeGroups.FirstOrDefault(x => x.Catalyst == catalyst);
                     if(cat != null)
                     {
                         cat.Muted = null;
                         cat.Alarm = false;
-                        cat.AdvancedAt = time;
-                        cat.StartedAt = started;
-                        var updates = payload["updates"] as JObject;
+                        cat.AdvancedAt = when;
+                        cat.StartedAt = when;
+
+                        var diff = (ulong)DateTimeOffset.Now.ToUnixTimeMilliseconds() - when;
 
                         for(int i = 0; i < cat.SimpleSteps.Count; i++)
                         {
@@ -126,15 +126,13 @@ namespace DiscordBot.Websockets
                             if(step.State == WorkingState.Pending)
                             {
                                 step.State = WorkingState.Ongoing;
+                                step.RemainingMs -= (int)diff;
                                 break;
                             }
                             if(step.State == WorkingState.Ongoing)
                             {
                                 step.State = WorkingState.Complete;
-                                if(updates.TryGetValue(i.ToString(), out var updateObj))
-                                {
-                                    step.Remaining = (int)Math.Round(updateObj["remaining"].ToObject<double>());
-                                }
+                                step.RemainingMs += (int)diff;
                                 var next = cat.SimpleSteps.ElementAtOrDefault(i + 1);
                                 if(next != null)
                                 {
