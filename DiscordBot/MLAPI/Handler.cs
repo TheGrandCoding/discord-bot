@@ -44,7 +44,7 @@ namespace DiscordBot.MLAPI
             Server.Start();
             m_listening = true;
             buildEndpoints();
-            Task.Run(async () =>
+            Task.Factory.StartNew(async () =>
             {
                 try
                 {
@@ -54,7 +54,7 @@ namespace DiscordBot.MLAPI
                 {
                     Program.LogError(ex, "Handler");
                 }
-            });
+            }, TaskCreationOptions.LongRunning);
         }
 
         static bool m_listening;
@@ -408,18 +408,18 @@ namespace DiscordBot.MLAPI
                 try
                 {
                     req = await Server.GetContextAsync().WaitAsync(token);
-                    _ = Task.Run(async () =>
+                    _ = Task.Factory.StartNew(async (ctx) =>
                     {
                         try
                         {
-                            await innerLoop(req);
+                            await innerLoop((HttpListenerContext)ctx);
                             exceptions = 0;
                         } catch(Exception ex)
                         {
                             Program.LogError(ex, "REST-Execute");
                             exceptions++;
                         }
-                    });
+                    }, req, TaskCreationOptions.LongRunning);
                 }
                 catch (OperationCanceledException)
                 {
@@ -518,9 +518,8 @@ namespace DiscordBot.MLAPI
 
         static async Task handleRequest(APIContext context)
         {
-            using var services = Program.GlobalServices.CreateScope();
             context.Id = Guid.NewGuid();
-            Console.WriteLine($"{(context?.Id.ToString() ?? "null")}: {(context.Request?.RemoteEndPoint?.ToString() ?? "null")} {(context?.Request?.Url.ToString() ?? "null")}");
+            Program.LogDebug($"{(context?.Id.ToString() ?? "null")}: {(context.Request?.RemoteEndPoint?.ToString() ?? "null")} {(context?.Request?.Url.ToString() ?? "null")}", "HandleRequest");
             var idSplit = context.Id.ToString().Split('-');
             var logger = new RequestLogger(context);
             Func<ErrorJson, int, string> sendError = (ErrorJson reply, int code) =>
@@ -542,6 +541,7 @@ namespace DiscordBot.MLAPI
 
             if(!(context.Path.Contains("/_/") || context.Path.StartsWith("/api/tracker/")))
                 logger.Write();
+
 
             List<APIEndpoint> endpoints;
             if(!Endpoints.TryGetValue(context.Method, out endpoints))
@@ -637,7 +637,7 @@ namespace DiscordBot.MLAPI
                     sendError(new ErrorJson(ex.Message), 500);
                 }
                 catch { }
-                Program.LogError(ex, "ExHandler");
+                Program.LogError($"{context.Path} err", "ExHandler", ex);
             } finally
             {
                 try
@@ -656,7 +656,7 @@ namespace DiscordBot.MLAPI
                     Program.LogError(ex, "AfterExDispose");
                 }
             }
-            Console.WriteLine($"{context.Id}: Returned {commandBase.StatusSent}");
+            Program.LogDebug($"{context.Path} {context.Id} fully complete, returned {commandBase.StatusSent}", "HandleRequest");
         }
     }
 }

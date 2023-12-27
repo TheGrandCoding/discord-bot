@@ -386,17 +386,32 @@ Changed how permissions worked for bot.
             sb.Append(msg.When.ToString("[HH:mm:ss.fff] "));
             sb.Append($"<{msg.Severity.ToString().PadRight(8)}|{(msg.Source ?? "n/s").PadRight(18)}> ");
             int padLength = sb.Length + 1;
-            var s = msg.Exception?.ToString() ?? msg.Message ?? "n/m";
+            string s;
+            if (msg.Exception == null)
+            {
+                s = msg.Message ?? "n/a";
+            } else
+            {
+                s = (msg.Message ?? "") + " " + msg.Exception.ToString();
+            }
             sb.Append(s.Replace("\n", "\n" + new string(' ', padLength)));
             return sb.ToString();
         }
 
+        static SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
         static void consoleLog(object sender, LogMessage msg)
         {
-            var c = Console.ForegroundColor;
-            Console.ForegroundColor = getColor(msg.Severity);
-            Console.WriteLine(FormatLogMessage(msg));
-            Console.ForegroundColor = c;
+            _lock.Wait();
+            try
+            {
+                var c = Console.ForegroundColor;
+                Console.ForegroundColor = getColor(msg.Severity);
+                Console.WriteLine(FormatLogMessage(msg));
+                Console.ForegroundColor = c;
+            } finally
+            {
+                _lock.Release();
+            }
         }
 
         public static event EventHandler<LogMessage> Log;

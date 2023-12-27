@@ -10,6 +10,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace DiscordBot.RESTAPI.Functions.HTML
@@ -76,12 +77,12 @@ namespace DiscordBot.RESTAPI.Functions.HTML
             var fullPath = Path.Combine(Program.BASE_PATH, "HTTP", "_", bracket, Program.GetSafePath(filePath));
             var lastMod = getLastModified(fullPath);
             var priorMod = Context.Request.Headers["If-None-Match"];
-            if(lastMod == priorMod)
+            if (lastMod == priorMod)
             {
                 await RespondRaw("", HttpStatusCode.NotModified);
                 return;
             }
-            if(!File.Exists(fullPath))
+            if (!File.Exists(fullPath))
             {
                 await RespondRaw("Unknown item.", 404);
                 return;
@@ -89,8 +90,11 @@ namespace DiscordBot.RESTAPI.Functions.HTML
             Context.HTTP.Response.Headers["ETag"] = lastMod;
             Context.HTTP.Response.Headers["Cache-Control"] = "max-age:3600";
             Context.HTTP.Response.ContentType = mimeType;
-            using var fs = File.OpenRead(fullPath);
-            await ReplyStream(fs, 200);
+
+            using (var fs = File.OpenRead(fullPath))
+            {
+                await ReplyStream(fs, 200);
+            }
         }
 
         string getMimeType(string extension)

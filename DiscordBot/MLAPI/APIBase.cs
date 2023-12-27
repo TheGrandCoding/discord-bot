@@ -469,7 +469,11 @@ tryagain:
         {
             StatusSent = code;
             Context.HTTP.Response.StatusCode = code;
-            await stream.CopyToAsync(Context.HTTP.Response.OutputStream);
+
+            using (var output = Context.HTTP.Response.OutputStream)
+            {
+                await stream.CopyToAsync(output);
+            }
             Context.HTTP.Response.Close();
         }
 
