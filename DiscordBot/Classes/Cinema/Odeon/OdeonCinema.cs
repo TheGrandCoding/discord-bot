@@ -150,7 +150,7 @@ startFunc:
             {
                 if(retried)
                 {
-                    throw e;
+                    throw;
                 } else
                 {
                     retried = true;
