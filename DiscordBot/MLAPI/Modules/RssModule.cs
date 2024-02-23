@@ -2,6 +2,7 @@
 using DiscordBot.MLAPI.Attributes;
 using DiscordBot.Services;
 using DiscordBot.Utils;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json.Linq;
 using System;
@@ -14,6 +15,7 @@ using System.Xml;
 
 namespace DiscordBot.MLAPI.Modules
 {
+    [RequireOwner]
     public class RssModule : AuthedAPIBase
     {
         public RssModule(APIContext context) : base(context, "rss")
@@ -128,14 +130,18 @@ namespace DiscordBot.MLAPI.Modules
 
         [Method("GET"), Path("/api/rss/articles/{feed}")]
         [Regex("feed", "[0-9]+")]
-        public async Task ApiGetArticles(int feed, int? page = null, int? pageSize = 25)
+        public async Task ApiGetArticles(int feed, string search = null, int? page = null, int? pageSize = null)
         {
+            var pg = pageSize.GetValueOrDefault(25);
             var articles = DB.Articles.AsAsyncEnumerable();
             if(feed != 0)
                 articles = articles.Where(x => x.FeedId == feed);
+            if (search != null)
+                articles = articles.Where(x => x.Title.Contains(search) || x.Author == search);
+
             articles = articles.OrderByDescending(x => x.PublishedDate).ThenByDescending(x => x.SeenDate);
-            articles = articles.Skip(page.GetValueOrDefault(0) * pageSize.Value);
-            articles = articles.Take(pageSize.Value);
+            articles = articles.Skip(page.GetValueOrDefault(0) * pg);
+            articles = articles.Take(pg);
             var jarray = new JArray();
             await foreach(var article in articles)
             {
