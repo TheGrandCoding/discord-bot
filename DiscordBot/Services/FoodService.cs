@@ -704,13 +704,16 @@ namespace DiscordBot.Services
             var lastDay = Days.LastOrDefault()?.Date ?? _now;
             if((lastDay - _now).TotalDays < 7)
             {
-                log.AppendLine($"- {lastDay} is too close, appending another week.");
-                var mondate = lastDay.NextDay(DayOfWeek.Monday);
-                for(int i = 0; i < 7; i++)
+                log.AppendLine($"- {lastDay} is too close, appending to next full week.");
+                var nextSunday = lastDay.NextDay(DayOfWeek.Sunday);
+                if ((nextSunday - _now).TotalDays < 7)
+                    nextSunday = nextSunday.AddDays(7);
+
+                while (lastDay < nextSunday)
                 {
-                    var newDay = new WorkingMenuDay(mondate.Date, new());
-                    Days.Add(newDay);
-                    mondate = mondate.AddDays(1);
+                    var next = lastDay.AddDays(1);
+                    Days.Add(new(next.Date, new()));
+                    lastDay = next;
                 }
             }
             var inventory = db.GetInventory(inventoryId);
