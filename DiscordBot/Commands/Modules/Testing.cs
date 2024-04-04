@@ -69,6 +69,7 @@ namespace DiscordBot.Commands.Modules
         {
             var byName = new Dictionary<string, List<MLAPI_Entry>>();
             var byDate = new Dictionary<string, List<MLAPI_Entry>>();
+            int removed = 0;
 
             ulong? lastMessageId = null;
             ITextChannel chnl = Context.Channel as ITextChannel;
@@ -92,7 +93,13 @@ namespace DiscordBot.Commands.Modules
 
                     if (msg.Embeds.Count == 0) continue;
                     var embed = msg.Embeds.First();
-                    if (embed.Title == "Reply" || embed.Title == "Reported Comment" || embed.Title == "Removed Comment" || embed.Title.StartsWith("Inbox:")) continue;
+                    if (embed.Title == "Reply" || embed.Title == "Reported Comment" || embed.Title.StartsWith("Inbox:") || embed.Title == "Error With Image") continue;
+
+                    if (embed.Title == "Removed Comment")
+                    {
+                        removed++;
+                        continue;
+                    }
 
                     string type = embed.Description;
                     if (type.Contains('\n'))
@@ -114,15 +121,15 @@ namespace DiscordBot.Commands.Modules
             int total = 0;
             foreach(var date in byDate)
             {
-                File.AppendAllText(Path.Combine(Program.BASE_PATH, "by_dates.csv"), $"{date.Key},{date.Value.Count}\n");
+                File.AppendAllText(Path.Combine(Program.BASE_PATH, "by_dates.csv"), $"\"{date.Key}\",{date.Value.Count}\n");
                 total += date.Value.Count;
             }
             foreach(var type in byName)
             {
-                File.AppendAllText(Path.Combine(Program.BASE_PATH, "by_names.csv"), $"{type.Key},{type.Value.Count}\n");
+                File.AppendAllText(Path.Combine(Program.BASE_PATH, "by_names.csv"), $"\"{type.Key}\",{type.Value.Count}\n");
             }
             File.WriteAllText(Path.Combine(Program.BASE_PATH, "dates.json"), JsonConvert.SerializeObject(byDate));
-            await ReplyAsync($"Done! Counted {total} total.");
+            await ReplyAsync($"Done! Counted {total} total, with {removed} removals.");
         }
 
         [DebuggerDisplay("{" + nameof(GetDebuggerDisplay) + "(),nq}")]

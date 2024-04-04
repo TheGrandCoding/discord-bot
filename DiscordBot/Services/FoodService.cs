@@ -50,6 +50,7 @@ namespace DiscordBot.Services
         public void SetWorkingMenu(WorkingMenu menu)
         {
             _workingMenu = menu;
+            this.OnSave();
         }
 
         public FoodDbContext DB()
@@ -430,6 +431,16 @@ namespace DiscordBot.Services
                     }
                 });
             }
+        }
+
+        public int PurgeRemainingMenuDays(IServiceProvider services)
+        {
+            var menu = GetWorkingMenu(services);
+            var tomorrow = DateTime.Now.ToLastSecond();
+            var days = menu.Days.RemoveAll(x => x.Date >= tomorrow);
+            attemptFullfill(menu, true);
+            this.SetWorkingMenu(menu);
+            return days;
         }
 
         void attemptFullfill(WorkingMenu menu, bool forceLog)

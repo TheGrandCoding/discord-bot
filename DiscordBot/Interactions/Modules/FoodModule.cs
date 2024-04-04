@@ -1,6 +1,8 @@
 ﻿using Discord;
 using Discord.Interactions;
 using DiscordBot.Services;
+using DiscordBot.Utils;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -105,7 +107,51 @@ namespace DiscordBot.Interactions.Modules
 
             await RespondWithModalAsync(mb.Build());
         }
-    
+
+
+        [SlashCommand("menu", "List or set a menu")]
+        public async Task SetNextMenu(int? menuId = null)
+        {
+            if (menuId == null)
+            {
+                var embed = new EmbedBuilder();
+                foreach ((var id, var menu) in Service.Menus)
+                {
+                    embed.AddField($"{id}", menu.Title + ".");
+                }
+                if (embed.Fields.Count == 0)
+                {
+                    embed.Title = "No menus";
+                    embed.Description = "There are no menus added.";
+                } else
+                {
+                    var workingMenu = Service.GetWorkingMenu(Services);
+                    embed.Description = $"Currently from: {workingMenu.FromMenu}\nCurrently selected: {workingMenu.NextComingUp}";
+                }
+
+
+                await RespondAsync(embed: embed.Build(), ephemeral: true);
+            } else
+            {
+                if (!Service.Menus.TryGetValue(menuId.Value, out var menu))
+                {
+                    await RespondAsync(":x: that menu does not exist", ephemeral: true);
+                    return;
+                }
+
+                var workingMenu = Service.GetWorkingMenu(Services);
+                workingMenu.NextComingUp = menuId.Value;
+                Service.SetWorkingMenu(workingMenu);
+                await RespondAsync("Menu has been selected.");
+            }
+        }
+
+        [SlashCommand("skip", "Purges the remaining days of the working menu")]
+        public async Task SkipNextWorkingDays()
+        {
+            var days = Service.PurgeRemainingMenuDays(Services);
+            await RespondAsync($"{days} have been purged. The menu will be refilled at next check");
+        }
     }
 
     public class FoodProductModal : IModal
