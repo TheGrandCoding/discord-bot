@@ -138,5 +138,16 @@ namespace DiscordBot.MLAPI.Modules
             await _checkRestart("mlapibot", "ML");
         }
 
+
+        [Method("POST"), Path("webhooks/ds-statuspage")]
+        [RequireAuthentication(false)]
+        [RequireApproval(false)]
+        public async Task StatusPage()
+        {
+            var jobj = JObject.Parse(Context.Body);
+            var reason = jobj.ContainsKey("incident") ? "incident new/update" : "component new/update";
+            await Program.SendLogMessageAsync($"Status `{reason}` webhook received.");
+            await RespondRaw("Ok.", 200);
+        }
     }
 }
