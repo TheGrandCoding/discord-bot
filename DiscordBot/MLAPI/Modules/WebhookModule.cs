@@ -146,7 +146,23 @@ namespace DiscordBot.MLAPI.Modules
         {
             var jobj = JObject.Parse(Context.Body);
             var reason = jobj.ContainsKey("incident") ? "incident new/update" : "component new/update";
-            await Program.SendLogMessageAsync($"Status `{reason}` webhook received.");
+
+            var content = $"Status `{reason}` webhook received.";
+            try
+            {
+                var file = Program.GetTempPath("status_webhook.json");
+                using (var stream = System.IO.File.CreateText(file))
+                {
+                    await stream.WriteAsync(Context.Body);
+                }
+
+                await Program.SendLogFileAsync(file, content);
+            } catch (Exception e)
+            {
+                await Program.SendLogMessageAsync($"{content}\r\nError: {e}");
+            }
+
+
             await RespondRaw("Ok.", 200);
         }
     }
