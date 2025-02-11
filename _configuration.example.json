@@ -85,6 +85,12 @@
     },
     "smmry": "<string>",
     "sonarr": "<string>",
+    "temperature": {
+      "dlpath": "<string>",
+      "host": "<string>",
+      "key": "<string>",
+      "user": "<string>"
+    },
     "tgc-github": "<string>",
     "tiktok": {
       "app_id": "<ulong>",

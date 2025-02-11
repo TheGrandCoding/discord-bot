@@ -305,7 +305,7 @@ namespace DiscordBot.MLAPI
 
         static string[] csp_updated = new string[]
         {
-            "/login", "/ocr", "/food", "/filters", "/legal", "/rss"
+            "/login", "/ocr", "/food", "/filters", "/legal", "/rss", "/temps"
         };
 
         static void addSecurityHeaders(HttpListenerContext context)
