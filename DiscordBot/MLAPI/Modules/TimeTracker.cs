@@ -99,6 +99,14 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
             await RespondRaw("OK", HttpStatusCode.Created);
         }
 
+        [Method("POST"), Path("/api/tracker/threads")]
+        public async Task VisitThread(string id, int count)
+        {
+            DB.AddThread(Context.User.Id, id, count);
+            DB.SaveChanges();
+            await RespondRaw("ok");
+        }
+
         [Method("GET"), Path("/api/tracker/threads")]
         public async Task GetThreads(string ids, int v = 2)
         {
@@ -108,23 +116,20 @@ namespace DiscordBot.MLAPI.Modules.TimeTracking
                 if (string.IsNullOrWhiteSpace(id))
                     continue;
                 var threads = DB.GetThread(Context.User.Id, id);
+                
                 var threadObj = new JObject();
-                var thing = threads.LastOrDefault();
-                if (thing == null)
-                    continue;
-                if(v == 2)
+                var arr = new JArray();
+
+                foreach(var x in threads)
                 {
-                    var jar = new JArray();
-                    foreach(var x in threads)
-                    {
-                        jar.Add(new DateTimeOffset(x.LastUpdated).ToUnixTimeMilliseconds());
-                    }
-                    threadObj["time"] = jar;
-                } else
-                {
-                    threadObj["time"] = new DateTimeOffset(thing.LastUpdated).ToUnixTimeMilliseconds();
+                    var obj = new JObject();
+                    obj["t"] = new DateTimeOffset(x.LastUpdated).ToUnixTimeMilliseconds();
+                    obj["c"] = x.Comments;
+                    arr.Add(obj);
                 }
-                threadObj["count"] = thing.Comments;
+
+                threadObj["visits"] = arr;
+
                 jobj[id] = threadObj;
             }
             await RespondJson(jobj, 200);
