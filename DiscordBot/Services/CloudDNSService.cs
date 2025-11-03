@@ -12,6 +12,8 @@ namespace DiscordBot.Services
 {
     public class CloudDNSService : SavedClassService<CloudSave>
     {
+        public override bool IsEnabled => false;
+
         bool croned = false;
         public override void OnReady(IServiceProvider services)
         {
